@@ -14428,20 +14428,57 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-earlier-turn-loss",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T09:35:01",
+          "ci": {
+            "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+            "runs": [
+              45205524348
+            ]
+          },
+          "commit": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "criteria": {
+            "A1": "261123-072804-625133 (passed at e0a47a309834; only 1 merge from main since, none touching its files); fails without: 261123-072807-0eb04a",
+            "A2": "261123-072809-40f146 (passed at e0a47a309834; only 1 merge from main since, none touching its files)",
+            "A3": "261123-072811-92707d (passed at e0a47a309834; only 1 merge from main since, none touching its files)",
+            "A4": "[artifact] `docs/mechanisms/turn-log-damage.md`: \"Damage to any earlier turn is reported\" (Limits; rule 6 in the same file; the newest turn's 36 of 201 stay for O3b)",
+            "A5": "`ci:ci` (run 45205524348 at e0a47a3, green), suite 261123-072811-92707d"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e0a47a3098342c0203d2788422e6db927c758e0d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9e0649dea76f66e5b7a799a0672df5e3fcd21953",
+          "reason": "",
+          "tested": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Turn log recovery never drops acknowledged turns silently after earlier-turn damage",
-      "updated": "2026-11-23T07:57:56",
-      "worktree": "../journal-wt/detent/journal-earlier-turn-loss"
+      "updated": "2026-11-23T09:35:07",
+      "worktree": ""
     },
     "journal-faultfs": {
       "accepted": {},
