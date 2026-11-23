@@ -27444,7 +27444,8 @@
         "consensus-peers-wake",
         "consensus-transport-test-flakes",
         "xapiand:consensus-request-install",
-        "xapiand:split-check-members"
+        "xapiand:split-check-members",
+        "consensus-driver-flow"
       ],
       "checks": [
         {
@@ -27497,7 +27498,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Every source file in consensus is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T22:26:09"
+      "updated": "2026-11-23T06:07:43"
     },
     "split-detent": {
       "accepted": {},
