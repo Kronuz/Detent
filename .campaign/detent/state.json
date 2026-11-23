@@ -7037,18 +7037,48 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-transport-test-flakes",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T05:57:55",
+          "ci": {
+            "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+            "runs": [
+              45163583887
+            ]
+          },
+          "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+          "criteria": {
+            "A1": "Causes in Result below; fix passes 261123-001439-fbd373 (carried across main's merges); the pre-fix reproducers are A2's `--fails-without` jobs (A2 row), not cited here: a row's job must pass at the head's code, which a pre-fix job never does",
+            "A2": "261123-001439-fbd373 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-892f73 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-30cd55 (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001440-591e3d (passed at 90321baf4286; only 1 merge from main since, none touching its files), 261123-001441-c98947 (passed at 90321baf4286; only 1 merge from main since, none touching its files); fails without: 261121-143436-5d5a0f, 261121-143443-734524, 261121-143509-02c420, 261121-212631-ac045b, 261121-212632-5bcdd7, 261122-220503-cbf63a, 261122-220506-6b6202",
+            "A3": "`ci:linux-tsan`, `ci:macos-x86_64` (run 44989408833: attempts 1, 2, 3 green on both)",
+            "A4": "`ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e396c1e342bef76924a38b08c6a226cb48f82214",
+          "reason": "",
+          "tested": "3d7738fcca134c536d4c5f9cc0d3e6c66dfb1de5"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "rpc_host fetch under TSan and group-full on macOS x86_64 pass every time",
-      "updated": "2026-11-21T21:26:41",
-      "worktree": "../consensus-wt/detent/consensus-transport-test-flakes"
+      "updated": "2026-11-23T05:58:20",
+      "worktree": ""
     },
     "consensus-wave-open": {
       "accepted": {
