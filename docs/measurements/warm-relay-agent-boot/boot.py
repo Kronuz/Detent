@@ -1,8 +1,8 @@
 """Time one cold agent bootstrap from a relay, warm or cold.
 
 usage: boot.py MODE FIXTURE OUTPUT BUILD TREE
-  MODE   warm: start the relay, wait for "durable bundles ready" at the fixture's revision and for
-         the relay to go idle, then start the clock and one cold agent.
+  MODE   warm: start the relay, wait for "the namespace mirror is ready" and for the relay to go
+         idle, then start the clock and one cold agent.
          cold: start the relay and the agent under one clock (coldboot.py's measurement).
   FIXTURE holds state-0..2 and seeded.json (records, revision); it is cloned, never written.
   BUILD  the release build directory; TREE the checkout whose tests/detent_system it runs.
@@ -29,11 +29,10 @@ from authority import Authority
 from capacity import CapacityProfile
 from managed import ManagedCohort
 from mixed import MixedWriters
-from run_fleet import relay_snapshot
 from runtime import Actors, Evidence
 
-READY = b"durable bundles ready"
-SELECTION_TIMEOUT = 1800
+READY = b"the namespace mirror is ready"
+SELECTION_TIMEOUT = 420
 SETTLE_LIMIT = 120.0
 
 
@@ -238,20 +237,28 @@ async def run() -> dict[str, Any]:
                         await asyncio.sleep(0.5)
             marks["authority_ready_s"] = time.monotonic() - t0
             writers = MixedWriters(authority, records, 4, 17, maximum_records=records)
-            state = await asyncio.wait_for(
-                writers.successful(
-                    0,
-                    "/v2/read",
-                    {"namespace": authority.namespace(0), "keys": [writers.key(0)]},
-                ),
-                60,
-            )
-            revision = state.get("version")
-            if type(revision) is not int or revision < seeded_revision:
+            positions: dict[str, int] = {}
+            for producer in range(4):
+                name = authority.namespace(producer)
+                state = await asyncio.wait_for(
+                    writers.successful(
+                        producer,
+                        "/v2/read",
+                        {"namespace": name, "keys": [writers.key(producer)]},
+                    ),
+                    60,
+                )
+                version = state.get("version")
+                if type(version) is not int or version < 1:
+                    raise RuntimeError(f"authority {name} position {version}")
+                positions[name] = version
+            revision = max(positions.values())
+            if revision < seeded_revision:
                 raise RuntimeError(
                     f"authority revision {revision} below seeded {seeded_revision}"
                 )
             marks["revision"] = revision
+            marks["positions"] = positions
             cohort = ManagedCohort(
                 authority,
                 actors,
@@ -279,20 +286,19 @@ async def run() -> dict[str, Any]:
             if MODE == "warm":
                 while not relay_ready:
                     if cohort.relays[0].process.returncode is not None:
-                        raise RuntimeError("relay exited before durable bundles ready")
+                        raise RuntimeError("relay exited before its mirror was ready")
                     if time.monotonic() - relay_start > SELECTION_TIMEOUT:
-                        raise TimeoutError("relay missed durable bundles ready")
+                        raise TimeoutError("relay mirror never ready")
                     await asyncio.sleep(0.05)
                 marks["relay_ready_s"] = relay_ready[0] - relay_start
                 while True:
                     _, health = await authority.request(
                         0, "/v1/health", endpoint_port=cohort.relay_ports[0]
                     )
-                    bundle = health["bundles"][0]
-                    if bundle["revision"] >= revision and bundle["snapshot_ready"]:
+                    if health.get("ready") and health["mirror"]["ready"]:
                         break
                     if time.monotonic() - relay_start > SELECTION_TIMEOUT:
-                        raise TimeoutError("relay never reached the fixture's revision")
+                        raise TimeoutError("relay health never ready")
                     await asyncio.sleep(0.1)
                 marks["relay_revision_s"] = time.monotonic() - relay_start
                 # Idle: four half-second samples in a row add at most 0.01 s of relay CPU.
@@ -318,7 +324,7 @@ async def run() -> dict[str, Any]:
             await asyncio.wait_for(cohort.start(), 60)
             agent = cohort.members[0].process.pid
             tracer.pids["agent"] = agent
-            await asyncio.wait_for(cohort.wait_selected(revision), SELECTION_TIMEOUT)
+            await asyncio.wait_for(cohort.wait_selected(positions), SELECTION_TIMEOUT)
             selected = time.monotonic()
             marks["agent_selected_s"] = selected - start
             marks["relay_start_to_selected_s"] = selected - relay_start
@@ -331,7 +337,10 @@ async def run() -> dict[str, Any]:
             marks["relay_cpu_s"] = usage[relay][0]
             marks["agent_wire"] = nettop(agent)
             marks["relay_wire"] = nettop(relay)
-            await asyncio.wait_for(relay_snapshot(cohort, evidence, "end"), 30)
+            _, health = await authority.request(
+                0, "/v1/health", endpoint_port=cohort.relay_ports[0]
+            )
+            evidence.record("relay_health", phase="end", relay=0, snapshot=health)
             await cohort.close()
             marks["relay_cpu_at_agent_start_s"] = tracer.cpu_at("relay", start)
             marks["agent_rss_peak_kib"] = max(
@@ -363,10 +372,14 @@ def summarize(output: Path, marks: dict[str, Any]) -> dict[str, Any]:
     for raw in (output / "events.jsonl").read_text().splitlines():
         event = json.loads(raw)
         if event.get("kind") == "relay_health" and event.get("phase") == "end":
-            relay = event["snapshot"]["bundles"][0]
+            relay = event["snapshot"]["mirror"]
     if not synced:
         raise RuntimeError("the agent logged no publication synced line")
     published = synced[0][0] - start_wall
+    # "publication synced F files in G groups, D directory syncs, N device flushes; ..."
+    publication = [
+        int(word) for word in synced[0][1].split(";")[0].split() if word.isdigit()
+    ]
     agent_cpu_at_published = max(
         (
             cpu
@@ -400,9 +413,12 @@ def summarize(output: Path, marks: dict[str, Any]) -> dict[str, Any]:
         - (marks["relay_cpu_at_agent_start_s"] or 0.0),
         "agent_publication": synced[0][1],
         "agent_hashed": hashed[0] if hashed else None,
-        "relay_publication_files": relay.get("publication_files"),
-        "relay_publication_device_flushes": relay.get("publication_device_flushes"),
-        "relay_revision": relay.get("revision"),
+        "agent_publication_files": publication[0],
+        "agent_publication_device_flushes": publication[3],
+        "relay_mirror_fetched_files": relay.get("fetched_files"),
+        "relay_mirror_fetched_bytes": relay.get("fetched_bytes"),
+        "relay_mirror_answers": relay.get("answers"),
+        "relay_mirror_page_builds": relay.get("pages", {}).get("builds"),
         "total_s": marks["total_s"],
     }
     return summary
