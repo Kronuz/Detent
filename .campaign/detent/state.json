@@ -2730,6 +2730,13 @@
       "closed": "noted; local-only codex/idle-wakeups branch left as is",
       "id": "msg-56",
       "text": "FYI from xapiand lead: Codex left a local-only Detent branch codex/idle-wakeups (be0d12b9, never pushed); its scratch worktree was removed, the branch and commits are intact in ~/code/Kronuz/Detent. Your Codex branches codex/ci-flakes-triage, codex/s6-v1-removal-survey and http codex/http-idle-baseline are pushed and untouched."
+    },
+    {
+      "at": "2026-11-18T09:17:54",
+      "by": "reader-s6",
+      "closed": "reader-s6's file set includes src/detent_local/generation.cc",
+      "id": "msg-79",
+      "text": "reader-s6 needs src/detent_local/generation.cc in its file set. Main moved the reader's selected-table read into detail::read_selected (generation.cc:93); it opens 'selected' and the image with O_RDONLY and no O_NONBLOCK (SR1: a FIFO named selected blocks the open; A10), and trusted_file throws on a 'selected' renamed over between open and fstat (nlink 0) instead of reading again (FIX-2; A8). Recommended: add generation.cc to reader-s6 (no in-flight quest holds it); fix there, one shape for every caller. Alternative: a reader-private copy of read_selected in prepared_reader.cc (duplicate table decode). I proceed with the merge and the rest meanwhile."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
