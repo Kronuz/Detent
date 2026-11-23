@@ -9,27 +9,39 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Local ASan build (consensus worktree .scratch/asan-timeout/build) to time the driver
-simulation's healing and repair waits per seed.
+A1 job 261123-120158-c6e7a8 (strict A/B main vs fix); then A2 (bound, --fails-without at
+main), A3 shards (asan-many.sh), push for A4.
 
-## Findings so far
+## Findings
 
-- The failing CI logs show no progress line: the test prints only at its end, so a timeout
-  leaves nothing (ctest --output-on-failure printed an empty body).
-- Not a hang: 46 ASan runs (2026-11-21..23) fall into runner classes by consensus_consensus
-  time. Both timeouts (45234099713, 45204597820) ran on the slow class: consensus_consensus
-  4.41/4.69 s vs 2.87 s, liveness 169/176 s vs 81 s, total 2512/3105 s vs 1583 s on the passing
-  run of the same commit (45204437379). Every test on those runners is 1.5-2.2x slower.
-- The simulation tripled at consensus:8780e44 (driver install merged): 58 s -> 170 s on the
-  normal class. 4d5b6e2 made the repair check wait 1000 + 30000 quiet rounds (2x the 60 s
-  snapshot_timeout at 4 ms/round); healing waits 4000 + 30000. Hypothesis: those simulated idle
-  rounds dominate.
+- Not a hang. The failing CI logs show no progress line (stdout fully buffered; the test
+  printed nothing before the kill). 46 ASan runs on 2026-11-21..23 fall into runner classes:
+  both timeouts ran on the slow class (consensus_consensus 4.41/4.69 s vs 2.8-3.1 s typical,
+  liveness 169/176 s vs ~80 s, shared_worker 233/258 vs ~140), every test 1.5-2.2x slower.
+- The simulation is deterministic: per-seed heal round counts repeat exactly across runs.
+- It tripled (58 -> 170 s typical CI) at consensus:8780e44 (Driver install). Local probe at
+  main (consensus .scratch/asan-timeout/probe-main.txt): driver seeds 10, 15, 16, 18 each
+  idle 9,800-13,900 heal rounds (63+47+83+38 = 231 s of a 373 s run) waiting out the 60 s
+  snapshot_timeout of a stalled image transfer; the sim's other timers are scaled 5-10x down.
+- Core sim heal: always 4,000 rounds, proposing only from round 2,000; 53% of the core phase
+  (macOS `sample`). With proposals from round 0 and a stop once a majority applied: healed
+  within 4-713 rounds (median 130) on seeds 1-200.
+
+## Fix (consensus:04bb069, doc consensus:b5e1d47)
+
+- driver_simulation.cc: snapshot_timeout 60000 -> 1000 ms (5x election_max).
+- simulation_test.cc: core heal proposes every 50 rounds from round 0 and stops once a
+  majority applies; stdout line-buffered.
+- docs/mechanisms/simulation.md.
+- Local probes (not evidence): full run 387 s -> 208 s under the same load (snapshot_timeout
+  alone); core phase 47 -> 32 s; sweep of driver seeds 21-120 and core seeds 201-400 at the
+  fix passes.
 
 ## Next
 
-1. Time driver seeds alone vs core seeds alone under ASan; count quiet rounds per seed.
-2. Bound the waits (shorter snapshot_timeout in the sim's Timing, or skip idle rounds).
-3. A2/A3 jobs; push for A4.
+1. A2: bound job at the fix and --fails-without at main.
+2. A3: 5 strict shards of 10 runs (asan-many.sh), none over 200 s.
+3. Push; cite ci:linux-asan-ubsan, ci:ci with the simulation's CI time.
 
 ## Blocked on
 
