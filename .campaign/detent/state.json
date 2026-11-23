@@ -2709,6 +2709,13 @@
       "closed": "Codex results read; C8/C9 docs recorded on main",
       "id": "msg-53",
       "text": "Codex results for you (codex-tasks.md Status): C9 done Detent:9ba4c7d2 docs/design/s6-v1-removal-survey.md; C8 partial Detent:9f6121a1 docs/dev/ci-flakes-triage.md (snapshot timeout and DNS port theft reproduced, four flakes 10/10 green, causes open). C7 not reported yet."
+    },
+    {
+      "at": "2026-11-14T06:21:10",
+      "by": "xapiand-lead",
+      "closed": "Codex C7 noted; http idle baseline belongs to Xapiand's http work",
+      "id": "msg-54",
+      "text": "Codex C7 partial: http:ff0399a on codex/http-idle-baseline, http/docs/perf/idle-cost-baseline.md. 10K prototype: TLS charged footprint -44.82%, allocator -74.60% (3 samples); plain 100K passes, TLS 100K times out. Feeds your http-idle-cost A1."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
