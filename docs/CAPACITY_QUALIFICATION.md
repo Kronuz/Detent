@@ -23,11 +23,11 @@ This table records the starting boundaries. [Startup runtime configuration](CAPA
 | Classic distributor | Has a count option; parser calls still use the default byte bound | Make count, body and decoded-byte bounds coherent |
 | Legacy agent image | Compiled 4 MiB payload and 32-bit offsets | Keep refusals explicit; use the managed paged path for large-system qualification |
 | Authority state | Defaults to 500K keys; constructor ceiling is 1M keys and 1 GiB image | Design coherent runtime capacity beyond 1M before claiming 5M support |
-| Authority profile | Limits participate in peer identity, batch encoding and checkpoint validation | Preserve equality checks; startup configuration alone does not permit online raises |
+| Authority profile | Limits participate in peer identity, batch encoding and checkpoint validation; `keys`, `state_bytes` and `image_bytes` rise at a coordinated restart (D141) | Qualify a raise on a grown group at the target tier |
 | Managed delivery and local images | Default 500K record bounds in downstream components | Carry coherent capacity through decoder, builder, recovery and reader |
 | Fleet harness | Scenario validation stops at 500K records | Extend admission and scenario bounds together |
 
-A larger configuration must still bound input and allocation. Removing guards does not create capacity. Changing a recovered authority's semantic profile must continue to fail until a replicated limit-transition mechanism is implemented and qualified. Do not use an export into a fresh group as evidence of online growth.
+A larger configuration must still bound input and allocation. Removing guards does not create capacity. A recovered authority accepts only a raise of `keys`, `state_bytes` or `image_bytes`, made on every voter at one restart, and refuses any other change naming the field ([capacity raise](mechanisms/authority-capacity-raise.md)). Do not use an export into a fresh group as evidence of growth.
 
 ## Measurement matrix
 
@@ -67,7 +67,7 @@ The review covers scalability, edge cases, dependency/state ownership and securi
 
 Qualify a fresh group configured for the complete 5M envelope, growing its contents through the matrix without recompiling or recreating it. This closes startup capacity only. Keep the application semantic profile in peer admission, batch framing and checkpoint validation unchanged during this stage.
 
-Online profile growth is a subsequent versioned application component. An authorized committed transition must carry the expected old profile and replacement, persist the active profile and replay historical records under their original semantics. Update queued/prepared proposal handling and Node's cached decoder settings coherently; changing only State is invalid. Activate only after required participants support the new version. Initially support increases only. No export migration substitutes for this mechanism.
+Profile growth happens at a coordinated restart, not online (D141, [online capacity](ONLINE_CAPACITY_ARCHITECTURE.md)). Every recorded entry replays under the limits it carries, the restarted voters propose under the raised ones, and only increases of `keys`, `state_bytes` and `image_bytes` are admitted ([capacity raise](mechanisms/authority-capacity-raise.md)). No export migration substitutes for this mechanism.
 
 Container selection remains independent: the managed authority uses its persistent map and SDK reads use immutable pages. Hashing the classic Snapshot table cannot be credited with managed-path improvements. If the complete hash workload wins, qualify one canonical keyed-hash library component and its actual CPU costs before production selection; do not add a local duplicate primitive or require OpenSSL in the core client.
 
