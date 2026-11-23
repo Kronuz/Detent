@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Doc `docs/design/turn-log-cut-header.md` (journal quest branch, journal:6f39f97) filled except BLOCKS and
+Doc `docs/design/turn-log-cut-header.md` (journal quest branch, journal:35d4dd1, pushed) filled except BLOCKS and
 the T9 rows; prototype `scratch/cut-header-proto` at journal:8485149 (off e912a28); layout 0 probe at
 journal main on `scratch/cut-header-probe-main` at journal:b335b69 (a3eecb5 plus the probe).
 
