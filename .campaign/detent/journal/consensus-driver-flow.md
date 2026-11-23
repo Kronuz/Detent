@@ -9,11 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Header change (WorkerLimits::flow reaches all four Core builds) and docs written in consensus worktree (uncommitted until the local driver_test flow_reaches_core passes); test in test/driver_test.cc.
 
 ## Next
 
-1. <step>
+1. Local build/run of driver_test flow_reaches_core (.scratch/driver-flow/build).
+2. Commit; A1 job; mutant commit (worker.h create/recover drop flow) for A2 --fails-without; push for CI (A4).
 
 ## Blocked on
 
@@ -38,4 +39,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The option is `WorkerLimits::flow` (default Flow{}), not a new Worker constructor parameter or a second GroupOptions field: Worker takes its Limits/Timing/scheduling positionally (inserting a parameter breaks callers outside this file set), and GroupOptions already passes `scheduling` whole to Worker, so one field serves both (`GroupOptions::scheduling.flow`). Strata sets `o.scheduling.flow = Flow{4, 4 << 20, 256 << 10}`.
