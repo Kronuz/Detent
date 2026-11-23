@@ -23396,6 +23396,18 @@
       "after": [],
       "checks": [
         {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
           "cmd": "ci:linux-asan-ubsan",
           "level": "light",
           "minutes": 180,
@@ -23473,6 +23485,54 @@
             "gate check asan changed",
             "gate check tsan changed"
           ]
+        },
+        {
+          "at": "2026-11-22T22:05:26",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                "level": "light",
+                "minutes": 120,
+                "name": "native"
+              },
+              {
+                "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+                "level": "none",
+                "minutes": 10,
+                "name": "pins"
+              },
+              {
+                "cmd": "ci:linux-asan-ubsan",
+                "level": "light",
+                "minutes": 180,
+                "name": "asan"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 240,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "owner 2026-11-23 (relayed by campaign-v3's lead): sanitizers are CI's; ci.yml runs on quest/** pushes. Restores the native and targeted checks a whole-list --check dropped; reader-s6 t3-asan keeps 4 readers (msg-17)",
+          "voided": [],
+          "weakened": []
         }
       ],
       "landed": [],
@@ -23494,7 +23554,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-22T22:04:07"
+      "updated": "2026-11-22T22:05:26"
     },
     "post-w2": {
       "accepted": {},
