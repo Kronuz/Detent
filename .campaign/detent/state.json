@@ -16548,7 +16548,8 @@
         "tests/detent_reader/**",
         "tests/detent_system/**",
         "tools/w5/**",
-        "website/**"
+        "website/**",
+        "docs/design/client-local-source.md"
       ],
       "history": [
         {
@@ -16654,12 +16655,11 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "started by force: critical path (reader-s6 -> legacy-h -> pin-wave); server-composition-adoption lands only after pin-wave, so it merges legacy-h's main then; system-failover-port-reuse is test-harness only and lands first, legacy-h merges it; the authority-pages-design and warm-relay-agent-boot overlaps are docs/*.md matching docs/design/ and docs/perf/ subpaths those quests own and legacy-h does not edit",
       "repo": ".",
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T10:17:37",
+      "updated": "2026-11-23T10:31:36",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
