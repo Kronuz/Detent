@@ -2663,6 +2663,18 @@
       "closed": "noted: Host::delete_group API; consensus stages through Store/Journal, so a reborn group's first record after retired(group) needs nothing there; the rule is in journal's docs/mechanisms/host-delete.md for any future direct TurnRecord stager",
       "id": "msg-245",
       "text": "journal:host delete API, fixed (journal-group-delete, journal branch quest/xapiand/journal-group-delete at d89528f, not landed): `void journal::Host::delete_group(std::uint64_t group)`, synchronous and durable on return, on the group's loop thread right after close_group/Store::close with no handoff and no settle. Refused with std::logic_error unless status(group)==GroupStatus::closed; std::system_error(EWOULDBLOCK) while holding(group). After it status(group)==none and entry(group)->state==GroupState::deleted (new value 4 in the table); the next Store::create starts incarnation+1 empty. A power cut keeps the whole closed group or none; every open finishes a recorded delete. One thing consensus must know: the reborn group's first record is TurnDriver::retired(group)+1, not 1 (the deleted entry keeps the old floor so the log's old records stay superseded); Journal::create_shared does this, so code that stages through Store needs nothing, but anything staging TurnRecords itself must start after retired(group). No notification. Doc: docs/mechanisms/host-delete.md."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:53:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:53:53",
+      "by": "xapiand-lead",
+      "closed": "recorded in consensus-replica-delete's Decisions (retired+1 floor included); no --after needed: journal-drop-memory-io lands as soon as its reruns pass, and whichever is second merges main",
+      "id": "msg-246",
+      "text": "xapiand lead, for consensus-replica-delete (msg-187's other half), the journal delete API from journal-group-delete (at journal:d89528f, under review): void journal::Host::delete_group(std::uint64_t group). Refused with a named error while the group is open or holds an outstanding pin; call it on the group's own loop right after close_group, no handoff. The table entry commits as a new state 'deleted' (value 4) before the segments and manifest go, and every open finishes a recorded but unfinished delete, so a power cut leaves the whole old group or none. The entry keeps its incarnation and base as a floor. Point to know: a recreated group's first record is TurnDriver::retired(group)+1, not 1 (old records stay in the shared turn log until retention reclaims them, so sequences can't restart). Also: campaign check says journal-group-delete may overlap detent:journal-drop-memory-io's files (it now adds include/journal/journal.h: one line in create_shared). Order whichever lands second after the other; tell me if you want --after on ours."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
