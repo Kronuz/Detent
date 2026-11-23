@@ -5,16 +5,13 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Two red consensus CI jobs not caused by the quests they ran for: (1) run 44989408833 attempt 2, linux-asan-ubsan ran its 60-minute limit and was cancelled with consensus_mutant_a-read-counts-every-acknowledgement still running (the per-test mutants from consensus:e35356a run in sanitizer builds, where they prove nothing a plain build doesn't); (2) run 44993461293, linux-tsan, consensus_transport_groups_owe-order aborted at 10.97 s after its gate step took 10.1 s for 2,000 groups. After this quest mutants run only where they mean something and fit, and owe-order's bound holds under TSan or names what it waits on.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Sanitizer builds run no consensus_mutant_* test (or each fits with the job's time left, measured), and plain builds still run all 17: a job listing ctest -N in both configurations
+- A2 owe-order's cause is named; it passes 50 of 50 in a local TSan build under 4 burners, and the fix keeps what the test proves: jobs
+- A3 The suite and CI pass
 
 ## Contracts
 
