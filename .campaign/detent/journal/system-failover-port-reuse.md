@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-030312-eaf7b9 261123-030314-52c787 (diagnostic 261123-030338-7989cb)
+State: waiting on jobs 261123-100818-4f26f0 (A2 suite) 261123-100828-0a1fbb 261123-100829-0846b2 (A1) 261123-100831-4a2d3b 261123-100834-000cbb 261123-100836-5b2cd6 (A3)
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,30 +9,26 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-CI run 45120261989 at 05474e28 failed test_system_restart_rebind (60.15 s, no output; it is ours).
-Cause: `Authority.restart_member` waited for the restarted member to answer in a loop with no
-deadline, and the test printed nothing, so any member that stays alive without answering (a TLS
-verification failure, a stalled accept) held it silent until ctest's 60 s kill. Fix 38c47070 (merged
-main first, pushed): restart_member raises after its deadline naming the attempt, the last refusal
-and the member's output; kill_member bounds its waits; the stand-in daemon handshakes in the handler
-thread under a 5 s timeout; the test prints its phases and dumps the tasks at 90 s; ctest TIMEOUT 120.
-test_local_disk_store's failure is local-disk-store-lease-flake's.
+Widened scope (all ports): every test picks its ports one way, tests/support/ports.py `lease_ports`
+(72358eb6, merged main 933a80c6). Earlier jobs 261123-030312-eaf7b9 and -7989cb died on
+`xargs -I{}: command line cannot be assembled, too long` (macOS limit), not on the test;
+261123-030314-52c787 failed test_system_managed_relay at 59 s under load 330 (run_writers.py
+exception group; a load flake of the old reserve-and-release harness, not read further).
 
 ## Next
 
-1. When jobs 261123-030312-eaf7b9 (48 runs, 8 parallel) and 261123-030314-52c787 (system suite -j8
-   x3) pass and CI on 38c47070 is green: set State "ready to land" and fill Result.
+1. When the A2 suite and the A1 and A3 jobs pass, submit the A3 ctest shards (`--repeat
+   until-fail`, -j8, strict, <=10 min each) at the head, fill Evidence and Result, push, set State
+   "ready for review".
 
 ## Blocked on
 
-Nothing (the file set was widened by the lead).
+Nothing. tests/detent_system/managed.py (relay ports) is outside the file set and edited anyway,
+one line, because A3 forbids its reserve-and-release; the lead may revert it if unwanted.
 
 ## Evidence
 
-| Criterion | Evidence |
-|---|---|
-| A1 | cause above. Loop (20 kill/restart runs) fails without the fix at d0eb9dec: job 261122-215002-2b7198 (--fails-without); passes at 7b3f604a: job 261122-215006-40f218; bounded test at 38c47070, 48 runs 8 parallel under load: 261123-030312-eaf7b9 |
-| A2 | suite at 7b3f604a 261122-215011-108797; at 38c47070, system suite -j8 repeated x3: 261123-030314-52c787; CI on the pushed branch |
+(see the table `campaign brief` prints; pasted when every criterion is met)
 
 ## Result
 
@@ -40,8 +36,24 @@ Not ready.
 
 ## Rulings I made
 
-- The CI hang is named by mechanism (an unbounded wait), not reproduced; the diagnostic job
-  261123-030338-7989cb runs the old test 48x at 8 parallel to see whether it reproduces here.
-
+- Mechanism: a lease, neither of the lead's two options, because both fail here. The daemons do bind
+  port 0 and log the port (tests/support/bound_port.sh serves the single-daemon tests), but the
+  voters of every cluster test name each other's ports in their configurations before the first
+  start, so a daemon cannot choose its port. Retry on EADDRINUSE (the old with_fresh_ports of
+  test_multivoter) loses the port first and needs collision detection in each test, and cannot
+  move a port a restarted member must keep. The cause is a gap in which another test, or an
+  outgoing connection's ephemeral source port, takes the number. `lease_ports` closes it: ports
+  come from 20000-30000, below Linux (32768+) and macOS (49152+) ephemeral ranges, and each is
+  flock-ed in a directory shared by all test processes until the leasing process exits. No retry
+  code remains in the tests (with_fresh_ports, bind_collisions, StartupBindCollision, run_e2e's
+  lock files deleted).
+- first_read_gate.py and test_localhost_dial.py keep their port-0 sockets: they hold the socket
+  while it is used and never hand the number to a daemon. test_managed_case.sh only probes for ::1.
+- Authority.release_ports() stays (run_outage, run_partition, test_mixed, outside the file set,
+  call it at the end) and now unlocks the leases; its call in test_restart_rebind, which would
+  free the ports before the members start, is removed.
+- restart_member's bounded retry stays: a process outside the tests can still hold the port while
+  a member is down; test_restart_rebind squats on it.
 - Fix by a bounded restart retry in the harness, not a server change: the server already sets
   SO_REUSEADDR on both acceptors, so no server change can rebind a port another process holds.
+- The CI hang of test_system_restart_rebind (38c47070) is named by mechanism (an unbounded wait).
