@@ -2935,6 +2935,130 @@
         ]
       },
       "text": "journal-earlier-turn-loss landed: unlocks journal-turn-sector-checks"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:15:37",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:15:37",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-265",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms"
+        ]
+      },
+      "text": "reader-s6 landed: unlocks frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:49:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:49:24",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-269",
+      "items": {
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms",
+        "journal-bound-first-open": "frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-bound-first-open"
+        ]
+      },
+      "text": "set journal-bound-first-open: unlocks frees include/journal/host.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-bound-first-open; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T11:10:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T11:10:38",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install notice read (agent-campaign:a51bfc2)",
+      "id": "msg-271",
+      "notice": "skill installed a51bfc2a1c240f6e7ec0fe3a66f0e89703d8eb61",
+      "text": "campaign skill: agent-campaign:a51bfc2 installed here, 3 commits: agent-campaign:42099a5 Order a task's jobs by submit time, not by id; agent-campaign:d14ecd5 Drop the job index after editing a spec in the id-order test; agent-campaign:a51bfc2 Merge main into quest/campaign-v3/task-jobs-order"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:31:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:31:26",
+      "by": "legacy-h contributor",
+      "closed": "file set widened: src/detent_local/evaluation.hh",
+      "id": "msg-266",
+      "text": "legacy-h: deleting detent::detail::evaluate (the first evaluator, per the Outcome) leaves one comment in src/detent_local/evaluation.hh:11 naming it (\"in detent::detail::evaluate's order\"), which A10's grep catches; that file is outside legacy-h's file set. I keep detail::ramp (the one percentage rule) in include/detent/detail/evaluation.hh, its only other user being src/detent_local/evaluation.hh. Request: add src/detent_local/evaluation.hh to legacy-h's files so I can reword the comment (one line, no code change)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T10:44:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:44:57",
+      "by": "legacy-h",
+      "closed": "file set widened: include/detent_testing/**",
+      "id": "msg-267",
+      "text": "legacy-h (D149/A19): the installed C++ testing face is header-only include/detent_testing/store.hh (detent::testing::Store over generation_writer.h, beside its C face); please add include/detent_testing/store.hh to legacy-h's file set (with src/detent_local/evaluation.hh from msg-266). Fallback if refused: move it to include/detent/test_store.hh."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T12:31:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T12:31:49",
+      "by": "xapiand-lead",
+      "closed": "taken: quest consensus-fetch-alongside-flake started",
+      "id": "msg-272",
+      "text": "consensus test fetch-alongside-consensus fails on CI macos-x86_64, pre-existing: main a068ba06 (run 44996244171, 2026-11-22) and quest/xapiand/consensus-request-install 6e1122c (run 45240308075; the branch touches only transport/codec.h and codec_test). Both: '13 of 16 exact', commits beside the fetches NO within 2 s (slowest 7077 ms and 4410 ms), assertion groups_test.cc:2543. The 13/16 inexact fetches look like more than runner slowness. Not tracked in either hunt list; yours (consensus transport, D102/D106). I reran the job for our landing."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:10:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:10:07",
+      "by": "campaign xapiand",
+      "closed": "faultfs is landing now (CI rerun pending), ahead of xapiand:consensus-join-v2, which merges it; none of driver-flow, fetch-alongside-flake, faultfs or simulation-asan-timeout changes consensus:node-admission (tests and docs only, plus the Driver's Flow option)",
+      "id": "msg-273",
+      "settles": {
+        "ours": [
+          "consensus-driver-flow",
+          "consensus-fetch-alongside-flake",
+          "consensus-install-test-faultfs",
+          "consensus-simulation-asan-timeout"
+        ],
+        "quest": "xapiand:consensus-join-v2"
+      },
+      "text": "xapiand:consensus-join-v2 started and may change files your consensus-install-test-faultfs changes (order them with --after xapiand:consensus-join-v2, or narrow the files); builds against contract consensus:node-admission, which your consensus-driver-flow is changing; builds against contract consensus:node-admission, which your consensus-fetch-alongside-flake is changing; builds against contract consensus:node-admission, which your consensus-install-test-faultfs is changing; builds against contract consensus:node-admission, which your consensus-simulation-asan-timeout is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:15:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:15:19",
+      "by": "xapiand:consensus-join-v2",
+      "closed": "Peers stays DER: worker-pump-removal deletes it; its A4 moves Detent's voter pin to key_pin then",
+      "id": "msg-274",
+      "text": "consensus-join-v2 (Xapiand campaign) moves NodePins/HostTransport pins from the leaf certificate's DER SHA-256 to the SHA-256 of the key's SubjectPublicKeyInfo (new consensus::transport::key_pin(X509*)), so a renewed certificate keeps its pin (review F11). Peers, session.h's authenticated_voter and certificate_fingerprint stay as they are, so Detent's certificate_sha256 voter config is unchanged. Question for your lead (F11): should Peers move to SPKI pins too, or does it stay DER until worker-pump-removal deletes it? Default: it stays DER; nothing changes for Detent now. Any Detent code that builds NodePins (your Seeds wiring) would compute pins with key_pin after this lands."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4665,7 +4789,34 @@
       "worktree": ""
     },
     "consensus-driver-flow": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T11:47:36",
+          "base": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "blobs": {
+            "CHANGELOG.md": "100644:bd84a0223055adb98995cb705f8fbd31f72014ca",
+            "docs/DRIVER.md": "100644:146b9e41dc5e0818514f6e2bbcf01fa28ef2297e",
+            "docs/mechanisms/append-pacing.md": "100644:f8ce0fa1602f7a07f213669aeb66ceead8995dfb",
+            "include/consensus/worker.h": "100644:552b192442e2532bb9dfc65e3cbf7877eef467ab",
+            "test/driver_test.cc": "100644:3293696f9cf1669ceac74439d478d8c79b055e14"
+          },
+          "by": "review",
+          "commit": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "criteria": "925db7f3d9178032",
+          "diffs": {
+            "CHANGELOG.md": "01295c24678090af",
+            "docs/DRIVER.md": "6a5d372bb3b071a5",
+            "docs/mechanisms/append-pacing.md": "cee224a423037fc8",
+            "include/consensus/worker.h": "f39c0568811c57ba",
+            "test/driver_test.cc": "41002cb8f13dc8d1"
+          },
+          "findings": {},
+          "note": "",
+          "review": "b9b31fabd24d641e539910d1b01571cf7ed5c76f",
+          "reviewed": "f7a44f3a816fec39b853f0131a8e8a2a41d33283",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-install",
         "consensus-full-window-stall",
@@ -4689,7 +4840,7 @@
         "test/worker_test.cc",
         "test/driver_test.cc",
         "docs/DRIVER.md",
-        "docs/mechanisms/**",
+        "docs/mechanisms/append-pacing.md",
         "CHANGELOG.md"
       ],
       "history": [
@@ -4722,15 +4873,17 @@
       ],
       "journal": "../Detent-wt/detent/consensus-driver-flow",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "Worker and Driver options carry Flow, so Driver hosts can pipeline appends",
-      "updated": "2026-11-23T06:08:22",
+      "updated": "2026-11-23T11:47:36",
       "worktree": "../consensus-wt/detent/consensus-driver-flow"
     },
     "consensus-driver-install": {
@@ -4933,6 +5086,42 @@
       "updated": "2026-11-21T13:31:24",
       "worktree": ""
     },
+    "consensus-driver-pipelined-sim": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_simulation.cc",
+        "test/simulation_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "consensus-driver-flow",
+        "consensus-simulation-asan-timeout"
+      ],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The driver simulation runs pipelined appends end to end",
+      "updated": "2026-11-23T11:47:39"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
@@ -5116,6 +5305,43 @@
       "title": "consensus: tests run on faultfs, not journal's MemoryIO",
       "updated": "2026-11-20T21:51:09",
       "worktree": ""
+    },
+    "consensus-fetch-alongside-flake": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-fetch-alongside-flake",
+      "checks": [
+        {
+          "cmd": "ci:macos-x86_64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/rpc-lane.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
+      "updated": "2026-11-23T12:32:17",
+      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -6708,18 +6934,55 @@
         "test/transport/rpc_host_test.cc",
         "docs/mechanisms/rpc-lane.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T10:35:24",
+          "ci": {
+            "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+            "runs": [
+              45229501082
+            ]
+          },
+          "commit": "531b655cf337a49e328b470aaa5c5955b3a07262",
+          "criteria": {
+            "A1": "261123-093627-64939a, 261123-093627-f49f89",
+            "A2": "261123-102708-24df25; fails without: 261123-093621-880c1c",
+            "A3": "261123-060909-e27d55 (passed at 2d423871a13d; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/rpc-lane.md)"
+          },
+          "evidence": [
+            {
+              "cmd": "sh -c 'cmake -S . -B .scratch/build -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build -j4 --output-on-failure'",
+              "commit": "2d423871a13deaf4164c38acce11940f86ff6f92",
+              "docs": [
+                "docs/mechanisms/rpc-lane.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-060909-e27d55",
+              "level": "light",
+              "seconds": 1726.9,
+              "state": "done",
+              "what": "consensus-rpc-fetch-lag check suite at 2d423871a13d"
+            }
+          ],
+          "final": true,
+          "from": "df4f8f8324eae486260b9038bb937e9923dfba61",
+          "reason": "",
+          "tested": "531b655cf337a49e328b470aaa5c5955b3a07262"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T08:59:14",
-      "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
+      "updated": "2026-11-23T10:36:53",
+      "worktree": ""
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
@@ -6788,6 +7051,44 @@
       "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
       "updated": "2026-11-23T07:22:17",
       "worktree": ""
+    },
+    "consensus-simulation-asan-timeout": {
+      "accepted": {},
+      "after": [],
+      "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
+      "branch": "quest/detent/consensus-simulation-asan-timeout",
+      "checks": [
+        {
+          "cmd": "ci:linux-asan-ubsan",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/simulation_test.cc",
+        "test/driver_simulation.cc",
+        "docs/mechanisms/simulation*.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "consensus_simulation stays well inside its timeout under ASan",
+      "updated": "2026-11-23T11:03:23",
+      "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
       "accepted": {
@@ -13812,6 +14113,89 @@
       "updated": "2026-11-19T18:05:08",
       "worktree": ""
     },
+    "journal-bound-first-open": {
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T11:45:07",
+          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "blobs": {
+            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
+            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
+            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+          },
+          "by": "review",
+          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "criteria": "2c746bd6f8489691",
+          "diffs": {
+            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
+            "include/journal/host.h": "04df3faad6d22e7e",
+            "test/lost_bound_test.cc": "37292cd506bcefe2"
+          },
+          "findings": {},
+          "note": "",
+          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
+          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [
+        "journal-turn-sector-checks"
+      ],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-bound-first-open",
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "test/lost_bound_test.cc",
+        "docs/mechanisms/lost-bound.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T10:49:13",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "journal": "../Detent-wt/detent/journal-bound-first-open",
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "active",
+      "title": "The lost bound survives a power cut during the first open",
+      "updated": "2026-11-23T11:45:07",
+      "worktree": "../journal-wt/detent/journal-bound-first-open"
+    },
     "journal-close-in-doubt": {
       "accepted": {
         "correctness": {
@@ -15626,6 +16010,67 @@
       "updated": "2026-11-21T08:29:19",
       "worktree": ""
     },
+    "journal-open-single-read": {
+      "accepted": {},
+      "after": [
+        "journal-bound-first-open",
+        "journal-turn-sector-checks"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/host.h",
+        "include/journal/turn_log.h",
+        "include/journal/turn_driver.h",
+        "test/lost_bound_test.cc",
+        "bench/**",
+        "docs/mechanisms/lost-bound.md",
+        "docs/perf/**"
+      ],
+      "history": [
+        {
+          "at": "2026-11-23T11:45:11",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions (as the other journal recovery quests)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "An open reads each turn log once",
+      "updated": "2026-11-23T11:45:11"
+    },
     "journal-power-silent-loss": {
       "accepted": {
         "durability": {
@@ -16447,7 +16892,16 @@
         "fuzz/fuzz_turn_log.cc",
         "docs/mechanisms/turn-log-damage.md",
         "docs/mechanisms/turn-log*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "test/host_test.cc",
+        "test/lost_bound_test.cc",
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "bench/turn_bench.cc",
+        "docs/design/host-layout.md",
+        "docs/mechanisms/framing.md",
+        "docs/mechanisms/turn-seal.md",
+        "include/journal/framing.h"
       ],
       "history": [
         {
@@ -16481,7 +16935,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T09:35:32",
+      "updated": "2026-11-23T10:56:14",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
@@ -16548,7 +17002,10 @@
         "tests/detent_reader/**",
         "tests/detent_system/**",
         "tools/w5/**",
-        "website/**"
+        "website/**",
+        "docs/design/client-local-source.md",
+        "src/detent_local/evaluation.hh",
+        "include/detent_testing/**"
       ],
       "history": [
         {
@@ -16654,12 +17111,11 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "started by force: critical path (reader-s6 -> legacy-h -> pin-wave); server-composition-adoption lands only after pin-wave, so it merges legacy-h's main then; system-failover-port-reuse is test-harness only and lands first, legacy-h merges it; the authority-pages-design and warm-relay-agent-boot overlaps are docs/*.md matching docs/design/ and docs/perf/ subpaths those quests own and legacy-h does not edit",
       "repo": ".",
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T10:17:37",
+      "updated": "2026-11-23T11:14:53",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
