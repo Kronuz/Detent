@@ -16485,6 +16485,8 @@
     "legacy-h": {
       "accepted": {},
       "after": [],
+      "base": "87687327e0cb84c291b04f4e6e35a9055e4cd9a5",
+      "branch": "quest/detent/legacy-h",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -16650,11 +16652,13 @@
         "detent-rust",
         "detent-get-cli"
       ],
+      "reason": "started by force: critical path (reader-s6 -> legacy-h -> pin-wave); server-composition-adoption lands only after pin-wave, so it merges legacy-h's main then; system-failover-port-reuse is test-harness only and lands first, legacy-h merges it; the authority-pages-design and warm-relay-agent-boot overlaps are docs/*.md matching docs/design/ and docs/perf/ subpaths those quests own and legacy-h does not edit",
       "repo": ".",
       "risk": "critical",
-      "status": "planned",
+      "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-22T22:05:39"
+      "updated": "2026-11-23T10:17:37",
+      "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
       "accepted": {},
