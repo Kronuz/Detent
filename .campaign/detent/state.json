@@ -6685,7 +6685,8 @@
       ],
       "consumes": [],
       "files": [
-        "test/transport/rpc_host_test.cc"
+        "test/transport/rpc_host_test.cc",
+        "docs/mechanisms/rpc-lane.md"
       ],
       "journal": "../Detent-wt/detent/consensus-rpc-fetch-lag",
       "landed": [],
@@ -6697,7 +6698,7 @@
       "risk": "low",
       "status": "active",
       "title": "rpc_host fetch: allow the measured host lag in its heartbeat bound",
-      "updated": "2026-11-23T05:58:55",
+      "updated": "2026-11-23T08:59:14",
       "worktree": "../consensus-wt/detent/consensus-rpc-fetch-lag"
     },
     "consensus-sanitizer-ci-time": {
