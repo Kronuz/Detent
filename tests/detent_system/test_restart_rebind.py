@@ -31,6 +31,8 @@ from runtime import Actors, Evidence
 
 
 class Handler(BaseHTTPRequestHandler):
+    timeout = 5  # bounds the TLS handshake and the request read of one connection
+
     def do_GET(self) -> None:
         body = json.dumps({"role": 2}).encode()
         self.send_response(200)
@@ -46,6 +48,9 @@ class Handler(BaseHTTPRequestHandler):
 class Server(ThreadingHTTPServer):
     allow_reuse_address = True  # the daemon's acceptors set SO_REUSEADDR
 
+    def handle_error(self, *_: object) -> None:
+        pass  # a peer's failed handshake is not an event
+
 
 def serve(arguments: list[str]) -> int:
     configuration = json.loads(
@@ -60,9 +65,16 @@ def serve(arguments: list[str]) -> int:
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     tls_files = configuration["publisher_tls"]
     tls.load_cert_chain(tls_files["certificate"], tls_files["key"])
-    server.socket = tls.wrap_socket(server.socket, server_side=True)
+    # The handshake runs in the handler thread, so a silent peer never stalls the accept loop.
+    server.socket = tls.wrap_socket(
+        server.socket, server_side=True, do_handshake_on_connect=False
+    )
     server.serve_forever()
     return 0
+
+
+def progress(message: str) -> None:
+    print(f"restart_rebind: {message}", flush=True)
 
 
 async def rounds(certificates: Path, scratch: Path) -> None:
@@ -76,17 +88,35 @@ async def rounds(certificates: Path, scratch: Path) -> None:
     async with Actors(evidence, 10) as actors:
         authority = Authority(binary, certificates, scratch, actors, 1)
         authority.release_ports()
+        progress(f"starting 3 members on ports {authority.ports[3:]}")
         for index in range(3):
             authority.members.append(await authority.start_member(index))
         for index in range(3):
+            progress(f"killing member {index}")
             await authority.kill_member(index)
             squat = socket.socket()
             squat.bind((authority.address, authority.ports[index + 3]))
-            threading.Timer(random.uniform(0, 1), squat.close).start()
+            hold = random.uniform(0, 1)
+            threading.Timer(hold, squat.close).start()
+            progress(f"restarting member {index}, port squatted for {hold:.2f} s")
             await authority.restart_member(index)
             status, _ = await authority.request(index, "/v1/health")
             assert status == 200, f"member {index} answered {status}"
     print("3 kills with the port squatted: every member rebound")
+
+
+async def bounded(certificates: Path, scratch: Path, seconds: float) -> None:
+    task = asyncio.create_task(rounds(certificates, scratch))
+    done, _ = await asyncio.wait({task}, timeout=seconds)
+    if not done:
+        print(f"restart_rebind: still running after {seconds} s; tasks:", flush=True)
+        for pending in asyncio.all_tasks():
+            pending.print_stack(file=sys.stdout)
+        sys.stdout.flush()
+        task.cancel()
+        await asyncio.wait({task}, timeout=30)
+        raise TimeoutError(f"restart_rebind exceeded {seconds} s")
+    task.result()
 
 
 def main() -> int:
@@ -96,7 +126,7 @@ def main() -> int:
     parser.add_argument("certificates", type=Path)
     parser.add_argument("scratch", type=Path)
     arguments = parser.parse_args()
-    asyncio.run(rounds(arguments.certificates, arguments.scratch))
+    asyncio.run(bounded(arguments.certificates, arguments.scratch, 90))
     return 0
 
 

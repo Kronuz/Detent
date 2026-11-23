@@ -27,7 +27,7 @@ if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture
       ${PROJECT_BINARY_DIR}/tests/detent_system/restart-rebind)
   set_tests_properties(test_system_restart_rebind PROPERTIES
-    FIXTURES_REQUIRED authority_tls TIMEOUT 60)
+    FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
 
 if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)

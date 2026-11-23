@@ -178,46 +178,58 @@ class Authority:
     async def kill_member(self, index: int) -> None:
         member = self.members[index]
         member.process.kill()
-        await member.process.wait()
-        await member.capture
+        try:
+            async with asyncio.timeout(10):
+                await member.process.wait()
+                await member.capture
+        except TimeoutError:
+            raise RuntimeError(
+                f"authority-{index} did not exit or close its output 10 s after SIGKILL"
+            ) from None
         self.actors.evidence.record(
             "member_killed", index=index, code=member.process.returncode
         )
 
     async def restart_member(self, index: int, seconds: float = 20) -> None:
-        """Restarts a stopped member on its port and returns once it answers. Its port was
-        released after the reservation and another process may hold it for a while (bind:
-        Address already in use), so the member starts again until the port is free."""
+        """Restarts a stopped member on its port and returns once it answers, or raises
+        after `seconds` saying what it waited for. Its port was released after the
+        reservation and another process may hold it for a while (bind: Address already in
+        use), so the member starts again until the port is free."""
         member = self.members[index]
         if member.process.returncode is None:
             raise ValueError("cannot restart a running member")
         await member.capture
         self.actors.children.remove(member)
         deadline = time.monotonic() + seconds
+        attempts = 0
         while True:
+            attempts += 1
             output = bytearray()
             member = await self.start_member(index, output.extend)
             self.members[index] = member
-            while member.process.returncode is None and not await self._answers(index):
+            refusal = "no request yet"
+            while member.process.returncode is None:
+                try:
+                    await self.request(index, "/v1/health")
+                    return
+                except (OSError, http.client.HTTPException) as error:
+                    refusal = repr(error)
+                if time.monotonic() > deadline:
+                    raise RuntimeError(
+                        f"authority-{index} alive (pid {member.process.pid}) but not answering "
+                        f"{seconds} s after restart attempt {attempts}: last {refusal}; "
+                        f"output {output[-400:].decode(errors='replace')!r}"
+                    )
                 await asyncio.sleep(0.05)
-            if member.process.returncode is None:
-                return
             await member.capture
             self.actors.children.remove(member)
             if b"Address already in use" not in output or time.monotonic() > deadline:
                 raise RuntimeError(
-                    f"authority-{index} exited {member.process.returncode} on restart: "
-                    f"{output.decode(errors='replace')}"
+                    f"authority-{index} exited {member.process.returncode} on restart "
+                    f"attempt {attempts}: {output[-400:].decode(errors='replace')!r}"
                 )
             self.actors.evidence.record("member_restart_port_busy", index=index)
             await asyncio.sleep(0.1)
-
-    async def _answers(self, index: int) -> bool:
-        try:
-            await self.request(index, "/v1/health")
-        except (OSError, http.client.HTTPException):
-            return False
-        return True
 
     def _request(
         self,
