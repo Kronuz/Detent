@@ -54,7 +54,7 @@ Each handle charges one ledger, the mapping cap `detent_open_options.mapping_byt
 
 ## Fork (D10)
 
-The first open registers `pthread_atfork` handlers; a refused registration fails that open with `DETENT_NO_MEMORY`, and the next open tries again. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
+The first open registers `pthread_atfork` handlers; a refused registration fails that open with `DETENT_NO_MEMORY`, and the next open tries again. Later opens read one atomic flag and take no lock, so a child forked while another thread is inside `detent_open` opens too. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
 
 ## Fork and cold preparation
 
@@ -90,4 +90,4 @@ Required regular files (`change`, selected records, leases and packs) open with 
 
 `RecordTesting` provides a hook, on the installing thread, after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.
 
-Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, per-handle stats (live views, publishes, refused, attached, generations, `current`, the mapping cap and its charge) and `refuse_atfork` (a failed fork-handler registration).
+Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `ForkPrepared`, `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, `Freeing`, `ChangeMapped`, `Registering`, per-handle stats (live views, publishes, refused, attached, generations, `current`, the mapping cap and its charge) and `refuse_atfork` (a failed fork-handler registration).

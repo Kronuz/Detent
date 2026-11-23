@@ -14,7 +14,8 @@ enum class Window {
 	Refreshing, // a thread took `refreshing`, before any work
 	AfterFree,  // a publish freed the next slot's view, before it attaches
 	Attaching,  // a refresh read the store word and table, before it attaches a generation
-	Freeing,    // a publish found an old slot unpinned, before it clears and frees it
+	Freeing,    // a refresh found a retired slot unpinned, before it clears and frees it
+	Registering, // an open checks the fork handlers' registration
 };
 // Runs at each window on the thread that reaches it. Install before any call, never concurrently.
 void install(void (*)(Window, void *) noexcept, void *) noexcept;

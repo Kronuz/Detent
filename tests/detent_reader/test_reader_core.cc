@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
 #include <utility>
@@ -296,6 +297,50 @@ void atfork_refused(const std::filesystem::path &root) {
 	Opened r(store);
 	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
 }
+// Once the fork handlers registered, an open takes no lock: a child forked while another thread is
+// inside detent_open opens its own handle instead of waiting on a lock no thread of it holds.
+void fork_mid_open(const std::filesystem::path &root) {
+	const auto store = root / "fork-open";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	static std::atomic<int> state{0}; // 1 parked, 2 released
+	static thread_local bool armed = false;
+	t::install([](t::Window at, void *) noexcept {
+		if (at != t::Window::Registering || !std::exchange(armed, false))
+			return;
+		state = 1;
+		while (state.load() != 2)
+			std::this_thread::yield();
+	}, nullptr);
+	detent_status opened = DETENT_INVALID_ARGUMENT;
+	std::thread opener([&] {
+		armed = true;
+		Opened r(store);
+		opened = r.status;
+	});
+	while (state.load() != 1)
+		std::this_thread::yield();
+	const pid_t pid = ::fork();
+	CHECK(pid >= 0);
+	if (pid == 0) {
+		::alarm(10); // the deadlock this checks: SIGALRM ends the child
+		detent_reader *h = nullptr;
+		const auto path = store.string();
+		detent_open_options options{sizeof options, S(path), nullptr, 0, uint32_t(::getuid()), 0};
+		std::int64_t out = 0;
+		const bool ok = detent_open(&options, &h) == DETENT_OK &&
+		                detent_get(h, S("t:rev"), none, none, -7, &out) == DETENT_OK && out == 1;
+		std::_Exit(ok ? 0 : 1);
+	}
+	int status = 0;
+	CHECK(::waitpid(pid, &status, 0) == pid);
+	state = 2;
+	opener.join();
+	t::install(nullptr, nullptr);
+	std::cout << "fork mid-open: child " << (WIFEXITED(status) ? "exit " : "signal ")
+	          << (WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status)) << "\n";
+	CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0 && opened == DETENT_OK);
+}
 void replaced_change(const std::filesystem::path &root) {
 	const auto store = root / "replaced-change";
 	{
@@ -560,6 +605,7 @@ int main() {
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
 	atfork_refused(root); // first: the fork handlers register at the first open that succeeds
+	fork_mid_open(root);
 	replaced_selected(root);
 	selected_reads(root);
 	unreadable_table(root);

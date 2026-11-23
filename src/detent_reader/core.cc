@@ -225,8 +225,8 @@ namespace {
 // Fork (reader.md D10): live handles under one mutex; the handlers take every `refreshing`.
 std::mutex registry_mutex;
 detent_reader *registry = nullptr;
-std::mutex atfork_mutex; // never held with `registry_mutex`, which the fork handlers take
-bool atfork_installed = false;
+std::mutex atfork_mutex; // taken only until the handlers register; never with `registry_mutex`
+std::atomic<bool> atfork_installed{false};
 void fork_prepare() noexcept {
 	registry_mutex.lock();
 	for (auto *handle = registry; handle; handle = handle->next)
@@ -264,12 +264,17 @@ void fork_child() noexcept {
 	}
 	registry_mutex.unlock();
 }
-// Registers the fork handlers once; a refusal (ENOMEM) is retried by the next open.
+// Registers the fork handlers once; a refusal (ENOMEM) is retried by the next open. Once registered,
+// an open takes no lock here, so a child forked during another thread's open can open too.
 bool install_atfork() noexcept {
+	DETENT_WINDOW(Registering);
+	if (atfork_installed.load(std::memory_order_acquire))
+		return true;
 	std::lock_guard lock(atfork_mutex);
-	if (!atfork_installed)
-		atfork_installed = !atfork_refused && pthread_atfork(fork_prepare, fork_parent, fork_child) == 0;
-	return atfork_installed;
+	if (!atfork_installed.load(std::memory_order_relaxed) && !atfork_refused &&
+	    pthread_atfork(fork_prepare, fork_parent, fork_child) == 0)
+		atfork_installed.store(true, std::memory_order_release);
+	return atfork_installed.load(std::memory_order_relaxed);
 }
 void register_handle(detent_reader *handle) noexcept {
 	std::lock_guard lock(registry_mutex);
