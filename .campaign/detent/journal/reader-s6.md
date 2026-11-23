@@ -441,7 +441,7 @@ Correctness CHANGES and security APPROVE, both at `Detent:d8c0182`. Fixes in `De
 
 | Finding | Fix | Test | Confirming jobs |
 |---|---|---|---|
-| C1 refresh memo (blocking) | `Detent:c300e5f`: a `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` (the probe's sequence) | suite native 261122-214347-15579c, plain 261122-214406-efe19d; fails without: MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2 |
+| C1 refresh memo (blocking) | `Detent:c300e5f`: a `detent_refresh` that does not fail clears `failed_store` | `test_reader_core` `refresh_memo` (the probe's sequence) | suite native 261123-020546-339806, plain 261123-020608-eda47a; fails without: MEMO-1 (`Detent:a68f7e5`) 261121-133829-b558f2 |
 | C2 transient miss | `Detent:c300e5f`: `openat` resource errnos, `fstat` and `mmap` raise `system_error`, `failed` stays unset, the lookup answers `DETENT_IO` | `transient_miss` (skipped under Linux UBSan, `Detent:a60e089`) | native 15579c, plain efe19d; fails without: MISS-1 (`Detent:de94c2b`) 261121-133832-23f97d |
 | N1 cap status | `Detent:5957f28`: `ReadAdmissionRefused` maps to `DETENT_NO_MEMORY` | `capped` | native 15579c, plain efe19d; fails without: NOMEM-1 261121-141047-4552ff |
 | S1 bounds (D143) | `Detent:07a77ec`: one mapping cap per handle, `detent_open_options.mapping_bytes` | `capped` | native 15579c, plain efe19d; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0 |
@@ -458,8 +458,8 @@ At the merged head `Detent:a60e089`; mutants (fails without) at their own commit
 
 | Criterion | Evidence |
 |---|---|
-| A1-A3, A5, A6, A15 | native 261122-214347-15579c, tsan 261122-214348-4432db, asan 261122-214406-a1ad79, plain `test_reader_core` 261122-214406-efe19d |
-| A4 | t3-tsan 261122-214348-bff807, t3-asan (4 readers) 261122-214431-1a9b50, 261122-214407-57a878; fails without: STATS-1 261119-045706-676367, DROP-1 261120-150455-acc366 |
+| A1-A3, A5, A6, A15 | native 261123-020546-339806, tsan 261122-214348-4432db, asan 261122-214406-a1ad79, plain `test_reader_core` 261123-020608-eda47a |
+| A4 | t3-tsan 261123-020547-63d2a8, t3-asan (4 readers) 261122-214431-1a9b50, 261122-214407-57a878; fails without: STATS-1 261119-045706-676367, DROP-1 261120-150455-acc366 |
 | A7 | 261122-214407-0657dc |
 | A8 | dense ASan 261122-214408-ea231c; mutants as `campaign brief` lists (D5-1..3, D10-1..3, D2-1, D4-1, FIX-1, FIX-2, Q6-1, HDR-1, SEL-1, SEL-2, BOUND-1) |
 | A9 | [artifact] `docs/mechanisms/reader-core.md`: "## Fork and cold preparation" (also its sections Fork (D10), Bounds and Mapped bytes after verification; doc check job 261122-225652-b8b8ac) |
@@ -467,7 +467,7 @@ At the merged head `Detent:a60e089`; mutants (fails without) at their own commit
 | A11 | 261122-214408-377d11; mutant SR2 (brief) |
 | A12 | cold 261122-214409-d604f3, soak 261122-214409-ebe627; mutants F1-F4 (brief) |
 | A13 | 261122-214409-d604f3 |
-| A14 | 261122-214410-54f6dc, 261122-214406-efe19d; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0, NOMEM-1 261121-141047-4552ff |
+| A14 | 261122-214410-54f6dc, 261123-020608-eda47a; fails without: CAP-1 261121-141042-a5d80c, CAP-2 261121-141044-9b81e0, NOMEM-1 261121-141047-4552ff |
 | A16 | D142 against main `Detent:005f84b`: exclusive 261122-214454-dbd4b2 (running), 261122-214458-034e64 (stopped); counts 261122-214501-3e6714, 261122-214505-7c4359; A/B 261122-214410-77d230 |
 
 ## Messages
