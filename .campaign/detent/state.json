@@ -2639,6 +2639,18 @@
         "quest": "xapiand:journal-group-delete"
       },
       "text": "xapiand:journal-group-delete started and may change files your journal-drop-memory-io changes (order them with --after xapiand:journal-group-delete, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:30:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:30:49",
+      "by": "xapiand-lead",
+      "closed": "covered by your consensus-request-install: its API (approved, consensus:9ea7c55) adds Driver::witness_bound(GroupId) -> optional<Index>; group-heal can use it once that lands",
+      "id": "msg-244",
+      "text": "xapiand lead, finding for consensus (from group-heal's witness task): Driver does not expose Core::witness_bound, so a witness replica cannot compact its log. Also FYI: group-heal's damaged-replica repair will use consensus-request-install's install request (option c), so it's the one path for any replica that needs state."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
