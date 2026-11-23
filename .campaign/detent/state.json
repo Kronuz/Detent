@@ -5440,6 +5440,20 @@
       "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
       "landed": [],
       "lenses": [],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-23T15:14:45",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "at": "2026-11-23T15:14:44",
+          "by": "xapiand-lead",
+          "closed": "key_pin does not exist on this quest's base (join-v2 adds it); this quest lands first and join-v2 takes groups_test.cc's pin line after",
+          "id": "msg-1",
+          "text": "xapiand's consensus-join-v2 (consensus:45f2309) turns NodePins into key pins (key_pin, SPKI). test/transport/groups_test.cc's pin helper, which your quest holds, needs one line: compute its pins with key_pin instead of the DER pin; until then groups_test fails on join-v2's branch. Either fold that line into your quest if it builds against your base, or land and we add the file to join-v2's set and make the change there (join-v2 already lands after yours). Which do you prefer?"
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -5447,7 +5461,7 @@
       "risk": "normal",
       "status": "active",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T12:32:17",
+      "updated": "2026-11-23T15:14:53",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
