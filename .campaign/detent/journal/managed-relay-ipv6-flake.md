@@ -1,6 +1,6 @@
 # managed-relay-ipv6-flake: journal
 
-State: waiting on CI run 45116414557 (repro branch)
+State: ready for review (proposal: close as not reproducible; A1-A3 cannot be met)
 Quest: .campaign/detent/quests/managed-relay-ipv6-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,8 +17,7 @@ Stress jobs 261121-142317-81f60a and 261121-185318-61a635 timed out (30, 90 min)
 
 ## Next
 
-0. Read CI run 45116414557 (workflow Repro, branch quest/detent/managed-relay-ipv6-flake-repro at its one commit over e66c46be: ctest --repeat until-fail:10 --parallel 2 -R 'relay|relay_ipv6|poll' on macos-x86_64 and linux-x86_64-gcc; artifacts failure-<name>). The same push also started CI run 45116414824 (baseline). If a test fails: cause from the kept events.jsonl, fix on this branch, --fails-without proof or the same CI at the same repeat count. Then `git push origin --delete quest/detent/managed-relay-ipv6-flake-repro`; never merge it.
-1. (done, 52 of 52 passed) When 261121-225424-d93fe2 (unloaded x20) and 261121-225431-dfdab9 (4 copies x8 + 4 burners, after the first) finish, read which fail and their kept .scratch/stage6 events; name the cause; fix; --fails-without job.
+1. The lead rules: close as not reproducible (recommended), or widen the repro.
 
 ## Blocked on
 
@@ -33,16 +32,20 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | no cause proven. Evidence so far: the three CI runs' events.jsonl (journal Doing): `managed agent 0 did not converge` after 30 s selection_timeout, the same CI run also failing another managed test, every relay request to the leader hits `delivery network deadline` during the 12 s write phase; "load, not IPv6" is a hypothesis |
-| A2 | no reproduction: jobs 261121-225424-d93fe2 (0 of 20 failed) and 261121-225431-dfdab9 (0 of 32 failed) |
-| A3 | none: needs a fix |
-| A4 | none: CI not run on this branch yet |
+| A1 | cannot be met: the failure does not reproduce, so no cause is proven. Evidence so far: the three CI runs' events.jsonl (journal Doing): `managed agent 0 did not converge` after 30 s selection_timeout, the same CI run also failing another managed test, every relay request to the leader hits `delivery network deadline` during the 12 s write phase; "load, not IPv6" is a hypothesis |
+| A2 | cannot be met (nothing fails pre-fix): jobs 261121-225424-d93fe2 (0 of 20 failed) and 261121-225431-dfdab9 (0 of 32 failed) |
+| A3 | cannot be met (no fix). The pre-fix repro CI run 45116414557 passed 10 repeats each of test_system_managed_relay and _relay_ipv6 on macos-x86_64 and linux-x86_64-gcc |
+| A4 | the quest branch carries no code change over main; CI baseline on the repro tree is run 45116414824 (queued for runners when written; its source-checks, pin-check, linux jobs passed) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Not reproducible. No code changed.
+
+- Original failures: CI 44877100446 (warm-relay-agent-boot, 610565fc), 44877822656 (loop-idle-waits, 7d1fad45), 44869473548 (journal-idle-groups, c2e83169), all macos-x86_64: `managed agent 0 did not converge` after the 30 s selection_timeout; relay requests to the leader hit `delivery network deadline` during the write phase and never recover; each run also failed another managed test (load on the 4 vCPU runner with ctest --parallel 2).
+- Now: 0 failures in 52 local runs (jobs 261121-225424-d93fe2, 20 serial, and 261121-225431-dfdab9, 4 copies x8 with 4 spinners; 30-62 s each) and 0 in 2 x 10 CI repeats (run 45116414557, macos-x86_64 and linux-x86_64-gcc, `ctest --repeat until-fail:10 --parallel 2 -R 'relay|relay_ipv6|poll'`, 21-28 s each on macOS). The test_system_managed_poll named in 44869473548 no longer exists.
+- Plausible fixes, after the three failing trees (none is an ancestor of any of them): Detent:59206705 "Relay: visit every request each turn and continue only on progress" and Detent:563c5c31 "Relay: keep main's per-turn shares and sleep after an idle round" (relay turn scheduling; the symptom was relay requests stalling and not recovering), landed 21 Nov 02:33 and 05:03 PST. Detent:87f69a56 and Detent:0ab699fa (diagnostics: voters, agent convergence times) landed later and would name the cause if it recurs. Not proven: nothing was bisected.
+- Cannot be met: A1 (no cause), A2 (no failing run), A3 (no fix). A4 is CI of an unchanged tree. Proposal: close as not reproducible; reopen if the failure recurs with the new convergence diagnostics.
+- Left open: the repro workflow existed only on the deleted branch quest/detent/managed-relay-ipv6-flake-repro (never merged).
 
 ## Rulings I made
 
