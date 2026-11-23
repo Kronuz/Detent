@@ -1,6 +1,6 @@
 # journal-bound-first-open: journal
 
-State: working
+State: waiting on jobs 261123-110049-af725e 261123-111045-7f9830 and CI
 Quest: .campaign/detent/quests/journal-bound-first-open.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix committed (journal:870382d): `Host::settle_damage` reads each log with `TurnLog::read` (writes
-nothing) and stores bounds (`mark_bounds`) and losses (`mark_lost`) before the drivers write their
-open records. Drivers recover against the pre-settle table, so `recovered()` is unchanged (the
-`bounds` case checks `recovered().bounded`). Test journal:900a11a, `lost_bound_test first_open`:
-4 rule-5 layouts; locally 66 of 138 checks fail at main's host.h, 0 of 251 with the fix.
-Measuring the extra read's open cost (scratch bench `.scratch/detent/journal-bound-first-open/`).
+Waiting on jobs: A2 261123-110049-af725e (--fails-without at journal:900a11a), open-cost A/B
+261123-111045-7f9830 (strict, main e58f977 vs fix journal:870382d), CI on the pushed branch
+(journal:0951710; suite `macos-arm64` and `ci`).
 
 ## Next
 
-1. A2 job 261123-110049-af725e (queued, --fails-without at 900a11a).
-2. Open-cost numbers main vs fix; doc sentence with them; commit doc (A3).
-3. `campaign verify --for A1`; push; ci:ci.
+1. Paste `campaign brief`'s Evidence table; open-cost numbers into Result.
+2. After journal-turn-sector-checks lands: merge main, update host.h comments naming RFTW0001
+   (its journal lists them), re-sync `gap()` in lost_bound_test.cc if its offsets changed (it
+   copies `spans()`'s layout), rerun the suite.
 
 ## Blocked on
 
@@ -28,14 +26,14 @@ Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <CI suite at head; `lost_bound_test first_open`> |
+| A2 | <261123-110049-af725e> |
+| A3 | `docs/mechanisms/lost-bound.md`: "the shard, the state byte's `bounded_state` bit, then 8 bytes after the base). The verdict is stored" |
+
+Jobs examined: 261121-141538-9a63b7 and 261121-141627-fe334f (xapiand review probe, 11 of 17
+cuts disagree at ebd3038; read first).
 
 ## Result
 
@@ -45,4 +43,18 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Fix in host.h only, no turn_log.h change: `settle_damage` reads each log with the existing
+  `TurnLog::read` and stores the verdict before the drivers' open records. Cost: one more read of
+  each log per open (numbers in Result). The alternative, a hook between `TurnLog::recover` and
+  the open record (turn_log.h, turn_driver.h; outside my file set), would read once; it is the
+  lead's call if the measured cost matters.
+- The drivers recover against the table as it was before `settle_damage` (the same
+  `TurnLogGroups`), so `TurnDriver::recovered()` reports the same bounds and losses as before the
+  fix and the open's existing store/keep pass is unchanged (its commits become no-ops). Recovering
+  against the updated table instead made `recovered().bounded` empty, which the `bounds` case
+  checks.
+- The test is a new case (`first_open`) with a new layout helper `gap()` copying `spans()`'s
+  layout; `spans()` is untouched (the lead's heads-up: journal-turn-sector-checks edits its
+  offsets). Four layouts: gap at batch 3, gap at both fragments (both lose the groups: the gap's
+  last block is the newest, no manifest), gap with a later turn (bounds both at 3), dropped turns
+  rule 2 proves (bounds both at 2; agrees at main too, kept as a guard).
