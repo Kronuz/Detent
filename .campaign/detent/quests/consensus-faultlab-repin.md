@@ -1,36 +1,27 @@
 # consensus-faultlab-repin: consensus pins faultlab at 5d4df9b (stale at_mark fix)
 
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-faultlab-repin`.
+Risk: low (test dependency pin). The lead writes this quest; contributors read it and never edit it.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+faultlab:5d4df9b (Xapiand msg-277) clears the at_mark records of an ordering point that a failing
+directory sync removes; before it, a later point's crash could restore stale bytes, so crash tests
+that inject failing directory syncs may have read stale state. consensus pins faultlab a3b71d1; this moves
+it to 5d4df9b (also brings faultfs.h's split into its parts and the MemoryIO fixture).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The suite passes at the new pin, the crash and power-cut tests included: a job
+- A2 `ci:ci` is green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: from Xapiand's msg-277.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
-
-## Tasks
-
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
