@@ -32,6 +32,14 @@ Cause (local probes, Intel Mac, same arch as CI):
 CI's two failures (44996244171, 45240308075 attempt 1) both ran beside the install case
 (ctest --parallel 2), which syncs heavily on the same runner disk.
 
+Local probe at 16c5bfa with FETCH_ALONGSIDE_SLOW_SYNC=6000 (not a job): node 2's journal held
+loop 0 6,042 ms, its links ended at 5,047 ms, its three round-1 fetches "Software caused
+connection abort", 13 of 16 exact, commits past 2 s; identical to CI. The fixed build compiles.
+
+Not yet proven on CI itself: that the runner's blocker was F_FULLFSYNC. The match of signature
+and the journal being the only blocking call on that loop are inference; any further CI failure
+now prints the journal's hold and the blocked loop's stack.
+
 Fix (test only, groups_test.cc): the group sits on loop 1, which serves no connection (asserted),
 so a slow sync holds the Driver, never the links: every fetch must arrive exact, unconditionally.
 The 2 s commit bound becomes 2,000 ms + the host's take (longest journal op + longest process
@@ -71,4 +79,10 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The cause is the test's placement, not the lane: no contract changed, rpc-lane.md untouched.
+- The group moves to the loop with no connection rather than loosening fetch exactness: a
+  fetch must still arrive exact under any host, so wrong bytes or a lane starvation still fail.
+- Commit and term bounds take the host's measured take (journal op + process stall), as
+  consensus:2d42387 did for heartbeats; the term only past the 1,000 ms election timeout.
+- FETCH_ALONGSIDE_SLOW_SYNC stays in the case as the reproducible injection for A2.
+- Local experiment hook (posted loop sleep) kept out of the repo: block-hook.diff in scratch.
