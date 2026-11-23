@@ -25379,7 +25379,7 @@
           "verdict": "APPROVE"
         },
         "security": {
-          "at": "2026-11-23T04:13:11",
+          "at": "2026-11-23T06:05:54",
           "base": "72bb559e15d25fe71c73221b24baaad611ab2f0a",
           "blobs": {
             "benchmarks/CMakeLists.txt": "100644:8e2fcc776b966dbd63117a6dcc96d62dc30f1f15",
@@ -25420,12 +25420,12 @@
             "tests/detent_reader/test_reader_core.cc": "100644:6afd58eb208a0f2e20939a914107e1f6cbbde1c3",
             "tests/detent_reader/test_reader_files.cc": "100644:8267e2439629980b1a674c249c36f21f0589a868",
             "tests/detent_reader/test_reader_switch.cc": "100644:8af8cd3a2035a392156126ed298ea94c9dc8c677",
-            "tests/detent_reader/test_reader_syscalls.cc": "100644:bd982b31b4eeeb13ce1ecd8ee9d083450ae607ba",
+            "tests/detent_reader/test_reader_syscalls.cc": "100644:ce28c3e7b59c6e65f96a93ee2cb26c6267d6d2b7",
             "tests/detent_system/first_read_gate.py": "deleted",
             "tests/detent_system/first_read_phases.cc": "100644:1b3ae57f1ef4009a4f1518bbafd90008f91e9113"
           },
           "by": "review",
-          "commit": "8acfe4a0b8011f74c8d1ed9931f67ca901cc205c",
+          "commit": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
           "criteria": "43f38b912d6a88ad",
           "diffs": {
             "benchmarks/CMakeLists.txt": "55386ece431593ee",
@@ -25466,14 +25466,14 @@
             "tests/detent_reader/test_reader_core.cc": "3e37038b1af10183",
             "tests/detent_reader/test_reader_files.cc": "d4a49bb626d2f48d",
             "tests/detent_reader/test_reader_switch.cc": "c3b2fefad4adf97d",
-            "tests/detent_reader/test_reader_syscalls.cc": "35c4cac816c10835",
+            "tests/detent_reader/test_reader_syscalls.cc": "cc89f76dc2173956",
             "tests/detent_system/first_read_gate.py": "8cbc78c55fb12653",
             "tests/detent_system/first_read_phases.cc": "6e882cfa9c3b3de5"
           },
           "findings": {},
           "note": "",
-          "review": "a7085d959d8c1f205eb7c25a49adadbbd85adeca",
-          "reviewed": "c1c7498e82f1e6fe0cd5f17bc258c40ccac41cf4",
+          "review": "124b673b5119ce680f9a0c45cef4ff96b14d19d7",
+          "reviewed": "1d7f04f26ec986e0dc3aadcf53ad92e4231ead87",
           "verdict": "APPROVE"
         }
       },
@@ -25833,7 +25833,7 @@
       "risk": "high",
       "status": "review",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-23T04:13:11",
+      "updated": "2026-11-23T06:05:54",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
