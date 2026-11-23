@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-104146-ca1f89 261123-113618-d586c1; ci:ci at journal:8c1e8c2
+State: waiting on jobs 261123-132656-758884 261123-132700-4d14e4 261123-132700-1f99e4 261123-132700-6bde99 261123-132701-1af7dc; ci:ci at journal:f1ca348
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,41 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-The lead widened the file set (lost_bound_test, host_test, AGENTS, ARCHITECTURE, turn_bench,
-host-layout, framing.md, turn-seal.md, framing.h). Done at journal:8c1e8c2, pushed:
-- journal:64747e8: lost_bound_test finds records in data positions and damages mapped file
-  offsets (offsets only, plus group 6's first batch 2,290 -> 2,450 bytes so turn A starts in X);
-  host_test idle_damage and idle_unmanifested likewise.
-- journal:a5670ba: earlier_turn_damage on MemoryIO (it did 2 full-flushed flips per case on
-  PosixIO); journal_turn_log 37 s locally alone, timing job queued against main.
-- journal:8c1e8c2: docs and comments to RFTW0002.
+Fresh contributor (previous context full). The A4 latency job 261123-104146-ca1f89 showed
+written/appended 1.414-1.422 at 256 B at the fix against 1.231 at main and aa (+15%), 1.0466 against
+1.0205 at 4 KiB, while the bytes job 261123-104143-3708f8 showed -5.80% and +0.97%. Measured, not a
+defect:
+- The two count different things. 3708f8's figure is the log's growth (the data position's advance,
+  per sector 512 for 504); turn_bench's written/appended is bytes handed to the write
+  (`stats().bytes_written`). At main a turn's write is its unaligned bytes; at the fix it covers
+  whole sectors: the partial sector before it again, zeros after it, about 510 bytes more than the
+  log grows. 3708f8's own "written" column shows the same ratio (2875.7/2042.7 = 1.408 at 256 B,
+  34184.6/32683.5 = 1.046 at 4 KiB), and the design says it (Cost: "O3's write covers 500-600 bytes
+  more than the turn"; its "Whole-sector write covers" column, 3027.5 at 256 B).
+- Like for like: journal:062641c makes `cost` drive stage/write/completed and count the 512 B
+  sectors and 4 KiB pages each write touches, which is what a device and the page cache write back
+  under either format. Locally (light; 261123-132656-758884 repeats it strict): sectors touched T9
+  1408.0 -> 1348.6 (-4.22%, 2 KiB), 1380.0 -> 1325.6 (-3.94%, 4 KiB), 1349.6 -> 1300.5 (-3.64%,
+  32 KiB); turn_bench 256 B 3022.9 -> 2875.7 (-4.87%); 4 KiB 33861.3 -> 34184.6 (+0.95%). Pages
+  touched -1.04 to -2.31%, +0.85% at 4 KiB. Main's sectors touched at 256 B, 3022.9, is the design's
+  3027.5 column.
+- No defect: the fix's "written" equals its sectors touched in every row (no sector past the turn's
+  last, so no padding or trailer-only sector beyond the span), and log bytes per turn match the
+  design's O3b column (2366.7 vs 2372.9 at 256 B, 33673.8 vs 33880.9 at 4 KiB): turns still pack.
+- So A4's claim is the log's growth (the design's O3b column, -5.6 to -6.2%, +1.0%), and the device
+  cost on equal terms is lower at the fix except +0.95% at 4 KiB records. Written up in
+  docs/mechanisms/turn-log-damage.md's Cost (journal:f1ca348).
+- Latency at ca1f89 (dea3757): p50 is 21 or 41 ms by host fsync regime, the same in every arm;
+  medians of 6 rounds at 256 B main 21.6, fix 21.08, aa 21.66 ms; rerun at f1ca348.
+- journal_turn_log wall time 261123-113618-d586c1 (strict, 8c1e8c2): main 39.1 / 49.9 s, fix 35.4 /
+  40.7 s.
 
 ## Next
 
-1. 261123-104146-ca1f89 (A4 latency, strict, running), 261123-113618-d586c1 (journal_turn_log time,
-   main vs fix, strict, queued), ci:ci run 45250703904 at journal:8c1e8c2 (queued): fill A4, A6,
-   the turn_log time, and the Result. The local suite at journal:8c1e8c2 passed, 102 of 102
-   (quiet light, ctest -j4). ci:ci at journal:dea3757 (run 45241138446) failed only in
-   lost_bound, host idle_damage and idle_unmanifested, which journal:64747e8 fixes.
+1. Jobs at journal:f1ca348 (pushed, CI running): 261123-132656-758884 (A4 bytes, strict),
+   261123-132700-4d14e4 (A4 latency rerun, strict), 261123-132700-1f99e4 (A1),
+   261123-132700-6bde99 (A2), 261123-132701-1af7dc (A3); `ci:ci` and `ci:macos-arm64` (suite) for
+   A6. Then the Evidence table from `campaign brief`, the Result, State "ready for review".
 
 ## Blocked on
 
