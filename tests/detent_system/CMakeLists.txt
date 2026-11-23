@@ -21,6 +21,15 @@ if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
     FIXTURES_REQUIRED authority_tls TIMEOUT 60 SKIP_RETURN_CODE 77)
 endif()
 
+if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
+  add_test(NAME test_system_restart_rebind
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_restart_rebind.py
+      ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture
+      ${PROJECT_BINARY_DIR}/tests/detent_system/restart-rebind)
+  set_tests_properties(test_system_restart_rebind PROPERTIES
+    FIXTURES_REQUIRED authority_tls TIMEOUT 60)
+endif()
+
 if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)
   add_test(NAME test_system_authority_writers
     COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_writers.sh
