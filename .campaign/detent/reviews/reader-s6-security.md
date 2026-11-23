@@ -1,8 +1,8 @@
 # reader-s6 review: security
 
-Commit: a60e089
+Commit: c1c7498e
 Verdict: APPROVE
-Date: 2026-11-22
+Date: 2026-11-23
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
@@ -15,7 +15,61 @@ Attacker model as before: a local user outside `publisher_uid`, a malformed or h
 trusted directory, a bad C ABI caller, a forking application. The publisher's own account can
 already set every value and raise `SIGBUS` (reader.md Limit 5); a defect counts only beyond that.
 
-## Evidence I relied on
+Round 3 re-check (2026-11-23): this lens accepted a60e089 at `Detent:16a38990`. The delta
+`Detent:16a38990..c1c7498e` adds three non-merge commits on the reader: `Detent:dece1118` (C3),
+`Detent:b490591d` (C4) and `Detent:c1c7498e` (N6, probe only). Its other files come from main's merge.
+That re-check is the next section; the a60e089 re-check below it stands, since nothing else on the
+mapped read path changed.
+
+## Round 3: C3, C4 and the cap's refund (c1c7498e)
+
+Evidence relied on: native 261123-020546-339806 and tsan 261123-020547-63d2a8 (A1-A6, A15, the
+new `retained` and `fork_mid_open` cases), A14 261123-020608-eda47a, and the correctness review
+(APPROVE at c1c7498e). Line numbers are `core.cc` at c1c7498e.
+
+1. C3: can a view be freed while a reader uses it? No. `free_retired(keep)` (200-211) frees only
+   slots other than `keep` whose pin sum is zero. At the start of a refresh `keep` is
+   `current % ring_size` (389). At a publish it is the new slot (532), as before.
+   - Only the holder of `refreshing` stores `current`, so `current` stays `s` for the whole
+     refresh. A lookup uses a view only after its recheck `current == s'` succeeds (`Pin::acquire`,
+     331-343). Its recheck runs during this refresh, so `s' = s`, and the slot it pins is the kept
+     one.
+   - Now take a lookup that pinned an older slot and has not yet failed its recheck. Its
+     seq_cst increment comes before its seq_cst load of `current`. If that load still returns the
+     old value, the increment also comes before the store of the new value. That store
+     happens-before this refresh through `refreshing`, so `sum()` sees the increment and the slot
+     is kept. Otherwise the recheck fails and the lookup never loads `view`. This is the Dekker
+     pair that already guarded the free at publish. C3 only runs it on every outcome.
+   - Pins are taken in `lookup` and `testing::stats`. The fork handlers read views only while
+     holding every `refreshing`. `answer` runs pinned, and a lookup releases its pin before it
+     calls `refresh_locked` (570-571, 583-585).
+2. C4: a fork-time race against isolation, or a mapping leaked into the child? No.
+   - `detent_open` registers a handle only after `install_atfork` returned true (643, 678).
+     That return follows the release store at 276, which follows `pthread_atfork`, so every
+     handle in the registry at fork time has the handlers. The acquire load on the fast path pairs
+     with that store.
+   - The handlers are unchanged: `fork_prepare` holds `registry_mutex` and every `refreshing` and
+     freezes each table; `fork_child` zeroes the pins.
+   - `atfork_mutex` is still never taken with `registry_mutex`. No handle's state depends on
+     the flag, so a stale `false` costs only a lock.
+   - The child inherits every parent mapping, as any fork does; `fork_child` keeps their ledger
+     entries consistent, as at d8c0182 (A12/A13).
+   - Residual liveness nit (S8). The fix covers the steady state. It does not cover the first
+     registration racing a fork.
+3. The refund under a hostile store: bounded. A freed view drops its generations, and
+   `~PageTable` unmaps each segment and returns its ticket. The ring holds 4 views of at most
+   5 generations each, and charges never pass the cap, since admission precedes `mmap`. So the
+   synchronous work of one refresh is at most the segments the cap admits.
+   - C3 only adds frees: a Refused, Unchanged or Failed outcome now refunds unpinned views and
+     builds nothing (the refused check still precedes attach, 391-397). No path charges without a
+     matching ticket.
+   - A lookup thread that wins `refreshing` can pay for those `munmap`s. That cost already
+     existed at publish, and S1 sizes it (about 120,000 one-page packs at the default cap on Linux,
+     publisher-only).
+
+## a60e089 re-check
+
+### Evidence I relied on
 
 1. The d8c0182 review (previous version of this file) and its probes e54597 and 2101c5, for what is
    unchanged since: the decode and first-touch code is byte-identical at a60e089 apart from main's
@@ -26,7 +80,7 @@ already set every value and raise `SIGBUS` (reader.md Limit 5); a defect counts 
    a60e089 (native 15579c, tsan 4432db, asan a1ad79, t3-tsan bff807, A10 c31340, A11 377d11) were
    queued when I wrote this; they and CI at the head are the landing's gate, not this review's.
 
-## What I checked myself
+### What I checked myself
 
 Scripts under `.scratch/detent/review-reader-s6-security/` (`probe.sh`, `probe.cc`,
 `post_touch_fuzz.inc`) and `recheck/rerun.sh`, which rebuilds them at the job's commit and reruns
@@ -90,6 +144,7 @@ them unchanged.
 | S5 | no | nit | Still open: `read_selected`'s `selected` and image records are checked without `mode_only_acl`, unlike every other record (`prepared_reader.cc:40,125`). The merge kept it as it was. | `generation.cc:106-147` | Add `mode_only_acl` there. |
 | S6 | no | nit | `mmap` failure now raises `system_error` for every errno. `openat` does that only for the resource errnos (`transient`). A pack that can never map (ENODEV, EACCES, EINVAL) therefore never sets `failed`. Each lookup that reaches it repeats open, fstat, ACL check and `mmap`, then answers `DETENT_IO`. This is bounded work and publisher-only. | `lazy_page_access.cc:33-36,169-171` | Raise `system_error` only when `transient(errno)` after `mmap`; otherwise `ReadSourceFailure`. |
 | S7 | no | nit | The UBSan skip returns before the whole of `transient_miss`, not only its exhausted step as the commit message says. The steps before exhaustion are also covered elsewhere, so nothing is lost on the mapped path. | `test_reader_core.cc:174-179` | Optional: skip only the `setrlimit` part, or reword the message. |
+| S8 | no | nit | C4 covers opens after the first registration. The child can still deadlock on its first `detent_open` in one window: another thread holds `atfork_mutex` for the process's first registration, and it forks before the release store at 276. The child then inherits a locked mutex and `atfork_installed == false`. The window is one `pthread_atfork` call per process lifetime, and only liveness is at stake: no handle exists yet to leak. | `core.cc:269-278` | Optional: register from a static initializer or `pthread_once`, after which no open locks; or document it with D10. |
 
 S2 and S4 were fixed in round 1 (`Detent:c300e5f`, `Detent:96a069c`; ATFORK-1 2a7bcc).
 
@@ -97,5 +152,9 @@ S2 and S4 were fixed in round 1 (`Detent:c300e5f`, `Detent:96a069c`; ATFORK-1 2a
 
 1. Linux. A pack changed on disk after first touch shows in a reader only there, and the skip's
    effect on linux-asan-ubsan is shown only by CI at the head, which was queued at review time.
-2. The suite gates at a60e089 (queued); the landing's gate.
+2. The suite gates at a60e089 (queued); the landing's gate. At c1c7498e, CI and A7-A13, A16 belong to
+   the landing's gate, not this review.
+4. No new probe for round 3: its three questions are about memory ordering and lock scope. They are
+   answered by source above and by the `retained` and `fork_mid_open` cases in the native and tsan
+   jobs.
 3. A store with more than 65,530 tiny packs, for S1's map count; argued from the code.
