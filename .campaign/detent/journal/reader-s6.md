@@ -431,7 +431,7 @@ At the merged head `Detent:a60e089`; mutants (fails without) at their own commit
 | A4 | t3-tsan 261122-214348-bff807, t3-asan (4 readers) 261122-214431-1a9b50, 261122-214407-57a878; fails without: STATS-1 261119-045706-676367, DROP-1 261120-150455-acc366 |
 | A7 | 261122-214407-0657dc |
 | A8 | dense ASan 261122-214408-ea231c; mutants as `campaign brief` lists (D5-1..3, D10-1..3, D2-1, D4-1, FIX-1, FIX-2, Q6-1, HDR-1, SEL-1, SEL-2, BOUND-1) |
-| A9 | [artifact] `docs/mechanisms/reader-core.md`, sections "Fork (D10)", "Fork and cold preparation", "Bounds" and "Mapped bytes after verification" (written at Detent:96a069c); doc check 261122-214531-91bf27 |
+| A9 | [artifact] `docs/mechanisms/reader-core.md`: "## Fork and cold preparation" (also its sections Fork (D10), Bounds and Mapped bytes after verification; doc check job 261122-225652-b8b8ac) |
 | A10 | 261122-214408-c31340; mutants SR1-selected, -image, -change, -record, -pack (brief) |
 | A11 | 261122-214408-377d11; mutant SR2 (brief) |
 | A12 | cold 261122-214409-d604f3, soak 261122-214409-ebe627; mutants F1-F4 (brief) |
