@@ -26491,7 +26491,10 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_system/test_managed_failover.sh"
+        "tests/detent_system/test_managed_failover.sh",
+        "tests/detent_system/authority.py",
+        "tests/detent_system/test_restart_rebind.py",
+        "tests/detent_system/CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [],
@@ -26502,7 +26505,7 @@
       "risk": "low",
       "status": "active",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-22T21:06:31",
+      "updated": "2026-11-22T21:35:44",
       "worktree": "../Detent-wt/detent/system-failover-port-reuse"
     },
     "task-cancellation": {
