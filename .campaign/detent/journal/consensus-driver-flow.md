@@ -29,7 +29,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | job 261123-063949-57aa77 (queued): driver_test, all cases, at consensus:10eb12e; local run of flow_reaches_core 830 checks, 0 failures |
+| A2 | jobs 261123-063953-58e218 (create drops the Flow, mutant/driver-flow-create 46e0f17) and 261123-063957-782827 (recover drops it, mutant/driver-flow-recover 80c7c8e), --fails-without (queued) |
+| A3 | [artifact] docs/DRIVER.md, 'Replication flow (D15)' above the Seams block: names `WorkerLimits::flow` / `GroupOptions::scheduling.flow`, default `Flow{}`; CHANGELOG.md 2026-11-23 |
+| A4 | CI on the pushed branch quest/detent/consensus-driver-flow at consensus:10eb12e (running) |
 
 ## Result
 
