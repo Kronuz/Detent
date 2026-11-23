@@ -47,7 +47,9 @@ Per seal of 2,048 uniform one-key updates, over the relay's own builder (`detent
 | Idle seal (16 changes): CPU, wall, written | 11.6 ms, 99.1 ms, 118 KB; (d) 1.0 ms (`261123-102616-53d93e`, strict) | 33.8 ms, 265.1 ms, 171 KB; (d) 1.8 ms |
 | Head generation in memory | 11.6 MB heap, 55.4 MB peak RSS | 135.1 MB cold, 243.1 MB after 30 seals; 618.8 MB peak RSS |
 | Cold build (restart, new leader), one thread | 203.6 ms CPU, 300.1 ms wall, 2.54 MB | 9.00 s CPU, 12.04 s wall, 128.8 MB |
-| Strict rerun at head: build CPU p50, (d) p50, written | 129.1 ms, 165.6 ms, 2.42 MB (`261123-103432-c20472`) | 783.1 ms, 117.6 ms, 11.21 MB (`261123-103435-b1e0ae`); idle 28.1 ms (`261123-103438-3b96b1`) |
+| Strict rerun at `Detent:07ac6b6`: build CPU p50, (d) p50, written | 129.1 ms, 165.6 ms, 2.42 MB (`261123-103432-c20472`) | 783.1 ms, 117.6 ms, 11.21 MB (`261123-103435-b1e0ae`); idle 28.1 ms (`261123-103438-3b96b1`) |
+
+The CPU figures are the exclusive rows, at the commit they ran at (`Detent:bf55a09`: `261122-210428-976f07`, `261122-210429-1ed7a8`); at 5M the build costs 604.8 ms against (d)'s 96.7 ms. The strict reruns show that the harness edits and the merges of `main` since do not move the result: the same bytes written, the same ordering of (b) and (d), and 29-64% more CPU beside other jobs' light holds. They ran at `Detent:07ac6b6` (`261123-103432-c20472`, `261123-103435-b1e0ae`, `261123-103438-3b96b1`, `261123-102616-53d93e`) and run again at the merged head (`261123-143709-e27543`, `261123-143709-c59049`, `261123-143710-993a49`, `261123-143708-866493`).
 
 At 100K a 2,048-key uniform seal touches nearly every leaf, so each seal rewrites about 95% of the store; this is the worst case per byte, and the 5M rows give the realistic one.
 
