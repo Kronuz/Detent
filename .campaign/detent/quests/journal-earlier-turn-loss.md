@@ -22,7 +22,7 @@ cases are the design's O3b, a format change, out of scope here.
 
 ## Acceptance criteria
 
-- A1 A deterministic test builds the earlier-turn shapes (damage to a non-newest turn of the
+- A1 A deterministic test in `test/turn_log_test.cc` builds the earlier-turn shapes (damage to a non-newest turn of the
   newest segment, later acknowledged writes after it in the same block and in later blocks) and
   checks recovery by value: every later turn that verifies is recovered, or the damage is reported
   with the groups it lost named; recovery is never silent with fewer records than were acknowledged.
