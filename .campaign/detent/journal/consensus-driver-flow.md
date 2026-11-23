@@ -31,14 +31,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261123-063949-57aa77 (passed at 10eb12e; the merge touched none of its files) |
 | A2 | 261123-105043-139c3a (create drops the Flow), 261123-105047-a9361e (recover drops it), --fails-without on mutant branches rebuilt on f7a44f3; first round 58e218, 782827 passed at 10eb12e |
-| A3 | `docs/DRIVER.md` names `WorkerLimits::flow` and `GroupOptions::scheduling.flow` name the option, `Flow{}` its default |
+| A3 | `docs/DRIVER.md` (Replication flow) names WorkerLimits::flow and GroupOptions::scheduling.flow as the option, Flow{} its default |
 | A4 | `ci:macos-arm64`, `ci:ci` (CI 45229726672 at consensus:f7a44f3, green) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+WorkerLimits::flow (default Flow{}) is the Flow of every Core a Worker builds (create, recover, the validation Core); a Driver host sets GroupOptions::scheduling.flow, e.g. Flow{4, 4 MiB, 256 KiB}. An invalid Flow (pipeline or window 0) throws invalid_argument when the group opens. Test: driver_test flow_reaches_core (three-voter leader, create and recover): Flow{4, 4 MiB, 256 KiB} keeps 4 appends in flight to a silent verified peer and sends the backlog in frames of at most 256 KiB; the default keeps 1 flight and frames above 256 KiB. Mutants dropping the option at create or at recover each fail it. Docs: docs/DRIVER.md (Replication flow), docs/mechanisms/append-pacing.md, CHANGELOG.md 2026-11-23. Opens nothing; strata::group sets the Flow after this lands.
 
 ## Rulings I made
 
