@@ -3014,6 +3014,18 @@
       "closed": "file set widened: include/detent_testing/**",
       "id": "msg-267",
       "text": "legacy-h (D149/A19): the installed C++ testing face is header-only include/detent_testing/store.hh (detent::testing::Store over generation_writer.h, beside its C face); please add include/detent_testing/store.hh to legacy-h's file set (with src/detent_local/evaluation.hh from msg-266). Fallback if refused: move it to include/detent/test_store.hh."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T12:31:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T12:31:49",
+      "by": "xapiand-lead",
+      "closed": "taken: quest consensus-fetch-alongside-flake started",
+      "id": "msg-272",
+      "text": "consensus test fetch-alongside-consensus fails on CI macos-x86_64, pre-existing: main a068ba06 (run 44996244171, 2026-11-22) and quest/xapiand/consensus-request-install 6e1122c (run 45240308075; the branch touches only transport/codec.h and codec_test). Both: '13 of 16 exact', commits beside the fetches NO within 2 s (slowest 7077 ms and 4410 ms), assertion groups_test.cc:2543. The 13/16 inexact fetches look like more than runner slowness. Not tracked in either hunt list; yours (consensus transport, D102/D106). I reran the job for our landing."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
