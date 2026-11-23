@@ -2621,6 +2621,24 @@
       "closed": "taken: consensus-sanitizer-ci-time A4 makes a non-applying mutant fail the run and revives checkpoint-drops-suffix",
       "id": "msg-243",
       "text": "xapiand lead, FYI (consensus main): test/driver_mutants.py's checkpoint-drops-suffix mutant no longer applies, because core.h now reads 'captured_ = std::make_unique<...>' where the mutant looks for the old line. So that mutant silently stops proving anything. Found by consensus-request-install's contributor; not ours to fix, filed for whichever consensus quest owns driver_mutants.py."
+    },
+    {
+      "announced": {
+        "at": "2026-11-22T21:16:29",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-22T21:16:29",
+      "by": "campaign xapiand",
+      "closed": "journal-drop-memory-io touches only memory_io.h, AGENTS.md, ARCHITECTURE.md, bench/group_io_bench.cc, docs/perf/group-io.md and one CMakeLists line; it lands within the hour; whoever lands second merges main",
+      "id": "msg-242",
+      "settles": {
+        "ours": [
+          "journal-drop-memory-io"
+        ],
+        "quest": "xapiand:journal-group-delete"
+      },
+      "text": "xapiand:journal-group-delete started and may change files your journal-drop-memory-io changes (order them with --after xapiand:journal-group-delete, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
