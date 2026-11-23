@@ -1,83 +1,79 @@
 # reader-s6 review: correctness
 
-Commit: Detent:d8c01825bd9f3dec285a37ea02e5612c3b0f2351
+Commit: Detent:80cde23b062be51a291268b2428334c021903b1e (code of `Detent:f3261943`; round 2 of
+this review, round 1 was at `Detent:d8c01825`)
 Verdict: CHANGES
-Date: 2026-11-21
+Date: 2026-11-23
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
+## Scope of this round
+
+The quest's own commits after `Detent:d8c01825` that touch `src/` or `include/` (first parent,
+main's merges `Detent:78706fc6` and `Detent:f3261943` excluded): `Detent:c300e5fa` (C1, C2, S1
+bounds, S2 atfork), `Detent:5957f287` (N1, `ReadAdmissionRefused`), `Detent:07a77ec2` (D143
+mapping cap and `reader_capacity_probe.cc`), plus the test-only `Detent:a60e0894` and the docs
+commit `Detent:96a069ce`. `Detent:80cde23b` differs from `Detent:f3261943` only in the journal.
+
 ## Evidence I relied on
 
-- Gates at `Detent:8200f57` (code-identical to the head): native 261121-083336-07165a, tsan
-  261121-083336-7d077b, t3-tsan 261121-083336-1342d5, all exit 0. They carry A1-A6 and A15 and
-  the T3 switch under TSan (risk 2's interleavings).
-- A8, A10-A14 mutants and runs as listed in the journal's Evidence (D5-1..3, D10-1..3, F1-F4, cold
-  dd95f8, soak e7e113); `campaign status reader-s6` shows them passed at `Detent:782374e` with
-  only a main merge since. I did not rerun them.
-- A16: exclusive 261120-225554-5ee6cc (stopped) and 261120-225556-0233d1 (running) at
-  `Detent:45db5f7`, BASELINE main `Detent:cb97ef5`; logs read. `git diff 45db5f7 d8c0182` under
-  `src include cmake` touches only authority, relay, delivery, `owner_loop.hh` and `reply_pump`,
-  none of which `first_read_phases` (`detent::local_client`) or `first_read_core`
-  (`detent::reader`) includes, so the rows stand for the head's timed code. The head reruns
-  261121-113842-fb5a53 and -b8c489 were still queued.
+- C1 at the fix: suite native 261122-214347-15579c (exit 0 at `Detent:a60e0894`, carried to the
+  head across a main merge that touches none of its files) runs `test_reader_core`'s
+  `refresh_memo`. That test is round 1's probe sequence: hide the selected `.read`, first lookup
+  `unavailable` twice, restore, still remembered, `detent_refresh` `ok`, then the lookup must answer
+  `ok` with one attach (`test_reader_core.cc:130-145`). It tests the value C1 is about.
+- C1 without the fix: MEMO-1 261121-133829-b558f2 at `Detent:a68f7e50`, whose only code change
+  from `Detent:96a069ce` is the two-line memo clear in `detent_refresh` (diff read), exit 134 with
+  "t:rev: status unavailable, expected ok", the post-refresh check. So the same test fails without
+  the fix.
+- C2, N1 and D143's `capped`: the journal's MISS-1 261121-133832-23f97d, NOMEM-1
+  261121-141047-4552ff (log read: `t:k10 source_failure`, line 208), CAP-1 a5d80c, CAP-2 9b81e0,
+  all killed; native 15579c passes them.
 
 ## What I checked myself
 
-Read `src/detent_reader/core.cc` whole, the diffs of `lazy_page_access.cc`, `prepared_reader.cc`,
-`paged_navigation.hh`, `paged_read_state.cc`, the C and C++ headers, `docs/mechanisms/reader-core.md`,
-`docs/perf/first-read-gate.sh`, and the fork and Q6 tests. Probes, rerun with
-`bash .scratch/detent/review-reader-s6-correctness/probe.sh NAME` from a checkout (exit 0 is the
-documented behavior, 1 the defect):
+Read the src/include diffs of all five commits, `lazy_page_access.cc` (miss, publish, resolve),
+`allocator.hh` and `storage.hh` (tickets), and `core.cc`'s refresh, lookup, free and open paths at
+the head. Probes, rerun with `bash .scratch/detent/review-reader-s6-correctness/recheck.sh` from a
+checkout (job 261123-014705-863bc2 at `Detent:80cde23b`, exit 1 by design, see C3):
 
-- `probe_refresh_memo` (job 261121-114518-fe78c5, exit 1): open, hide the selected generation's
-  `.read`, first lookup `unavailable`; restore, `detent_refresh` returns `ok`; the next two lookups
-  are still `unavailable`; only a publish brings `ok`.
-- `probe_transient_miss` (job 261121-114630-3d1d63, exit 1): a 60,000-knob store (2 packs); after
-  the first read, descriptors exhausted (`EMFILE`), the first cold-segment lookup returns
-  `source_failure`; with descriptors back, that key and the already-mapped `t:k0` both return
-  `source_failure`, `detent_refresh` returns `ok` and changes nothing; only a publish recovers.
+- `probe_refresh_memo` (round 1's C1 probe, unchanged): exit 0 at the head. `detent_refresh`
+  after the restore answers `ok`, the next two lookups `ok` value 1, a publish then value 2.
+- `probe_retained_cap` (new): 60,000-key store (two packs), cap 2,000,000. Rev 1 read whole
+  charges 1,435,144. A reader parks pinned on the installed view while rev 2 is published and
+  `detent_refresh` commits; released, it refreshes itself (Unchanged) and answers 2. Then rev 2:
+  generations 2, charged 1,814,976, 44,436 of 60,000 keys `no_memory` with the fallback; after a
+  second `detent_refresh` the same 44,436; after rev 3 is published, 1 generation and every key
+  reads. Control: one generation fits the cap.
 
-Risks, answered:
-
-1. Switch and snapshot: a lookup answers from one `Generation` (one root, one `PageTable`) under a
-   pin held until `answer` returns (`core.cc:537-542`); segments unmap only in that generation's
-   destructor, reached from `free_view` after a zero counter sum (`core.cc:172-183`, `355-366`,
-   `500-509`). No mix of pages, no page freed under a pin.
-2. Ring: the reader's seq_cst increment and `current` recheck against the publisher's seq_cst
-   `current` store and counter scan; `current` is 64-bit and compared whole, so a reused slot fails
-   the recheck (no ABA); stripe sharing is additive, so a non-atomic sum cannot read 0 under a held
-   pin; the freer never touches the slot `current` names. No logic race found beyond TSan's view.
-3. Fork: lock order is `registry_mutex` then each `refreshing`; no path holds `refreshing` while
-   taking the mutex or entering `Preparation`, and `publish` never nests a second preparation, so
-   prepare cannot wait on itself. `prepare_fork`/`parent_after_fork` are idempotent for a
-   generation shared by several views. A verified bit is set only after `verify_page` and the node
-   walk (`paged_navigation.hh:43-50`); a segment is reachable only after its release CAS. The child
-   sees whole segments or none.
-4. Q6 (a): the 200 ms bound holds under contention because `refresh_locked` rechecks
-   `store_try_at` under `refreshing` (`core.cc:374-380`), so a loser that wins later does not
-   reopen. Error paths: C1, C2 and N1 below.
-5. A16: exclusive, interleaved pairs (order flipped per cell), one pinned toolchain checked by
-   `check()` and `file`, Release, counters off, each arm on its own tree's store. Branch medians
-   50-55 us faster and pooled p99 below main's in all four cells (0.830/0.875, 0.890/1.021,
-   1.109/1.139, 1.001/1.109 ms), so the pass does not rest on D142's floor. Sound.
+D143 accounting, by reading: every charge is RAII and refunds on every failure path. A pack's
+ticket is admitted before `mmap` and refunded by `~Mapping` when `mmap`, the identity `fstatat`,
+the segment allocation or the bitmap allocation throws (`lazy_page_access.cc:167-176`,
+`199-206`); `StorageAllocator::deallocate` refunds after release (`allocator.hh:39-46`); `State`
+(and its slot table) is charged at attach and refunded with the `Generation`. Remap of `change` is
+uncharged, as documented. The default is 512 MiB for zero and for an options struct that ends
+before the field (`core.cc:628-633`, short-circuit read); a cap above `SIZE_MAX` is clamped. The
+floor's static assert matches `VerifiedPages`' word count. No accounting defect found; the
+defect is in when a retained generation is released (C3).
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| C1 | yes | defect | `detent_refresh` does not clear a failure remembered by an unattached namespace's first attach. With no entry, a forced refresh rebuilds an equal view and returns `Outcome::Unchanged` (`core.cc:453-460`), which leaves `failed_store` set (only a publish clears it, `core.cc:497-499`); the no-entry lookup then returns the memo (`core.cc:552-554`) until the store word moves. With the publisher stopped that is forever, against reader.md D4 ("waits for the sequence to move or for `detent_refresh`") and reader-core.md ("until the store word moves or `detent_refresh` runs"). | probe_refresh_memo, job 261121-114518-fe78c5 | Clear the memo when a forced refresh does not fail (Unchanged or Published). Test: the probe's sequence in `test_reader_core` (`values` or `unreadable_table`), with a mutant that keeps the memo. |
-| C2 | no | defect | A transient failure on a cold segment miss (`EMFILE` on `openat`, `mmap` failure) marks the whole generation failed (`lazy_page_access.cc:148-150`, `159-161`, catch-all `251-253`) and reports `DETENT_SOURCE_FAILURE` ("failed verification") rather than `DETENT_IO`. Every later lookup in that generation fails, mapped segments included, and `detent_refresh` cannot recover it, since an unchanged generation id keeps the same `Generation` (`core.cc:431-432`). Pre-existing: the catch-all and the `openat` refusal are on main's `lazy_page_access.cc`; the quest carries them into the new C ABI. | probe_transient_miss, job 261121-114630-3d1d63 | Lead's call, here or a follow-up: throw a `system_error` for `openat`/`fstat`/`mmap` errno failures and exempt it from `failed` (as `StoragePressure` is), so it maps to `DETENT_IO` and the next lookup retries. |
-| N1 | no | nit | Lookup-time `bad_alloc` and ledger pressure become `ReadSourceFailure` (`lazy_page_access.cc:247-250`) and so `DETENT_SOURCE_FAILURE` (`core.cc:80-96`), not `DETENT_NO_MEMORY` as reader-core.md "Status mapping" and reader.md line 130 say. The ledgers are unbounded today (`core.cc:630-632`), so only `bad_alloc` reaches it. | `lazy_page_access.cc:247-250` | Rethrow those two as they are, or correct the docs. |
-| N2 | no | nit | A first lookup whose refresh is refused by a pinned next slot answers `DETENT_UNAVAILABLE` with the fallback for a knob that exists, and the backoff extends that to later first lookups (`core.cc:558-559`, `570-572`). D5's refusal, rare; reader-core.md step 5 reads as if no first lookup answers a default. | `core.cc:558-572` | Say so in reader-core.md, or keep as is. |
-| N3 | no | nit | The grown-`change` path records the entry's `seen` as 0 (`core.cc:395-396`, `448`), so the next lookup refreshes once more. Conservative and correct. | `core.cc:418-429` | None needed. |
-| N4 | no | nit | The A16 head reruns keep BASELINE `Detent:cb97ef5` while main is at `Detent:4195c4a`; main's code since is outside the timed binaries, so the comparison is unchanged. | job spec 261121-113842-fb5a53 | None needed. |
+| C1 | yes | defect | Round 1: `detent_refresh` did not clear a failure remembered by an unattached namespace's first attach. **Fixed at `Detent:c300e5fa`**: a refresh that does not fail stores `UINT64_MAX` in `failed_store` (`core.cc` `detent_refresh`). Confirmed. | Fix: suite 261122-214347-15579c (`refresh_memo`); fails without: MEMO-1 261121-133829-b558f2; probe at head 261123-014705-863bc2 (`probe_refresh_memo` exit 0) | Done. |
+| C2 | no | defect | Round 1: a transient cold miss failed the whole generation. Fixed at `Detent:c300e5fa`: resource errnos on `openat`, and `fstat`/`mmap` failures, raise `system_error` (`DETENT_IO`), rethrown past the catch-alls without setting `failed`. | `transient_miss` in 15579c; MISS-1 261121-133832-23f97d | Done. |
+| N1 | no | nit | Round 1: ledger refusals reported `DETENT_SOURCE_FAILURE`. Fixed at `Detent:5957f287` (`ReadAdmissionRefused` maps to `DETENT_NO_MEMORY`). | `capped` in 15579c; NOMEM-1 261121-141047-4552ff | Done. |
+| N2-N4 | no | nit | Round 1 nits (first lookup refused by a pinned slot, grown-`change` `seen`, A16 baseline), left by the lead. | round 1 | As round 1. |
+| C3 | yes | defect | D143's cap refuses a new generation's keys while the handle holds only an unreachable old generation. A lookup pinned on the installed view when a publish commits keeps that view (`core.cc:516-518`); the old view, its `Generation` and every pack it mapped stay charged until the next `Published` outcome, since an `Unchanged` refresh returns before the free scan (`core.cc:473`), so neither the stale reader's own refresh nor `detent_refresh` releases it. Under concurrent lookups that pin is the common case at a commit, so a store whose read set exceeds about half the cap answers existing keys with the fallback and `DETENT_NO_MEMORY` for a whole publish interval. The test comment "frees the unpinned older views" (`test_reader_switch.cc:725`) states what the code does not do. Introduced by this round: with `SIZE_MAX / 4` ledgers the retention cost memory, not answers. | `probe_retained_cap`, job 261123-014705-863bc2: 44,436 of 60,000 keys `no_memory` at rev 2, unchanged after `detent_refresh`, all read at rev 3 | Run the free scan of zero-sum non-current slots on every `refresh_locked` that holds `refreshing`, `Unchanged` and `Refused` included (or at least in `detent_refresh`), so the stale reader's own refresh frees it. Test: the probe's sequence in `test_reader_switch` (`Pinned` park), with a mutant that keeps the early return. |
+| C4 | no | defect | `install_atfork` locks `atfork_mutex` on every `detent_open` (`core.cc:256`), and the fork handlers do not take it. A fork while another thread is inside that lock leaves it held in the child, whose next `detent_open` deadlocks. `pthread_once` had this hazard only around the first open. Narrow window, so not blocking. | `core.cc:214-260` | Read an atomic `atfork_installed` (acquire) before locking; lock only to install. Not by taking `atfork_mutex` in `fork_prepare`: libc may hold its atfork lock there while `pthread_atfork` waits on it. |
+| N5 | no | nit | `DETENT_MINIMUM_MAPPING_BYTES` equals one full pack plus its bitmap exactly (`core.cc:58`), but the same ledger is charged first for the page table's `State` and slot table (`lazy_page_access.cc:105`, `271`) and then the segment object, each with an allocator header (`allocator.hh:32`). At the floor no pack whose rounded mapping is 1 MiB can be mapped, so the open succeeds and every lookup in such a pack answers `DETENT_NO_MEMORY`. The docs do not promise one readable pack, only the open refusal. | `core.cc:58`, `lazy_page_access.cc:105`, `199-207`, `271` | Say "below which no pack can be read" or add a fixed page-table allowance to the floor; or keep. |
+| N6 | no | nit | `reader_capacity_probe` with `refuses` calls `statuses.at("no_memory")`, which throws (exit 134, not 1) when the default cap refuses with another status. | `reader_capacity_probe.cc:111` | Use `find` or `operator[]`. |
 
 ## Not run
 
-- No rerun of the gates, mutants, soak or A16; no Linux or sanitizer run of the probes (both are
-  deterministic Debug probes on macOS).
-- Hostile input and the C ABI's validation: the security lens.
-- `prepared_reader.cc`'s attach retry loop beyond the paths the probes and tests reach; the
-  format-refusal merge (journal risk question 4).
+- No rerun of the gates, TSan, A16, the soak or `reader_capacity_probe` at a 5M scale; no Linux run
+  of the new probe (deterministic, single park, Debug on macOS).
+- No probe of C4's deadlock (it needs a fork timed inside a mutex hold); read only.
+- Main's merges and the security lens's bounds review (`reviews/reader-s6-security.md`).
