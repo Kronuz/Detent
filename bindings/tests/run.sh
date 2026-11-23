@@ -13,9 +13,10 @@ shift $(( $# > 2 ? 2 : $# ))
 targets=("$@")
 (( ${#targets[@]} )) || targets=(detent_python detent_rust detent_reader_shared detent_testing_shared test_reader_scenarios)
 no_verdict() { echo "no verdict: $*" >&2; exit 126; }
+mkdir -p "$build" || no_verdict "cannot create $build"
 cmake -S "$root" -B "$build" -DCMAKE_BUILD_TYPE=Release -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON \
 	-DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON \
-	-DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF > "$build.configure.log" 2>&1 || no_verdict configure
+	-DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF > "$build/configure.log" 2>&1 || { tail -40 "$build/configure.log" >&2; no_verdict configure; }
 if [[ -n $patch ]]; then
 	git -C "$root" apply "$patch" || no_verdict "patch does not apply"
 	trap 'git -C "$root" apply -R "$patch"' EXIT

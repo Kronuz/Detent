@@ -89,10 +89,6 @@ template <>
 GroupOverride make<GroupOverride>(unsigned i) {
 	return (i & 1) ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(i % 100)}) : GroupOverride(std::int64_t(i & 2));
 }
-template <>
-OverrideValue make<OverrideValue>(unsigned i) {
-	return OverrideValue(std::int64_t(i));
-}
 
 [[noreturn]] void fail(const char* what, const char* op, unsigned n, long b) {
 	std::fprintf(stderr, "FAILED %s: op=%s n=%u budget=%ld long_names=%d\n", what, op, n, b, int(long_names));
