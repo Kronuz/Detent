@@ -5374,6 +5374,8 @@
     "consensus-faultlab-repin": {
       "accepted": {},
       "after": [],
+      "base": "e58ea966e6351e0e240a11bca191bf608f54e072",
+      "branch": "quest/detent/consensus-faultlab-repin",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -5386,6 +5388,7 @@
       "files": [
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/consensus-faultlab-repin",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5393,9 +5396,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "consensus pins faultlab at 5d4df9b (stale at_mark fix)",
-      "updated": "2026-11-23T15:00:52"
+      "updated": "2026-11-23T15:01:07",
+      "worktree": "../consensus-wt/detent/consensus-faultlab-repin"
     },
     "consensus-fetch-alongside-flake": {
       "accepted": {},
