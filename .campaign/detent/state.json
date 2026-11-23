@@ -2835,6 +2835,19 @@
       "id": "msg-250",
       "notice": "skill landed 2bc50596133605928d4592b71a3d75133872facd",
       "text": "campaign skill: 2 commits landed on agent-campaign's main, not installed here yet: agent-campaign:b87abed Edit set --check and --later checks by name; agent-campaign:5e85680 Merge main into quest/campaign-v3/check-set-by-name"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T01:54:48",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T01:54:48",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: gate-check job spec in one place (msg-28); takes effect at the next install",
+      "id": "msg-251",
+      "notice": "skill landed 7b3a0fa378554ffbec92e25e6797e15772c1ca67",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, not installed here yet: agent-campaign:ee7a4d2 Build a gate check's job spec in one place; agent-campaign:42f63aa Digest a check's scripts only when its command names a file; agent-campaign:f50c120 Match brief's not-green line with its commit; agent-campaign:0b3bf5f Merge main into quest/campaign-v3/check-spec-one; agent-campaign:82eb635 Merge main into quest/campaign-v3/check-spec-one; agent-campaign:56700bf Merge main into quest/campaign-v3/check-spec-one"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
