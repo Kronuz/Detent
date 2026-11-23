@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261122-210429-1ed7a8 261122-210431-3080d5 261122-210432-93640e 261122-210434-c73864
+State: waiting on jobs 261123-102306-dab325 261123-102309-475fa8 261123-102312-f68100 261123-102315-eeee65 261123-102317-ee98d8 261123-102319-d64d52 261123-102322-8a13d6 261123-102324-33f7d5 261123-102326-29e936 261123-102329-ff81c3 261123-102331-9bcdbc
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,25 +12,30 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 Harness at bench/authority_pages/ (authority_pages_bench.cc, build.sh, run.sh, check.py): seals mode (per-seal
 build cost with the relay's build_generation, relocation rule, writes+F_FULLFSYNC, LtHash-shaped records
 digest) and commit mode (durable single-voter Node with positions and history; arms none, thread, inline,
-write interleaved on one node).
+write run in the order named on one node).
 
-Round 1 (smoke 261121-214353-49cebb at 83402862) failed in its build: page_window.hh needs src/detent_local;
-its five rows (261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c) were
-skipped. Fixed at 449eed53 (link detent::relay_page_window), then a local smoke found two run failures:
-the journal bootstraps only into an empty dir (history moved beside it, 36ae64aa) and same-key same-value
-producers in one group gave NoChange (distinct values, bf55a099). Local smoke passes at bf55a099.
-Round 2 at bf55a099: smoke 261122-210412-8d650b (light), rows exclusive after it:
-- 261122-210428-976f07 seals 100K (4 x 25,000), 30 seals of 2,048, written and synced
-- 261122-210429-1ed7a8 seals 5M (10 x 500,000), 30 seals of 2,048, written and synced
-- 261122-210431-3080d5 seals 5M, 30 idle seals of 16
-- 261122-210432-93640e commit 100K, none/thread/inline/write x3
-- 261122-210434-c73864 commit 5M, none/thread/inline/write x3
+Rounds 1-2 (smoke and build fixes, 449eed53, 36ae64aa, bf55a099): see git log. Round 2 rows: 100K seals
+261122-210428-976f07 (exclusive), 5M seals 261122-210429-1ed7a8 (exclusive), 5M idle 261123-073248-5fdf61
+(strict) passed and are in the doc. Commit rows 261123-073250-7ccbac (100K) and 261123-073252-43c224 (5M),
+both strict at bf55a099, FAILED in round 6 with "transaction rejected".
+
+Cause (bench bug, not an authority limit): seeding gives key k the value k; a group gave producer i the value
+salt*64+i, so a pick of key k with salt*64+i == k is NoChange. Diagnostic at ff2d21ab (names status, key,
+value, held) reproduced it locally on the same draw sequence (`commit 1 1000 160 none none inline none none
+none`, light): "transaction 52 rejected: status 2 (key 53748, value 53748, held 53748)" = NoChange. Fix
+07ac6b63: group values start past the seeded count. Proof jobs: 261123-102306-dab325 at ff2d21ab
+(--fails-without), 261123-102309-475fa8 at the fix.
+
+Split: a commit row is 4 strict jobs of one arm rotation each (none-thread-inline-write, thread-inline-
+write-none, inline-write-none-thread, write-none-thread-inline: a Latin square, each arm once per position),
+about 5-6 min each; `check.py combine LOG...` gives per-arm median group p50 over the jobs and the paired
+delta against each job's own none run (median, min-max). 100K: f68100, ee98d8, 8a13d6, 29e936; 5M: eeee65,
+d64d52, 33f7d5, ff81c3 (all 261123-1023xx). Plus 100K idle seals 261123-102331-9bcdbc (strict).
 
 ## Next
 
-1. The four 5M/commit rows (queued exclusive; host load 43-47 on 16 CPUs kept them from starting for 2 h):
-   fill the *pending* cells of docs/design/authority-pages.md, confirm or revise the recommendation
-   (the 5M cold build decides (b) against (c)), then State "design ready".
+1. When the commit jobs land: `check.py combine` the 4 logs per corpus, fill the commit table and the 100K
+   idle cell, finish the recommendation (thread vs inline from the gaps), State "ready for review".
 
 ## Blocked on
 
@@ -46,7 +51,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/design/authority-pages.md: 100K priced from 261122-210428-976f07; 5M cells pending |
-| A2 | 261122-210412-8d650b smoke passed; 261122-210428-976f07 passed (seals 100K, exclusive, bf55a099); pending 261122-210429-1ed7a8, 261122-210431-3080d5, 261122-210432-93640e, 261122-210434-c73864. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
+| A2 | 261122-210412-8d650b smoke passed; seals 261122-210428-976f07, 261122-210429-1ed7a8 (exclusive), 261123-073248-5fdf61 (strict) passed at bf55a099. Commit rows 261123-073250-7ccbac, 261123-073252-43c224 failed (bench NoChange bug, fixed 07ac6b63; proof 261123-102306-dab325 fails-without, 261123-102309-475fa8); replaced by 8 rotation jobs 261123-1023xx (see Doing). Round 2's 261122-210431-3080d5, -210432-93640e, -210434-c73864 (exclusive) were replaced by the lead's strict resubmissions. Round 1 (smoke 261121-214353-49cebb failed in build; rows 261121-214754-909eb7, -214758-617a27, -214802-132bf5, -214806-067a3a, -214810-64032c skipped) is superseded |
 | A3 | docs/design/authority-pages.md, "Recommendation" (Limit 1, Q4, D6, D33/D34; quests added) - provisional |
 | A4 | [manual] open: the owner's decision, requested at the doc's end |
 
@@ -57,6 +62,10 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+6. Commit rows: 4 rotations (a Latin square) instead of 3 interleaved rounds, one strict job each, so every
+   job fits 10 minutes and each arm sits once in each position; arms are compared by paired deltas within a
+   job. Commit rows run at 07ac6b63 (main 1941ec85 merged: authority src changed, relay builder did not).
 
 5. Before/after for A2 is arm none against the builder arms, interleaved on one node (3 rounds each), and
    seal p50 with min-max over 30 seals for the noise floor; (a) is the before for every option.
