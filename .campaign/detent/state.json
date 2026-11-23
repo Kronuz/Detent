@@ -6846,6 +6846,40 @@
       "updated": "2026-11-23T07:22:17",
       "worktree": ""
     },
+    "consensus-simulation-asan-timeout": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:linux-asan-ubsan",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/simulation_test.cc",
+        "test/driver_simulation.cc",
+        "docs/mechanisms/simulation*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus_simulation stays well inside its timeout under ASan",
+      "updated": "2026-11-23T11:03:07"
+    },
     "consensus-transport": {
       "accepted": {
         "security": {
