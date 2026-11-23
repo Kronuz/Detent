@@ -107,9 +107,10 @@ int main(int argc, char **argv) {
 		std::cout << ", first refused key index " << first;
 	std::cout << "\n";
 	const bool raised_reads = wide.ok == n;
+	const auto no_memory = capped.statuses.find("no_memory");
+	const std::size_t refused = no_memory == capped.statuses.end() ? 0 : no_memory->second;
 	const bool default_as_expected =
-	    capped.wrong == 0 && (refuses ? capped.ok < n && capped.ok + capped.statuses.at("no_memory") == n
-	                                  : capped.ok == n);
+	    capped.wrong == 0 && (refuses ? capped.ok < n && capped.ok + refused == n : capped.ok == n);
 	std::cout << "raised cap reads every key: " << (raised_reads ? "yes" : "NO") << "; default cap "
 	          << (refuses ? "refuses with no_memory alone" : "reads every key") << ": "
 	          << (default_as_expected ? "yes" : "NO") << "\n";
