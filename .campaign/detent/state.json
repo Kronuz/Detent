@@ -16334,6 +16334,49 @@
       "updated": "2026-11-18T02:09:19",
       "worktree": ""
     },
+    "journal-turn-sector-checks": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:macos-arm64",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/journal/turn_log.h",
+        "test/turn_log_test.cc",
+        "test/turn_*_test.cc",
+        "test/fixtures/crc32c/turn-log/**",
+        "fuzz/fuzz_turn_log.cc",
+        "docs/mechanisms/turn-log-damage.md",
+        "docs/mechanisms/turn-log*.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "journal-earlier-turn-loss"
+      ],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
+      "updated": "2026-11-23T07:39:11"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
