@@ -26,6 +26,7 @@
 #include <mach/mach.h>
 #include <malloc/malloc.h>
 #include <mutex>
+#include <numeric>
 #include <random>
 #include <set>
 #include <sys/resource.h>
@@ -431,6 +432,8 @@ class Authority {
 	}
 	// Seeds `count` keys, 128 per transaction.
 	void load(std::size_t count) {
+		values_.resize(count);
+		std::iota(values_.begin(), values_.end(), std::int64_t(0));
 		std::size_t key = 0;
 		while (key < count) {
 			std::vector<a::Command> batch;
@@ -450,11 +453,17 @@ class Authority {
 	void group(std::mt19937_64 &random, std::size_t keys, int salt) {
 		std::uniform_int_distribution<std::size_t> pick(0, keys - 1);
 		std::int64_t value = std::int64_t(salt) * std::int64_t(commands_.size());
+		picked_.clear();
 		for (auto &c : commands_) {
-			c.mutations = {{"ns:feature_" + std::to_string(pick(random)), detent::KnobDef{value++}, {}, {}}};
+			const auto key = pick(random);
+			picked_.push_back({key, value});
+			c.mutations = {{"ns:feature_" + std::to_string(key), detent::KnobDef{value++}, {}, {}}};
 			++c.sequence;
 		}
 		submit(commands_);
+		for (const auto &[key, v] : picked_)
+			values_[key] = v;
+		picked_.clear();
 	}
 	std::uint64_t seals() const noexcept { return node_->state().seal().ordinal; }
 	// Runs after each service call: the inline arm builds there.
@@ -495,13 +504,23 @@ class Authority {
 			for (auto c = completed_.begin(); c != completed_.end(); ++c)
 				if (c->request == kronuz::consensus::RequestId{id}) {
 					check(!c->rejection, "completion rejected");
-					for (auto outcome : c->results)
-						check(outcome.status == a::Status::Applied, "transaction rejected");
+					for (std::size_t k = 0; k < c->results.size(); ++k)
+						if (c->results[k].status != a::Status::Applied)
+							throw std::runtime_error("transaction " + std::to_string(k) + " rejected: status " +
+													 std::to_string(int(c->results[k].status)) + rejection_detail(k));
 					completed_.erase(c);
 					return;
 				}
 		}
 		throw std::runtime_error("durable completion timeout");
+	}
+	// Names the group mutation behind a rejected result: its key, its value and the key's value before.
+	std::string rejection_detail(std::size_t k) const {
+		if (k >= picked_.size())
+			return {};
+		const auto &[key, value] = picked_[k];
+		return " (key " + std::to_string(key) + ", value " + std::to_string(value) + ", held " +
+			   std::to_string(values_[key]) + ")";
 	}
 	void submit(const std::vector<a::Command> &commands) {
 		const auto id = ++request_;
@@ -511,6 +530,8 @@ class Authority {
 	std::unique_ptr<a::Node> node_;
 	std::vector<a::Command> commands_;
 	std::vector<a::Completion> completed_;
+	std::vector<std::int64_t> values_;							  // each seeded key's value, by index
+	std::vector<std::pair<std::size_t, std::int64_t>> picked_; // the group in flight
 	std::uint64_t tick_ = 0, request_ = 0;
 	std::optional<Clock::time_point> last_;
 };
