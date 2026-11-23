@@ -1,6 +1,6 @@
 # consensus-sanitizer-ci-time: journal
 
-State: waiting on jobs 261122-210949-fe3a3e 261122-212240-272db5 261122-212244-62ba1e
+State: waiting on jobs 261123-020912-132abe 261123-020851-6677d3 261123-020847-4f235f 261123-020845-ec263b and CI run 45153365600 (consensus-sanitizer-ci-time:47dcb27, main merged and pushed)
 Quest: .campaign/detent/quests/consensus-sanitizer-ci-time.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,8 +17,7 @@ A4 (lead's addition) committed consensus-sanitizer-ci-time:48ced0e: driver_mutan
 
 ## Next
 
-1. Read the probe, fix owe-order's bound or stall, run 50 of 50 (a2.sh 50).
-2. Push, A3 CI, Evidence table.
+1. When the jobs and CI run 45153365600 finish: fill the Evidence table, record linux-asan-ubsan wall time (limit 60 min) and `ci:` rows, then ready to land.
 
 ## Blocked on
 
@@ -33,7 +32,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261123-020841-cdfe7f (47dcb27: mutant tests plain=17 asan-ubsan=0 tsan=0; exit 0) |
+| A2 | 261122-210949-fe3a3e (5 of 5 pass under TSan, 4 burners, unfixed bound); 50-run job 261123-020845-ec263b |
+| A3 | suite 261123-020847-4f235f; `ci:linux-asan-ubsan`, `ci:linux-tsan` (run 45153365600) pending |
+| A4 | apply-all 261123-020851-6677d3; mutant run (fails without, exit 1 = killed, as designed) 261123-020912-132abe; earlier 261122-212240-272db5 and 261122-212244-62ba1e (that job's exit 1 was the kill: "the test failed without the fix, as it must", not a failure) |
 
 ## Result
 
@@ -44,3 +46,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 A1 detects sanitizers from the flags (not a CONSENSUS option), so the shared CI needs no change.
+
+A2: no owe-order failure reproduces locally (5 of 5, then 50-run job above); the CI abort (10.97 s, gate 10.1 s for 2,000 groups) was run 44993461293 on a loaded shared runner while mutants also ran in the same job; with mutants out of sanitizer builds (A1) the job is far less loaded. No fix made unless the 50-run job fails; no hunt.
