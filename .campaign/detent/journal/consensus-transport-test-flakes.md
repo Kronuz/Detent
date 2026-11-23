@@ -22,7 +22,7 @@ Nothing. Not a transport defect (see Result), so no widened file set is asked fo
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [artifact] Result below; reproducing jobs 261121-143436-5d5a0f (fetch under TSan, pre-fix fails), 261121-143443-734524 (group-full paused, pre-fix fails) |
+| A1 | Causes in Result below; reproducers 261121-212631-ac045b (fetch) and 261121-212632-5bcdd7 (group-full), --fails-without at consensus:2c1abbb, each exited 1 as designed (first seen as 261121-143436-5d5a0f and 261121-143443-734524) |
 | A2 | pre-fix at the head's tree: 261121-212631-ac045b (fetch), 261121-212632-5bcdd7 (group-full), both --fails-without at consensus:2c1abbb, each exited 1 as designed; earlier fetch TSan: 261121-143436-5d5a0f (pre-fix, fails) vs 261121-143440-4dd232 (fix, 48 runs, gaps 125-258 ms) and 261121-143505-802e52 (plain, 48 runs, gaps 106-108 ms); group-full: 261121-143443-734524 (pre-fix fails, 5 s pause at 23 offsets) vs 261121-143447-430e88 (fix passes); repeats 261121-143458-1278dc (TSan 48), 261121-143501-bfbd76 (plain 96); control 261121-143509-02c420 (rpc-shared-credit: "0 of 15 calls ... 100 of 100 after FAILED", 2 of 2 runs failed: the expected control result, a transport parking calls behind the credit) |
 | A3 | `ci:linux-tsan` and `ci:macos-x86_64` green three times in a row at consensus:4536590: run 44989408833 attempts 1, 2 and 3 (attempt 2's linux-asan-ubsan was cancelled at its 60-minute limit by a mutant test, consensus-sanitizer-ci-time; tsan and macos-x86_64 passed) |
 | A4 | `ci:linux-tsan`, `ci:linux-asan-ubsan`, `ci:freebsd-x86_64`, `ci:macos-arm64`, `ci:macos-x86_64`, `ci:linux-arm64-gcc`: all green at consensus:4536590 (run 44989408833 attempt 3) |
