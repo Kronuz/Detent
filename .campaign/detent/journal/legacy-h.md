@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-145542-ea7b40 261123-145543-117504 261123-145544-84591d and CI run 45269732772 (then push)
+State: waiting on jobs 261123-145542-ea7b40 261123-145543-117504 261123-145544-84591d 261123-145721-0d40d0 261123-145724-5cb1a0 261123-145728-9aba9a 261123-145732-8cfaab 261123-145735-aa6efc 261123-145739-98e2a8 261123-145743-a3b9c5 261123-145747-841eac 261123-145751-a77953 261123-145755-cd3bb8 261123-145800-81ce67 261123-145804-7bcb89 261123-145808-ac5564 and CI run 45284336540 at `Detent:e30799b8`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -27,14 +27,21 @@ Local (Release, macOS): the three export tests, `test_installed_testing_componen
 
 ## Next
 
-0. CI run 45269732772 at `Detent:62293129`: every job green except `ci / macos-x86_64`, still in
-   Test since 22:22 UTC (35+ min at 22:56). When it finishes, push `Detent:9ab80296` (the
-   `test_reader_switch` poll `Detent:ac64c7d4` and home main's website restore `Detent:18ce371d`,
-   merged; `git diff 0917493e~1 HEAD -- website/src/{components,lib,plugins,styles}` shows only
-   this quest's `sidebar.mjs` edit), then record the new CI run for A9 and the CI gate.
-1. Read the reruns at `Detent:9ab80296`: 261123-145542-ea7b40 (bindings plain: A5, A12, A20),
-   261123-145543-117504 (A10 grep), 261123-145544-84591d (A13).
-2. Evidence table from `campaign brief`; Result; ready for review.
+1. Read CI run 45284336540 at `Detent:e30799b8` (pushed by the lead; supersedes 45269732772) for
+   A9 (`ci:linux-asan-ubsan`, `ci:linux-tsan`) and the CI gate (`ci:ci`).
+2. Read the mutant jobs: each is the plain `bindings/tests/run.sh` (`--fails-without`) at a commit
+   of `Detent:e30799b8` plus one patch (refs `refs/mutants/legacy-h/<name>`):
+   - A12 (T5): python-ignores-fallback 261123-145721-0d40d0, python-drops-hash 261123-145724-5cb1a0,
+     python-untrusted-is-ok 261123-145728-9aba9a, rust-ignores-fallback 261123-145732-8cfaab,
+     rust-drops-hash 261123-145735-aa6efc, rust-untrusted-is-ok 261123-145739-98e2a8.
+   - A20 F1: f1-rust-flag-any-nonzero 261123-145743-a3b9c5.
+   - A20 F2: f2-python-drops-mapping-bytes 261123-145747-841eac, f2-rust-drops-mapping-bytes 261123-145751-a77953.
+   - A20 F3: f3-python-misnumbers-untrusted 261123-145755-cd3bb8, f3-rust-misnumbers-untrusted 261123-145800-81ce67.
+   - A20 F4: c3-bool-accepts-any-nonnegative (`^test_reader_core$`) 261123-145804-7bcb89.
+   - A20 F7: f7-exports-prefix-check (`^test_reader_exports_unlisted$`) 261123-145808-ac5564.
+   Plain runs at the head: bindings 261123-145542-ea7b40 (A2-A5, A12, A20), A10 grep
+   261123-145543-117504, A13 261123-145544-84591d.
+3. Evidence table from `campaign brief`; Result; ready for review.
 
 Done at `Detent:9ab80296`: native rerun 261123-141425-73c546 passed (A1-A4, A6-A8, A18, A19; its
 first run 261123-132656-1c173d timed out in three authority and agent tests while the host's
@@ -91,13 +98,13 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 | A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:5610152f` |
 | A10 | 261123-132715-96b85d (`bindings/tests/legacy_grep.sh`, passed at `Detent:62293129`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
-| A12 | 261123-115751-5bff53, 261123-115753-f3287a, 261123-115755-5cd01d, 261123-115757-c99c71, 261123-115759-1641e1, 261123-115802-d5ab2f (fails-without) |
+| A12 | plain 261123-145542-ea7b40; fails-without 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8 |
 | A13 | 261123-115830-16b083 |
 | A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`: "share it; lookups are thread-safe on one reader."; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep) |
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
-| A20 | 261123-115804-bf7616 (F1), 261123-115806-c752e0, 261123-115808-e4edc7 (F2), 261123-132722-52d35a, 261123-115811-ea984a (F3), 261123-115815-a432cd (F4, c3), 261123-132740-6858e4 (F7) (fails-without); design doc updated |
+| A20 | plain 261123-145542-ea7b40; fails-without F1 261123-145743-a3b9c5, F2 261123-145747-841eac, 261123-145751-a77953, F3 261123-145755-cd3bb8, 261123-145800-81ce67, F4 261123-145804-7bcb89, F7 261123-145808-ac5564; design doc updated |
 
 ## Result
 
