@@ -16362,9 +16362,27 @@
         "docs/mechanisms/turn-log*.md",
         "CHANGELOG.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-23T07:39:14",
+          "lenses": [
+            [
+              "correctness"
+            ],
+            [
+              "durability"
+            ]
+          ],
+          "reason": "high risk whose dominant risk is durability: one durability review carries the correctness questions too (as its design and journal-earlier-turn-loss)",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
+        }
+      ],
       "landed": [],
       "lenses": [
-        "correctness"
+        "durability"
       ],
       "milestone": "",
       "needs": [
@@ -16375,7 +16393,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T07:39:11"
+      "updated": "2026-11-23T07:39:14"
     },
     "legacy-h": {
       "accepted": {},
