@@ -3059,6 +3059,18 @@
       "closed": "Peers stays DER: worker-pump-removal deletes it; its A4 moves Detent's voter pin to key_pin then",
       "id": "msg-274",
       "text": "consensus-join-v2 (Xapiand campaign) moves NodePins/HostTransport pins from the leaf certificate's DER SHA-256 to the SHA-256 of the key's SubjectPublicKeyInfo (new consensus::transport::key_pin(X509*)), so a renewed certificate keeps its pin (review F11). Peers, session.h's authenticated_voter and certificate_fingerprint stay as they are, so Detent's certificate_sha256 voter config is unchanged. Question for your lead (F11): should Peers move to SPKI pins too, or does it stay DER until worker-pump-removal deletes it? Default: it stays DER; nothing changes for Detent now. Any Detent code that builds NodePins (your Seeds wiring) would compute pins with key_pin after this lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T13:32:36",
+      "by": "site-core",
+      "closed": "asked site-core to hold the site/ move until legacy-h (owns website/**) lands; lead tells it then",
+      "id": "msg-275",
+      "text": "Heads-up: I am moving the Astro/Starlight site from website/ to site/ on main while extracting the four-site shared engine. docs/ remains campaign/design records. I will update CI, Pages, tests/docs, brand scripts, edit links, and README paths, then push only the site migration. Please avoid landing new website/ edits until this lands; after it lands, use site/ for page ownership and change tested_docs from website/src/content/docs/** to site/src/content/docs/**."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
