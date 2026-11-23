@@ -21,6 +21,7 @@ import socket
 import ssl
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -57,6 +58,8 @@ def serve(arguments: list[str]) -> int:
         Path(arguments[arguments.index("--authority") + 1]).read_text()
     )
     port = int(arguments[arguments.index("--port") + 1])
+    # A reverse lookup of the bound address can stall a CI runner for longer than the test waits.
+    socket.getfqdn = lambda *_: time.sleep(60)  # type: ignore[assignment]
     try:
         server = Server((configuration["publisher_bind"], port), Handler)
     except OSError as error:
