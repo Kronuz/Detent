@@ -13874,6 +13874,8 @@
       "after": [
         "journal-turn-sector-checks"
       ],
+      "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+      "branch": "quest/detent/journal-bound-first-open",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -13912,6 +13914,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/journal-bound-first-open",
       "landed": [],
       "lenses": [
         "durability"
@@ -13921,9 +13924,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-23T10:49:24"
+      "updated": "2026-11-23T10:49:46",
+      "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
       "accepted": {
