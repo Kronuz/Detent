@@ -39,8 +39,10 @@ them unchanged.
    `lazy_page_access.cc`, base..`Detent:005f84b`), which bounds the same 8-byte field
    (`paged_layout.cc` `decode_root` offset 56). Main's root format change (DTROOT04, cursor
    `incarnation`, a zero check at 96..144) reads a fixed 320-byte heap copy, not mapped bytes.
-   The probes' rerun at a60e089, job 261122-215147-b9dd1a (`recheck/rerun.sh`), was still queued
-   (host load 138 on 16 CPUs). The verdict rests on the unchanged code, not on it.
+   Rerun at a60e089, job 261122-215147-b9dd1a (`recheck/rerun.sh`, ASan+UBSan), passed with the
+   same counts as 2101c5: 20,000 post-touch damages, 92,380 bodies inside the segment, 445 absent,
+   387,175 refusals, 0 other exceptions, no sanitizer report. The special-file, `change`-size and
+   refresh-fork probes and the hook-symbol check also passed, as they did at e54597.
 2. Question 2, the verification-to-use window. The new `catch (const std::system_error &) { throw; }`
    in `resolve` (`lazy_page_access.cc:261`) and in the walk (`paged_read_state.cc:112`) only lets
    errors from `open_mapping` through: `openat`, `fstat` and `mmap` raise them
@@ -97,4 +99,3 @@ S2 and S4 were fixed in round 1 (`Detent:c300e5f`, `Detent:96a069c`; ATFORK-1 2a
    effect on linux-asan-ubsan is shown only by CI at the head, which was queued at review time.
 2. The suite gates at a60e089 (queued); the landing's gate.
 3. A store with more than 65,530 tiny packs, for S1's map count; argued from the code.
-4. The probe rerun 261122-215147-b9dd1a (item 1), queued. If it fails, that reopens question 1.
