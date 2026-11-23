@@ -2570,6 +2570,32 @@
       "id": "msg-238",
       "notice": "skill landed 47dfb508a86af0a94fd18d85d6a6c6bf94d9b4aa",
       "text": "campaign skill: 12 commits landed on agent-campaign's main, not installed here yet: agent-campaign:6918f4a Merge branch 'quest/campaign-v3/verify-land-agree' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:d1d4057 Carry a quest's green CI and review across a clean merge from main; agent-campaign:59d1995 Merge branch 'main' into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:f8a9f29 Wire main's CI into problems and the [ci] criterion into ci_gate; agent-campaign:cacdd3f Name main's side of the merge in a red main after a carried landing; agent-campaign:07c8772 Clear a fixed-forward landing for good; clean merges a failed journal; agent-campaign:778ed50 Bound main's CI reads after a carried landing; agent-campaign:ff6942f Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:2dffe40 Merge main into quest/campaign-v3/ci-reuse-disjoint-merge; agent-campaign:9cd0ccf Land reads CI fresh; a carried head's running CI is a live waiter; agent-campaign:43d103c Keep the host's good CI answer when a fresh ask fails; agent-campaign:91f67b3 Refuse land when a fresh gh ask fails; readers keep the good answer"
+    },
+    {
+      "announced": {
+        "at": "2026-11-21T23:00:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-21T23:00:40",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-235",
+      "items": {
+        "archive-stash-scheduler": "frees docs/dev/superseded-libraries.md for archive-stash-scheduler",
+        "driver-pipeline": "frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline",
+        "multi-voter-idle-wake": "multi-voter-idle-wake (until consensus-peers-wake met: `campaign set multi-voter-idle-wake status=active`)",
+        "split-journal": "frees test/** for split-journal"
+      },
+      "settles": {
+        "start": [
+          "archive-stash-scheduler",
+          "driver-pipeline",
+          "multi-voter-idle-wake",
+          "split-journal"
+        ]
+      },
+      "text": "consensus-peers-wake landed: unlocks multi-voter-idle-wake (until consensus-peers-wake met: `campaign set multi-voter-idle-wake status=active`); frees test/** for split-journal; frees docs/dev/superseded-libraries.md for archive-stash-scheduler; frees include/consensus/worker.h, CHANGELOG.md, docs/DRIVER.md for driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -26399,7 +26425,7 @@
       ],
       "consumes": [],
       "files": [
-        "tests/detent_system/**"
+        "tests/detent_system/test_managed_failover.sh"
       ],
       "landed": [],
       "lenses": [],
@@ -26410,7 +26436,7 @@
       "risk": "low",
       "status": "planned",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-22T21:05:21"
+      "updated": "2026-11-22T21:05:58"
     },
     "task-cancellation": {
       "accepted": {},
