@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-100818-4f26f0 (A2 suite) 261123-100828-0a1fbb 261123-100829-0846b2 (A1) 261123-100831-4a2d3b 261123-100834-000cbb 261123-100836-5b2cd6 (A3)
+State: waiting on jobs 261123-100818-4f26f0 (A2 suite) 261123-100828-0a1fbb 261123-100829-0846b2 (A1) 261123-100831-4a2d3b 261123-100834-000cbb 261123-100836-5b2cd6 (A3) A3 shards 261123-101308-2a35b0 261123-101310-89c43b 261123-101313-4de3d1 261123-101315-d5acf7 261123-101317-fced80 (strict, after the suite)
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,9 +17,9 @@ exception group; a load flake of the old reserve-and-release harness, not read f
 
 ## Next
 
-1. When the A2 suite and the A1 and A3 jobs pass, submit the A3 ctest shards (`--repeat
-   until-fail`, -j8, strict, <=10 min each) at the head, fill Evidence and Result, push, set State
-   "ready for review".
+1. When the jobs named in State pass (A1 stress x48 at 8 parallel, 261123-100829-0846b2, passed),
+   fill Evidence and Result, set State "ready for review". A shard over 10 min: resplit with fewer
+   repeats.
 
 ## Blocked on
 
