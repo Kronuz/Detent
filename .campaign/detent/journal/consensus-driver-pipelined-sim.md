@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: waiting on jobs 261124-020911-4b0af3 261124-020914-c49b0b 261124-020918-cb3518 261124-020921-0e0ba5 261124-020925-4954e1 and the A3 verify
+State: waiting on jobs 261124-020911-4b0af3 261124-020914-c49b0b 261124-020918-cb3518 261124-020921-0e0ba5 261124-020925-4954e1 261124-021444-bceda5 261124-021447-93b7d7 261124-021450-081013 261124-021453-191418 261124-021456-6f75bf 261124-021459-13d657 261124-021509-0302a0 and the A3 verify
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,7 +16,7 @@ queued. Next after they finish: paste `campaign brief`'s table, push, set ready 
 ## Next
 
 0. Lead's msg (coordinator): A/B jobs, strict, CI default driver phase (SIM_DRIVER_SEEDS=20, 3000 steps), interleaved
-   main 54c6599 / head: bceda5 93b7d7 081013 191418 6f75bf 13d657 (ids 261124-0214..); ASan head timing job below.
+   main 54c6599 / head: bceda5 93b7d7 081013 191418 6f75bf 13d657 (ids 261124-0214..); ASan head timing job 261124-021509-0302a0.
    Say in Result: A2 met by `overlap`; the counter proves A1; five batching mutants survive (Core re-check).
 
 1. Read the jobs; if all pass, paste the Evidence table, fill Result, push, State "ready for review".
