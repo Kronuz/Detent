@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: blocked on lead: the abort is not the oversize path; re-scope (options under Blocked on)
+State: working: CI probe run 45449779597 (probe/detent/fetch-stall at consensus:cd844d4)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,21 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Lead's ruling (this session): reproduce on CI's runner. Probe branch probe/detent/fetch-stall
+(consensus:cd844d4 = d659f76 + test/transport/fetch_probe.h, groups_test's LoopProbe/KernelProbe/
+Spindump/sockets copied, + .github/workflows/probe-fetch.yml): every rpc_host case under ctest
+--parallel 2, 4 x 25 rounds on macos-15-intel, 10 on macos-15; each fetch run prints link-end
+counters and each loop's worst stall (state, stack); a failure prints 100 ms samples and a
+spindump. Run 45449779597. Probe worktree: ~/.scratch/detent/consensus-fetch-oversize-abort/
+probe-wt (delete it and the branch when done).
+
+Lead question, same stall as consensus-fetch-alongside-loop-stall? Its run 45372452058 sampled
+node 2's held loops 0 and 1 inside serve_fetch -> the test's reader (pattern(8 MiB)), with the
+Lag sampler seeing the whole process stalled up to 2.6 s: a reader that allocates and fills
+MiBs on a connection's loop, on a runner that stalls processes. Here the server's reader
+allocates 48 MiB (huge) and copies 16 MiB (big) and 4 MiB (slow) on two's loop of node 1. To be
+confirmed by the probe's stacks.
 
 Cause hunt done as far as this host allows; diagnostics pushed (consensus:d659f76, CI on
 quest/detent/consensus-fetch-oversize-abort).
