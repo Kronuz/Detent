@@ -56,7 +56,9 @@ Reader.revision(namespace: str) -> int | None
 ```
 
 `refresh()` attaches a new publish now rather than on the next lookup, and
-releases the GIL while it works. `revision` returns the namespace's attached
+releases the GIL while it works. It is the only call that reports a namespace
+whose new publish can't be read: lookups keep answering that namespace's last
+good publish with `Status.OK`, and the other namespaces move on. `revision` returns the namespace's attached
 revision, or `None`.
 
 ---

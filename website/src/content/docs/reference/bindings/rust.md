@@ -63,6 +63,10 @@ return the fallback with `Status::Unavailable`.
 fixed-width integer (`i8` to `i64`, `u8` to `u64`). Both return `fallback` on
 any error, and `get_as` also for a value outside `T`'s range (for `bool`, other
 than 0 or 1); `lookup` returns the status instead.
+`refresh` is the only call that reports a namespace whose new publish can't be
+read: lookups keep answering that namespace's last good publish with `Ok`, and
+the other namespaces move on.
+
 `Reader` is `Send + Sync` and not `Clone`: share one through `Arc`. The handle
 closes on `Drop`, which can't overlap a lookup because lookups borrow `&self`.
 

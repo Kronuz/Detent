@@ -103,7 +103,10 @@ std::optional<std::uint64_t> revision(std::string_view name_space) const noexcep
 
 A lookup notices a new publish by itself, with one load per lookup, and
 attaches it on that lookup. `refresh()` does the same work ahead of time from a
-thread you choose. The reader never starts a thread.
+thread you choose. The reader never starts a thread. `refresh()` is also the only
+call that reports a namespace whose new publish can't be read: lookups keep
+answering its last good publish with `DETENT_OK`, and the other namespaces move
+on.
 
 `revision(ns)` returns the revision of the namespace's attached generation, or
 `std::nullopt` when there is none. With `lookup().status`, it's how a process

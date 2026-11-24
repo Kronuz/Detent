@@ -74,6 +74,17 @@ for a value outside that type (for `bool`, other than 0 or 1). `lookup` returns
 
 ---
 
+## When a Publish Can't Be Read
+
+Each namespace follows its own publishes. When a namespace's new publish can't
+be read (its files damaged or untrusted, or past the reader's mapping cap), that
+namespace keeps answering its last good publish with status `ok`, and the
+reader's other namespaces move on. Only `refresh()` reports it, with the
+failure's status; the namespace tries again at its next publish or `refresh()`.
+A process that must know calls `refresh()` from a thread of its own.
+
+---
+
 ## Testing
 
 The bindings' tests publish real generations with the test writer's C face
