@@ -4159,6 +4159,21 @@
         "todo": "b1b76707"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 2 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 15 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. ARCHITECTURE.md): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); listed 75 min): `campaign land consensus-driver-pipelined-sim --merge-main`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:42:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:42:07",
+      "by": "campaign",
+      "closed": "pipelined-sim parked until fetch-oversize-abort fixes macOS CI; warm-relay resumed by a fresh contributor",
+      "id": "msg-341",
+      "settles": {
+        "todo": "12af0c87"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 3 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 15 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. ARCHITECTURE.md): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); listed 2 h): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: resume warm-relay-agent-boot (its journal waits on jobs 261123-165613-3cde33, which passed 16 h ago; new): `campaign status warm-relay-agent-boot`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
