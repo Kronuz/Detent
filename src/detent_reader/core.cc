@@ -820,6 +820,7 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_hook = hook;
 }
 const char *last_failure() noexcept { return failure_text.c_str(); }
+void hold_retry(detent_reader *handle) noexcept { handle->retry_at.store(UINT64_MAX, std::memory_order_relaxed); }
 void refuse_atfork(bool refused) noexcept { atfork_refused = refused; }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;

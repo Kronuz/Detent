@@ -378,15 +378,17 @@ void parks(const std::filesystem::path &root) {
 		const auto refused = t::stats(r.handle).refused;
 		for (int i = 0; i != 6; ++i)
 			publish();
+		// The retry clock stays closed past the park, so the released reader reads through its pinned view
+		// even when it resumes after the longest backoff (200 ms), as a slow runner's can.
+		t::hold_retry(r.handle);
 		const auto stats = t::stats(r.handle);
 		// The ring wraps to the pinned slot after three publishes; the rest are refused.
 		CHECK(stats.refused == refused + 3 && stats.live_views == 2);
 		CHECK(get(r.handle) == pinned_rev + 3); // the installed view still answers
+		std::this_thread::sleep_for(std::chrono::milliseconds(250));
 		release(park);
 		reader.join();
-		// It answers from the view it pinned, which stayed mapped, unless the refusals' retry clock ran
-		// out before it resumed: then its stale lookup refreshes first, as D4 has every lookup do.
-		CHECK(seen == pinned_rev || seen == rev);
+		CHECK(seen == pinned_rev); // the pinned view stayed mapped
 		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
 		CHECK(t::stats(r.handle).live_views == 1);
 	}

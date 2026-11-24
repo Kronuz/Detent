@@ -27,6 +27,8 @@ struct Stats {
 	std::uint64_t change_bytes = 0;                   // the installed view's `change` mapping
 };
 Stats stats(detent_reader *) noexcept;
+// Closes the retry clock until the next publish: a stale lookup answers its view without refreshing.
+void hold_retry(detent_reader *) noexcept;
 // What the calling thread's last failed refresh raised.
 const char *last_failure() noexcept;
 // Makes the fork-handler registration fail as with ENOMEM, until called with false.
