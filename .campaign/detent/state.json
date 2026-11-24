@@ -5433,18 +5433,45 @@
         "test/driver_install_request_test.cc",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/consensus-drop-memory-io-include",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T18:10:23",
+          "ci": {
+            "commit": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+            "runs": [
+              45303616917
+            ]
+          },
+          "commit": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+          "criteria": {
+            "A1": "261123-170615-153c05"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+          "reason": "",
+          "tested": "c177c88d086f4000c1ad0c053faed38b97c769d1"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "consensus: drop driver_install_request_test's unused memory_io include",
-      "updated": "2026-11-23T17:05:55",
-      "worktree": "../consensus-wt/detent/consensus-drop-memory-io-include"
+      "updated": "2026-11-23T18:12:25",
+      "worktree": ""
     },
     "consensus-dual-stack": {
       "accepted": {},
