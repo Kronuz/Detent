@@ -1,6 +1,6 @@
 # consensus-follower-read: journal
 
-State: waiting on jobs 261124-043342-61c0c9, 261124-043343-fb8ffd, 261124-043347-acca2c
+State: waiting on jobs 261124-043342-61c0c9, 261124-043347-acca2c
 Quest: .campaign/detent/quests/consensus-follower-read.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,7 +14,7 @@ fuzz 261124-033426-3bcef3 stands. CI at 0b8c911 is running (A5).
 
 ## Next
 
-1. When the three jobs finish, cite them and CI at 0b8c911 in Evidence, set State "ready for review".
+1. When the suite, the mutant and CI finish, cite them and CI at 0b8c911 in Evidence, set State "ready for review".
 2. Follow-up (lead): N2, below.
 
 ## Blocked on
@@ -31,7 +31,7 @@ test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is 
 | A2 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
 | A3 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
 | A4 | 261124-033426-3bcef3 (fuzz at 49deff5; the decoder is unchanged at 0b8c911); codec mutant 261124-022430-586762 (fails without, at 49deff5's mutant); seeds `fuzz/corpus/decoders/seed-read-index-request`, `seed-read-index-response`, `seed-read-index-refusal` |
-| A5 | [artifact] `docs/mechanisms/follower-read.md`: "A follower answers a `Read` only at an index its leader confirmed current with a quorum"; suite 261124-043342-61c0c9; TSan and CI: CI run 45390811085+ at 0b8c911 (running). CI at 49deff5 (run 45374547236): linux-tsan passed; linux-asan-ubsan timed out on consensus_follower_read (fixed at 0b8c911); macos-x86_64 failed consensus_transport_rpc_host_fetch, which also fails on main at 512e3ef (run 45366654906): pre-existing |
+| A5 | [artifact] `docs/mechanisms/follower-read.md`: "A follower answers a `Read` only at an index its leader confirmed current with a quorum"; suite 261124-043342-61c0c9; TSan and CI: CI run 45394693963 at 0b8c911 (running). CI at 49deff5 (run 45374547236): linux-tsan passed; linux-asan-ubsan timed out on consensus_follower_read (fixed at 0b8c911); macos-x86_64 failed consensus_transport_rpc_host_fetch, which also fails on main at 512e3ef (run 45366654906): pre-existing |
 
 Other jobs examined: 261124-020815-08319a (suite at d2126d0, superseded), 261124-020817-d6cced
 (cancelled, superseded by 49a7de), 261124-020820-b56679 (fuzz at d2126d0; rerun at the head);
@@ -50,7 +50,8 @@ before. A follower holding a read does not rest and arms its deadline.
 Numbers: 16 mutants, one per rule, each killed by its case (jobs above). `randomized` runs the
 correctness review's fault schedule (by seed: no faults, ReadIndex frames, or every frame dropped,
 delayed, duplicated and re-injected; restarts with a fresh nonce); ctest runs 30 seeds (12 s of
-CPU under ASan, inside ctest's 30 s), the jobs 2000. At 49deff5, before the schedule, 2000 seeds (49a7de): 231,988 reads
+CPU under ASan, inside ctest's 30 s), the jobs 2000. At 0b8c911, 2000 seeds (fb8ffd): 179,110 reads
+completed, 100,015 at followers, none stale; 424,318 refused; 156,587 frames re-injected. At 49deff5, before the schedule, 2000 seeds (49a7de): 231,988 reads
 completed, 134,742 of them at followers, none below a commit made before it began; 386,932
 refused. Suite 163/163 at 49deff5. Cost: 36- and 52-byte frames per read plus the leader's
 shared probe round; four words per idle Core (computed, not measured).
