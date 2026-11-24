@@ -7714,9 +7714,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "consensus_simulation stays well inside its timeout under ASan",
-      "updated": "2026-11-23T11:03:23",
+      "updated": "2026-11-23T21:09:28",
       "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
