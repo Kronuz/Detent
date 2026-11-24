@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: waiting on jobs superseded 261124-104010-6046a9: queued at cde0e217ee62, cancelled for 261124-104525-a55088 superseded 261124-104019-b98664: queued at cde0e217ee62, cancelled for 261124-104530-b0dc9b superseded 261124-104033-fe6ba4: queued at cde0e217ee62, cancelled for 261124-104535-831aee
+State: waiting on jobs 261124-104525-a55088 261124-104530-b0dc9b 261124-104535-831aee
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,7 +10,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Splits committed (service.cc, state.cc); verdicts in docs/dev/splits.md. The local build never got
-a light slot (starving behind other jobs), so the first compile is job 261124-104019-b98664: if it
+a light slot (starving behind other jobs), so the first compile is job 261124-104530-b0dc9b: if it
 fails, fix includes (service.cc dropped the platform completion includes; each new .cc keeps the
 original include list) and requeue. Local split_check at HEAD: 0 errors, 36 warnings (inline,
 using, 1 anonymous namespace), notes only for service_runtime.cc.
@@ -30,9 +30,9 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/dev/splits.md |
-| A2 | split_check at base a06cbf1c8c77: 261124-104010-6046a9; ctest -N before/after: 261124-104033-fe6ba4 |
+| A2 | split_check at base a06cbf1c8c77: 261124-104525-a55088; ctest -N before/after: 261124-104535-831aee |
 | A3 | <lead> |
-| A4 | build all + ctest authority/delivery/state: 261124-104019-b98664; CI after push |
+| A4 | build all + ctest authority/delivery/state: 261124-104530-b0dc9b; CI after push |
 
 ## Result
 
