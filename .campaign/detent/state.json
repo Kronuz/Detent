@@ -3218,6 +3218,19 @@
       "id": "msg-262",
       "notice": "skill installed 4038cd2d471c7bf3f51fd1d18925480959160622",
       "text": "campaign skill: agent-campaign:4038cd2 installed here, 2 commits: agent-campaign:a103988 Time the hung-gh test from the hung call's start; agent-campaign:4038cd2 Merge main into quest/campaign-v3/lead-driver-flake"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T10:05:30",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "skill install notice read; agent-campaign:63249d4 installed",
+      "id": "msg-264",
+      "notice": "skill landed a51bfc2a1c240f6e7ec0fe3a66f0e89703d8eb61",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:42099a5 Order a task's jobs by submit time, not by id; agent-campaign:d14ecd5 Drop the job index after editing a spec in the id-order test; agent-campaign:a51bfc2 Merge main into quest/campaign-v3/task-jobs-order"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
