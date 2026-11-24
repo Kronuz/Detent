@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review; waiting on jobs 261124-155135-e8bc6d, 261124-155138-5da24c, 261124-155140-00faf4, 261124-155142-9a0f4d (A2), 261124-155155-541c14 (A1), 261124-155200-b45b23 (reader_bench), 261124-155204-3e4aa2 (mutant) and CI; the suite needs Blocked on 1
+State: ready for review; waiting on jobs 261124-155453-d2faac, 261124-155456-b57f68, 261124-155500-f39f9c, 261124-155507-a4b568 (A2), 261124-155516-489edc (A1), 261124-155204-3e4aa2 (mutant) and CI at `Detent:e52669a7`
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,15 +21,17 @@ Screens, strict beside light holds, branch median vs main (us): stopped 1 ns 930
 
 ## Next
 
-Jobs at `Detent:bfad7733`, the final code:
-- A2, exclusive, one cell each against main: 261124-155135-e8bc6d (stopped 1), 261124-155138-5da24c
-  (stopped 1,000), 261124-155140-00faf4 (running 1), 261124-155142-9a0f4d (running 1,000; main's
+Jobs at `Detent:e52669a7`, the final head (test_agent_store updated for layout 3; it passes locally):
+- A2, exclusive, one cell each against main: 261124-155453-d2faac (stopped 1), 261124-155456-b57f68
+  (stopped 1,000), 261124-155500-f39f9c (running 1), 261124-155507-a4b568 (running 1,000; main's
   publisher cannot run it, so the cell reports the branch alone).
-- A1 profile rerun: 261124-155155-541c14. reader_bench A/B: 261124-155200-b45b23.
+- A1 profile: 261124-155516-489edc.
 - Mutant `Detent:1bb490d8`, --fails-without: 261124-155204-3e4aa2 (a build failure would also exit
   nonzero; read its log).
-- A3: CI on the pushed branch; `campaign verify --for A3` queued nothing locally. test_agent_store
-  fails until Blocked on 1.
+- A3: CI on the pushed branch (`campaign verify --for A3` reads it).
+Cancelled at `Detent:bfad7733`: 261124-155138-5da24c, -155140-00faf4, -155142-9a0f4d, -155155-541c14,
+-155200-b45b23. 261124-155135-e8bc6d had started; submitting d2faac stopped it as superseded (the
+tool did it, not a cancel).
 Strict screen of the mapped table, beside light holds, branch vs main medians (us): stopped 1 ns
 745 vs 1,072; stopped 1,000 ns 846 vs 2,349; running 1 ns 680 vs 860; running 1,000 ns 600 (main
 refused). Pooled p99s under that load were 1.4-2.0 ms; the exclusive runs decide A2.
@@ -53,13 +55,7 @@ Local scratch: `.scratch/fr`, `.scratch/main-tree` (detached main worktree), bui
 
 ## Blocked on
 
-1. The lead: widen `tests/detent_agent/test_agent_store.cc`. Layout 3 bumps `agent_store_layout`,
-   which `derive_generation` hashes, so its pinned name moves to
-   `generation-a3a0f029e196353de7b1b9f816bc1ac4` (line 105); and `table_codec`'s `resign` re-signs a
-   trailing whole-file digest, which layout 3 does not have (line 151 fails; line 149's byte 65 is now
-   the header's slot field). Proposed: update the pin, re-sign the table digest after the index, and
-   point the order check at the first entry's name in its page. Recommended over keeping layout 2,
-   which would read an old table as damage instead of `LayoutRefused`.
+Nothing. Item 1 (test_agent_store.cc) was widened by the lead and fixed in `Detent:e52669a7`.
 
 ## Evidence
 
