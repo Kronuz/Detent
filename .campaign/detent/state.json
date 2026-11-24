@@ -3469,6 +3469,28 @@
       "id": "msg-297",
       "notice": "skill installed 6d5fe2f79829291e4b08ceaf0f7d911bcdd170bd",
       "text": "campaign skill: agent-campaign:6d5fe2f installed here, 4 commits: agent-campaign:ab80bcf Hold a passed slow gate check while the quest iterates; agent-campaign:fe9d6ef Let reuse win over the slow hold; tests mark the round's end; agent-campaign:a60ef51 Merge branch 'main' into quest/campaign-v3/slow-once; agent-campaign:6d5fe2f source-layout: checks.py line count after the merge from main"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T18:57:48",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T18:57:47",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-288",
+      "items": {
+        "consensus-follower-read": "frees CMakeLists.txt for consensus-follower-read",
+        "journal-faultlab-repin": "journal-faultlab-repin"
+      },
+      "settles": {
+        "start": [
+          "consensus-follower-read",
+          "journal-faultlab-repin"
+        ]
+      },
+      "text": "journal-drop-memory-io landed: unlocks journal-faultlab-repin; frees CMakeLists.txt for consensus-follower-read"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7815,18 +7837,54 @@
         "docs/mechanisms/simulation*.md"
       ],
       "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T00:37:03",
+          "ci": {
+            "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+            "runs": [
+              45346393215
+            ]
+          },
+          "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "criteria": {
+            "A1": "261123-234627-ba4f71",
+            "A2": "261123-231348-ff18c4; fails without: 261123-164556-ea8620",
+            "A3": "261123-234628-4a9e7f, 261123-234629-04ee62, 261123-234631-e6bbf2, 261123-234633-c71016, 261123-234635-528637, 261123-234638-5eef1a, 261123-234639-fc1877, 261123-234641-c0a1e9, 261123-234642-9d6dc5",
+            "A4": "`ci:linux-asan-ubsan`, `ci:ci`: run 45299975989 attempt 2 green at consensus:cbe0522 (consensus_simulation 59.09 s, 145/145 ASan tests); attempt 1's two failures are outside this diff (Doing, CI)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+          "reason": "",
+          "tested": "54c659977c529f8ec04e8b460346bb5a5dd282d6"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "consensus_simulation stays well inside its timeout under ASan",
-      "updated": "2026-11-23T23:29:26",
+      "updated": "2026-11-24T00:37:28",
       "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
