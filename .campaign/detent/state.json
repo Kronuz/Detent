@@ -8495,7 +8495,10 @@
         "include/consensus/core.h",
         "src/core*",
         "test/core_deadline_test.cc",
-        "docs/mechanisms/deadlines.md"
+        "docs/mechanisms/deadlines.md",
+        "CMakeLists.txt",
+        "test/liveness_test.cc",
+        "docs/mechanisms/liveness.md"
       ],
       "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
       "landed": [],
@@ -8505,12 +8508,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "its needs landed: consensus-follower-read and consensus-liveness-asan-timeout",
+      "reason": "CMakeLists.txt registers the new test; the fix makes liveness_test's holdable() guard and its liveness.md sentence stale (held.sh shows equivalence without it); no active consensus quest holds them",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "active",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T12:45:00",
+      "updated": "2026-11-24T13:30:10",
       "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
     },
     "consensus-peers-attempts-bound": {
