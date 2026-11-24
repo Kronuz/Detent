@@ -4293,6 +4293,32 @@
         "todo": "e1694809"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); new): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:12:48",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:12:48",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-340",
+      "items": {
+        "consensus-fetch-oversize-abort": "frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "consensus-fetch-oversize-abort",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set consensus-fetch-oversize-abort: unlocks frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -20317,11 +20343,77 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T10:07:07",
+          "ci": {
+            "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+            "runs": [
+              45430641589,
+              45430641919
+            ]
+          },
+          "commit": "7fafdc8c80c707fcab83bf19444667d5bacbd930",
+          "criteria": {
+            "A1": "261124-075318-9b7397",
+            "A10": "261124-091551-8c7559",
+            "A11": "[artifact] `CHANGELOG.md`, \"Legacy removal (wave 2, step H)\"",
+            "A12": "261124-075331-f4ad0a; fails without: 261123-115751-5bff53, 261123-115753-f3287a, 261123-115755-5cd01d, 261123-115757-c99c71, 261123-115759-1641e1, 261123-115802-d5ab2f, 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8",
+            "A13": "261124-091550-ca58ab",
+            "A14": "[artifact] `website/src/content/docs/reference/cpp-api/reader.md`: \"share it; lookups are thread-safe on one reader.\"; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep)",
+            "A15": "[decision] D13",
+            "A16": "[decision] D14",
+            "A17": "[decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18)",
+            "A18": "261124-075318-9b7397",
+            "A19": "261124-075318-9b7397",
+            "A2": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A20": "261124-075331-f4ad0a; fails without: 261123-115804-bf7616, 261123-115806-c752e0, 261123-115808-e4edc7, 261123-115811-ea984a, 261123-115813-9d3c88, 261123-115815-a432cd, 261123-132722-52d35a, 261123-132740-6858e4, 261123-145743-a3b9c5, 261123-145747-841eac, 261123-145751-a77953, 261123-145755-cd3bb8, 261123-145800-81ce67, 261123-145804-7bcb89, 261123-145808-ac5564",
+            "A21": "261124-091549-10bfff, 261124-091550-0e8703, 261124-091552-916f34; fails without: 261123-175727-3d4b80, 261123-200448-f006cc, 261123-204320-f48488, 261124-004900-19d2cc, 261124-004904-f88615, 261124-075309-3e8f55, 261124-075314-c9ce1c",
+            "A22": "`ci:ci` (CI 45430641919), Docs 45430641589 at `Detent:5cc302f8`",
+            "A3": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A4": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A5": "261124-075331-f4ad0a",
+            "A6": "261124-075318-9b7397",
+            "A7": "261124-075318-9b7397",
+            "A8": "261124-075318-9b7397",
+            "A9": "`ci:linux-asan-ubsan`, `ci:linux-tsan` (CI 45430641919 at `Detent:5cc302f8`)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-075318-9b7397",
+              "level": "light",
+              "seconds": 1159.9,
+              "state": "done",
+              "what": "legacy-h check native at 5cc302f8e6ec"
+            },
+            {
+              "check": "asan",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "state": "done"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "11e394608f8d61328c311a6cdd57f13d9793aca2",
+          "reason": "",
+          "tested": "805cd0c6c1ff960f1cb7b66e41dbec29ca36b53e"
+        }
+      ],
       "lenses": [
         "correctness",
         "design"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
         "reader-s6"
@@ -20334,10 +20426,10 @@
       "reason": "round 3 (D154) ready at Detent:5cc302f8: lifecycle table D7, F5 fix 021dfa5e, class sweep",
       "repo": ".",
       "risk": "critical",
-      "status": "review",
+      "status": "landed",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-24T09:15:21",
-      "worktree": "../Detent-wt/detent/legacy-h"
+      "updated": "2026-11-24T10:07:16",
+      "worktree": ""
     },
     "legacy-h-lifecycle-docs": {
       "accepted": {},
