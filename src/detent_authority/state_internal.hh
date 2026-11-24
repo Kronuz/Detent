@@ -4,6 +4,7 @@
 #include "state.hh"
 #include "deferred_values.hh"
 #include "detent/utf8.hh"
+#include "detent/validation.hh"
 #include <limits>
 #include <stdexcept>
 #include <string_view>
