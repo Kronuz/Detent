@@ -4890,7 +4890,7 @@
         "tests/detent_authority/**",
         "tests/detent_system/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -4925,11 +4925,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority voters pin peers by SPKI, the one consensus pin kind",
-      "updated": "2026-11-20T18:25:04"
+      "updated": "2026-11-24T12:39:07"
     },
     "brand-head-links": {
       "accepted": {},
