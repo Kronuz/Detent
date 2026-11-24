@@ -458,6 +458,10 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 				next.entries.insert(at, b.entry);
 			}
 		}
+		// `change` covers every slot before `selected` names it (reader.md D4 rule 4): zero words ahead of
+		// the table are harmless, a slot past the file is a source failure.
+		s.change->reserve(slots);
+		s.resize_change();
 		const auto bytes = encode_table(next);
 		const auto name = s.temporary_name();
 		auto table = s.io->create_exclusive(name);
@@ -479,8 +483,6 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		s.usage.bytes += s.table_size = bytes.size();
 		s.sync_directory();
 		primitive("sync directory");
-		s.change->reserve(slots);
-		s.resize_change();
 		std::sort(changed.begin(), changed.end());
 		s.change->publish(changed);
 		primitive("change");

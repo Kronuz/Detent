@@ -1,107 +1,187 @@
 # legacy-h review: correctness
 
-Commit: Detent:a9eb4f77d8685ef585d7f13f25317763eef593fb (`quest/detent/legacy-h`; its successor
-Detent:62e0e0a9 changes only the journal). Fix round 1 over the previous review at Detent:e30799b8:
-`git diff e30799b8 a9eb4f77` less main's merge. Detent:dec0d978 has the same code (a9eb4f77 adds one
-line to `docs/mechanisms/reader-core.md`).
-Verdict: CHANGES
+Commit: Detent:5cc302f8e6ecef7dede6722d09d2282185994372 (code head of `quest/detent/legacy-h`; Detent:dceeb890
+adds only the journal). Fix round 3 is Detent:021dfa5e (F5's fix and D7's lifecycle table) and
+Detent:41f67db8 (D155's pages), merged with main at Detent:5cc302f8. Rounds 1 and 2 are in this file's
+earlier versions (Detent:2d6b6349, Detent:d4bd4f6e).
+Verdict: APPROVE
 Date: 2026-11-24
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-The round fixes what it set out to fix: the core reads the agent's one-entry-per-namespace table,
-`detent get` and the bindings read a multi-namespace store by value, the Docs gate is green on its
-merits, and `hold_retry` is testing-only. Two new defects sit in the per-namespace core under
-concurrent publish. A table read between the agent's `selected` rename and its `change` growth fails
-with `DETENT_SOURCE_FAILURE` (open, refresh and first lookups), which my stress probe hit 414,516
-times in 150 s of namespace adds (F1). And a refresh is all-or-nothing across a handle's namespaces:
-one attached namespace whose next generation cannot attach freezes every other namespace on that
-handle at a stale value that answers OK (F2).
+F5 is fixed, and I found no other hole in the entry's lifecycle. A namespace the table no longer
+lists watches the store word, so the publish that re-adds it, at any slot, makes its next lookup
+attach the new entry. I listed the entry's states and events from the code before reading D7, then
+drove every transition through the agent store (the test writer), with hand-made tables only where
+the agent cannot go. All 26 checks pass at this commit:
 
-## Old findings
+- A sequential model checks every lookup by value through 3,600 random deltas, drops, re-adds (at
+  the old slot, at a new one, into another name's old slot), agent restarts, collections,
+  `detent_refresh` calls and reopened handles: 0 wrong of 12,880.
+- Six reader threads on two handles, with no `detent_refresh` anywhere, through 199 drops and 199
+  re-adds in 60 s: 406 million lookups, no value backwards or past what was published, and every
+  namespace converges by lookups alone.
+- The model, the threaded run and round 2's `regrow` all fail the F5 mutant (Detent:6ea8a1f2).
 
-| Old | Fixed? | Evidence |
-|---|---|---|
-| F1 (`detent get` fails on a multi-entry store) | Yes | Detent:407e4410 reads the whole table and attaches the looked-up namespace's entry. Probe 261123-204301-46672f at Detent:dec0d978: the website's pages on an agent store, 0 of 15 reads differ from main's `get`. `test_reader_scenarios` runs `detent get` on every integer row over a five-entry store (native 261123-215328-7c1230, 218 of 218). Fails without: 261123-175727-3d4b80, 261123-200448-f006cc, 261123-204320-f48488 (exit 8 at the one-entry core) |
-| F2 (no API reads a multi-entry store) | Yes | The bindings' scenario table now reads five entries through C++, Python and Rust (A2-A4: 261123-215328-7c1230, 261123-204301-a7a0cc); my `lists` probe (below) checks listed and unlisted handles by value |
-| F3 (Docs gate red) | Yes, not silenced | Docs 45328287755 at Detent:dec0d978: `check-docs`, `e2e`, `site` green. `check_docs.py` takes the statuses from `reader.h` (the `ErrorCategory` names it dropped are printed nowhere: `category_name` has no caller outside `src/detent/errors.cc`). Four stale exceptions are removed; the one added, `guides/cpp-application#1`, carries its reason, as F3 asked; `shell-and-agent#6`'s is gone. Mutant M3 retargeted to `generation_dir` (old F11) |
+The fix costs one refresh per handle per publish, at the first lookup of a dropped namespace after
+it: what a never-listed namespace already pays. What is left is documentation and one dead check: D7
+misses four transitions and states two rules the code does not follow (F6); three design pages still
+say a slot is never reused (F7); D155's pages call `refresh()` the one call that reports a failing
+namespace without saying when it returns OK anyway (F8); and F3's slot check no longer guards
+anything (N2). None blocks.
+
+## Status of every finding
+
+| ID | Round | Status | Evidence |
+|---|---|---|---|
+| Old F1-F3 (e30799b8) | 0 | Fixed (round 1) | As recorded at Detent:2d6b6349 |
+| F1 open, refresh and lookups fail while a namespace is added | 1 | Fixed (round 2) | At Detent:5cc302f8, `window` passes, and 120 s of `stress` (adds and drops under 8 reader threads and a refresh thread): 1,007 publisher steps, 371 million lookups, 29,184 `detent_refresh` calls, none failed, 0 stale |
+| F2 one namespace's failed attach freezes the others | 1 | Fixed (round 2) | At Detent:5cc302f8, `couple`, `retry` and `faildrop` pass |
+| F3 slot ignored when the generation id repeats | 1 | Fixed; the check is now redundant (N2) | Round 1's `readd` passes at Detent:5cc302f8 (5, as a new handle reads), and still passes with the slot check alone removed |
+| F4 a dropped namespace's lease blocks a revisited-cursor re-add | 1 | Open, non-blocking, pre-existing | Unchanged; D7's "Dropped" row names the follow-up |
+| F5 a re-added namespace is not followed | 2 | Fixed | `core.cc:561-566`. Suite `regrow`; fails without: 261124-075309-3e8f55 (Detent:6ea8a1f2 stops at `test_reader_core.cc:209`, the read after the re-add). My model, `readdstress` and `regrow` fail the same mutant |
+| N1 a failing namespace answers OK; only `detent_refresh` reports | 2 | Owner's ruling D155 keeps reader.md D4 | Stated in the guide and the three references; gaps in F8 |
+
+## Fix round 3: the four questions
+
+1. **Is D7 complete?** No, though the code is right in each case it leaves out. From
+   `agent_store.cc`'s publish and `core.cc`'s `refresh_locked`, `lookup` and `detent_refresh`, a
+   namespace is, per handle, absent, attached, attached with its newest attach failed, or dropped
+   (kept, watching the store word), with a first-attach failure remembered at the store word beside
+   these. The events are a publish of its entry, another namespace's publish, a drop, a re-add (at its
+   old slot, at a new slot, with the same generation id, at an older position), another name taking
+   its old slot, an agent restart (`bump_all`, `agent_store.cc:246`), a refresh started by its own
+   lookup, by another namespace's or by `detent_refresh`, a refresh lost to another thread or refused
+   for a pinned view, and a whole failed refresh. D7 misses:
+   1. A re-add at the old slot. The agent re-adds a name at its old slot whenever that slot was the
+      highest (`sameslot`: c at slot 2, back at slot 2); D7's rows cover a re-add at a new slot and
+      another name taking the slot. All four handles in the probe, listed and unlisted, with and
+      without a lookup while it was dropped, read the re-add and the delta after it.
+   2. An agent restart. Every word moves once; each handle refreshes once at its next lookup, keeps
+      every unchanged generation, keeps a dropped namespace dropped and attaches only what is new
+      (`restart`: one refresh per handle, one more for `v`'s first attach, nothing re-attached; a
+      delta and a re-add after it are followed).
+   3. A re-add the A4 check refuses, at an older position of the same incarnation. The handle keeps
+      the dropped generation with OK and `detent_refresh` returns `source_failure`, while a new handle
+      reads the re-added one (`regress`, a hand-made table: 3 against 2). A monotonic authority never
+      sends it; it is A4's case, but the table should name it.
+   4. A drop or a re-add while the namespace's attach fails. It keeps its last good generation through
+      the drop and the re-add, then follows its next publish (`faildrop`: 1, 1, 4, 4, 4, then 7).
+
+   Two of D7's rules are wrong. "A new namespace takes the slot past the highest slot of the entries
+   the cycle keeps": the agent takes the highest before it removes the cycle's drops
+   (`agent_store.cc:437-446`), so a cycle that drops the highest slot and adds a name gives the name
+   the slot after it; a dropped slot returns only in a later cycle, and only if it was the highest.
+   "It retries when its slot moves or at `detent_refresh`": every refresh of the handle retries it,
+   whatever started it (`core.cc:559-573`). In `retry`, `u` made 3 attempts during 3 publishes of `t`
+   alone, and recovered on `t`'s next publish, with its own slot unmoved and no `detent_refresh` since
+   its record came back.
+
+2. **Rows against the code and their tests.** Every row matches the code but for that retry clause,
+   and my probes reproduce each row but "First attach failed", which rests on the suite
+   (`refresh_memo`, `values`). The tests check by value: `per_namespace`, `adding_namespace`,
+   `entry_failure`, `refresh_memo`, `values`, and `regrow`, which kills the F5 mutant. Two cited tests
+   do not prove their row's claim. `slot_reused` passes at the F5 mutant too (its replica `slotreuse`
+   passes in `local/f5mut.log`: the new name's add bumps the old slot the mutant watches), so the row's
+   "the dropped name, the store word" rests on `regrow`. `readd_same_generation`'s fails-without
+   (Detent:84c40203) reverts two mechanisms, the slot check and `add(generation, listed->slot)`; with
+   the slot check alone removed it stays green (N2). Its row is reached only through hand-made tables:
+   through the agent, a handle that still holds the dropped generation makes the re-adding cycle throw
+   `LeaseHeld` (F4; `held_lease` in `test_agent_store`). And `entry_failure`'s comment "its last
+   generation, without retrying" (`test_reader_core.cc:172`) is wrong: each `t` lookup's refresh
+   retries `u`.
+
+3. **The cost of watching the store word.** No lookup pays a refresh on every publish. A dropped
+   namespace's entry records the store word its refresh read: the first lookup after a publish
+   refreshes, the rest answer from the new view. In `cost`, per unrelated publish and per handle, a
+   dropped namespace costs 1.00 refresh, 1.00 `selected` read and 1.00 view (100 publishes at 16
+   namespaces, 40 at 512), exactly what a never-listed one costs, and an attached one costs 0. The
+   first lookup after a publish takes 116 µs median (p90 222 µs) at 16 namespaces and 890 µs (p90
+   1.37 ms) at 512, against 86 µs and 937 µs never-listed: the table read grows with the store. The
+   lookups after it take 0.7-0.8 µs, as an attached namespace's do. It is bounded by the agent's publish
+   rate: at one publish a second in a 512-namespace store, a process that reads a dropped namespace
+   spends 0.09% of a core and one lookup of about 1 ms per publish. If that latency matters later, an
+   agent that gives a re-added name its old slot, and that slot to no other name, lets a dropped
+   namespace watch its slot again for nothing (F7's second option).
+
+   No missed wakeup: the store word and every sequence are release `fetch_add`s on a file never
+   replaced (Limit 2 aside), the agent bumps after the rename, and the refresh loads the word before
+   it reads `selected` (D4 rule 1), so a re-add the read missed has moved the word past what the entry
+   recorded. No ABA: words only grow, a reused slot is bumped at the drop and again at the add, and the
+   dropped name no longer watches it. The model (133 slots taken by another name, 52 re-adds at the old
+   slot) and `readdstress` (6 at the old slot, 193 at a new one, under six threads) find none.
+
+4. **D155 in the guides and references.** Consistent where it is stated: the Python and Rust guide
+   (`guides/python-and-rust.md:77-84`) and the Python, Rust and C++ references say a namespace that
+   cannot attach answers its last good publish with OK while the others move on, and only `refresh()`
+   reports it; `errors.md:80` ("Keep answering from the installed view") agrees, and both bindings pass
+   `detent_refresh`'s status through. What they leave out is F8.
 
 ## Evidence I relied on
 
-- Native 261123-215328-7c1230 at Detent:a9eb4f77: full configure (authority, relay, examples,
-  benchmarks, Python, Rust), 218 of 218.
-- CI 45328288209 at Detent:dec0d978, every job green: `linux-tsan` and `linux-asan-ubsan` run
-  `test_reader_core`, `test_reader_switch`, `test_reader_scenarios`, `test_reader_syscalls` and
-  `test_reader_files` (job logs 138223181631, 138223181878; 214 and 216 of 216 pass). So the
-  reader-core tests are covered under TSan and ASan at this code; I ran no sanitizer locally.
-- T2 261123-204301-53e01c (strict, Detent:dec0d978): hot lookup p50 918-969 ns at 1 namespace,
-  935-1051 ns at 1,000; scattered (every namespace attached) 1471-1519 ns and 1271-1288 ns; 0
-  allocations. Per-lookup cost does not grow with the namespace count beyond the binary search
-  (`View::find`, `core.cc:151-155`); a lookup allocates nothing (Q3).
-- The lead's fails-without jobs and the e2e probe above.
+- The lead's jobs at Detent:5cc302f8: native 261124-075318-9b7397 (220 of 220, `test_reader_core`
+  among them), bindings 261124-075331-f4ad0a (`ctest --repeat until-fail:3`, exit 0), and the
+  fails-without mutants 261124-075309-3e8f55 (F5: `reader core invariant at line 209`) and
+  261124-075314-c9ce1c (F3's pair of mechanisms: line 278). I accept them as records; my probes
+  reproduce what each carries.
+- CI 45430641919 at Detent:5cc302f8: success. Every job that ran passed (the plan skipped two), Linux
+  ASan/UBSan and TSan, both macOS jobs and both bindings jobs included.
 
 ## What I checked myself
 
-Probe job 261124-001332-65c668 (strict, 10 min, at Detent:a9eb4f77, slot
-`detent-review-legacy-h-correctness`); scripts in `.scratch/detent/review-legacy-h-correctness/` in
-the home: `build.sh` (Release, tests on, `review_probe` added through `probe.cmake` without touching
-tracked files), `run.sh`, `review_probe.cc`. Rerun it on a fix: it exits 0 only when every RESULT
-passes.
+The scripts are in `.scratch/detent/review-legacy-h-correctness/` in the home: `round3_probe.cc` (this
+round's modes), `review_probe.cc` (round 2's) and `local3.sh`, which builds one `git archive` of
+Detent:5cc302f8 (FetchContent through the campaign's git mirrors) and runs three phases: the commit,
+`slot-check-only.patch` (the slot check alone removed), and Detent:6ea8a1f2's `core.cc` (the F5
+mutant). I ran it under `quiet light` (hold `r3-local`, 08:47-09:11). The campaign queue held light
+jobs behind a drain, so I cancelled the same runs as jobs (261124-081437-fc6a3f, -081440-f5ea76,
+-081443-e4c6ea, -082257-088a0e); `run3.sh`, `mutant_slot.sh` and `mutant_f5.sh` rerun them as jobs.
+Logs: `local/base.log`, `local/slotmut.log`, `local/f5mut.log`.
 
-- `lists` (Q2): PASS. A handle opened with `{a, c}` reads `a`, refuses `b` and `d` with
-  `NOT_OPENED`, answers `c` UNAVAILABLE until `c` appears and then its value; a handle with no list
-  reads `c` and `d` once added.
-- `window` (Q1, F1): FAIL. At the agent store's `rename table` primitive
-  (`AgentStoreTesting` hook) of a publish that adds `b`: `detent_open` returns `source_failure`,
-  `detent_refresh` returns `source_failure`, a first lookup of `b` returns `source_failure`. After
-  the publish completes, both read correctly.
-- `couple` (Q1, F2): FAIL. `u`'s next generation cannot attach (its `.read` hidden, as the suite's
-  own failed-switch cases do); `t` then publishes 3 and 4. A handle opened with `{t}` reads 3, then
-  4; a handle that attached `t` and `u` reads `t:k` = 1 both times, status OK, and its
-  `detent_refresh` returns `unavailable`. Restoring the file and one more publish recovers both.
-- `readd` (F3): FAIL as a reader-side check; see F3 for why the agent cannot reach it today.
-- `stress` (Q1): 150 s, a writer thread (983 steps: per-namespace deltas, 65 full publishes that
-  each drop one namespace and add a new one, so `change` grows past every mapping 65 times, 24
-  collections) against 6 reader threads on a handle of all namespaces and 2 on a handle of five,
-  plus a refresher every 7 ms. 1.14 billion lookups: no value went backwards, none came from the
-  future, no namespace answered UNAVAILABLE after answering OK, the listed handle refused every
-  other namespace with `NOT_OPENED`, at most four views lived, and every member converged to its
-  last value on both handles. But 414,516 lookups and 358 of 35,250 refreshes returned
-  `source_failure` (status 4, a `Failure` thrown, consistent with F1's path); the invariant RESULT
-  fails on those alone.
-- Q4: `nm` on the shipped `libdetent_reader.a` and `libdetent_reader.dylib` finds no `hold_retry`
-  or `reader::testing` symbol; only `libdetent_reader_hooked.a` has it. It is defined inside
-  `#ifdef DETENT_READER_TEST_HOOKS` (`core.cc:816-823`), the exports list holds the seven `detent_*`
-  functions, and `test_reader_exports` passes in native and CI. It only sets `retry_at`, which the
-  next successful publish resets.
-- Read: the table read against reader.md D4. Rule 1 holds: `read_table` (`core.cc:402-433`) loads
-  the store word and every sequence it covers before reading `selected`, and a first attach at an
-  unchanged word reuses the view's table and its pre-read sequences. `selected` is read whole,
-  digest-checked, with sorted names and unique slots enforced by `decode_table`
-  (`store_table.cc:96-142`), so a torn or rewritten table is refused or re-read, never searched
-  half-written; views and their `Table` are immutable once published. Sequences are 64-bit and
-  compared for equality: no wrap. A slot reused for another namespace (the agent recomputes the next
-  slot from the current entries, `agent_store.cc:437-458`, so a dropped highest slot can return)
-  only costs a dropped namespace extra refreshes. Rule 4's remap runs only in the refresh winner.
+At Detent:5cc302f8 (`local/base.log`, 26 checks, 0 failed):
+
+- `sameslot`, `slotreuse`, `restart`, `retry`, `faildrop` and `regress`: the cases in questions 1
+  and 2, by value.
+- `readdstress:60`: 324 publisher steps (199 drops, 6 re-adds at the old slot, 193 at a new one, 23
+  collections), four reader threads on a handle of all and two on `{q1, q4}`, no `detent_refresh`:
+  406,235,796 lookups, 269,099,433 OK, no status outside the handle's rules, no value backwards or
+  past what was published, no `unavailable` after OK; then 0 stale by lookups alone, after the race
+  and after a drop, lookup, re-add and delta of `q1` and `q4`.
+- `cost:16:100:200` and `cost:512:40:200`: question 3.
+- `model` seeds 1-3: 3,600 operations, 12,880 lookups checked, 0 wrong. Summed over the seeds: 1,339
+  drops, 1,281 re-adds at a new slot and 52 at the old one (1,110 to a handle that looked the name up
+  while dropped, 802 to one that did not), 133 slots taken by another name, 189 agent restarts, 384
+  collections, 113 reopened handles, 2,451 lookups of a dropped namespace, every `detent_refresh` OK.
+- Round 2's `lists`, `window`, `couple`, `readd` and `regrow` pass, and the 120 s `stress` in the
+  status table.
+
+With the slot check alone removed (`local/slotmut.log`, 7 checks, 0 failed): `test_reader_core`
+(every case, `readd_same_generation` included), `sameslot`, the model at seeds 1-2 (0 of 2,859 and 0
+of 2,917 wrong), `readd` and `regrow` pass.
+
+At the F5 mutant (`local/f5mut.log`, 8 checks, 4 failed): the model fails at both seeds (128 of
+2,141 and 106 of 2,190 lookups wrong; the first, a `{c,e}` handle reading c at 6 where the publish at
+12 lists it at 12), `readdstress` leaves 3 stale reads on `{q1, q4}` (q1 at 15 where 253 is published), and
+`regrow` reads 1 after the re-add and the delta where a new handle reads 6. `sameslot`, `slotreuse`
+and `readdstress`'s invariants pass there: a re-add at the old slot and another name taking the slot
+both bump the slot the mutant watches, and a stale value is never a backward one.
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | yes | defect | A table read while the agent adds a namespace fails with `DETENT_SOURCE_FAILURE`. The agent renames `selected` (naming the new slot), syncs the directory, and only then grows `change` and bumps it (`src/detent_local/agent_store.cc:466-485`). A read in that window finds a slot past the file: `read_table` remaps, still finds it uncovered, and after four attempts throws `Failure{DETENT_SOURCE_FAILURE}` (`src/detent_reader/core.cc:418-431`). So `detent_open` (hence `detent get`, Python's `Reader()`, Rust's `Reader::open`) fails, `detent_refresh` fails, and the failure is remembered at the store word, so first lookups of unattached namespaces return it until the word moves. Reader.md D4 rule 4 wants `change` to cover every slot the table names; the landed agent breaks that for one fsync. The single-entry core never read a newly named slot, so this round exposes it | Probe 261124-001332-65c668 `window` (open, refresh and first lookup all `source_failure` inside the window) and `stress` (414,516 lookups and 358 refreshes `source_failure` over 65 adds) | Either or both, the lead's routing: (a) the agent grows `change` (`reserve`, `resize_change`) before it writes and renames `selected`; zero words ahead of the table are harmless. (b) The reader treats a slot past the remapped file as a table ahead of the store word: answer from the installed view or UNAVAILABLE and retry when the word moves, never SOURCE_FAILURE. Test: `test_reader_core` opens, refreshes and looks up from the agent store's `rename table` hook during a publish that adds a namespace, all OK or UNAVAILABLE |
-| F2 | yes | defect | A refresh attaches every attached namespace whose generation changed and publishes all of them or none (`core.cc:503-538`, the catch at `:554-581`). When one namespace's next generation fails to attach (a damaged or untrusted generation, an A4 regression, or `DETENT_NO_MEMORY` at the handle's shared mapping cap), the whole refresh fails, the failure is remembered at the store word, and every other namespace on that handle keeps answering its old generation with status OK, through each later publish, for as long as that one stays broken. A handle that never attached the broken namespace follows normally. Reader.md D4 says a failed attach "remembers the sequence it failed at", and A21 asks that per-namespace sequences decide refresh; main's per-namespace sources were independent | Probe 261124-001332-65c668 `couple`: `t:k` stays 1 on the handle that attached `u` through two `t` publishes (3, 4) while a `{t}` handle reads 3 and 4; `detent_refresh` returns `unavailable` | Make attach failures per entry: a namespace whose attach fails keeps its previous generation and its old `seen` (so it retries when its own sequence moves or on `detent_refresh`), the others publish. Test: the `couple` case in `test_reader_core`, `t` reading 3 and 4 on the handle that attached `u` |
-| F3 | no | nit | `attach` keeps the previous generation when the table names the same generation id (`core.cc:503-505`) but `add` then watches the previous generation's slot (`:521-525`), not the entry's. A namespace dropped and re-added at the same cursor (same derived id, `derived_ids.cc:41-53`; a new slot, `agent_store.cc:455-458`) would watch its old slot and miss its later publishes. The agent cannot reach this today: while a reader holds the dropped generation's lease, the re-adding cycle is rejected with `LeaseHeld` (`agent_store.cc:351-366`) | Probe 261124-001332-65c668 `readd` (hand-written tables): `a:k` stays 1 after `a`'s next publish while a new handle reads 5 | Keep `previous` only when the slot matches too |
-| F4 | no | gap | A namespace that leaves the table is retained for the handle's life (`core.cc:528-532`, reader-core.md "Build"). Its lease then makes the agent reject a cycle that re-adds it at a revisited cursor (`LeaseHeld`, `disk_store.cc:24-33`, rethrown by `coordinator.cc:577-580`) until the handle closes, and nothing releases it. Main's client did the same (`client_source.cc:132-147` keeps the installed view when a refresh throws, at Detent:18ce371d), so this is pre-existing, not this round's | Code as cited (not reproduced: the test writer cannot revisit a cursor) | A follow-up: release a dropped namespace's generation at a later refresh, or say in reader-core.md what holds it |
+| F6 | no | gap | D7's table misses four transitions the code handles: a re-add at the old slot (the agent's case whenever the dropped slot was the highest), an agent restart, a re-add A4 refuses, and a drop or re-add while the attach fails. Two of its rules are wrong: the new-slot rule (the agent takes the highest slot before removing the cycle's drops) and the failed attach's retry (every refresh of the handle retries it, not only its slot moving or `detent_refresh`). `entry_failure`'s comment repeats the second | Question 1; `agent_store.cc:437-446`, `core.cc:559-573`, `test_reader_core.cc:172`; `sameslot`, `restart`, `regress`, `faildrop`, `retry` in `local/base.log` | Add the four rows, with `sameslot`, `restart` and `faildrop` ported to `test_reader_core` as their tests (they use only the writer) and `regress` cited; correct the two rules and the comment |
+| F7 | no | gap | Three pages say a slot is never reused: reader.md D4 (`docs/design/reader.md:141`), namespace-delivery D8 (`docs/design/namespace-delivery.md:231`) and `docs/mechanisms/change-file.md:17`. The agent reuses the highest dropped slot for the next name added (`agent_store.cc:437-457`, unchanged from main), as D7 now says. After F5 no reader rule depends on it, but the pages contradict D7 and the code. All three are outside the quest's file set | `sameslot` (c back at slot 2); the model's 133 slots taken by another name | Pre-existing; the lead's to place. Options: amend the three pages to the agent's rule, or make the agent never reuse a slot and give a re-added name its old one (it must keep the slots of dropped names; it would also let a dropped namespace watch its slot again, question 3) |
+| F8 | no | gap | D155's pages call `refresh()` the one call that reports a failing namespace (`reference/bindings/python.md:58-61`, `rust.md:66-68`, `cpp-api/reader.md:106-109`, and `guides/python-and-rust.md:81-84`: "A process that must know calls `refresh()` from a thread of its own"). `detent_refresh` returns OK without trying while another thread holds `refreshing` (`core.cc:836-837`), which a lookup's refresh after any publish does, and when a pinned view refuses the publish (`entry_failure` is reset at `core.cc:456`, before the refusal at `:464-469`). The guide's "tries again at its next publish or `refresh()`" understates the retry (any refresh). `observability.md` lists only lookup statuses as read-health signals and alerts, and a failing namespace no longer returns one; only its staleness alert catches it. No page says what a dropped namespace answers. reader.md D4 (`:144`, outside the file set) still says a failed attach "keeps the installed view", which F2 narrowed to that namespace | The lines cited | Say in the three references and the guide that `refresh()` returns OK while another refresh runs or a pinned view refuses it, so a periodic call reports a lasting failure; or have `detent_refresh` wait for the running refresh and run its own. Add `refresh()`'s status to observability.md's signals. One sentence on a dropped namespace (its last values with OK in a process that read it; `unavailable` in a new one). Reword D4's sentence to F2's behavior |
+| N2 | no | nit | F3's slot check (`core.cc:523`, `previous->slot == entry.slot`) no longer guards anything: `add(generation, listed->slot)` already makes a kept generation watch its entry's slot. Where it fires, it attaches the same generation a second time, and only hand-made tables reach it (F4) | `local/slotmut.log`: with the check alone removed, `test_reader_core`, `sameslot`, the model, `readd` and `regrow` pass | Both are correct; the owner's call. Drop the check and `Generation::slot` (read nowhere else), or keep it and record that it has no fails-without of its own |
 
 ## Not run
 
-- Sanitizers locally: CI's `linux-tsan` and `linux-asan-ubsan` at Detent:dec0d978 run every reader
-  test; my probes ran in a Release build on macOS only, without a sanitizer.
-- F4's agent stall end to end, and F3 through the real agent (both need a revisited cursor, which
-  the test writer cannot produce).
-- Linux and the bindings beyond what native 261123-215328-7c1230 and CI 45328288209 ran.
+- Sanitizers locally: TSan and ASan at this head rest on CI 45430641919.
+- F4 end to end: the test writer cannot revisit a cursor.
+- Linux probes: macOS only.
 
 This review ran as a subagent of the lead's session, not as a session titled
 `detent · reviewer legacy-h correctness`.

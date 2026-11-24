@@ -1,0 +1,85 @@
+---
+title: "detent"
+---
+
+```text
+detent get NAME [--hash VAL] [--switch VAL] [--default VAL]
+                [--config PATH] [--runtime-dir PATH] [--system]
+                [--generation-dir PATH] [--managed PRIVATE_CONFIG]
+detent help | --help
+```
+
+`detent get` reads one knob and prints its integer value; a flag prints `0`
+or `1`. It maps the managed agent's published generation read-only and
+evaluates locally; it doesn't send a request to the agent. With neither
+`--managed` nor `--generation-dir` (or `managed_path` and `generation_dir` in
+`agent.json`), it fails with `no source configured`.
+
+---
+
+## Options
+
+| Option | Meaning |
+| --- | --- |
+| `--hash VAL` | Hash value for rollouts (a stable user, account or host ID) |
+| `--switch VAL` | Switch value for group overrides |
+| `--default VAL` | Fallback printed if the knob can't be read; publishes nothing. It doesn't answer for a generation that fails verification |
+| `--config PATH` | Use this `agent.json` |
+| `--runtime-dir PATH` | Runtime directory holding the agent's pid and log |
+| `--system` | Attach to the system agent; never start one |
+| `--generation-dir PATH` | Read a managed agent's durable generation directory |
+| `--managed PRIVATE_CONFIG` | Managed credential file for a newly started managed agent |
+| `--publisher-user USER_OR_UID` | The trusted publisher: the account the managed agent runs as |
+| `--reader-mapping-bytes N` | Cap on the bytes the reader maps (at least 1,055,136; default 512 MiB) |
+
+---
+
+## Behavior
+
+1. `get` reads through `detent::Reader`, the reader core applications use: it
+   trusts the publisher (`--publisher-user`), verifies the pages it visits and
+   reads the selected durable generation, even while the managed agent is
+   stopped.
+2. If no generation is present and `--managed` is set, `get` starts the agent
+   (a sibling `detent-agent` binary, or one on `PATH`) with the given startup
+   settings and waits up to three minutes for the first generation.
+3. With `--system`, `get` attaches to the service-managed agent and never
+   starts one.
+4. If no generation arrives, `get` prints `--default` when it's given, and
+   otherwise fails.
+5. `get` reads prepared generations only. The other reader capacity flags
+   (`--reader-records` and the rest) and `--reader-validation full` are
+   `detent-agent --status`'s; `get` refuses them, and ignores those settings in
+   `agent.json` and the environment.
+6. `get` opens the name's own namespace: it reads that namespace's entry of the
+   store, whichever namespaces the agent follows.
+
+---
+
+## Output and Exit Status
+
+| Situation | Stdout | Exit status |
+| --- | --- | --- |
+| Read succeeded | The integer | `0` |
+| Read failed, `--default` given | The default | `0` |
+| Read failed | Nothing; `ERR <status>: <name>` on stderr, the reader core's status name (`missing`, `unavailable`, `untrusted`, ...) | `1` |
+| No source configured | Nothing; `no source configured` on stderr, even with `--default` | `1` |
+| Agent couldn't start, no `--default` | Nothing; an error on stderr | `1` |
+| Unknown option, missing option value or extra positional argument | One argument error on stderr, without starting an agent or using `--default` | `1` |
+
+```sh
+detent get payments:new_processor --hash user-42 --switch beta
+# 1
+detent get checkout:nope
+# ERR missing: checkout:nope
+detent get checkout:nope --default 0
+# 0
+```
+
+---
+
+## Environment
+
+`DETENT_MANAGED_CONFIG`, `DETENT_GENERATION_DIR` and `DETENT_RUNTIME_DIR`
+configure a newly started agent; see [`detent-agent`](/Detent/reference/cli/detent-agent/#environment).
+`DETENT_READER_MAPPING_BYTES` sets `--reader-mapping-bytes`; the flag wins.

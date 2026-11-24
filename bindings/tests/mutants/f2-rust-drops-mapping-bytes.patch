@@ -1,0 +1,13 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..b3314641 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -211,7 +211,7 @@ impl Reader {
+             namespaces: names.as_ptr(),
+             namespace_count: names.len(),
+             publisher_uid,
+-            mapping_bytes,
++            mapping_bytes: 0,
+         };
+         let mut handle: *mut RawReader = std::ptr::null_mut();
+         // SAFETY: `options` and what it points to outlive the call; detent_open copies what it keeps.

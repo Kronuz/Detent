@@ -1,0 +1,143 @@
+---
+title: "Installation"
+---
+
+The quickest way to install Detent on macOS is Homebrew. Everywhere else, build
+it from source with CMake.
+
+---
+
+## Homebrew
+
+```sh
+brew install Kronuz/tap/detent
+```
+
+That installs `detent-authority`, `detent-agent` and `detent`, plus the launchd service
+templates under `$(brew --prefix)/share/detent/`. To track `main` instead of the
+pinned revision, use `brew install --HEAD Kronuz/tap/detent`.
+
+---
+
+## Requirements
+
+1. **A C++20 compiler and standard library** that provide `std::jthread` and
+   stop tokens. Configuration checks this before building. libc++ 20 and newer,
+   recent libstdc++, and Apple Clang 17 all work.
+2. **CMake 3.24** or newer.
+3. **Git and network access** on the first configure; every dependency is
+   fetched with CMake `FetchContent`.
+4. **OpenSSL 3.0** or newer for the managed agent and the durable authority.
+5. For the integration tests only: Python 3, Bash, curl, and the `openssl`
+   command-line tool on `PATH`. The running daemons don't need them.
+
+Detent is developed and qualified on **macOS**, **Linux** and **FreeBSD**.
+
+:::hint[FreeBSD with base libc++ 19]{.caution}
+libc++ 19 hides `std::jthread` behind its experimental library. Configure with
+`-DCMAKE_CXX_FLAGS=-fexperimental-library`, and build every consumer of the
+public C++ headers with the same flag. This opts into libc++'s experimental
+API/ABI; prefer a stable libc++ 20 when it's available. Bash isn't part of the
+FreeBSD base system, so install it before running the tests.
+:::
+
+---
+
+## Building
+
+```sh
+git clone https://github.com/Kronuz/Detent.git
+cd Detent
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+That produces, under `build/src/`:
+
+| Binary | What it is |
+| --- | --- |
+| `detent-authority` | The durable authority daemon |
+| `detent-agent` | The host-local agent daemon |
+| `detent` | The shell reader: `detent get NAME` |
+
+You also get the static libraries, examples in `build/examples/`, benchmarks in
+`build/benchmarks/`, and the test suite.
+
+:::hint[Building against local library checkouts]{.tip}
+To develop Detent and one of its sibling libraries together, point CMake at a
+local checkout instead of the fetched copy:
+
+```sh
+cmake -B build -DFETCHCONTENT_SOURCE_DIR_REACTOR=$PWD/../reactor
+```
+
+The variable name is the dependency's `FetchContent` name in upper case, such as
+`CONSENSUS`, `HTTP_LIB`, `REACTOR` or `SHA256`.
+:::
+
+### Build Options
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `DETENT_BUILD_MANAGED_AGENT` | `ON` | Build managed (authority) delivery support into `detent-agent` |
+| `DETENT_BUILD_AUTHORITY` | `ON` | Build `detent-authority`, the durable authority daemon, with its HTTP, reactor and consensus dependencies |
+| `DETENT_BUILD_TESTS` | `ON` | Build the test suite |
+| `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` |
+| `DETENT_BUILD_BENCHMARKS` | `ON` | Build the benchmarks |
+| `DETENT_BUILD_PYTHON` | `OFF` | Build the Python binding, a C extension over `libdetent_reader` (needs Python 3 development headers) |
+| `DETENT_BUILD_RUST` | `OFF` | Build the Rust binding over `libdetent_reader` (needs `cargo` and `rustc`) |
+
+A reader-only build, for an application that only links `detent::reader` to
+read a managed agent's generations, can skip the network stack entirely:
+
+```sh
+cmake -B build -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_MANAGED_AGENT=OFF
+```
+
+---
+
+## Testing
+
+```sh
+ctest --test-dir build --output-on-failure
+```
+
+The suite covers the core library (schema validation, golden hash vectors),
+the reader core and the scenario table its bindings share, the agent's command
+line, and the authority, delivery and local-image libraries.
+
+---
+
+## Installing
+
+```sh
+cmake --install build --prefix /usr/local
+```
+
+This installs `detent-authority`, `detent-agent` and `detent` into `bin/`, and the
+service templates for systemd, launchd and rc.d into `share/detent/`. See
+[System Services](/Detent/operations/services/) to run them under a service
+manager.
+
+---
+
+## Using Detent from Your Own CMake Project
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(detent
+  GIT_REPOSITORY https://github.com/Kronuz/Detent.git
+  GIT_TAG        main)
+FetchContent_MakeAvailable(detent)
+
+target_link_libraries(my_app PRIVATE detent::detent)
+```
+
+`add_subdirectory()` of a local checkout works the same way. See
+[Using Detent in a C++ Application](/Detent/guides/cpp-application/) for the
+rest.
+
+:::hint[Pin a revision]{.tip}
+Detent has no tagged releases yet. For reproducible builds, set `GIT_TAG` to a
+specific commit rather than `main`.
+:::

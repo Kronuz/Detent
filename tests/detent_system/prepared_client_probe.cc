@@ -1,5 +1,4 @@
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
+#include "detent/reader.hh"
 #include "detent_local/read_counters.hh"
 #include "names.hh"
 #include "lazy_page_access.hh"
@@ -87,12 +86,10 @@ void read(char **argv, std::uint64_t iterations) {
 		throw std::runtime_error("getrusage failed");
 	const auto start = std::chrono::steady_clock::now();
 	const auto counters = l::counters::snapshot();
-	detent::InitOptions options;
-	options.read_source = l::make_managed_read_source(argv[2], ::getuid());
-	detent::Client client(std::move(options));
+	detent::Reader reader(argv[2], ::getuid());
 	const auto attached = std::chrono::steady_clock::now();
-	const auto value = client.get(argv[3]);
-	if (!value || value.value() != expected)
+	const auto value = reader.lookup(argv[3], expected + 1);
+	if (!value || value.value != expected)
 		throw std::runtime_error("first live value differs");
 	const auto stop = std::chrono::steady_clock::now();
 	const auto counts = l::counters::snapshot() - counters;
@@ -101,11 +98,11 @@ void read(char **argv, std::uint64_t iterations) {
     double steady_ns = 0;
     if (iterations) {
         for (unsigned i = 0; i != 1000; ++i)
-            if (client.get(argv[3]).value() != expected)
+            if (reader.get(argv[3], expected + 1) != expected)
                 throw std::runtime_error("warmup live value differs");
         const auto begin = std::chrono::steady_clock::now();
         for (std::uint64_t i = 0; i != iterations; ++i)
-            if (client.get(argv[3]).value() != expected)
+            if (reader.get(argv[3], expected + 1) != expected)
                 throw std::runtime_error("steady live value differs");
         steady_ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                std::chrono::steady_clock::now() - begin).count()) / double(iterations);
@@ -126,8 +123,7 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"record_opens\":" << counts.record_opens
 	          << ",\"table_bytes\":" << counts.table_bytes
 	          << ",\"pages_verified\":" << counts.pages_verified
-	          << ",\"bytes_hashed\":" << counts.bytes_hashed
-	          << ",\"records\":" << client.health().knobs;
+	          << ",\"bytes_hashed\":" << counts.bytes_hashed;
 	if (lookup_profile)
 		std::cout << ",\"profile_mapping_ns\":" << lookup_profile->mapping_ns
 				  << ",\"profile_mappings\":" << lookup_profile->mappings;

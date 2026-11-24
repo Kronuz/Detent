@@ -56,7 +56,7 @@ int main() {
 		for (const auto shape : {"regular", "fifo", "directory", "symlink", "hardlink", "mode", "short"}) {
 			const auto store = root / (std::string(kind) + "-" + shape);
 			{
-				detent::testing::GenerationWriter writer(store);
+				detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 				check(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":7}}})") == 1);
 			}
 			reshape(entry(store, kind), shape);

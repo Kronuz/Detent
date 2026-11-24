@@ -12,9 +12,6 @@ target_include_directories(detent_local_view PUBLIC "${PROJECT_SOURCE_DIR}/inclu
 target_sources(detent_local_view PRIVATE store_table.cc paged_root_prefix.cc derived_ids.cc reader_metadata.cc lazy_page_access.cc prepared_reader.cc pack_scrub.cc live_record.cc trusted_restart.cc)
 target_compile_features(detent_local_view PUBLIC cxx_std_20)
 add_library(detent::local_view ALIAS detent_local_view)
-add_library(detent_local_client client_source.cc)
-target_link_libraries(detent_local_client PUBLIC detent::local_view)
-add_library(detent::local_client ALIAS detent_local_client)
 
 target_link_libraries(detent_local_view PUBLIC detent::local_codec)
 add_library(detent_local_fullbuild paged_snapshot_builder.cc paged_image.cc paged_segment_builder.cc paged_leaf_body.cc borrowed_snapshot_source.cc)

@@ -75,7 +75,7 @@ int main() {
 	} cleanup{root};
 	{
 		// The writer's store threads end before anything is counted.
-		detent::testing::GenerationWriter writer(root);
+		detent::testing::GenerationWriter writer(root, detent::testing::GenerationWriter::Layout::PerNamespace);
 		CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":3},)"
 		                          R"("t:flag":{"default":0,"overrides":{"vip":1}},)"
 		                          R"("u:ramp":{"default":0,"rollout_pct":100,"rollout_value":1}}})") == 1);

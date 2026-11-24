@@ -1,6 +1,6 @@
 # Docs end-to-end suite
 
-The pages under `website/src/content/docs/` are Detent's end-to-end suite. Each runnable block runs
+The pages under `site/src/content/docs/` are Detent's end-to-end suite. Each runnable block runs
 as written against a build of the checkout, and a hidden assertion block after it checks the values
 it prints.
 
@@ -12,7 +12,7 @@ All three run from the repository root and exit 0 when clean.
 | --- | --- | --- |
 | `python3 tests/docs/run_e2e.py --fresh-build` | Every `sh` and `rest` block runs; each is asserted or listed in `tests/docs/e2e_exceptions.txt` | 0 pass, 1 a block failed or is unasserted, 2 the build or run could not start |
 | `python3 tests/docs/check_docs.py` | CLI flags, configuration keys, HTTP endpoints, error and status names and knob types, in both directions between the reference pages and `src/` and `include/`; gaps live in `tests/docs/docs_exceptions.txt` | 0 clean, 1 an unlisted gap or a stale exception, 2 a malformed exceptions file |
-| `python3 tests/docs/check_links.py website/dist` | Every internal link and `#anchor` of the built site (`cd website && npm ci && npm run build`) | 0 clean, 1 a broken link |
+| `python3 tests/docs/check_links.py site/dist` | Every internal link and `#anchor` of the built site (`cd site && npm ci && npm run build`) | 0 clean, 1 a broken link |
 
 `run_e2e.py --build-dir DIR` reuses the binaries of an existing build (`DIR/src/detent-authority`,
 `detent-agent`, `detent`); `--deps-from DIR` lets a fresh build take its dependency sources from
