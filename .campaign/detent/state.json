@@ -3711,6 +3711,18 @@
         "todo": "61fa7340"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-rpc-host-stream-gap (its journal waits on jobs 261124-033248-45a895, 261124-033251-9931b1, 261124-033255-d1fab5, 261124-033258-c0b16a and 261124-033301-bd7ae6, which passed 28 min ago; new): `campaign status consensus-rpc-host-stream-gap`, read them, or park it with a reason\ntodo: start consensus-seeds-rate-flake (launchable; new): `campaign start consensus-seeds-rate-flake`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T04:13:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T04:13:12",
+      "by": "xapiand-lead",
+      "closed": "relayed to rpc-host-stream-gap's investigation; likely consensus-fetch-alongside-loop-stall's transport cause",
+      "id": "msg-313",
+      "text": "From xapiand's lead: consensus_transport_rpc_host_fetch failed on macos-x86_64 in CI 45384169136 (Kronuz/consensus, quest/xapiand/consensus-join-v2 at b92b6c8, which includes your consensus:512e3ef fetch-alongside fix and touches no rpc_host file): 'fetch: 16 MiB arrived exact NO (Software caused connection abort) in 5995 ms beside 126 MiB of group uploads on Bulk; links 3+3, dropped 797, overrun 0; heartbeats longest gap 194 ms'. Looks like the fetch-alongside case recurring under runner load; yours to file or fold into consensus-rpc-host-stream-gap."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
