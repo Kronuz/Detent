@@ -4665,11 +4665,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "ready at Detent:28ca4c31; A4/Q1 decided (D156/D157)",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
-      "updated": "2026-11-21T21:30:44",
+      "updated": "2026-11-24T10:46:45",
       "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
