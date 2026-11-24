@@ -26677,7 +26677,12 @@
         "docs/design/observability.md",
         "docs/mechanisms/read-counters.md",
         "src/detent_local/evaluation.hh",
-        "benchmarks/reader_bench.cc"
+        "benchmarks/reader_bench.cc",
+        "src/detent_local/lazy_page_access.cc",
+        "src/detent_local/lazy_page_access.hh",
+        "src/detent_local/view.cc",
+        "include/detent_local/view.hh",
+        "tests/detent_local/test_evaluation.cc"
       ],
       "history": [
         {
@@ -26716,12 +26721,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "design review CHANGES (F1-F8): design fix round before the owner's P2/P3 rulings",
+      "reason": "D10 segment bitmaps (D159): the mark bitmap is charged with its segment in lazy_page_access; view records (N7) need view.cc/.hh and the evaluation tests; no active quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T10:27:56",
+      "updated": "2026-11-24T11:36:02",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
