@@ -6292,12 +6292,15 @@
         "consensus-simulation-asan-timeout"
       ],
       "provides": [],
-      "reason": "the simulation's doc describes the pipelined configuration; free since consensus-simulation-asan-timeout landed",
+      "reason": "accepted; A3 needs green macOS CI, red on main's rpc_host_fetch defect, which consensus-fetch-oversize-abort fixes",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "blocked",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T06:33:43",
+      "until": [
+        "consensus-fetch-oversize-abort"
+      ],
+      "updated": "2026-11-24T08:42:12",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
