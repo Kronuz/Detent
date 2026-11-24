@@ -7,7 +7,7 @@ is in `state.json`: `campaign status consensus-driver-pressure-rearm`.
 
 Found by consensus-next-deadline-removal's correctness review (R5,
 `.campaign/detent/reviews/consensus-next-deadline-removal-correctness.md`) and shown on main by job
-261124-…-a3e432: when the Worker refuses a due Tick with Pressure, `Driver::arm()` re-arms at Core's
+261124-141945-a3e432: when the Worker refuses a due Tick with Pressure, `Driver::arm()` re-arms at Core's
 past clock (driver.h:832-846), so a due removal or a follower's past election deadline under
 control-pool pressure is re-stepped on every wheel pass until the pressure clears. After this
 quest a refused Tick re-arms once the pressure can have cleared (the pool's release wakes it, or a
