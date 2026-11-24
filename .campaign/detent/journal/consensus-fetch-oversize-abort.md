@@ -153,7 +153,7 @@ for its stated reason):
 | Criterion | Evidence |
 |---|---|
 | A1 | Cause: suite probe run 45453078372 (Doing). Tests at the fix, 10 runs each: fetch-partial 261124-151246-f0ad2c, fetch-twice 261124-151248-f49548, fetch-gone 261124-151250-cd4e3b, fetch-unverified 261124-151252-3b3f74, fetch-removed 261124-151254-e42706, fetch-oversize 261124-151256-f001a3; fetch-dead x20 261124-151308-fdd296. Fails without: fetch-gone 261124-151258-073436, fetch-unverified 261124-151300-44e305, fetch-removed 261124-151302-d24b61 (mutant/fetch-any-connection d627e22, ea48bc8's host_transport.h); fetch-partial 261124-151304-e49b9a (no-clear af9ba03); fetch-oversize 261124-151306-086ff4 (oversize-aborts 326089a). Earlier: fetch-dead fails without asking again 261124-123054-1bea5f |
-| A2 | 261124-123104-84309d (fetch x200 beside 4 burners, light, at ea48bc8; the review round adds cases, not a change to the A2 path) |
+| A2 | 261124-123104-84309d (fetch x200 beside 4 burners, light, at ea48bc8; not rerun at 87cb821, which changes the redial path: the lead decides) |
 | A3 | [artifact] docs/mechanisms/rpc-lane.md: the fetch bullet and "A fetch whose connection ends" (two tables: each way a connection ends x the redial's outcome, the caller's code and time), consensus:afec3fe, 87cb821 |
 | A4 | suite 261124-151310-7f0e32 (45 min) and CI 45507969326 at 87cb821, pending; at ea48bc8: suite 261124-134701-6d9c49 171/171, CI 45481678940 green |
 
