@@ -26057,14 +26057,16 @@
       "lenses": [],
       "milestone": "",
       "needs": [
-        "reader-s6"
+        "reader-s6",
+        "legacy-h"
       ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "paged reads: one first-touch page check",
-      "updated": "2026-11-20T18:25:42"
+      "updated": "2026-11-24T03:25:48"
     },
     "peers-busy-roundtrip-bound": {
       "accepted": {},
