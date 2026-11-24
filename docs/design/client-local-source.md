@@ -103,6 +103,22 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 
 `json_patch.hh` stays: the authority benches and tests use it.
 
+### D7. A namespace's entry, from the agent's write to the lookup's answer
+
+The agent gives each namespace an entry in `selected` and a slot in `change` (namespace-delivery D8, reader.md A1-A2). A publish grows `change` to cover every slot the new table names, renames `selected`, then bumps each changed slot's sequence and last the store word (D4 rules 1 and 4). A new namespace takes the slot past the highest slot of the entries the cycle keeps, so a dropped namespace's slot returns to the next name added. A lookup reads its namespace's entry in the handle's installed view and compares one word with the value it saw before the view's table was read; a moved word makes it refresh (`docs/mechanisms/reader-core.md`). An owner ruling (D155) keeps reader.md D4: a namespace that cannot attach answers its last good generation with OK, and only `detent_refresh` reports the failure.
+
+| Transition | The agent bumps | The lookup watches | The lookup answers | Test (`test_reader_core`) |
+| --- | --- | --- | --- | --- |
+| Generation published (the entry names a new generation) | the entry's slot, then the store word | the entry's slot | the new generation, from the lookup after the bump | `per_namespace` (`u` alone moves; `t` answers without a refresh) |
+| Added (a namespace the table did not list) | grows `change`, then the new slot and the store word | before its first attach, the store word | UNAVAILABLE while the table read at the current store word omits it, then the generation; inside the agent's rename window too | `per_namespace` (`v`), `adding_namespace` |
+| Attached (a first lookup) | nothing | the entry's slot, from the sequence loaded before the table | the entry's generation | `per_namespace` |
+| Attach failed (an attached namespace's new generation cannot attach) | as published | the entry's slot, from the sequence it failed at | its last good generation with OK; the handle's other namespaces publish; `detent_refresh` returns the status; it retries when its slot moves or at `detent_refresh` | `entry_failure` |
+| First attach failed | as added or published | the store word it failed at | the failure's status until the store word moves or a `detent_refresh` that does not fail | `refresh_memo`, `values` |
+| Dropped (the table no longer lists it) | its old slot, then the store word | the store word: its old slot is no longer its own | its last generation with OK, held for the handle's life (follow-up F4) | `per_namespace` (`u` stays at 5) |
+| Re-added at a new slot | grows `change`, then the new slot and the store word; never the old slot | the store word until it re-attaches, then the new slot | the re-added generation from the lookup after that publish, then each later publish | `regrow` (listed and unlisted handles, without `detent_refresh`) |
+| Re-added with the same generation id at a new slot | as re-added | the new slot: a kept generation watches its entry's slot | the same generation, then the next publish in the new slot | `readd_same_generation` |
+| Slot reused by another name | the reused slot and the store word | the new name, its entry's slot; the dropped name, the store word | the new name its generation; the dropped name its last one | `slot_reused` |
+
 ## Test plan
 
 Binding tests, both rewritten:

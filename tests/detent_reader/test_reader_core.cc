@@ -1,7 +1,9 @@
 // The reader core's C ABI and C++ header (reader.md D1, D2, D4, D7; docs/mechanisms/reader-core.md).
 #include "detent/reader.hh"
 #include "detent_local/agent_store.hh"
+#include "detent_local/store_table.hh"
 #include "detent_testing/generation_writer.hh"
+#include "change_file.hh"
 #include "generation_file_access.hh"
 #include "prepared_reader.hh"
 #include "testing.hh"
@@ -11,6 +13,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <span>
 #include <iostream>
 #include <string>
 #include <fcntl.h>
@@ -172,6 +177,123 @@ void entry_failure(const std::filesystem::path &root) {
 	CHECK(detent_refresh(both.handle) == DETENT_OK && get(both.handle, "u:k", DETENT_OK) == 2);
 	CHECK(writer.publish_delta({"t", "u"}, "t", {{"t:k", 5}}, {}) == 5);
 	CHECK(get(both.handle, "t:k", DETENT_OK) == 5 && get(both.handle, "u:k", DETENT_OK) == 2);
+}
+std::string knob_json(const std::vector<std::pair<std::string, std::int64_t>> &knobs) {
+	std::string out = R"({"schema_version":1,"knobs":{)";
+	for (std::size_t i = 0; i != knobs.size(); ++i)
+		out += (i ? ",\"" : "\"") + knobs[i].first + R"(":{"default":)" + std::to_string(knobs[i].second) + "}";
+	return out + "}}";
+}
+// The slot of an entry in `selected`, by name.
+std::uint32_t slot_of(const std::filesystem::path &store, std::string_view name) {
+	std::ifstream in(store / "selected", std::ios::binary);
+	const std::string bytes{std::istreambuf_iterator<char>(in), {}};
+	for (const auto &entry : detent::local::decode_table(std::span<const char>(bytes.data(), bytes.size())).entries)
+		if (entry.name == name)
+			return entry.slot;
+	throw std::runtime_error("no entry " + std::string(name));
+}
+// A dropped namespace re-added at a new slot: the handles that held it follow its new entry and the
+// publishes after it, without detent_refresh, on a listed handle and an unlisted one.
+void regrow(const std::filesystem::path &root) {
+	const auto store = root / "regrow";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(knob_json({{"a:k", 1}, {"b:k", 1}})) == 1);
+	const auto first = slot_of(store, "a");
+	Opened all(store), only_a(store, {S("a")});
+	CHECK(get(all.handle, "a:k", DETENT_OK) == 1 && get(only_a.handle, "a:k", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knob_json({{"b:k", 2}})) == 2); // drops a
+	CHECK(get(all.handle, "a:k", DETENT_OK) == 1 && get(only_a.handle, "a:k", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knob_json({{"a:k", 3}, {"b:k", 3}})) == 3); // re-adds a
+	CHECK(slot_of(store, "a") != first);
+	CHECK(get(all.handle, "a:k", DETENT_OK) == 3 && get(only_a.handle, "a:k", DETENT_OK) == 3);
+	CHECK(writer.publish_delta({"a", "b"}, "a", {{"a:k", 6}}, {}) == 4);
+	CHECK(get(all.handle, "a:k", DETENT_OK) == 6 && get(only_a.handle, "a:k", DETENT_OK) == 6);
+}
+// Replaces `selected` with `table` as the agent does: a whole file renamed over it, with its mode.
+void put_table(const std::filesystem::path &store, const detent::local::StoreTable &table) {
+	struct stat info{};
+	CHECK(::stat((store / "selected").c_str(), &info) == 0);
+	const auto bytes = detent::local::encode_table(table);
+	const auto temp = store / ".tmp-test-table";
+	const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	CHECK(fd >= 0 && ::write(fd, bytes.data(), bytes.size()) == ssize_t(bytes.size()) &&
+	      ::fchmod(fd, info.st_mode & 07777) == 0);
+	::close(fd);
+	std::filesystem::rename(temp, store / "selected");
+}
+detent::local::StoreTable get_table(const std::filesystem::path &store) {
+	std::ifstream in(store / "selected", std::ios::binary);
+	const std::string bytes{std::istreambuf_iterator<char>(in), {}};
+	return detent::local::decode_table(std::span<const char>(bytes.data(), bytes.size()));
+}
+// Bumps `changed` and the store word, growing `change` to `slots`, as the agent's ChangeWriter does.
+void bump(const std::filesystem::path &store, std::size_t slots, std::vector<std::uint32_t> changed) {
+	struct stat info{};
+	CHECK(::stat((store / "change").c_str(), &info) == 0);
+	const int directory = ::open(store.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	x::ChangeWriter(directory, slots, ::getuid(), info.st_mode & 0777).publish(changed);
+	::close(directory);
+}
+// A namespace dropped and re-added with the same generation id at a new slot (the agent re-adding it
+// at the cursor it had): the handle keeps the generation, then follows the publishes in the new slot.
+void readd_same_generation(const std::filesystem::path &root) {
+	const auto store = root / "readd", twin = root / "readd-twin";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	detent::testing::GenerationWriter other(twin, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(knob_json({{"a:k", 1}, {"b:k", 1}})) == 1);
+	CHECK(other.publish_json(knob_json({{"a:k", 1}, {"b:k", 1}})) == 1);
+	const auto first = get_table(store);
+	const auto a_slot = first.find("a")->slot;
+	CHECK(first.find("a")->generation == get_table(twin).find("a")->generation);
+	Opened r(store);
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 1);
+	auto dropped = first;
+	std::erase_if(dropped.entries, [](const auto &entry) { return entry.name == "a"; });
+	++dropped.sequence;
+	put_table(store, dropped);
+	bump(store, 2, {a_slot});
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 1);
+	auto readded = first;
+	readded.sequence += 2;
+	readded.entries[0].slot = 2; // sorted: a, b
+	put_table(store, readded);
+	bump(store, 3, {2});
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 1);
+	// a's next publish, in slot 2: the twin's next generation of a.
+	CHECK(other.publish_delta({"a", "b"}, "a", {{"a:k", 5}}, {}) == 2);
+	for (const auto &entry : std::filesystem::directory_iterator(twin)) {
+		const auto name = entry.path().filename().string();
+		if (name == "selected" || name == "change" || name == "owner.lock" || name.starts_with(".tmp") ||
+		    std::filesystem::exists(store / name))
+			continue;
+		std::filesystem::copy_file(entry.path(), store / name);
+		std::filesystem::permissions(store / name, std::filesystem::status(entry.path()).permissions());
+	}
+	auto next = get_table(twin);
+	next.sequence = readded.sequence + 1;
+	next.entries[0].slot = 2;
+	put_table(store, next);
+	bump(store, 3, {2});
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 5);
+}
+// A dropped namespace's slot taken by another name: the new name attaches from its entry, the dropped
+// one keeps answering its last generation, and both follow their own publishes afterwards.
+void slot_reused(const std::filesystem::path &root) {
+	const auto store = root / "slot-reused";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(knob_json({{"a:k", 1}, {"c:k", 1}})) == 1);
+	const auto c_slot = slot_of(store, "c");
+	Opened r(store);
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 1 && get(r.handle, "c:k", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knob_json({{"a:k", 2}})) == 2); // drops c, the highest slot
+	CHECK(get(r.handle, "c:k", DETENT_OK) == 1);
+	CHECK(writer.publish_json(knob_json({{"a:k", 3}, {"d:k", 3}})) == 3); // d takes c's slot
+	CHECK(slot_of(store, "d") == c_slot);
+	CHECK(get(r.handle, "d:k", DETENT_OK) == 3 && get(r.handle, "c:k", DETENT_OK) == 1);
+	CHECK(writer.publish_delta({"a", "d"}, "d", {{"d:k", 4}}, {}) == 4);
+	CHECK(get(r.handle, "d:k", DETENT_OK) == 4 && get(r.handle, "c:k", DETENT_OK) == 1);
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 3);
 }
 void per_namespace(const std::filesystem::path &root) {
 	const auto store = root / "per-namespace";
@@ -726,6 +848,9 @@ int main() {
 	per_namespace(root);
 	adding_namespace(root);
 	entry_failure(root);
+	regrow(root);
+	slot_reused(root);
+	readd_same_generation(root);
 	unreadable_table(root);
 	refresh_memo(root);
 	replaced_change(root);

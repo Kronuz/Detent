@@ -559,7 +559,9 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 				for (const auto &had : installed->entries) {
 					const auto *listed = table->store.find(had.name);
 					if (!listed) {
-						add(had.generation, had.generation->slot);
+						// Its slot is no longer its own: it watches the store word, so the publish that
+						// re-adds it, at whatever slot, makes its next lookup attach the new entry.
+						built->entries.push_back({had.name, had.generation, &change->mapping.store(), store_word});
 						continue;
 					}
 					Generation *generation = had.generation;
