@@ -9,33 +9,59 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Round 1 built at consensus:d2126d0 (branch quest/detent/consensus-follower-read, merged main
+512e3ef first). Local mutant pass running; then evidence jobs.
 
 ## Next
 
-1. <step>
+1. Submit evidence jobs: plain test (A1-A3), 15 mutant jobs (`--fails-without`, commits from
+   `test/follower_read_mutants.py HEAD NAME`), decoder fuzz (A4), `campaign verify --for A1`.
+2. Push the branch once only jobs remain.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Lead (msg-303): the file set names `include/consensus/codec.h`, which does not exist. The quest
+also changes, outside the listed set:
+
+1. `include/consensus/transport/codec.h`: the two new kinds (12, 13). Held by
+   consensus-rpc-host-stream-gap through `include/consensus/transport/**`.
+2. `include/consensus/admission.h`: its plan static_asserts on every Message type; one line.
+3. `fuzz/seed.cc`: writes the new seeds.
+4. `test/follower_read_mutants.py`: the mutant writer (new file).
+
+Recommendation: `campaign set consensus-follower-read files` += those four, and take
+`transport/codec.h` out of rpc-host-stream-gap's set (it does not change it). The work is built
+against them; landing waits on that.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <pending> |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. **CMakeLists.txt** (xapiand:consensus-join-v2 also changes it): one word, `follower_read`, in
+   the unit-test `foreach` at line 52, a hunk join-v2 does not touch; a merge of either is clean.
+2. **The nonce comes from the host.** The Core takes no entropy, so `Start` gains `Token nonce`
+   (default 0). The Driver draws 64 bits from `std::random_device` at each open, not from its
+   seeded `random_` stream: a restart under a fixed `Seams::seed` still names a new start, and the
+   seeded stream (election delays) is unchanged for every existing simulation seed. With nonce 0
+   a follower's `Read` is refused `NotLeader`, today's behavior, so direct-Core hosts that never
+   pass one change nothing (AGENTS.md: additive by default).
+3. **No resend.** A follower sends its `ReadIndexRequest` once; a lost frame costs the read its
+   `election_max` deadline. The leader still drops a duplicate `{peer, start, token}` while it is
+   pending, so a resend added later answers once.
+4. **The leader answers `Ready` on confirmation**, not after its own apply: the follower waits for
+   its apply. Learners may forward; witnesses are refused (no application state).
+5. **Wire version stays 1**, as when kinds 9 to 11 were added (docs/mechanisms/install-request.md):
+   formats are open until the first release. No compat fixture: unknown kinds already decode as
+   `Corruption("unknown control kind")` in old readers, and tools/compat* is outside the set.
+6. **The codec round trip lives in `follower_read_test codec`**, not test/transport/codec_test.cc
+   (outside the set).
+7. **Leader change in the same term** (LeaderGone, Gone, CheckQuorum at a follower) refuses at
+   once, as a term change does; the design's table names leader changes and term moves alike.
