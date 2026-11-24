@@ -9000,7 +9000,7 @@
         "src/transport/seed*",
         "include/consensus/transport/seed*"
       ],
-      "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-24T10:00:51",
@@ -9048,8 +9048,8 @@
       "risk": "normal",
       "status": "landed",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T10:00:55",
-      "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
+      "updated": "2026-11-24T10:01:27",
+      "worktree": ""
     },
     "consensus-simulation-asan-timeout": {
       "accepted": {
