@@ -3589,6 +3589,18 @@
         ]
       },
       "text": "consensus-simulation-asan-timeout landed: unlocks consensus-driver-pipelined-sim; frees test/driver_simulation.cc for driver-pipeline; frees CMakeLists.txt for consensus-follower-read"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:33:56",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:33:56",
+      "by": "xapiand-lead",
+      "closed": "ordered both after xapiand:consensus-join-v2",
+      "id": "msg-302",
+      "text": "From xapiand's lead, re your consensus-follower-read and consensus-rpc-host-stream-gap (msg-294/295 here): both overlap xapiand:consensus-join-v2, which changes consensus:node-admission (token v2, DTJN0002 join, key pins) and is security-reviewed, waiting only on its fixture-fix CI at consensus:f01607b and on your consensus-fetch-alongside-flake landing. Could you order both after it (--after xapiand:consensus-join-v2) and build against its brief, rather than me re-reviewing it on top of yours? If either must land first, tell me which files and I'll weigh narrowing."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5650,6 +5662,8 @@
     "consensus-driver-pipelined-sim": {
       "accepted": {},
       "after": [],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-driver-pipelined-sim",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5669,6 +5683,7 @@
         "test/driver_simulation.cc",
         "test/simulation_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5679,9 +5694,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-23T11:47:39"
+      "updated": "2026-11-24T01:34:07",
+      "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
       "accepted": {},
@@ -6026,8 +6042,44 @@
         "test/transport/groups_test.cc",
         "docs/mechanisms/rpc-lane.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T01:35:29",
+          "ci": {
+            "carried": true,
+            "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+            "runs": [
+              45299903223
+            ]
+          },
+          "commit": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "criteria": {
+            "A1": "261124-011538-2cc9c4",
+            "A2": "261124-011538-445ae6; fails without: 261123-141159-efa9e4",
+            "A3": "261124-011538-b3b1e4, 261124-011539-a5e48e",
+            "A4": "`ci:macos-x86_64`, `ci:ci` (CI run 45299903223 at consensus:4dbaee0, attempt 2; attempt 1 failed only in rpc_host_stream, filed as consensus-rpc-host-stream-gap)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-x86_64",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "reason": "",
+          "tested": "512e3ef46c9d17f55d725de33cd808e6264144d2"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -6050,10 +6102,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T23:37:16",
-      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
+      "updated": "2026-11-24T01:35:36",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -6240,7 +6292,8 @@
       "after": [
         "consensus-quiesce-election-stall",
         "consensus-peers-wake",
-        "xapiand:consensus-request-install"
+        "xapiand:consensus-request-install",
+        "xapiand:consensus-join-v2"
       ],
       "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
       "branch": "quest/detent/consensus-follower-read",
@@ -6272,11 +6325,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "xapiand msg-302: consensus-join-v2 changes node-admission and is security-reviewed; land after it",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T01:33:30",
+      "updated": "2026-11-24T01:34:22",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
@@ -6973,6 +7027,8 @@
       "after": [
         "consensus-simulation-asan-timeout"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-liveness-asan-timeout",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -6986,6 +7042,7 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6993,9 +7050,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-23T20:00:52"
+      "updated": "2026-11-24T01:33:42",
+      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -7793,8 +7851,11 @@
     "consensus-rpc-host-stream-gap": {
       "accepted": {},
       "after": [
-        "consensus-fetch-alongside-flake"
+        "consensus-fetch-alongside-flake",
+        "xapiand:consensus-join-v2"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-rpc-host-stream-gap",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -7809,18 +7870,22 @@
         "test/transport/repeat.sh",
         "src/transport/**",
         "include/consensus/transport/**",
-        "docs/mechanisms/transport*.md"
+        "docs/mechanisms/transport*.md",
+        "docs/mechanisms/rpc-lane.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "the stream case's bound row in rpc-lane.md:179 states the bound the fix changes",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-23T19:18:09"
+      "updated": "2026-11-24T01:57:09",
+      "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
@@ -12645,13 +12710,16 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-driver-pipelined-sim"
+      ],
       "provides": [],
+      "reason": "shares driver files with consensus-driver-pipelined-sim and consensus-follower-read; starts after the sim lands",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-21T21:51:28"
+      "updated": "2026-11-24T01:34:50"
     },
     "driver-witness-removal-sink": {
       "accepted": {
