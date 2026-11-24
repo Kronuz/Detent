@@ -4376,6 +4376,21 @@
         "todo": "33cd038f"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 53 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:06:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:06:05",
+      "by": "campaign",
+      "closed": "journal-bound-first-open resumed with its failures; fetch-oversize-abort's suite probe 45453078372 still running (msg-86)",
+      "id": "msg-356",
+      "settles": {
+        "todo": "c6884096"
+      },
+      "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261124-063445-61ecfe, 261124-063446-3123df and 261124-063448-c99934, which ended (done, failed) 5 min ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 64 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
