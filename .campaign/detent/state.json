@@ -4616,6 +4616,21 @@
         ]
       },
       "text": "consensus-liveness-asan-timeout landed: unlocks consensus-next-deadline-removal (until consensus-follower-read, consensus-liveness-asan-timeout met: `campaign set consensus-next-deadline-removal status=planned`); first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:03:06",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:03:06",
+      "by": "campaign",
+      "closed": "started first-read-1ms; contributor launched",
+      "id": "msg-371",
+      "settles": {
+        "todo": "3d7954eb"
+      },
+      "text": "to do, critical path first:\ntodo: start first-read-1ms (launchable; new): `campaign start first-read-1ms`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
