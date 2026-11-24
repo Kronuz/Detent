@@ -18583,11 +18583,49 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-turn-sector-checks",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T06:30:17",
+          "ci": {
+            "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+            "runs": [
+              45406906458
+            ]
+          },
+          "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+          "criteria": {
+            "A1": "261124-055939-4e039d",
+            "A2": "261124-054418-67e242; fails without: 261123-104123-1ecb5a, 261123-160740-42038e, 261123-180645-514406",
+            "A3": "261124-055939-fc2c20; fails without: 261123-104128-58508b",
+            "A4": "261124-054420-8145a4",
+            "A5": "`docs/mechanisms/turn-log-damage.md`: \"A sector more than 2^32 segments older than the file's segment reads as damage, not as stale\" (F6); \"An all-zero sector is never written, not damage, and this is not \\\"verifies under neither\\\"\" (F7); \"A fragment never verifies on its own, so bytes inside a torn write's payload that once formed a valid fragment cannot forge a record\" ... \"reports every group lost\" (journal-earlier-turn-loss F1)",
+            "A6": "261124-054418-67e242"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb",
+          "reason": "",
+          "tested": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "journal-earlier-turn-loss"
@@ -18596,10 +18634,10 @@
       "reason": "main removed memory_io.h; turn_log_test now uses faultfs and joins faultfs_tests (one word)",
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-24T05:59:50",
-      "worktree": "../journal-wt/detent/journal-turn-sector-checks"
+      "updated": "2026-11-24T06:30:27",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {
