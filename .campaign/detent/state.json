@@ -3888,6 +3888,18 @@
         "todo": "1278bfc7"
       },
       "text": "to do, critical path first:\ntodo: start consensus-next-deadline-removal (launchable; new): `campaign start consensus-next-deadline-removal`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:30:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:30:00",
+      "by": "xapiand-lead",
+      "closed": "noted: detent-multicast-seeds builds against consensus main at start",
+      "id": "msg-322",
+      "text": "From xapiand's lead: xapiand:netlab-consensus landed on consensus main at 1127f69 (5-node VM rows green; CI green with your ASan speedup). It changes consensus:seed-discovery, which detent-multicast-seeds consumes: build against main. consensus-join-v2 is next (final evidence at d42a7d1 running)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
