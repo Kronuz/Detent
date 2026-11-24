@@ -8634,7 +8634,60 @@
       "worktree": ""
     },
     "consensus-next-deadline-removal": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T15:35:24",
+          "base": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "blobs": {
+            "CMakeLists.txt": "100644:43319ee0f73cd6e05cef16b2fcb4060a928b2d91",
+            "docs/mechanisms/deadlines.md": "100644:1f7da0431f2981d145b9bc225cba9866a2a98de1",
+            "docs/mechanisms/liveness.md": "100644:aa55f49e3072085a6401fdabc297206616c76f16",
+            "include/consensus/core.h": "100644:4427c4c6bb0185e12eb495c125fe82a4b3435c08",
+            "test/core_deadline_test.cc": "100644:24e6af68a9d0c7a168840306b0a593f10e67a9ba",
+            "test/liveness_test.cc": "100644:7e0ae78d36a6118c80f54ff3920bc1bac86fc4d4"
+          },
+          "by": "review",
+          "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "criteria": "26e690b734b3ecba",
+          "diffs": {
+            "CMakeLists.txt": "52c39492ddb313aa",
+            "docs/mechanisms/deadlines.md": "f4fb0ace4634147d",
+            "docs/mechanisms/liveness.md": "815db8a49594f979",
+            "include/consensus/core.h": "a5c5d3679b57b4f0",
+            "test/core_deadline_test.cc": "de2a534c8b472b4c",
+            "test/liveness_test.cc": "14a6eeba506d10b2"
+          },
+          "findings": {
+            "R1": {
+              "jobs": [
+                {
+                  "cmd": "bash /Users/kronuz/code/Kronuz/Detent-wt/detent/consensus-next-deadline-removal/.campaign/detent/probes/consensus-next-deadline-removal/a1.sh",
+                  "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "inputs": [
+                    "include/consensus/**",
+                    "test/core_deadline_test.cc",
+                    "test/liveness_test.cc",
+                    "CMakeLists.txt"
+                  ],
+                  "job": "261124-141928-74e621",
+                  "level": "light",
+                  "seconds": 31.7,
+                  "state": "done",
+                  "what": "A1/A2 core_deadline_test ASan at fcf7f66 (plan-vs-Tick included)"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "52842067aa21206aadd3ddc4cb1c68ea8e12182d",
+          "reviewed": "d9c774713f908e016affaf731784a04b2d940ccf",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "consensus-liveness-asan-timeout",
         "consensus-follower-read"
@@ -8672,7 +8725,7 @@
       "risk": "high",
       "status": "review",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T13:32:32",
+      "updated": "2026-11-24T15:35:24",
       "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
     },
     "consensus-peers-attempts-bound": {
