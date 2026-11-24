@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-013928-c5f6e7
+State: waiting on jobs 261124-014655-15443a 261124-014707-1319b1 261124-014657-c7b211
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,19 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 probe: commit consensus:a61d466 makes the stream case print, for each heartbeat gap over 300 ms, the stage (post->send on loop 1, send->deliver) and the test thread's post gap. Job 261124-013928-c5f6e7 runs it beside 16 burners, 4 copies at once (script ~/.scratch/detent/consensus-rpc-host-stream-gap/repro.sh).
+Cause found (host stall, not lane scheduling): the stream test stopped 1.5 s mid-run (SIGSTOP, job
+261124-014521-c32cc2) shows gap 1530/1574/1527/1574 ms = the host's lag (1510-1517 ms), the
+heartbeat's own posting thread frozen (post gap = delivery gap), post->send 0 ms and send->deliver
+0-1 ms: nothing waited behind Bulk. Unstalled, gaps stay 103-222 ms (16-24 burners, niced, 4 at a
+time: jobs 261124-013928-c5f6e7, 261124-014534-123e12). CI's failure fits: 1,170 ms of a 1,593 ms
+stream, the rest at 76 MB/s against 55 MB/s unloaded. Fix: consensus:303455c/93df08c give the stream
+case the fetch and group-full cases' allowance, 1,000 ms plus the Lag sampler's worst.
+Jobs for A2 (stopped run at fix 261124-014655-15443a, at main 261124-014707-1319b1 fails-without) and
+A3 (261124-014657-c7b211).
 
 ## Next
 
-1. Read the stage split: test thread late (post gap), loop 1 late (post->send), or the wire/loop 2 (send->deliver). Fix that cause; the Lag-based bound the fetch case uses (1000 + lag.worst) is the repo's own pattern for host stalls.
+1. Paste `campaign brief`'s table; Result; push; State ready for review.
 
 ## Blocked on
 
