@@ -13149,7 +13149,7 @@
         "include/detent_authority/**",
         "tests/detent_system/test_multicast_seeds*",
         "docs/USAGE.md",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -13186,12 +13186,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-24T03:25:52"
+      "updated": "2026-11-24T12:39:14"
     },
     "detent-on-drivers": {
       "accepted": {},
