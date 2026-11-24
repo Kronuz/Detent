@@ -120,13 +120,20 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			}
 			continue;
 		}
-		struct stat entry{};
-		if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
+		// An open that fails is classified: an alias to resolve, a directory to open again, or a refusal.
+		RecoveryFile next(::openat(current.fd, part.c_str(), directory_search));
+		if (next.fd < 0) {
 			if (errno == ENOENT)
 				throw GenerationUnavailable("publisher directory is not available");
-			throw std::runtime_error("cannot inspect publisher directory component");
-		}
-		if (S_ISLNK(entry.st_mode)) {
+			struct stat entry{};
+			if ((errno != ENOTDIR && errno != ELOOP) || ::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0)
+				throw std::runtime_error("cannot inspect publisher directory component");
+			if (S_ISDIR(entry.st_mode)) {
+				pending.push_front(part); // replaced by a directory since the open: open it again
+				continue;
+			}
+			if (!S_ISLNK(entry.st_mode))
+				throw std::runtime_error("publisher directory has untrusted ancestry");
 			struct stat parent{}, after{};
 			if (++links > 40 || entry.st_uid != 0 || ::fstat(current.fd, &parent) != 0 || parent.st_uid != 0)
 				throw std::runtime_error("publisher directory has an untrusted alias");
@@ -147,11 +154,8 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			prepend(resolved);
 			continue;
 		}
-		RecoveryFile next(::openat(current.fd, part.c_str(), directory_search));
-		if (next.fd < 0 && errno == ENOENT)
-			throw GenerationUnavailable("publisher directory is not available");
 		struct stat held{}, named{};
-		if (next.fd < 0 || ::fstat(next.fd, &held) != 0 || !S_ISDIR(held.st_mode) ||
+		if (::fstat(next.fd, &held) != 0 || !S_ISDIR(held.st_mode) ||
 		    (held.st_uid != 0 && held.st_uid != owner) || (held.st_mode & 0022) ||
 		    !internal::acceptable_acl(next.fd, internal::AclPolicy::DenialsAllowed) ||
 		    ::fstatat(current.fd, part.c_str(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||

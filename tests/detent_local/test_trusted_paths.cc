@@ -20,7 +20,7 @@ unsigned race_calls = 0;
 uid_t publisher = 0;
 } // namespace
 static int racing_fstatat(int directory, const char *name, struct stat *info, int flags) {
-	if (race_armed && std::strcmp(name, "raced") == 0 && ++race_calls == 2) {
+	if (race_armed && std::strcmp(name, "raced") == 0 && ++race_calls == 1) {
 		race_armed = false;
 		race_reached = true;
 		race_failed = ::renameat(directory, name, directory, "retired-raced") != 0 ||
