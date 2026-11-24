@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-061759-e60de0 261124-061800-6a30e3 261124-061802-f328be 261124-061803-1460cf 261124-061805-bab941 261124-062325-f25d84, CI 45410562603 (8511ff1)
+State: waiting on jobs 261124-070728-3cfde4 (A2, exclusive), CI 45415901609 (e71996d)
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -28,24 +28,18 @@ above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): 
 
 ## Next
 
-1. Coordinator (latest): A1/A2 bar is CI's ASan run <= 90 s; profile where the rest goes (lone
-   50%, removed 20%) and cut with the same exactness proof. consensus:e71996d (typed queue events,
-   cut bits) is at 0.50 of main on the same host: 129.7 -> 64.8 s (261124-061757-8fb9aa, which
-   failed only in phases.sh's ratio code on a zero event count; fixed: instrument.py now counts
-   core steps). Profile f25d84 pending; push e71996d after CI 45410562603's ASan time is read.
-2. Then: Evidence table, Result, docs cost table, ready for review.
+1. Read 3cfde4 (same-host A/B alone) and CI 45415901609's linux-asan-ubsan time (ci-times.sh);
+   paste the brief's table; push f921b42 (docs) for a green CI at the head (A4); set ready for
+   review.
 
-Since the last entry:
-- consensus:3d647b6 keeps each node's single Tick on the node (time, order) beside the queue;
-  consensus:8511ff1 reads the hold deadline lazily at the Tick. Both trace-checked locally
-  (old == new == verify, release).
-- ASan A/B same host, 20 seeds (strict): e44fe39 157.6 -> 105.4 s (261124-052615-4ff43a; failed
-  only its BOUND=90); 3d647b6 159.7 -> 84.3 s, 0.53 of main (261124-054710-31c4e2).
-- Custom mutants at e44fe39 (261124-051832-d5a4f8): all 12 same kills, same output lines; incl.
-  lone-campaigns-after-12-election-timeouts and -15000ms in the same profiles as main.
-- Profile at 3d647b6 (261124-054712-948bdb): Core::step 49% (real deliveries and their Ticks),
-  next_deadline 7%, queue 2.5%. What is left is core work on events main also delivers.
-- CI 45390900739 at 1bbef40 (scaled windows, withdrawn): liveness 16.80 s.
+Notes:
+- 261124-063621-626832 timed out under host load 50 (old 280.3 s killed by its own alarm, new
+  125.5 s): invalid, superseded by 3cfde4 (exclusive).
+- 261124-061757-8fb9aa: same-host A/B at e71996d, old 129.7 s, new 64.8 s (0.50); it failed only
+  in phases.sh's ratio code (zero event count), fixed.
+- Profile at e71996d (261124-062325-f25d84): Core::step 53.5% (core work on events main delivers;
+  Core is outside this quest), then run_until 8.9%, delivery 8.4%, tick 7.2%, Cluster::step 7.1%,
+  next_deadline+holdable 6.8%, queue 2.8%. No harness cost left above 9%.
 
 ## Blocked on
 
@@ -55,11 +49,29 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | job 261124-040930-6e9c88 (main 512e3ef, ASan, 20 seeds): plain 224.6 s local; per phase, derived profiles 184.8 of 192.3 s; lone 87.4 s, removed 43.4, witness 36.2, heal 19.9; FreeBSD 14.16x the default's events (arm64 7.50x, Linux 5.13x) |
+| A1 | 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; lone, removed, witness, heal; FreeBSD 14.2x the default's events); also 261124-040930-6e9c88 at main |
+| A2 | pending 261124-070728-3cfde4; CI 45410562603 (8511ff1) consensus_liveness 40.79 s vs consensus_shared_worker 143.55 s = 0.284, main 0.590 (54c6599, typical) and 0.728 (512e3ef, slow, 173.49 s); --fails-without at main 261124-051846-6e6be3 (plain ASan 132.5 s > 90 s) |
+| A3 | 261124-061800-6a30e3 (trace hash old == new == LIVENESS_VERIFY, every profile), 261124-061802-f328be, 261124-061803-1460cf (17 core mutants), 261124-061805-bab941 (12 custom): same kills, same output lines |
+| A4 | pending: CI at the head |
+
+Jobs examined and set aside: 261124-040934-6f74ca (hit its own alarm), 261124-040939-f3dbf8 and
+261124-040943-062bfb/-6ef39b/040951-86f5e6 (scaled windows, withdrawn: they showed the lost
+kills), 261124-050513-9f2460, 261124-051825-444ce3 (script edited under it), 261124-052615-4ff43a
+(BOUND), 261124-054710-31c4e2, 261124-055736-3b5693 (cancelled), 261124-063621-626832 (load).
 
 ## Result
 
-Pending.
+consensus_liveness keeps main's test exactly and runs at half the cost or less. Windows,
+seeds, profiles and every check are main's (D152). The harness (test/liveness_test.cc) holds a
+node's Tick that falls before Core::next_deadline() instead of stepping it, still drawing its delay,
+and delivers it before the node's next event; a leader holds only with a settled membership and
+not as a witness (R3). Each node's Tick sits beside the queue; queue events are typed records;
+messages move. Proof of exactness: per-profile trajectory hash and LIVENESS_VERIFY equal to main's
+harness; 29 mutants give identical kills and output lines, including the three the scaled
+windows lost. Cost: ASan same host 129.7 -> 64.8 s; CI linux-asan-ubsan 40.79 s (0.284 of
+consensus_shared_worker, main 0.590-0.728). Docs: docs/mechanisms/liveness.md. Open: Core cost
+per step (consensus-next-deadline-removal and any Core work are other quests);
+vote-ignores-leader-contact is caught by neither harness (gap).
 
 ## Rulings I made
 
