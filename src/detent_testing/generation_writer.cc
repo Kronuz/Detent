@@ -116,7 +116,8 @@ struct GenerationWriter::Impl {
 		::chmod(store.c_str(), 0700);
 		options.mode = std::filesystem::exists(store / "owner.lock") ? l::StoreOpenMode::ExistingManaged
 		                                                             : l::StoreOpenMode::FreshEmpty;
-		options.limits = {1024 * segment, 100000, 1000};
+		// Room for 4,096 namespaces' generations and their next publish while readers hold the last.
+		options.limits = {8192 * segment, 1000000, 8192};
 		options.recovery_limits.retirement_domain = &domain;
 		options.recovery_limits.mapping_account = std::make_shared<d::StorageLedger>(64 * segment);
 		cursor.cluster.fill('c');

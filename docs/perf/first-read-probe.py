@@ -60,8 +60,8 @@ def mark(root, header):
         ("			handle.directory = x::open_publisher_directory(handle.store, handle.publisher);\n",
          "			FRP(\"refresh.enter\");\n			handle.directory = x::open_publisher_directory(handle.store, handle.publisher);\n			FRP(\"trust_walk\");\n"),
         ("	DETENT_WINDOW(ChangeMapped);\n", "	FRP(\"change_open\");\n"),
-        ("		auto read = x::read_store_table(handle.directory, handle.publisher);\n",
-         "		FRP(\"sequences\");\n		auto read = x::read_store_table(handle.directory, handle.publisher);\n		FRP(\"store_table\");\n"),
+        ("		auto read = x::read_store_table(handle.directory, handle.publisher, handle.mappings);\n",
+         "		FRP(\"sequences\");\n		auto read = x::read_store_table(handle.directory, handle.publisher, handle.mappings);\n		FRP(\"store_table\");\n"),
         ("			DETENT_WINDOW(Attaching);\n", "			FRP(\"get.to_attach\");\n"),
         ("			auto attached = x::PreparedReader::attach(", "			FRP(\"select_entry\");\n			auto attached = x::PreparedReader::attach("),
         ("			fresh.push_back(nullptr);\n", "			FRP(\"attach\");\n			fresh.push_back(nullptr);\n"),
@@ -108,7 +108,6 @@ def run(binary, phases, store_src, namespaces, publisher, reads):
             agent = subprocess.Popen([phases, "--publish", work, str(namespaces)], stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, text=True)
             if agent.stdout.readline().strip() != "publishing":
-                # The test writer's 1,000-generation disk limit refuses a 1,000-namespace store's next publish.
                 print(json.dumps({"namespaces": namespaces, "publisher": publisher,
                                   "skipped": "publisher did not start: " + agent.stderr.read().strip()}), flush=True)
                 return

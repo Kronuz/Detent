@@ -110,13 +110,20 @@ whole read still fences the store on any damage.
 | Publish (a new table renamed over) | the next table read, at the `change` bump | a new table: all clear | through the new table |
 | Close (last view of the table) | nothing | freed with the table | none |
 
-Two threads that first touch a page together both hash it; both marks agree. The table's bytes, its
+The marks are the trie's `VerifiedPages`: a table page starts at a multiple of 4,096 bytes in the pages
+region, an aligned start it records as it records trie page starts, accounted to the reader's
+mapping ledger. A marked page skips only its hash; its entries are still bounded and checked on
+every reach. Two threads that first touch a page together both hash it; both marks agree.
+
+In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
+is remembered for the store word (D4): namespaces already attached keep answering, and a new one
+reports that failure until the word moves. The table's bytes, its
 index and its marks live as long as the reader core's `Table` (shared by its views).
 
-Files outside this quest's set that the format touches: `src/detent_reader/core.cc` (its `Table`
-holds the paged table and asks `find` and `slots`, not the entry vector),
-`docs/LOCAL_IMAGE_FORMAT.md` (the table layout), `tests/detent_local/CMakeLists.txt` (a table-pages
-test) and `tests/detent_reader/test_reader_core.cc` if a refusal moves from open to read.
+Files outside this quest's set that the format touches: `src/detent_reader/core.cc`,
+`docs/LOCAL_IMAGE_FORMAT.md`, `tests/detent_local/CMakeLists.txt`,
+`tests/detent_reader/test_reader_core.cc` and `tests/detent_agent/test_agent_store.cc` (its pinned
+generation name includes the store layout, and its codec checks re-sign a trailing digest).
 
 ## What is left
 
