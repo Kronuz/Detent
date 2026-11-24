@@ -29,7 +29,7 @@ Failed jobs, named: 261124-021444-bceda5, -021450-081013, -021456-6f75bf (main a
 |---|---|
 | A1 | 261124-014735-3e572f (60 seeds, 45 of 46 pipelined seeds had a second append in flight), 261124-020911-4b0af3 (120 seeds), 261124-020914-c49b0b (60 seeds at depth 4), 261124-020918-cb3518 (60 seeds at depth 16) |
 | A2 | 261124-014735-3e572f; fails without: 261124-020921-0e0ba5 (`overlap`), 261124-020925-4954e1 (`previous-term`) |
-| A3 | pending: `campaign verify consensus-driver-pipelined-sim --for A3` and `ci:ci` at 551a5e6 |
+| A3 | `ci:macos-x86_64`, `ci:ci` (CI run 45372452058 at consensus:551a5e6, green on rerun; attempt 1 failed only in groups fetch-alongside, filed as consensus-fetch-alongside-loop-stall) |
 
 ## Result
 
