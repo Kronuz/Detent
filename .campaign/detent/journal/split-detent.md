@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: waiting on jobs 261124-104010-6046a9 261124-104019-b98664 261124-104033-fe6ba4
+State: waiting on jobs superseded 261124-104010-6046a9: queued at cde0e217ee62, cancelled for 261124-104525-a55088 superseded 261124-104019-b98664: queued at cde0e217ee62, cancelled for 261124-104530-b0dc9b superseded 261124-104033-fe6ba4: queued at cde0e217ee62, cancelled for 261124-104535-831aee
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
