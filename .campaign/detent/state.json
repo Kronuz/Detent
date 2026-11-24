@@ -15049,7 +15049,10 @@
         "src/detent_local/**",
         "include/detent_local/**",
         "benchmarks/**",
-        "docs/perf/first-read*"
+        "docs/perf/first-read*",
+        "tests/detent_local/test_trusted_paths.cc",
+        "tests/detent_local/test_read_counters.cc",
+        "src/detent_testing/generation_writer.cc"
       ],
       "history": [
         {
@@ -15084,12 +15087,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "its need on observability-core was a file overlap only; observability-core is parked for the owner and narrowed to its doc and model",
+      "reason": "change 2's race hook moves to the first fstatat (test_trusted_paths); change 4 opens .image once, so the read counters drop a record (test_read_counters); the 1,000-namespace cell needs the test writer's 1,000-generation limit raised; no active quest holds them",
       "repo": ".",
       "risk": "normal",
       "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T13:03:14",
+      "updated": "2026-11-24T14:46:30",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
