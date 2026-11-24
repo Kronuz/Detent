@@ -3275,6 +3275,28 @@
         "quest": "xapiand:strata-journal-pin"
       },
       "text": "xapiand:strata-journal-pin started and builds against contract journal, which your journal-drop-memory-io is changing; builds against contract journal, which your journal-earlier-turn-loss is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T16:12:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T16:12:27",
+      "by": "campaign",
+      "closed": "noted the unlocks",
+      "id": "msg-278",
+      "items": {
+        "consensus-follower-read": "frees CMakeLists.txt for consensus-follower-read",
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "consensus-follower-read",
+          "first-read-1ms"
+        ]
+      },
+      "text": "consensus-faultlab-repin landed: unlocks frees CMakeLists.txt for consensus-follower-read; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
