@@ -68,7 +68,7 @@ CMake case regex over host_test.cc and ctest -N are unchanged. Layout note: docs
 - The `Steal` template is in host_support.h; each tag and its explicit instantiation sit in the one
   file that uses it (RangesTag in host_test.cc, OpenedTag in host_idle_test.cc), one instantiation each.
 - split_check warnings (57): 50 namespace-scope declarations added (the case prototypes and the
-  two `extern` counters pairs) and 7 `namespace {` openings for the helpers (anonymous namespaces in
+  two `extern` counter declarations) and 7 `namespace {` openings for the helpers (anonymous namespaces in
   new code); no dropped `static`, no added `inline`, no moved dynamic initializer, no dropped include
   or comment.
 - turn_seal_test.cc kept whole (reason in the table). docs/dev/splits.md is outside the stated file
