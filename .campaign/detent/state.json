@@ -17227,7 +17227,8 @@
         "docs/design/host-layout.md",
         "docs/mechanisms/framing.md",
         "docs/mechanisms/turn-seal.md",
-        "include/journal/framing.h"
+        "include/journal/framing.h",
+        "docs/design/turn-log-cut-header.md"
       ],
       "history": [
         {
@@ -17261,7 +17262,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T16:20:59",
+      "updated": "2026-11-23T16:21:19",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
