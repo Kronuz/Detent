@@ -6901,6 +6901,37 @@
       "updated": "2026-11-24T08:42:12",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
+    "consensus-driver-pressure-rearm": {
+      "accepted": {},
+      "after": [
+        "consensus-next-deadline-removal"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/driver.h",
+        "test/driver_pressure_test.cc",
+        "CMakeLists.txt",
+        "docs/mechanisms/deadlines.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
+      "updated": "2026-11-24T14:20:39"
+    },
     "consensus-drop-memory-io-include": {
       "accepted": {},
       "after": [],
