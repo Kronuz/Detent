@@ -10,8 +10,11 @@ check.py lag < lines
 `combine` reads one commit job's log per LOG (one rotation of the arms each) and prints, per arm, the
 median and min-max over jobs of its group commit p50, and of its paired delta against the none run of
 the same job. `pairs` reads paced logs and prints, per arm, its block p50 minus the mean of the two
-none blocks beside it: median, mean with a 95% interval, and min-max, beside the A/A arm's (aa, a none
-block labelled apart). An arm differs from none only when its interval clears the A/A band.
+none blocks beside it: median, mean with a 95% Student's t interval (n - 1 degrees of freedom), and
+min-max, beside the A/A arm's (aa, a none block labelled apart). An arm differs from none only when its
+interval clears the A/A band. The paced arms' lag is a seal's from its post to the end of its build
+(pass4: a change's from its arrival to the end of the pass covering it); build_ms_max is the longest
+single build.
 """
 
 from __future__ import annotations
@@ -126,16 +129,20 @@ def combine(logs: list[str]) -> None:
     print(json.dumps(summary, indent=1))
 
 
-OTHERS = ["thread", "pool", "write", "aa"]
+BUILDERS = ("thread", "pool", "write", "pass4")
 
 
 def check_paced(rows: list[dict[str, object]], rate: float) -> None:
     blocks = [r for r in rows if r.get("step") == "block"]
-    if not blocks or len(blocks) % 8:
-        fail(f"{len(blocks)} blocks, not whole rounds of 8")
+    # Round 0's odd slots name the arms; each later round rotates them by one.
+    others = [
+        str(b["arm"]) for b in blocks if int(b["round"]) == 0 and int(b["slot"]) % 2
+    ]
+    if not others or "aa" not in others or len(blocks) % (2 * len(others)):
+        fail(f"{len(blocks)} blocks, not whole rounds of {others} beside none")
     for b in blocks:
         rnd, slot, arm = int(b["round"]), int(b["slot"]), str(b["arm"])
-        want = "none" if slot % 2 == 0 else OTHERS[(slot // 2 + rnd) % 4]
+        want = "none" if slot % 2 == 0 else others[(slot // 2 + rnd) % len(others)]
         if arm != want:
             fail(f"round {rnd} slot {slot} ran {arm}, not {want}")
         seals, builds = int(b["seals"]), int(b["builds"])
@@ -143,16 +150,25 @@ def check_paced(rows: list[dict[str, object]], rate: float) -> None:
             fail(f"round {rnd} slot {slot}: no authority seal")
         if arm in ("none", "aa") and builds:
             fail(f"{arm} built pages")
-        if arm in ("thread", "pool", "write") and builds < seals:
+        if arm in BUILDERS and builds < seals:
             fail(f"{arm} round {rnd}: {builds} builds for {seals} seals")
         if arm == "write" and int(b["pages_written"]) <= 0:
             fail("arm write wrote no pages")
+    # Each block posts the seals due by the clock, rounded to the nearest.
+    posted = (
+        sum(int(b["seals"]) for b in blocks)
+        * 1e3
+        / sum(float(b["run_ms"]) for b in blocks)
+    )
+    if not 0.7 * rate <= posted <= 1.1 * rate:
+        fail(f"seals posted at {posted:.2f}/s, not near {rate}/s")
     rates = [float(b["tx_per_s"]) for b in blocks]
     print(
         json.dumps(
             {
                 "blocks": len(blocks),
                 "rate": rate,
+                "posted_rate": round(posted, 3),
                 "tx_per_s_median": statistics.median(rates),
                 "tx_per_s_range": [min(rates), max(rates)],
                 "pairs": paired(blocks),
@@ -177,9 +193,53 @@ def deltas_of(blocks: list[dict[str, object]]) -> dict[str, list[float]]:
     return deltas
 
 
+# Student's t, two-sided 95%: the 0.975 quantile for 1-30 degrees of freedom.
+T975 = [
+    12.706,
+    4.303,
+    3.182,
+    2.776,
+    2.571,
+    2.447,
+    2.365,
+    2.306,
+    2.262,
+    2.228,
+    2.201,
+    2.179,
+    2.160,
+    2.145,
+    2.131,
+    2.120,
+    2.110,
+    2.101,
+    2.093,
+    2.086,
+    2.080,
+    2.074,
+    2.069,
+    2.064,
+    2.060,
+    2.056,
+    2.052,
+    2.048,
+    2.045,
+    2.042,
+]
+
+
+def t975(df: int) -> float:
+    if df <= len(T975):
+        return T975[df - 1]
+    # Cornish-Fisher past the table: within 0.001 of the quantile from 31 on.
+    z = 1.959964
+    return z + (z**3 + z) / (4 * df) + (5 * z**5 + 16 * z**3 + 3 * z) / (96 * df**2)
+
+
 def stats(d: list[float]) -> dict[str, object]:
     mean = statistics.fmean(d)
-    half = 1.96 * statistics.stdev(d) / len(d) ** 0.5 if len(d) > 1 else None
+    n = len(d)
+    half = t975(n - 1) * statistics.stdev(d) / n**0.5 if n > 1 else None
     return {
         "n": len(d),
         "median": round(statistics.median(d), 1),

@@ -11,6 +11,10 @@
 //     (2,048 changes) triggers one builder seal of 2,048 uniform updates over the builder's corpus:
 //     ARM none (today), thread (a builder thread, pages in memory), write (a builder thread that
 //     also writes and syncs its segments) or inline (the build runs in the service loop).
+//   authority_pages_bench paced DIR NAMESPACES KEYS SEAL_RATE ROUNDS GROUPS
+//     The commit path beside builders held at SEAL_RATE by the clock, arms interleaved (paced()).
+//   authority_pages_bench lag DIR NAMESPACES KEYS THREADS warm|cold INTERVAL RATE SECONDS BURST AT SPAN
+//     Root lag of option 2's pass pool at an open-loop write rate (lag()).
 // Every line printed is one JSON object.
 #include "detent_relay/page_copy.hh"
 #include "node.hh"
@@ -20,6 +24,7 @@
 #include <condition_variable>
 #include <cstdio>
 #include <ctime>
+#include <deque>
 #include <fcntl.h>
 #include <filesystem>
 #include <libproc.h>
@@ -175,7 +180,7 @@ class MemoryHistory final : public d::NamespaceHistory {
 };
 
 struct SealResult {
-	double cpu_ms = 0, wall_ms = 0, encode_ms = 0, sync_ms = 0, digest_ms = 0;
+	double cpu_ms = 0, wall_ms = 0, encode_ms = 0, sync_ms = 0, digest_cpu_ms = 0;
 	std::uint64_t written = 0, builds = 0, relocations = 0;
 };
 // The builder's namespaces: their current generation each, as a voter that keeps only its head.
@@ -205,6 +210,7 @@ class Corpus {
 	}
 	std::size_t spaces() const noexcept { return spaces_.size(); }
 	std::size_t keys_per_space() const noexcept { return keys_; }
+	std::uint64_t position(std::size_t i) const noexcept { return spaces_[i].position; }
 	// The full build of namespace i at position KEYS: a new leader's first pass over its state.
 	SealResult cold_space(std::size_t i) {
 		SealResult out;
@@ -239,14 +245,14 @@ class Corpus {
 			touched[at / keys_].push_back({key(s.name, k), ++s.position, definition(k, salt + int(k))});
 		}
 		// (d): each change removes its key's previous record and adds the new one.
-		const auto digest = Clock::now();
+		const auto digest = thread_cpu_ms();
 		for (std::size_t i = 0; i < spaces_.size(); ++i)
 			for (const auto &record : touched[i]) {
 				const auto value = detent::authority::encode_definition(record.value);
 				digest_.apply(record.key, record.revision - 1, value, false);
 				digest_.apply(record.key, record.revision, value, true);
 			}
-		out.digest_ms = since_ms(digest);
+		out.digest_cpu_ms = thread_cpu_ms() - digest;
 		if (threads <= 1) {
 			for (std::size_t i = 0; i < spaces_.size(); ++i)
 				if (!touched[i].empty())
@@ -376,9 +382,9 @@ class Corpus {
 
 void print_seal(const char *what, std::size_t n, const SealResult &s) {
 	std::printf("{\"step\":\"%s\",\"n\":%zu,\"cpu_ms\":%.3f,\"wall_ms\":%.3f,\"encode_ms\":%.3f,\"sync_ms\":%.3f,"
-				"\"digest_ms\":%.3f,\"written\":%llu,\"builds\":%llu,\"relocations\":%llu,\"heap_mb\":%.1f,"
+				"\"digest_cpu_ms\":%.3f,\"written\":%llu,\"builds\":%llu,\"relocations\":%llu,\"heap_mb\":%.1f,"
 				"\"resident_mb\":%.1f,\"peak_mb\":%.1f}\n",
-				what, n, s.cpu_ms, s.wall_ms, s.encode_ms, s.sync_ms, s.digest_ms, (unsigned long long)s.written,
+				what, n, s.cpu_ms, s.wall_ms, s.encode_ms, s.sync_ms, s.digest_cpu_ms, (unsigned long long)s.written,
 				(unsigned long long)s.builds, (unsigned long long)s.relocations, heap_mb(), resident_mb(), peak_mb());
 	std::fflush(stdout);
 }
@@ -412,13 +418,13 @@ int seals(int argc, char **argv) {
 		cpu.push_back(s.cpu_ms);
 		wall.push_back(s.wall_ms);
 		sync.push_back(s.sync_ms);
-		digest.push_back(s.digest_ms);
+		digest.push_back(s.digest_cpu_ms);
 		written += s.written;
 		relocations += s.relocations;
 	}
 	std::printf("{\"step\":\"summary\",\"seals\":%zu,\"changes\":%zu,\"cpu_ms_p50\":%.3f,\"cpu_ms_p90\":%.3f,"
 				"\"cpu_ms_max\":%.3f,\"wall_ms_p50\":%.3f,\"wall_ms_max\":%.3f,\"sync_ms_p50\":%.3f,"
-				"\"digest_ms_p50\":%.3f,"
+				"\"digest_cpu_ms_p50\":%.3f,"
 				"\"written_per_seal\":%.0f,\"relocations\":%llu,\"page_bytes\":%llu,\"physical_bytes\":%llu,"
 				"\"pages_heap_mb\":%.1f,\"disk_written_cold\":%llu,\"disk_written_seals\":%llu,\"peak_mb\":%.1f}\n",
 				count, changes, percentile(cpu, 0.5), percentile(cpu, 0.9), percentile(cpu, 1), percentile(wall, 0.5),
@@ -590,7 +596,9 @@ class Authority {
 	std::optional<Clock::time_point> last_;
 };
 
-// The builder thread: one seal per authority seal, in order, off the service loop.
+// The builder thread: one seal per authority seal, in order, off the service loop. Each seal's lag
+// runs from its post to the end of its build, queueing behind earlier seals included; its build time
+// is the build alone.
 class Builder {
   public:
 	explicit Builder(Corpus &corpus, std::size_t threads = 1)
@@ -606,7 +614,7 @@ class Builder {
 	void post() {
 		{
 			std::lock_guard lock(mutex_);
-			++wanted_;
+			queue_.push_back(Clock::now());
 		}
 		wake_.notify_all();
 	}
@@ -614,7 +622,7 @@ class Builder {
 	double drain() {
 		const auto start = Clock::now();
 		std::unique_lock lock(mutex_);
-		idle_.wait(lock, [&] { return done_ == wanted_; });
+		idle_.wait(lock, [&] { return queue_.empty(); });
 		return since_ms(start);
 	}
 	SealResult total() {
@@ -625,18 +633,24 @@ class Builder {
 		std::lock_guard lock(mutex_);
 		return lag_;
 	}
+	std::vector<double> build_ms() {
+		std::lock_guard lock(mutex_);
+		return build_;
+	}
 
   private:
 	void run() {
 		std::mt19937_64 random(7);
 		std::unique_lock lock(mutex_);
 		for (;;) {
-			wake_.wait(lock, [&] { return stop_ || done_ < wanted_; });
+			wake_.wait(lock, [&] { return stop_ || !queue_.empty(); });
 			if (stop_)
 				return;
-			const auto posted = Clock::now();
+			const auto posted = queue_.front();
 			lock.unlock();
+			const auto start = Clock::now();
 			const auto s = corpus_.seal(a::LayoutPolicy{}.seal_transactions, random, int(++salt_), threads_);
+			const auto built = since_ms(start);
 			lock.lock();
 			total_.cpu_ms += s.cpu_ms;
 			total_.wall_ms += s.wall_ms;
@@ -645,7 +659,8 @@ class Builder {
 			total_.builds += s.builds;
 			total_.relocations += s.relocations;
 			lag_.push_back(since_ms(posted));
-			++done_;
+			build_.push_back(built);
+			queue_.pop_front();
 			idle_.notify_all();
 		}
 	}
@@ -653,12 +668,196 @@ class Builder {
 	std::size_t threads_;
 	std::mutex mutex_;
 	std::condition_variable wake_, idle_;
-	std::uint64_t wanted_ = 0, done_ = 0, salt_ = 0;
+	std::deque<Clock::time_point> queue_; // posted seals not yet built, by post time
+	std::uint64_t salt_ = 0;
 	bool stop_ = false;
 	SealResult total_;
-	std::vector<double> lag_;
+	std::vector<double> lag_, build_;
 	std::thread thread_;
 };
+
+// Option 2's builder (PLAN D156): THREADS workers coalesce each namespace's pending changes into one
+// pass, at most one pass per namespace per INTERVAL, and publish the root at the position the pass
+// reached; a change's root lag runs from its arrival to the end of that pass. A cold pool (a new
+// leader) full-builds each namespace first while changes keep arriving.
+class PassPool {
+  public:
+	struct Sample {
+		double at_s, lag_ms;
+	};
+	struct Totals {
+		std::vector<Sample> samples;
+		std::vector<double> pass_ms, pass_changes, cold_ms;
+		double cpu_ms = 0;
+		std::uint64_t passes = 0, relocations = 0, written = 0;
+		double cold_done_ms = 0, caught_up_ms = 0; // the last namespace's cold build; its first pass after it
+	};
+	PassPool(Corpus &corpus, std::size_t threads, std::chrono::milliseconds interval, bool cold)
+		: corpus_(corpus), interval_(interval), state_(corpus.spaces()), stats_(threads), t0_(Clock::now()) {
+		for (std::size_t i = 0; i < state_.size(); ++i) {
+			state_[i].next = cold ? corpus.keys_per_space() : corpus.position(i);
+			state_[i].built = !cold;
+		}
+		for (std::size_t t = 0; t < threads; ++t)
+			pool_.emplace_back([this, t] { work(stats_[t]); });
+	}
+	~PassPool() { finish(); }
+	Clock::time_point t0() const noexcept { return t0_; }
+	// One change to the key at index AT_KEY of the corpus, arrived at NOW.
+	void arrive(std::size_t at_key, Clock::time_point now) {
+		const auto keys = corpus_.keys_per_space();
+		const auto i = at_key / keys, k = at_key % keys;
+		auto &s = state_[i];
+		std::lock_guard guard(s.mutex);
+		++s.next;
+		s.pending.records.push_back({corpus_.record_key(i, k), s.next, definition(k, int(s.next))});
+		s.pending.arrived.push_back(now);
+	}
+	void notify() { wake_.notify_all(); }
+	// Builds what is pending, then stops the workers.
+	void finish() {
+		stopping_ = true;
+		wake_.notify_all();
+		for (auto &thread : pool_)
+			thread.join();
+		pool_.clear();
+	}
+	Totals totals() const {
+		Totals out;
+		for (const auto &st : stats_) {
+			out.samples.insert(out.samples.end(), st.samples.begin(), st.samples.end());
+			out.pass_ms.insert(out.pass_ms.end(), st.pass_ms.begin(), st.pass_ms.end());
+			out.pass_changes.insert(out.pass_changes.end(), st.pass_changes.begin(), st.pass_changes.end());
+			out.cold_ms.insert(out.cold_ms.end(), st.cold_ms.begin(), st.cold_ms.end());
+			out.cpu_ms += st.cpu_ms;
+			out.passes += st.passes;
+			out.relocations += st.relocations;
+			out.written += st.written;
+		}
+		for (const auto &s : state_) {
+			out.cold_done_ms = std::max(out.cold_done_ms, s.built_ms);
+			out.caught_up_ms = std::max(out.caught_up_ms, s.first_pass_ms);
+		}
+		return out;
+	}
+
+  private:
+	struct Pending {
+		std::vector<Record> records;
+		std::vector<Clock::time_point> arrived;
+	};
+	struct Space {
+		std::mutex mutex;
+		Pending pending;
+		std::uint64_t next = 0; // the last revision assigned
+		bool busy = false, built = false;
+		Clock::time_point last{};				// the start of its last pass
+		double built_ms = -1, first_pass_ms = -1; // cold build done; first pass after it done
+	};
+	double ms_since_t0(Clock::time_point t) const { return std::chrono::duration<double, std::milli>(t - t0_).count(); }
+	void work(Totals &out) {
+		const auto spaces = state_.size();
+		for (;;) {
+			// Round robin from a shared cursor: the next namespace that is idle and has work.
+			std::optional<std::size_t> pick;
+			bool any_pending = false;
+			{
+				std::unique_lock guard(lock_);
+				const auto now = Clock::now();
+				for (std::size_t n = 0; n < spaces && !pick; ++n) {
+					const auto i = (cursor_ + n) % spaces;
+					std::lock_guard space_guard(state_[i].mutex);
+					const bool work = !state_[i].built || !state_[i].pending.records.empty();
+					any_pending |= work;
+					if (work && !state_[i].busy && (!state_[i].built || stopping_ || now - state_[i].last >= interval_)) {
+						state_[i].busy = true;
+						pick = i;
+						cursor_ = i + 1;
+					}
+				}
+				if (!pick) {
+					if (stopping_ && !any_pending)
+						return;
+					wake_.wait_for(guard, std::chrono::milliseconds(2));
+					continue;
+				}
+			}
+			const auto i = *pick;
+			auto &s = state_[i];
+			bool built;
+			{
+				std::lock_guard guard(s.mutex);
+				built = s.built;
+			}
+			if (!built) {
+				const auto begin = Clock::now();
+				const auto r = corpus_.cold_space(i);
+				out.cpu_ms += r.cpu_ms;
+				out.cold_ms.push_back(since_ms(begin));
+				std::lock_guard guard(s.mutex);
+				s.built = true;
+				s.built_ms = ms_since_t0(Clock::now());
+				s.busy = false;
+				continue;
+			}
+			Pending taken;
+			const auto begin = Clock::now();
+			{
+				std::lock_guard guard(s.mutex);
+				std::swap(taken, s.pending);
+				s.last = begin;
+			}
+			const auto r = corpus_.advance(i, std::move(taken.records));
+			const auto done = Clock::now();
+			out.cpu_ms += r.cpu_ms;
+			out.relocations += r.relocations;
+			out.written += r.written;
+			++out.passes;
+			out.pass_ms.push_back(since_ms(begin));
+			out.pass_changes.push_back(double(taken.arrived.size()));
+			for (const auto &arrived : taken.arrived)
+				out.samples.push_back(
+					{ms_since_t0(arrived) / 1e3, std::chrono::duration<double, std::milli>(done - arrived).count()});
+			std::lock_guard guard(s.mutex);
+			if (s.first_pass_ms < 0)
+				s.first_pass_ms = ms_since_t0(done);
+			s.busy = false;
+		}
+	}
+	Corpus &corpus_;
+	std::chrono::milliseconds interval_;
+	std::vector<Space> state_;
+	std::vector<Totals> stats_;
+	Clock::time_point t0_;
+	std::mutex lock_;
+	std::condition_variable wake_;
+	std::size_t cursor_ = 0;
+	std::atomic<bool> stopping_{false};
+	std::vector<std::thread> pool_;
+};
+
+// Feeds POOL changes uniform over the corpus in 5 ms ticks from its t0: RATE/s, BURST/s from second AT
+// for SPAN seconds, until second SECONDS or until STOP is set. Returns the count.
+std::uint64_t feed(PassPool &pool, std::size_t total_keys, double rate, double seconds, double burst, double at,
+				   double span, const std::atomic<bool> &stop) {
+	std::mt19937_64 random(20261123);
+	std::uniform_int_distribution<std::size_t> pick(0, total_keys - 1);
+	double due = 0;
+	std::uint64_t arrived = 0;
+	auto tick = pool.t0();
+	auto seconds_at = [&](Clock::time_point t) { return std::chrono::duration<double>(t - pool.t0()).count(); };
+	while (seconds_at(tick) < seconds && !stop) {
+		tick += std::chrono::milliseconds(5);
+		std::this_thread::sleep_until(tick);
+		const auto s = seconds_at(tick);
+		due += 0.005 * (s >= at && s < at + span ? burst : rate);
+		const auto now = Clock::now();
+		for (; due >= 1; due -= 1, ++arrived)
+			pool.arrive(pick(random), now);
+		pool.notify();
+	}
+	return arrived;
+}
 
 int commit(int argc, char **argv) {
 	check(argc >= 7, "usage: commit DIR NAMESPACES KEYS GROUPS ARM...");
@@ -704,7 +903,7 @@ int commit(int argc, char **argv) {
 				}
 			}
 		};
-		authority.worst_gap_ms = 0;
+		authority.reset_gap();
 		const auto seals0 = authority.seals();
 		const auto disk0 = disk_written();
 		const auto cpu0 = process_cpu_ms();
@@ -725,13 +924,14 @@ int commit(int argc, char **argv) {
 		std::printf("{\"step\":\"run\",\"arm\":\"%s\",\"round\":%d,\"groups\":%zu,\"transactions\":%zu,\"run_ms\":%.1f,"
 					"\"tx_per_s\":%.1f,\"group_ms_p50\":%.3f,\"group_ms_p90\":%.3f,\"group_ms_p99\":%.3f,"
 					"\"group_ms_max\":%.3f,\"worst_service_gap_ms\":%.3f,\"seals\":%llu,\"builds\":%llu,"
-					"\"build_cpu_ms\":%.1f,\"build_wall_ms\":%.1f,\"build_lag_ms_max\":%.1f,\"drain_ms\":%.1f,"
+					"\"build_cpu_ms\":%.1f,\"build_wall_ms\":%.1f,\"lag_ms_max\":%.1f,\"build_ms_max\":%.1f,\"drain_ms\":%.1f,"
 					"\"process_cpu_ms\":%.1f,\"disk_written\":%llu,\"pages_written\":%llu,\"heap_mb\":%.1f,"
 					"\"resident_mb\":%.1f,\"peak_mb\":%.1f}\n",
 					arm.c_str(), i - 5, groups, groups * 64, run_ms, 1000.0 * double(groups * 64) / run_ms,
 					percentile(latency, 0.5), percentile(latency, 0.9), percentile(latency, 0.99),
 					percentile(latency, 1), authority.worst_gap_ms, (unsigned long long)(authority.seals() - seals0),
-					(unsigned long long)build.builds, build.cpu_ms, build.wall_ms, percentile(lag, 1), drain_ms, cpu,
+					(unsigned long long)build.builds, build.cpu_ms, build.wall_ms, percentile(lag, 1),
+					percentile(builder ? builder->build_ms() : std::vector<double>{}, 1), drain_ms, cpu,
 					(unsigned long long)written, (unsigned long long)build.written, heap_mb(), resident_mb(), peak_mb());
 		std::fflush(stdout);
 	}
@@ -742,9 +942,10 @@ int commit(int argc, char **argv) {
 
 // The commit path beside a builder held at a fixed seal rate (rc3: 2,000 / 2,048 = 0.98 seals/s),
 // whatever the authority's own rate, with arms interleaved for paired deltas against the none blocks
-// beside them. Each round is eight blocks of GROUPS groups, none alternating with thread, pool (one
-// build per namespace on NAMESPACES threads), write and aa (a none labelled apart: the A/A); those
-// four rotate by one per round.
+// beside them. Each round is ten blocks of GROUPS groups, none alternating with thread, pool (one
+// build per namespace on NAMESPACES threads), write, pass4 (option 2's pool: four threads, a pass per
+// namespace every 250 ms, over changes arriving at SEAL_RATE x 2,048/s) and aa (a none labelled
+// apart: the A/A); those five rotate by one per round.
 int paced(int argc, char **argv) {
 	check(argc == 8, "usage: paced DIR NAMESPACES KEYS SEAL_RATE ROUNDS GROUPS");
 	const std::filesystem::path dir = argv[2];
@@ -768,17 +969,29 @@ int paced(int argc, char **argv) {
 	std::fflush(stdout);
 	std::mt19937_64 random(11);
 	int salt = 0;
-	const std::array<const char *, 4> others{"thread", "pool", "write", "aa"};
-	std::map<std::string, std::vector<double>> pooled;
+	const std::array<const char *, 5> others{"thread", "pool", "write", "pass4", "aa"};
+	constexpr std::size_t pass_threads = 4;
+	constexpr std::chrono::milliseconds pass_interval{250};
+	const double change_rate = seal_rate * double(a::LayoutPolicy{}.seal_transactions);
+	std::map<std::string, std::vector<double>> pooled, pooled_lag;
 	const auto timed = Clock::now();
 	for (std::size_t round = 0; round < rounds; ++round)
-		for (std::size_t slot = 0; slot < 8; ++slot) {
-			const std::string arm = slot % 2 == 0 ? "none" : others[(slot / 2 + round) % 4];
+		for (std::size_t slot = 0; slot < 2 * others.size(); ++slot) {
+			const std::string arm = slot % 2 == 0 ? "none" : others[(slot / 2 + round) % others.size()];
 			std::optional<Builder> builder;
 			if (arm == "thread" || arm == "write")
 				builder.emplace(arm == "write" ? stored : memory);
 			else if (arm == "pool")
 				builder.emplace(memory, spaces);
+			std::optional<PassPool> passes;
+			std::atomic<bool> stop_feed{false};
+			std::thread feeder;
+			if (arm == "pass4") {
+				passes.emplace(memory, pass_threads, pass_interval, false);
+				feeder = std::thread([&] {
+					feed(*passes, memory.keys(), change_rate, 1e9, 0, 0, 0, stop_feed);
+				});
+			}
 			// Every arm counts the seals a builder would take; only builder arms post them.
 			std::uint64_t posted = 0;
 			authority.reset_gap();
@@ -790,34 +1003,58 @@ int paced(int argc, char **argv) {
 				const auto t = Clock::now();
 				authority.group(random, authority_keys, ++salt);
 				latency.push_back(since_ms(t));
-				for (const auto due = std::uint64_t(seal_rate * since_ms(start) / 1e3); posted < due; ++posted)
+				// Rounded to the nearest seal, so a block posts RATE x its length on average.
+				for (const auto due = std::uint64_t(seal_rate * since_ms(start) / 1e3 + 0.5); posted < due; ++posted)
 					if (builder)
 						builder->post();
 			}
 			const auto run_ms = since_ms(start);
-			const auto drain_ms = builder ? builder->drain() : 0.0;
-			const auto build = builder ? builder->total() : SealResult{};
-			const auto lag = builder ? builder->lag_ms() : std::vector<double>{};
+			const auto drained = Clock::now();
+			SealResult build;
+			std::vector<double> lag, build_ms;
+			if (builder) {
+				builder->drain();
+				build = builder->total();
+				lag = builder->lag_ms();
+				build_ms = builder->build_ms();
+			} else if (passes) {
+				stop_feed = true;
+				feeder.join();
+				passes->finish();
+				const auto totals = passes->totals();
+				build.cpu_ms = totals.cpu_ms;
+				build.builds = totals.passes;
+				build.written = totals.written;
+				for (const auto &sample : totals.samples)
+					lag.push_back(sample.lag_ms);
+				build_ms = totals.pass_ms;
+			}
+			const auto drain_ms = since_ms(drained);
 			auto &all = pooled[arm];
 			all.insert(all.end(), latency.begin(), latency.end());
+			auto &all_lag = pooled_lag[arm];
+			all_lag.insert(all_lag.end(), lag.begin(), lag.end());
 			std::printf("{\"step\":\"block\",\"round\":%zu,\"slot\":%zu,\"arm\":\"%s\",\"groups\":%zu,\"run_ms\":%.1f,"
 						"\"tx_per_s\":%.1f,\"group_ms_p50\":%.3f,\"group_ms_p90\":%.3f,\"group_ms_max\":%.3f,"
 						"\"worst_service_gap_ms\":%.3f,\"seals\":%llu,\"builds\":%llu,\"build_cpu_ms\":%.1f,"
-						"\"build_lag_ms_max\":%.1f,\"drain_ms\":%.1f,\"process_cpu_ms\":%.1f,\"disk_written\":%llu,"
+						"\"lag_ms_p50\":%.1f,\"lag_ms_p99\":%.1f,\"lag_ms_max\":%.1f,\"build_ms_max\":%.1f,\"drain_ms\":%.1f,"
+						"\"process_cpu_ms\":%.1f,\"disk_written\":%llu,"
 						"\"pages_written\":%llu,\"resident_mb\":%.1f}\n",
 						round, slot, arm.c_str(), groups, run_ms, 1000.0 * double(groups * 64) / run_ms,
 						percentile(latency, 0.5), percentile(latency, 0.9), percentile(latency, 1), authority.worst_gap_ms,
-						(unsigned long long)posted, (unsigned long long)build.builds, build.cpu_ms, percentile(lag, 1),
-						drain_ms, process_cpu_ms() - cpu0, (unsigned long long)(disk_written() - disk0),
+						(unsigned long long)posted, (unsigned long long)build.builds, build.cpu_ms, percentile(lag, 0.5),
+						percentile(lag, 0.99), percentile(lag, 1), percentile(build_ms, 1), drain_ms, process_cpu_ms() - cpu0, (unsigned long long)(disk_written() - disk0),
 						(unsigned long long)build.written, resident_mb());
 			std::fflush(stdout);
 		}
 	const auto timed_ms = since_ms(timed);
-	for (const auto &[arm, latency] : pooled)
+	for (const auto &[arm, latency] : pooled) {
+		const auto &lag = pooled_lag[arm];
 		std::printf("{\"step\":\"pooled\",\"arm\":\"%s\",\"groups\":%zu,\"group_ms_p50\":%.3f,\"group_ms_p99\":%.3f,"
-					"\"group_ms_max\":%.3f}\n",
+					"\"group_ms_max\":%.3f,\"lag_samples\":%zu,\"lag_ms_p50\":%.1f,\"lag_ms_p99\":%.1f,\"lag_ms_max\":%.1f}\n",
 					arm.c_str(), latency.size(), percentile(latency, 0.5), percentile(latency, 0.99),
-					percentile(latency, 1));
+					percentile(latency, 1), lag.size(), percentile(lag, 0.5), percentile(lag, 0.99), percentile(lag, 1));
+	}
 	const auto teardown = Clock::now();
 	owned.reset();
 	std::filesystem::remove_all(dir);
@@ -862,156 +1099,21 @@ int lag(int argc, char **argv) {
 				spaces, keys, threads, start_mode.c_str(), (long long)interval.count(), rate, seconds, burst, burst_at, burst_span, since_ms(setup),
 				resident_mb(), peak_mb());
 	std::fflush(stdout);
-	struct Pending {
-		std::vector<Record> records;
-		std::vector<Clock::time_point> arrived;
-	};
-	struct Space {
-		std::mutex mutex;
-		Pending pending;
-		std::uint64_t next = 0; // the last revision assigned
-		bool busy = false, built = false;
-		Clock::time_point last{}; // the start of its last pass
-		double built_ms = -1, first_pass_ms = -1; // cold build done; first pass after it done
-	};
-	std::vector<Space> state(spaces);
-	for (auto &s : state) {
-		s.next = keys;
-		s.built = !cold;
-	}
-	std::mutex lock;
-	std::condition_variable wake;
-	std::atomic<bool> stopping{false};
-	struct Sample {
-		double at_s, lag_ms;
-	};
-	struct PassStats {
-		std::vector<Sample> samples;
-		std::vector<double> pass_ms, pass_changes, cold_ms;
-		double cpu_ms = 0;
-		std::uint64_t passes = 0, relocations = 0;
-	};
-	std::vector<PassStats> stats(threads);
-	const auto t0 = Clock::now();
-	auto seconds_since = [&](Clock::time_point t) { return std::chrono::duration<double>(t - t0).count(); };
-	std::atomic<std::size_t> cursor{0};
-	auto worker = [&](std::size_t t) {
-		auto &out = stats[t];
-		for (;;) {
-			// Round robin from a shared cursor: the next namespace that is idle and has work.
-			std::optional<std::size_t> pick;
-			bool any_pending = false;
-			{
-				std::unique_lock guard(lock);
-				const auto now = Clock::now();
-				for (std::size_t n = 0; n < spaces && !pick; ++n) {
-					const auto i = (cursor.load() + n) % spaces;
-					std::lock_guard space_guard(state[i].mutex);
-					const bool work = !state[i].built || !state[i].pending.records.empty();
-					any_pending |= work;
-					if (work && !state[i].busy && (!state[i].built || stopping || now - state[i].last >= interval)) {
-						state[i].busy = true;
-						pick = i;
-						cursor = i + 1;
-					}
-				}
-				if (!pick) {
-					if (stopping && !any_pending)
-						return;
-					wake.wait_for(guard, std::chrono::milliseconds(2));
-					continue;
-				}
-			}
-			const auto i = *pick;
-			auto &s = state[i];
-			bool built;
-			{
-				std::lock_guard guard(s.mutex);
-				built = s.built;
-			}
-			if (!built) {
-				const auto begin = Clock::now();
-				const auto r = corpus.cold_space(i);
-				out.cpu_ms += r.cpu_ms;
-				out.cold_ms.push_back(since_ms(begin));
-				std::lock_guard guard(s.mutex);
-				s.built = true;
-				s.built_ms = 1e3 * seconds_since(Clock::now());
-				s.busy = false;
-				continue;
-			}
-			Pending taken;
-			const auto begin = Clock::now();
-			{
-				std::lock_guard guard(s.mutex);
-				std::swap(taken, s.pending);
-				s.last = begin;
-			}
-			const auto r = corpus.advance(i, std::move(taken.records));
-			const auto done = Clock::now();
-			out.cpu_ms += r.cpu_ms;
-			out.relocations += r.relocations;
-			++out.passes;
-			out.pass_ms.push_back(since_ms(begin));
-			out.pass_changes.push_back(double(taken.arrived.size()));
-			for (const auto &arrived : taken.arrived)
-				out.samples.push_back(
-					{seconds_since(arrived), std::chrono::duration<double, std::milli>(done - arrived).count()});
-			std::lock_guard guard(s.mutex);
-			if (s.first_pass_ms < 0)
-				s.first_pass_ms = 1e3 * seconds_since(done);
-			s.busy = false;
-		}
-	};
 	const auto cpu0 = process_cpu_ms();
-	std::vector<std::thread> pool;
-	for (std::size_t t = 0; t < threads; ++t)
-		pool.emplace_back(worker, t);
-	// The arrivals: every 5 ms, the changes due since the last tick at the current rate.
-	std::mt19937_64 random(20261123);
-	std::uniform_int_distribution<std::size_t> pick(0, spaces * keys - 1);
-	double due = 0;
-	std::uint64_t arrived = 0;
-	auto tick = t0;
-	while (seconds_since(tick) < seconds) {
-		tick += std::chrono::milliseconds(5);
-		std::this_thread::sleep_until(tick);
-		const auto at = seconds_since(tick);
-		due += 0.005 * (at >= burst_at && at < burst_at + burst_span ? burst : rate);
-		const auto now = Clock::now();
-		for (; due >= 1; due -= 1, ++arrived) {
-			const auto at_key = pick(random);
-			const auto i = at_key / keys, k = at_key % keys;
-			auto &s = state[i];
-			std::lock_guard guard(s.mutex);
-			++s.next;
-			s.pending.records.push_back({corpus.record_key(i, k), s.next, definition(k, int(s.next))});
-			s.pending.arrived.push_back(now);
-		}
-		wake.notify_all();
-	}
-	const auto arrivals_ms = 1e3 * seconds_since(Clock::now());
-	stopping = true;
-	wake.notify_all();
-	for (auto &thread : pool)
-		thread.join();
-	const auto total_ms = 1e3 * seconds_since(Clock::now());
+	PassPool pool(corpus, threads, interval, cold);
+	const std::atomic<bool> never{false};
+	const auto arrived = feed(pool, spaces * keys, rate, seconds, burst, burst_at, burst_span, never);
+	const auto arrivals_ms = since_ms(pool.t0());
+	pool.finish();
+	const auto total_ms = since_ms(pool.t0());
 	const auto cpu = process_cpu_ms() - cpu0;
+	const auto merged = pool.totals();
 	// Per second of arrival: changes, lag p50, p99 and max.
 	std::vector<std::vector<double>> by_second(std::size_t(seconds) + 1);
-	std::vector<double> all, steady;
-	PassStats merged;
-	for (const auto &st : stats) {
-		for (const auto &sample : st.samples) {
-			by_second[std::min(by_second.size() - 1, std::size_t(sample.at_s))].push_back(sample.lag_ms);
-			all.push_back(sample.lag_ms);
-		}
-		merged.pass_ms.insert(merged.pass_ms.end(), st.pass_ms.begin(), st.pass_ms.end());
-		merged.pass_changes.insert(merged.pass_changes.end(), st.pass_changes.begin(), st.pass_changes.end());
-		merged.cold_ms.insert(merged.cold_ms.end(), st.cold_ms.begin(), st.cold_ms.end());
-		merged.cpu_ms += st.cpu_ms;
-		merged.passes += st.passes;
-		merged.relocations += st.relocations;
+	std::vector<double> all;
+	for (const auto &sample : merged.samples) {
+		by_second[std::min(by_second.size() - 1, std::size_t(sample.at_s))].push_back(sample.lag_ms);
+		all.push_back(sample.lag_ms);
 	}
 	for (std::size_t sec = 0; sec < by_second.size(); ++sec) {
 		if (by_second[sec].empty())
@@ -1021,23 +1123,18 @@ int lag(int argc, char **argv) {
 					sec, by_second[sec].size(), percentile(by_second[sec], 0.5), percentile(by_second[sec], 0.99),
 					percentile(by_second[sec], 1));
 	}
-	double cold_done = 0, caught_up = 0;
-	for (const auto &s : state) {
-		cold_done = std::max(cold_done, s.built_ms);
-		caught_up = std::max(caught_up, s.first_pass_ms);
-	}
 	std::printf("{\"step\":\"summary\",\"mode\":\"lag\",\"threads\":%zu,\"start\":\"%s\",\"interval_ms\":%lld,\"arrived\":%llu,"
 				"\"arrivals_ms\":%.1f,\"total_ms\":%.1f,\"lag_ms_p50\":%.1f,\"lag_ms_p99\":%.1f,\"lag_ms_max\":%.1f,"
 				"\"passes\":%llu,\"pass_ms_p50\":%.1f,\"pass_ms_max\":%.1f,\"pass_changes_p50\":%.0f,"
 				"\"pass_changes_max\":%.0f,\"relocations\":%llu,\"build_cpu_ms\":%.1f,\"process_cpu_ms\":%.1f,"
-				"\"cores\":%.2f,\"cold_ms_p50\":%.1f,\"cold_ms_max\":%.1f,\"cold_done_ms\":%.1f,\"caught_up_ms\":%.1f,"
+				"\"cores\":%.2f,\"build_cores\":%.2f,\"cold_ms_p50\":%.1f,\"cold_ms_max\":%.1f,\"cold_done_ms\":%.1f,\"caught_up_ms\":%.1f,"
 				"\"page_bytes\":%llu,\"resident_mb\":%.1f,\"peak_mb\":%.1f}\n",
 				threads, start_mode.c_str(), (long long)interval.count(), (unsigned long long)arrived, arrivals_ms, total_ms, percentile(all, 0.5),
 				percentile(all, 0.99), percentile(all, 1), (unsigned long long)merged.passes,
 				percentile(merged.pass_ms, 0.5), percentile(merged.pass_ms, 1), percentile(merged.pass_changes, 0.5),
 				percentile(merged.pass_changes, 1), (unsigned long long)merged.relocations, merged.cpu_ms, cpu,
-				cpu / total_ms, percentile(merged.cold_ms, 0.5), percentile(merged.cold_ms, 1), cold ? cold_done : 0.0,
-				cold ? caught_up : 0.0, (unsigned long long)corpus.page_bytes(), resident_mb(), peak_mb());
+				cpu / total_ms, merged.cpu_ms / total_ms, percentile(merged.cold_ms, 0.5), percentile(merged.cold_ms, 1), cold ? merged.cold_done_ms : 0.0,
+				cold ? merged.caught_up_ms : 0.0, (unsigned long long)corpus.page_bytes(), resident_mb(), peak_mb());
 	std::fflush(stdout);
 	std::filesystem::remove_all(dir);
 	return 0;
