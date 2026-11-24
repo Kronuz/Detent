@@ -6907,6 +6907,8 @@
     "consensus-fetch-oversize-abort": {
       "accepted": {},
       "after": [],
+      "base": "37966262d8f81d93ffc0e35094342e97f1a77343",
+      "branch": "quest/detent/consensus-fetch-oversize-abort",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6941,6 +6943,7 @@
         "docs/mechanisms/rpc*.md",
         "docs/mechanisms/transport*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-fetch-oversize-abort",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6949,9 +6952,10 @@
       "reason": "narrowed off seeds files held by consensus-seeds-rate-flake; transport is header-only",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T08:12:48"
+      "updated": "2026-11-24T08:12:56",
+      "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
       "accepted": {
