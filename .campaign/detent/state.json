@@ -5819,9 +5819,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T15:14:53",
+      "updated": "2026-11-23T19:57:36",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
