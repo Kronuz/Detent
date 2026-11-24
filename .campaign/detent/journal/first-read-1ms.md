@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: working
+State: blocked on lead: msg-376 (Blocked on 1-3); waiting on jobs 261124-144100-b5ba51, 261124-144143-080cef, 261124-144154-201723 and CI
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Hot path: `benchmarks/reader_bench_ab.sh` (interleaved main/head, core, int, hot and scattered, 1 and
-8 threads) built locally under `.scratch/fr/rb`; then profile hot 1-thread and fix in
-`src/detent_local` if the cost is there.
+Waiting on the lead's rulings (msg-376) and on jobs at `Detent:3a2eec05` (main merged):
+- 261124-144100-b5ba51: A1 profile rerun at head (strict), the after-profile.
+- 261124-144143-080cef: gate `measure stopped` at head against main (strict screen, not A2).
+- 261124-144154-201723: `reader_bench_ab.sh` at head against main (strict).
+- CI on the pushed branch: A3 (`campaign verify` queued nothing locally; the gate reads CI).
+Local scratch: `.scratch/fr/out` (gate builds of main and branch), `.scratch/main-tree` (a
+detached main worktree for local screens; remove with `git worktree remove`), `.scratch/fr/ab.sh`.
 
 ## Next
 
-1. A1 job 261124-134303-81190d (strict, probe profile, four cells): record it when it runs.
-2. Hot path A/B and fix (above).
-3. When the lead answers Blocked on 1-3: apply the held patches (changes 2 and 4) with their test
-   updates, screen, then queue A2 (exclusive, stopped and running) and `campaign verify --for A3`.
+1. Record the three jobs above and CI.
+2. On the lead's rulings: apply `.scratch/fr/change2-walk-precheck.patch` and
+   `.scratch/fr/change4-image-once.patch` with their test updates, screen each, push.
+3. Then queue A2: `first-read-gate.sh measure` exclusive, stopped and running, one job each, at
+   the final head; record the ids.
 
 ## Blocked on
 
@@ -97,6 +102,19 @@ against about 0.6 ms on an exclusive hold, so these are screens, not A2.
 
 ## Result
 
+So far (screens and benches; A2 pending):
+1. `Detent:5d879068`: trust walk opens directories with O_SEARCH on macOS: -243 us (1 ns), -214 us
+   (1,000 ns) against main, strict screen.
+2. `Detent:e7dc35d6`: table slots checked by sorting, not a std::set.
+3. `Detent:182bb900` and `Detent:d20bbadb`: warm lookups 19-20% faster than main hot (737.5 to
+   592.5 ns p50, 1 thread) and 17% scattered (1,198 to 989), strict beside light holds; on an
+   exclusive hold that puts hot back at about the pre-S6 393 ns.
+4. Tooling: `first-read-gate.sh profile-prepare|profile`, `first-read-probe.py`,
+   `benchmarks/reader_bench_ab.sh`; the gate links and runs on main again (legacy-h removed
+   `local_client`). Results: `docs/perf/first-read-1ms.md`.
+Open: the 1,000-namespace cells (table SHA-256, Blocked on 1), changes 2 and 4 (Blocked on 2),
+the running 1,000-namespace cell (Blocked on 3).
+
 <When ready for review: what changed, its measured effect with numbers and the jobs behind them,
 and what it leaves open. Results and how it works go in the docs of the repository it changed
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
@@ -106,5 +124,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - R2: change 2 keeps the post-open name check (`test_trusted_paths` "raced" pins it); only the
   pre-open `fstatat` goes. Change 3 refuses the same tables; a duplicate slot is now found after
   the whole table decodes, not at its entry (one TableRefused either way, D43).
+- R3: the A1 profile ran main's reader code (`Detent:3f0d12cb`, before any change) on purpose:
+  it names the costs to remove; its rerun at head is the after-profile.
+- R4: the hot path is fixed here (paged-decode-one-shape was dropped; the code is in
+  `src/detent_local` and `include/detent_local`).
 - R1: the gate runs the reader core in both trees once a tree has `src/detent_reader` (reader-s6
   landed): this quest's A/B is core against core; main before reader-s6 still runs its Client.
