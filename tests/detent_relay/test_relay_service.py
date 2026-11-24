@@ -26,7 +26,6 @@ import json
 import os
 import shutil
 import signal
-import socket
 import ssl
 import subprocess
 import sys
@@ -34,6 +33,9 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
 
 CONTEXT = {
     "cluster": "63" + "00" * 15,
@@ -165,12 +167,6 @@ class Proxy:
         self.server.server_close()
 
 
-def free_port() -> int:
-    with socket.socket() as reservation:
-        reservation.bind(("127.0.0.1", 0))
-        return int(reservation.getsockname()[1])
-
-
 def private(path: Path, value: dict[str, Any]) -> Path:
     path.write_text(json.dumps(value))
     path.chmod(0o600)
@@ -190,9 +186,9 @@ class Run:
         self.directory = Path.cwd() / ".scratch" / f"relay-service-{os.getpid()}"
         self.directory.mkdir(parents=True)
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
-        self.peers = [free_port() for _ in range(3)]
-        self.http = [free_port() for _ in range(3)]
-        self.relay_ports = {name: free_port() for name in ("a", "b", "c", "d")}
+        self.peers = lease_ports(3)
+        self.http = lease_ports(3)
+        self.relay_ports = dict(zip(NAMES, lease_ports(4)))
         self.upstreams: dict[str, tuple[list[int], str]] = {}
         self.mirror_options: dict[str, dict[str, Any]] = {}
         self.children: dict[str, subprocess.Popen[bytes]] = {}

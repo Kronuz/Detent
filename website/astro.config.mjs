@@ -14,14 +14,13 @@ function gitRevision() {
 }
 process.env.PUBLIC_DETENT_REVISION = gitRevision();
 
-import kronuzDark from './src/styles/kronuz-dark.json';
-import kronuzLight from './src/styles/kronuz-light.json';
+import { kronuzDark, kronuzLight } from '@kronuz/starlight-core/styles/themes.mjs';
 import { sidebar } from './src/lib/sidebar.mjs';
-import { restLangs } from './src/plugins/rest-lang.mjs';
-import remarkAnsi from './src/plugins/remark-ansi.mjs';
-import remarkHints from './src/plugins/remark-hints.mjs';
-import remarkD2 from './src/plugins/remark-d2.mjs';
-import { pluginRestCurl } from './src/plugins/ec-rest-curl.mjs';
+import { restLangs } from '@kronuz/starlight-core/plugins/rest-lang.mjs';
+import remarkAnsi from '@kronuz/starlight-core/plugins/remark-ansi.mjs';
+import remarkHints from '@kronuz/starlight-core/plugins/remark-hints.mjs';
+import remarkD2 from '@kronuz/starlight-core/plugins/remark-d2.mjs';
+import { pluginRestCurl } from '@kronuz/starlight-core/plugins/ec-rest-curl.mjs';
 import { SITE_TITLE, SITE_DESCRIPTION, REPO_URL } from './src/consts';
 import rehypeExternalLinks from 'rehype-external-links';
 
@@ -33,10 +32,10 @@ export default defineConfig({
 	site: 'https://kronuz.github.io',
 	base: BASE,
 	// Hint styles (tip/info/caution/warning/unimplemented/construction) render as
-	// custom `:::hint[Title]{.type}` asides; see src/plugins/remark-hints.mjs + custom.css.
+	// custom `:::hint[Title]{.type}` asides through the shared plugin and CSS.
 	markdown: {
 		// remarkD2 turns ```d2 fences into themed (light+dark) diagrams at build time
-		// by shelling out to the d2 CLI (must be on PATH); see src/lib/renderD2.mjs.
+		// by shelling out to the d2 CLI through starlight-core.
 		remarkPlugins: [remarkAnsi, remarkHints, remarkD2],
 		// Open external (http/https) links in a new tab; internal links are relative,
 		// so they're untouched and keep navigating in place.
@@ -55,7 +54,7 @@ export default defineConfig({
 			description: SITE_DESCRIPTION,
 			logo: { src: './src/assets/logo.svg', alt: 'Detent' },
 			favicon: '/favicon.svg',
-			customCss: ['./src/styles/custom.css'],
+			customCss: ['@kronuz/starlight-core/styles/docs.css', '@kronuz/starlight-core/styles/footer.css'],
 			// The landing page uses the same typefaces as the Xapiand home (Lato body,
 			// Montserrat display).
 			head: [
@@ -89,13 +88,13 @@ export default defineConfig({
 				SiteTitle: './src/components/SiteTitle.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 				PageTitle: './src/components/PageTitle.astro',
-				EditLink: './src/components/EditLink.astro',
-				Search: './src/components/Search.astro',
-				ThemeSelect: './src/components/ThemeSelect.astro',
-				MarkdownContent: './src/components/MarkdownContent.astro',
+				EditLink: '@kronuz/starlight-core/components/EditLink.astro',
+				Search: '@kronuz/starlight-core/components/Search.astro',
+				ThemeSelect: '@kronuz/starlight-core/components/DocsThemeSelect.astro',
+				MarkdownContent: '@kronuz/starlight-core/components/DocsMarkdownContent.astro',
 				Sidebar: './src/components/Sidebar.astro',
 				Pagination: './src/components/Pagination.astro',
-				Footer: './src/components/Footer.astro',
+				Footer: '@kronuz/starlight-core/components/Footer.astro',
 			},
 		}),
 	],
