@@ -1,36 +1,40 @@
 # relay-service-refused-sync-flake: test_relay_service: relay C never counts a sync failure on a source that refused
 
-Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status relay-service-refused-sync-flake`.
+Risk: normal (relay mirror, a test). The lead writes this quest; contributors read it and never
+edit it. Its machine state is in `state.json`: `campaign status relay-service-refused-sync-flake`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`test_relay_service` fails at `tests/detent_relay/test_relay_service.py:782` ("relay C failed a
+sync on a source that refused") after the mirror logs `/v2/history/file answered 404`: about 5 of
+21 runs under `ctest -j8` in system-failover-port-reuse's shards, and in legacy-h's native gate
+(261123-175720-145715), neither of which changes the relay. The authority answers 404 when a
+layout's file is gone at its latest seal. Find whether the relay should treat that 404 as a refusal
+(not a sync failure) or the authority should not answer 404 for it, fix the cause, and keep the
+test's check as strict as it is.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A reproduction at main that fails the check (a job), with the cause named: which file, and why
+  it is gone at the latest seal when the relay asks.
+- A2 The fix: the reproduction passes; a `--fails-without` job at main; the check at :782 unchanged.
+- A3 50 runs of `test_relay_service` under `ctest -j8` beside the suite's other tests: none fail on
+  this check (strict jobs).
+- A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+The relay mirror's handling of the authority's history answers; no wire format change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: its own quest; port-reuse's main-vs-quest A/B timed out twice, and the failure
+shows on branches that do not touch the relay.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Not applicable.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
