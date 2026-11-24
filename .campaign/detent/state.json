@@ -4657,6 +4657,21 @@
         ]
       },
       "text": "set first-read-1ms: unlocks first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:25:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:25:12",
+      "by": "campaign",
+      "closed": "split-journal parked until xapiand:journal-sync-mode lands (same test files)",
+      "id": "msg-373",
+      "settles": {
+        "todo": "3693eb89"
+      },
+      "text": "to do, critical path first:\ntodo: start split-journal (launchable; new): `campaign start split-journal`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
