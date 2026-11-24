@@ -8686,21 +8686,21 @@
     "consensus-seeds-rate-flake": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-24T05:14:58",
-          "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "at": "2026-11-24T07:45:00",
+          "base": "c363ad4492a22c346ea139379e740697f4690ba3",
           "blobs": {
-            "test/transport/seeds_test.cc": "100644:1a8656e5b693606058a1576b38510ae1729f1916"
+            "test/transport/seeds_test.cc": "100644:17f13a5e476e0365ae107ffffd92d87e2d678e19"
           },
           "by": "review",
-          "commit": "a2f6eb33b65879ff61f7b5f0d96169ba68933e29",
+          "commit": "803c37e232311f91132444f6d9213b42ff9f336e",
           "criteria": "40a8096a75813a4b",
           "diffs": {
-            "test/transport/seeds_test.cc": "5617d07c6afb0b10"
+            "test/transport/seeds_test.cc": "cc2e6e9a3bdc3e8f"
           },
           "findings": {},
           "note": "",
-          "review": "a65b4596aaff87396644aea061938bc226f35006",
-          "reviewed": "a2f6eb33b65879ff61f7b5f0d96169ba68933e29",
+          "review": "1aa464cac2b3c554e0e57f42c15fe2978eff06b8",
+          "reviewed": "803c37e232311f91132444f6d9213b42ff9f336e",
           "verdict": "APPROVE"
         }
       },
@@ -8736,7 +8736,7 @@
       "risk": "normal",
       "status": "review",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T05:14:58",
+      "updated": "2026-11-24T07:45:00",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
