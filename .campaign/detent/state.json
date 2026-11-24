@@ -7904,12 +7904,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "narrowed to what its fix changed (rpc_host_test.cc, rpc-lane.md); frees include/consensus/transport/codec.h for consensus-follower-read",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T02:38:48",
+      "updated": "2026-11-24T03:11:06",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
