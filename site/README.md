@@ -1,9 +1,12 @@
-# Detent documentation website
+# Detent documentation site
 
 The source of https://kronuz.github.io/Detent/, built with
 [Astro](https://astro.build) and [Starlight](https://starlight.astro.build)
-using the Kronuz theme shared with the
-[Xapiand docs](https://kronuz.github.io/Xapiand/).
+using the pinned [shared Starlight engine](https://github.com/Kronuz/starlight-core)
+also used by the [Xapiand docs](https://kronuz.github.io/Xapiand/).
+
+The Astro site lives here in `site/`; engineering designs and campaign records
+live in [`../docs/`](../docs/).
 
 ```sh
 npm ci
@@ -18,5 +21,5 @@ npm run build     # build to dist/, including the Pagefind search index
 - Hints use `:::hint[Title]{.tip|info|caution|warning|unimplemented|construction}`.
   Every `unimplemented` hint should also appear on `roadmap.md`.
 
-Pushing changes under `website/` to `main` deploys the site through
+Pushing changes under `site/` to `main` deploys the site through
 `.github/workflows/pages.yml`.

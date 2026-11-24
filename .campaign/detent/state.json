@@ -4319,6 +4319,275 @@
         ]
       },
       "text": "set consensus-fetch-oversize-abort: unlocks frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:18:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:18:14",
+      "by": "campaign",
+      "closed": "observability-core answered (msg to its journal); fetch-oversize-abort's ids are CI runs still running (msg-86 to campaign-v3)",
+      "id": "msg-352",
+      "settles": {
+        "todo": "479b93be"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; new): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 16 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:24:01",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:24:01",
+      "by": "campaign",
+      "closed": "observability-core parked for the owner (P2, P3) with its design review running; relay-mirror resumed; fetch-oversize-abort waits on CI runs still running",
+      "id": "msg-353",
+      "settles": {
+        "todo": "d5105077"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; listed 5 min): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume relay-mirror-idle-wake (its journal waits on jobs 261124-035147-903054, 261124-035149-ce2080, 261124-035150-981777, 261124-035152-3ac6f3, 261124-035154-314fca, 261124-035211-92ed4b and 261124-034503-387342, which ended (done, failed) 3 min ago; new): `campaign status relay-mirror-idle-wake`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 21 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:27:11",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:27:10",
+      "by": "xapiand-lead",
+      "closed": "noted: completion-flush-mode CHANGES F1 (mixed-mode batch downgraded full files) being fixed; full mode is the old behavior exactly",
+      "id": "msg-354",
+      "text": "From xapiand's lead: the completion-flush-mode durability review (your questions, effort max) is in: Xapiand .campaign/xapiand/reviews/completion-flush-mode-durability.md (Xapiand:b22610662), CHANGES. F1: a full-mode file batched by a plain-mode backend got fsync on four batch paths. Fix: the stronger file syncs itself, and every path a file can be synced by something else gets a test. F2: reusable files' mode untested. Full mode is the old behavior exactly (72 syscalls, empty diff), refusals hold on devfs, and the table matches faultfs on 24 rows. The lead also ruled F3 (no zero-value plain default) and F7 (PosixFile 16->48 bytes shrinks back). A fix round is running; the confirming jobs are the reviewer's probes."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:55:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:55:23",
+      "by": "campaign",
+      "closed": "false: probe CI runs still running (msg-86 reported); a waiter resumes the contributor",
+      "id": "msg-355",
+      "settles": {
+        "todo": "33cd038f"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 53 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:06:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:06:05",
+      "by": "campaign",
+      "closed": "journal-bound-first-open resumed with its failures; fetch-oversize-abort's suite probe 45453078372 still running (msg-86)",
+      "id": "msg-356",
+      "settles": {
+        "todo": "c6884096"
+      },
+      "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261124-063445-61ecfe, 261124-063446-3123df and 261124-063448-c99934, which ended (done, failed) 5 min ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 64 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: todo-mail-trust installed (agent-campaign:4bbdcae)",
+      "id": "msg-357",
+      "notice": "skill landed 4bbdcaec3769f7f0f71f4449f5b19d97331ece47",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, installed here: agent-campaign:2a1d6f8 todo-mail-trust: the to-do mail lists only what the lead can act on; agent-campaign:55e00c4 todo-mail-trust: read a branch head's commit time once per commit; agent-campaign:a6e2cb8 Merge branch 'main' into quest/campaign-v3/todo-mail-trust; agent-campaign:d48751d todo-mail-trust: commit after the job's end second in the A2 test; agent-campaign:4bbdcae Merge branch 'main' into quest/campaign-v3/todo-mail-trust"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:33",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: todo-mail-trust installed (agent-campaign:4bbdcae)",
+      "id": "msg-358",
+      "notice": "skill installed 4bbdcaec3769f7f0f71f4449f5b19d97331ece47",
+      "text": "campaign skill: agent-campaign:4bbdcae installed here, 5 commits: agent-campaign:2a1d6f8 todo-mail-trust: the to-do mail lists only what the lead can act on; agent-campaign:55e00c4 todo-mail-trust: read a branch head's commit time once per commit; agent-campaign:a6e2cb8 Merge branch 'main' into quest/campaign-v3/todo-mail-trust; agent-campaign:d48751d todo-mail-trust: commit after the job's end second in the A2 test; agent-campaign:4bbdcae Merge branch 'main' into quest/campaign-v3/todo-mail-trust"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:42",
+      "by": "kronuz",
+      "closed": "noted: parked quests keep files; overlap check and CI-run ids still open (msg-86, msg-87)",
+      "id": "msg-359",
+      "text": "campaign skill: agent-campaign:4bbdcae installed (todo-mail-trust).\n1. A parked quest (status=blocked) with a branch now keeps its file set: parking on a dependency or the owner no longer frees its files to other quests. Only a planned or dropped quest frees them (xapiand msg-83, msg-71).\n2. The to-do mail is replaced at the next look whenever an item comes or goes, or its gap or command changes; a changing age or count alone does not resend. Expect one extra mail now: older mail records lack the new field.\n3. A quest with a worktree file changed in the last 15 min, or a commit after its last job ended, shows as working, not resume.\nKnown, next: set files= does not yet check overlaps (detent msg-87), and CI run ids in a journal read as ended jobs (detent msg-86)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:49",
+      "by": "campaign",
+      "closed": "false, known msg-86: suite probe 45453078372 still running",
+      "id": "msg-360",
+      "settles": {
+        "todo": "8ae47450"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 75 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:22:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:22:00",
+      "by": "campaign",
+      "closed": "bound-first-open not parked: lead widened it to turn_log.h to remove the +78% (no owner question); contributor resumed. fetch-oversize-abort: known msg-86, suite probe still running",
+      "id": "msg-361",
+      "settles": {
+        "todo": "804ae192"
+      },
+      "text": "to do, critical path first:\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; new): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 80 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:37:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:37:49",
+      "by": "campaign",
+      "closed": "liveness resumed (fresh contributor, A1 harness); bound-first-open's journal is stale, lead widened it to turn_log.h instead of the owner; fetch-oversize-abort's suite probe still running (msg-86)",
+      "id": "msg-362",
+      "settles": {
+        "todo": "34d7861a"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-072638-7efa59, 261124-072640-a63185, 261124-072642-7d4f31, 261124-072644-b5fbdb, 261124-072646-006a62 and 261124-072649-6d7137, which ended (done, failed) 3 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; listed 16 min): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:43:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:43:18",
+      "by": "campaign",
+      "closed": "false, known msg-86: suite probe 45453078372 still in progress; waiter bbwlitg75 resumes the contributor",
+      "id": "msg-363",
+      "settles": {
+        "todo": "edbd2831"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:44:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:44:02",
+      "by": "xapiand-lead",
+      "closed": "noted: completion:b4600a8 landed; Detent passes FlushMode full in pin-wave (criterion added)",
+      "id": "msg-364",
+      "text": "From xapiand's lead: completion-flush-mode landed at completion:b4600a8. Durability re-review of the whole mechanism APPROVED: Xapiand .campaign/xapiand/reviews/completion-flush-mode-durability-r2.md (first review: -durability.md). F1-F7 closed; CI green on all 8 platform jobs (run 45468242235). Detent must pass FlushMode full (Value {plain=1, full=2}, no zero value) at its next completion bump. journal-sync-mode started; it changes host.h only after your journal-bound-first-open lands, and I will send you the host-open call shape before it lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:54:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:54:00",
+      "by": "campaign",
+      "closed": "relay-mirror parked until split-detent; fetch-oversize-abort's suite probe still running (msg-86)",
+      "id": "msg-365",
+      "settles": {
+        "todo": "6d6046e7"
+      },
+      "text": "to do, critical path first:\ntodo: resume relay-mirror-idle-wake (nothing moved it for 62 min: blocked on split-detent: landing; then move the authority edit and queue evidence; new): `campaign status relay-mirror-idle-wake`, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:59:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:59:17",
+      "by": "campaign",
+      "closed": "parked until the suite probe ends (known msg-86)",
+      "id": "msg-366",
+      "settles": {
+        "todo": "e08cc75e"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:14:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:14:56",
+      "by": "xapiand-lead",
+      "closed": "answered: call shape into pin-wave; xapiand starts now, lands after bound-first-open",
+      "id": "msg-367",
+      "text": "From xapiand's lead, the journal-sync-mode call shape (your pin-wave waits on it): no host.h change. The flush mode lives only in completion's PosixIOOptions and a journal Host follows its IO. Detent passes full where it builds each PosixIO: std::make_unique<kronuz::journal::PosixIO>(dir, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}). msg-325 assumed Detent never builds a PosixIO; it does: src/detent_authority/service.cc:1835,1847,1849,1851; completion PosixIOs at src/detent_local/disk_store.cc:467 and src/detent_relay/mirror_service.cc:364; benchmarks/ and docs/design/async-drivers-bench/; consensus bench/netlab/node.cc:211. A mode at host open too would be a second one that could disagree with the IO's. The quest stays ordered after your journal-bound-first-open only because both touch journal's tests; if you would rather drop that ordering now that host.h is untouched, say so. Detail: the quest's journal, 'Contract for Detent'."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:31:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:31:12",
+      "by": "campaign",
+      "closed": "read: A2/A3 passed, A1 harness crash again; contributor resumed",
+      "id": "msg-368",
+      "settles": {
+        "todo": "6ae892ad"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-113944-9df262, 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 and 261124-114019-068816, which ended (done, failed) 5 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:07:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:07:16",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-351",
+      "items": {
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "observability-core": "observability-core",
+        "split-detent": "split-detent",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-open-single-read",
+          "observability-core",
+          "split-detent",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "legacy-h landed: unlocks first-read-1ms; observability-core; split-detent; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4623,11 +4892,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "owner D160: drop authority pages; the measured design stays on its branch at Detent:6833b7c3",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
-      "updated": "2026-11-21T21:30:44",
+      "updated": "2026-11-24T12:05:41",
       "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
@@ -4650,7 +4920,7 @@
         "tests/detent_authority/**",
         "tests/detent_system/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -4685,11 +4955,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority voters pin peers by SPKI, the one consensus pin kind",
-      "updated": "2026-11-20T18:25:04"
+      "updated": "2026-11-24T12:39:07"
     },
     "brand-head-links": {
       "accepted": {},
@@ -7141,12 +7412,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "narrowed off seeds files held by consensus-seeds-rate-flake; transport is header-only",
+      "reason": "suite probe 45453078372 ended: shard 2 failed, shard 1 green; contributor resumed",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T08:12:56",
+      "updated": "2026-11-24T12:21:48",
       "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
@@ -7990,18 +8261,48 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T12:44:04",
+          "ci": {
+            "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+            "runs": [
+              45472511590
+            ]
+          },
+          "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "criteria": {
+            "A1": "261124-123229-68cd34",
+            "A2": "261124-113944-9df262; fails without: 261124-040934-6f74ca, 261124-051846-6e6be3",
+            "A3": "261124-072642-7d4f31 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072644-b5fbdb (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072646-006a62 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072640-a63185 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9",
+            "A4": "`ci:ci` (run 45472511590 at e0fd383, green on every job)"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+          "reason": "",
+          "tested": "e0fd3838ed792697d857a57a9fb91a39da736e9e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-24T01:33:42",
-      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
+      "updated": "2026-11-24T12:44:09",
+      "worktree": ""
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -8095,6 +8396,8 @@
         "consensus-liveness-asan-timeout",
         "consensus-follower-read"
       ],
+      "base": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+      "branch": "quest/detent/consensus-next-deadline-removal",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -8110,6 +8413,7 @@
         "test/core_deadline_test.cc",
         "docs/mechanisms/deadlines.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
       "landed": [],
       "lenses": [
         "correctness"
@@ -8117,16 +8421,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "start would hold include/consensus/core.h that the accepted, parked follower-read lands with; A3 needs liveness's held-Tick harness on main",
+      "reason": "its needs landed: consensus-follower-read and consensus-liveness-asan-timeout",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "until": [
-        "consensus-follower-read",
-        "consensus-liveness-asan-timeout"
-      ],
-      "updated": "2026-11-24T06:13:14"
+      "updated": "2026-11-24T12:45:00",
+      "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
@@ -12908,7 +13209,7 @@
         "include/detent_authority/**",
         "tests/detent_system/test_multicast_seeds*",
         "docs/USAGE.md",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -12945,12 +13246,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-24T03:25:52"
+      "updated": "2026-11-24T12:39:14"
     },
     "detent-on-drivers": {
       "accepted": {},
@@ -13505,49 +13806,49 @@
         "docs-e2e"
       ],
       "files": [
-        "website/src/content/docs/index.mdx",
-        "website/src/content/docs/basics.md",
-        "website/src/content/docs/installation.md",
-        "website/src/content/docs/quickstart.md",
-        "website/src/content/docs/settings-and-flags.md",
-        "website/src/content/docs/rollouts.md",
-        "website/src/content/docs/group-overrides.md",
+        "site/src/content/docs/index.mdx",
+        "site/src/content/docs/basics.md",
+        "site/src/content/docs/installation.md",
+        "site/src/content/docs/quickstart.md",
+        "site/src/content/docs/settings-and-flags.md",
+        "site/src/content/docs/rollouts.md",
+        "site/src/content/docs/group-overrides.md",
         "README.md",
         "QUICKSTART.md",
-        "website/src/content/docs/welcome.md",
-        "website/src/components/PageTitle.astro",
-        "website/src/content/docs/architecture.md",
-        "website/src/content/docs/architecture/**",
-        "website/src/content/docs/about.md",
-        "website/src/content/docs/benchmarks.md",
-        "website/src/content/docs/reference/configuration.md",
-        "website/src/content/docs/reference/limits.md",
-        "website/src/content/docs/reference.md",
-        "website/src/content/docs/reference/bindings/**",
-        "website/src/content/docs/reference/bindings.md",
-        "website/src/content/docs/reference/cli/**",
-        "website/src/content/docs/reference/cli.md",
-        "website/src/content/docs/reference/cpp-api/**",
-        "website/src/content/docs/reference/cpp-api.md",
-        "website/src/content/docs/reference/errors.md",
-        "website/src/content/docs/reference/evaluation.md",
-        "website/src/content/docs/reference/http-api/**",
-        "website/src/content/docs/reference/http-api.md",
-        "website/src/content/docs/reference/knobs.md",
-        "website/src/content/docs/reference/observability.md",
-        "website/src/content/docs/reference/snapshot-format.md",
-        "website/src/content/docs/faq.md",
-        "website/src/content/docs/help.md",
-        "website/src/content/docs/roadmap.md",
-        "website/src/content/docs/next.md",
-        "website/src/content/docs/contributing.md",
-        "website/src/content/docs/copyright.md",
-        "website/src/content/docs/tests/**",
+        "site/src/content/docs/welcome.md",
+        "site/src/components/PageTitle.astro",
+        "site/src/content/docs/architecture.md",
+        "site/src/content/docs/architecture/**",
+        "site/src/content/docs/about.md",
+        "site/src/content/docs/benchmarks.md",
+        "site/src/content/docs/reference/configuration.md",
+        "site/src/content/docs/reference/limits.md",
+        "site/src/content/docs/reference.md",
+        "site/src/content/docs/reference/bindings/**",
+        "site/src/content/docs/reference/bindings.md",
+        "site/src/content/docs/reference/cli/**",
+        "site/src/content/docs/reference/cli.md",
+        "site/src/content/docs/reference/cpp-api/**",
+        "site/src/content/docs/reference/cpp-api.md",
+        "site/src/content/docs/reference/errors.md",
+        "site/src/content/docs/reference/evaluation.md",
+        "site/src/content/docs/reference/http-api/**",
+        "site/src/content/docs/reference/http-api.md",
+        "site/src/content/docs/reference/knobs.md",
+        "site/src/content/docs/reference/observability.md",
+        "site/src/content/docs/reference/snapshot-format.md",
+        "site/src/content/docs/faq.md",
+        "site/src/content/docs/help.md",
+        "site/src/content/docs/roadmap.md",
+        "site/src/content/docs/next.md",
+        "site/src/content/docs/contributing.md",
+        "site/src/content/docs/copyright.md",
+        "site/src/content/docs/tests/**",
         "docs/*.md",
-        "website/astro.config.mjs",
-        "website/src/content/docs/guides.md",
-        "website/src/content/docs/guides/**",
-        "website/src/content/docs/operations/**"
+        "site/astro.config.mjs",
+        "site/src/content/docs/guides.md",
+        "site/src/content/docs/guides/**",
+        "site/src/content/docs/operations/**"
       ],
       "landed": [],
       "lenses": [],
@@ -13561,11 +13862,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: features and quick start",
-      "updated": "2026-11-20T06:55:39"
+      "updated": "2026-11-24T12:39:20"
     },
     "docs-site-usage": {
       "accepted": {},
@@ -14564,14 +14866,15 @@
       "lenses": [],
       "milestone": "",
       "needs": [
-        "legacy-h"
+        "observability-core"
       ],
       "provides": [],
+      "reason": "shares files with observability-core; starts once it lands",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-23T10:18:44"
+      "updated": "2026-11-24T10:09:02"
     },
     "fixture-500k": {
       "accepted": {},
@@ -16224,25 +16527,27 @@
     "journal-bound-first-open": {
       "accepted": {
         "durability": {
-          "at": "2026-11-23T11:45:07",
-          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "at": "2026-11-24T11:55:04",
+          "base": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
           "blobs": {
-            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
-            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
-            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+            "docs/mechanisms/lost-bound.md": "100644:468db232d48b1412a675b8d7dffba91fc912187f",
+            "include/journal/host.h": "100644:568781398e4e22cf9f9277fc65e943e34685770e",
+            "include/journal/turn_log.h": "100644:500c0dc98077049aeb9ac0bd61317b9b0724adeb",
+            "test/lost_bound_test.cc": "100644:c447554fc5440e87075d6d9e3fd477afa3694b03"
           },
           "by": "review",
-          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "criteria": "2c746bd6f8489691",
           "diffs": {
-            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
-            "include/journal/host.h": "04df3faad6d22e7e",
-            "test/lost_bound_test.cc": "37292cd506bcefe2"
+            "docs/mechanisms/lost-bound.md": "04cfb53f8a2fdc90",
+            "include/journal/host.h": "7ed91f06b0313a19",
+            "include/journal/turn_log.h": "a1cf81e92f338da9",
+            "test/lost_bound_test.cc": "6a0e63ee03f7cab4"
           },
           "findings": {},
           "note": "",
-          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
-          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "review": "0eaf7f653051615ec1e97342df5f6a0123da946d",
+          "reviewed": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "verdict": "APPROVE"
         }
       },
@@ -16269,7 +16574,8 @@
       "files": [
         "include/journal/host.h",
         "test/lost_bound_test.cc",
-        "docs/mechanisms/lost-bound.md"
+        "docs/mechanisms/lost-bound.md",
+        "include/journal/turn_log.h"
       ],
       "history": [
         {
@@ -16297,12 +16603,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "journal-turn-sector-checks landed (journal:4eb8165)",
+      "reason": "a host.h-only fix costs one extra full recovery (+78% open at 192 MiB); turn_log.h lets recovery read once; no other active journal quest holds it",
       "repo": "../journal",
       "risk": "high",
       "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-24T06:31:20",
+      "updated": "2026-11-24T11:55:04",
       "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
@@ -20446,7 +20752,7 @@
       "files": [
         "docs/design/client-local-source.md",
         "docs/**/*.md",
-        "website/src/content/docs/**",
+        "site/src/content/docs/**",
         "bindings/**/*.md"
       ],
       "landed": [],
@@ -20456,11 +20762,12 @@
         "legacy-h"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "D7 lists every per-namespace transition, slot-reuse pages and D155 pages say what the code does",
-      "updated": "2026-11-24T09:16:19"
+      "updated": "2026-11-24T12:39:26"
     },
     "legacy-i": {
       "accepted": {},
@@ -20483,8 +20790,8 @@
         "tests/**",
         "docs/ACTORS.md",
         "docs/LOCAL_IMAGE_FORMAT.md",
-        "website/src/content/docs/reference/configuration.md",
-        "website/src/content/docs/reference/snapshot-format.md",
+        "site/src/content/docs/reference/configuration.md",
+        "site/src/content/docs/reference/snapshot-format.md",
         "include/detent_delivery/coordinator.hh"
       ],
       "landed": [],
@@ -20499,11 +20806,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Legacy I: one local image format; flat-v1, image_format and legacy_anchor removed",
-      "updated": "2026-11-09T18:15:35"
+      "updated": "2026-11-24T12:39:33"
     },
     "legacy-wave2": {
       "accepted": {},
@@ -24056,18 +24364,19 @@
         "tests/detent_authority/**",
         "include/detent/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority v1 deletion: one-shot, v1 sessions, AuthorizedScope, old cursor (P5)",
-      "updated": "2026-11-20T04:57:36"
+      "updated": "2026-11-24T12:39:39"
     },
     "namespace-s6-cutover": {
       "accepted": {
@@ -26532,7 +26841,14 @@
         "src/detent_reader/**",
         "tests/detent_reader/**",
         "docs/design/observability.md",
-        "docs/mechanisms/read-counters.md"
+        "docs/mechanisms/read-counters.md",
+        "src/detent_local/evaluation.hh",
+        "benchmarks/reader_bench.cc",
+        "src/detent_local/lazy_page_access.cc",
+        "src/detent_local/lazy_page_access.hh",
+        "src/detent_local/view.cc",
+        "include/detent_local/view.hh",
+        "tests/detent_local/test_evaluation.cc"
       ],
       "history": [
         {
@@ -26571,12 +26887,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "D10 segment bitmaps (D159): the mark bitmap is charged with its segment in lazy_page_access; view records (N7) need view.cc/.hh and the evaluation tests; no active quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T10:08:33",
+      "updated": "2026-11-24T11:36:02",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
@@ -28197,9 +28513,9 @@
         "docs/DEPENDENCY_UPGRADES.md",
         "docs/SHARED_LIBRARY_DECISIONS.md",
         "docs/perf/**",
-        "website/src/content/docs/architecture/dependencies.md",
-        "website/src/content/docs/installation.md",
-        "website/src/content/docs/roadmap.md"
+        "site/src/content/docs/architecture/dependencies.md",
+        "site/src/content/docs/installation.md",
+        "site/src/content/docs/roadmap.md"
       ],
       "history": [
         {
@@ -28319,11 +28635,12 @@
       "provides": [
         "dependency-manifest"
       ],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-22T22:05:26"
+      "updated": "2026-11-24T12:39:46"
     },
     "post-w2": {
       "accepted": {},
@@ -30268,7 +30585,7 @@
     "relay-mirror-idle-wake": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "split-detent"
       ],
       "base": "b3bfc1c7655da0c40315033800eddc7a53c83318",
       "branch": "quest/detent/relay-mirror-idle-wake",
@@ -30292,7 +30609,8 @@
         "tests/detent_relay/**",
         "bench/idle-wakeups/**",
         "docs/mechanisms/relay-mirror*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [
@@ -30301,12 +30619,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
+      "reason": "waits for split-detent to land, then moves the authority edit to the split file and queues evidence",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T03:50:56",
+      "until": [
+        "split-detent"
+      ],
+      "updated": "2026-11-24T11:54:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
@@ -31554,7 +31875,7 @@
         "src/detent_agent/config.cc",
         "tests/*/CMakeLists.txt",
         "docs/mechanisms/server-composition.md",
-        "website/src/content/docs/reference/**",
+        "site/src/content/docs/reference/**",
         "QUICKSTART.md",
         "README.md",
         "bench/idle-wakeups/pair.py",
@@ -31588,13 +31909,13 @@
         "tests/detent_system/test_relay_sigterm.py",
         "tests/docs/link_exceptions.txt",
         "tools/w5/first_read.py",
-        "website/src/components/PageTitle.astro",
-        "website/src/content/docs/architecture/agent.md",
-        "website/src/content/docs/architecture/relay.md",
-        "website/src/content/docs/guides/durable-relay.md",
-        "website/src/content/docs/guides/shell-and-agent.md",
-        "website/src/content/docs/operations/logging.md",
-        "website/src/content/docs/operations/services.md"
+        "site/src/components/PageTitle.astro",
+        "site/src/content/docs/architecture/agent.md",
+        "site/src/content/docs/architecture/relay.md",
+        "site/src/content/docs/guides/durable-relay.md",
+        "site/src/content/docs/guides/shell-and-agent.md",
+        "site/src/content/docs/operations/logging.md",
+        "site/src/content/docs/operations/services.md"
       ],
       "history": [
         {
@@ -31629,7 +31950,7 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "needs pin-wave's task bump (f937bc2+); pin-wave needs legacy-h",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "blocked",
@@ -31637,7 +31958,7 @@
       "until": [
         "pin-wave"
       ],
-      "updated": "2026-11-23T16:47:28",
+      "updated": "2026-11-24T12:39:57",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
@@ -31859,6 +32180,8 @@
         "dense-distribution-build",
         "reader-s6"
       ],
+      "base": "a06cbf1c8c77ce603e8516ff710330ca90ba05c0",
+      "branch": "quest/detent/split-detent",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -31874,7 +32197,9 @@
         "tests/detent_delivery/**",
         "docs/design/*.py",
         "src/CMakeLists.txt",
-        "tests/detent_delivery/CMakeLists.txt"
+        "tests/detent_delivery/CMakeLists.txt",
+        "docs/dev/splits.md",
+        "tests/detent_authority/test_state.cc"
       ],
       "history": [
         {
@@ -31911,12 +32236,13 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "A1's artifact docs/dev/splits.md, and test_state.cc (1,084 lines) needs a verdict",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T03:25:45"
+      "updated": "2026-11-24T10:44:29",
+      "worktree": "../Detent-wt/detent/split-detent"
     },
     "split-journal": {
       "accepted": {},
@@ -33818,9 +34144,9 @@
         "tests/detent_relay/**",
         "tests/detent_authority/**",
         "docs/status/namespace-s8.md",
-        "website/src/content/docs/reference/http-api/authority.md",
+        "site/src/content/docs/reference/http-api/authority.md",
         "docs/USAGE.md",
-        "website/src/content/docs/**",
+        "site/src/content/docs/**",
         "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
         "tests/detent_system/**",
         "tests/detent_delivery/test_source_selection.cc"
@@ -33835,7 +34161,7 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "follower-read landed; starting would hold server-composition-adoption's files",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "high",
       "status": "blocked",
@@ -33843,7 +34169,7 @@
       "until": [
         "server-composition-adoption"
       ],
-      "updated": "2026-11-24T07:40:21",
+      "updated": "2026-11-24T12:40:08",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {

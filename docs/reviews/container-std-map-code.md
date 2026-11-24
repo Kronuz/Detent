@@ -53,8 +53,8 @@ I did not run the same probe on btree 25f9494; `btree::operator=` goes through `
 
 ### CR4 (condition C3): stale btree references that now describe the wrong types
 
-- `website/src/content/docs/reference/cpp-api/client.md:153,165` show `btree::map` for `BoolDef::overrides` and `Snapshot::knobs`. This is the published public C++ API.
-- `website/src/content/docs/architecture/read-path.md:38,50`, `architecture/dependencies.md:53`, `README.md:210,243`, `diagrams/04_read_path.d2:29` (and its `.svg`) describe a btree.
+- `site/src/content/docs/reference/cpp-api/client.md:153,165` show `btree::map` for `BoolDef::overrides` and `Snapshot::knobs`. This is the published public C++ API.
+- `site/src/content/docs/architecture/read-path.md:38,50`, `architecture/dependencies.md:53`, `README.md:210,243`, `diagrams/04_read_path.d2:29` (and its `.svg`) describe a btree.
 - `bindings/rust/build.rs:36` adds `deps_dir.join("cpp_btree-src")` and the header comment (line 4) names cpp-btree. The directory no longer exists. A missing `-I` directory is ignored by the compiler, so the build does not break.
 - `docs/BTREE_RELEASE_RISK.md` changes only its status line. The body still says "Detent now pins `cbc3576`", "Production remains on its existing pin" and "Detent adoption is held" (lines 19, 44, and the October 22 sections).
 - `benchmarks/btree-repair/actual_type_sweep.cc:16-18` uses `btree::map` in its non-`STD_MAP` arm with no `#include <btree/map.h>`; `detent/model.hh` no longer supplies it. By reading, the btree arm no longer compiles against this tree's `include/`. `growth_refusal.cc`, `root_growth_refusal.cc` and `nonfull_refusal.cc` instantiate `detent::SnapshotPatch`, which is now `std::map`, so they no longer exercise btree. Their README still says to compile against Detent's `include/`. I did not compile these (hold).

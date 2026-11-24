@@ -113,7 +113,7 @@ def sidebar_order(root: Path) -> list[str]:
     script = (
         "import {sidebar} from process.argv[1]; console.log(JSON.stringify(sidebar));"
     )
-    module = (root / "website" / "src" / "lib" / "sidebar.mjs").as_uri()
+    module = (root / "site" / "src" / "lib" / "sidebar.mjs").as_uri()
     out = subprocess.run(
         [
             "node",
@@ -152,7 +152,7 @@ def page_path(docs: Path, slug: str) -> Path | None:
 
 
 def extract(root: Path) -> list[Block]:
-    docs = root / "website" / "src" / "content" / "docs"
+    docs = root / "site" / "src" / "content" / "docs"
     blocks: list[Block] = []
     for slug in sidebar_order(root):
         path = page_path(docs, slug)

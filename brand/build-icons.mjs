@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Renders every icon variant from the vector master, brand/logo.svg, into brand/variants/<name>/,
-// then installs the site's copies into website/. Each PNG is rasterized once, at its exact size.
-// Run from the repository root after `npm ci` in website/: `node brand/build-icons.mjs`.
+// then installs the site's copies into site/. Each PNG is rasterized once, at its exact size.
+// Run from the repository root after `npm ci` in site/: `node brand/build-icons.mjs`.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const sharp = createRequire(`${root}website/package.json`)('sharp'); // the site's own dependency
+const sharp = createRequire(`${root}site/package.json`)('sharp'); // the site's own dependency
 
 // Fills of the master's four paths, and the opaque tile behind the touch icons. iOS and Android
 // flatten a transparent icon onto white, so the tile is the page color of the variant's theme.
@@ -23,14 +23,14 @@ const INNER = 5 / 6; // the hexagon is the rim scaled by 5/6 about the center (b
 const GAMMA = { 16: 0.7, 32: 0.7, 48: 0.85 };
 // What the site serves: the rimless logo reads on both themes, and the touch tiles are light.
 const SITE = {
-	'website/src/assets/logo.svg': 'dark/logo.svg',
-	'website/public/favicon.svg': 'dark/favicon.svg',
-	'website/public/favicon.ico': 'dark/favicon.ico',
-	'website/public/apple-touch-icon.png': 'light/apple-touch-icon.png',
-	'website/public/apple-touch-icon-167.png': 'light/apple-touch-icon-167.png',
-	'website/public/apple-touch-icon-152.png': 'light/apple-touch-icon-152.png',
-	'website/public/icon-192.png': 'light/icon-192.png',
-	'website/public/icon-512.png': 'light/icon-512.png',
+	'site/src/assets/logo.svg': 'dark/logo.svg',
+	'site/public/favicon.svg': 'dark/favicon.svg',
+	'site/public/favicon.ico': 'dark/favicon.ico',
+	'site/public/apple-touch-icon.png': 'light/apple-touch-icon.png',
+	'site/public/apple-touch-icon-167.png': 'light/apple-touch-icon-167.png',
+	'site/public/apple-touch-icon-152.png': 'light/apple-touch-icon-152.png',
+	'site/public/icon-192.png': 'light/icon-192.png',
+	'site/public/icon-512.png': 'light/icon-512.png',
 };
 
 const master = readFileSync(`${root}brand/logo.svg`, 'utf8');

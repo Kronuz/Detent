@@ -1,7 +1,7 @@
 # Documentation findings and feature gaps
 
 **Date:** 2026-10-09
-**Context:** Written while building the public documentation website in `website/` (published at https://kronuz.github.io/Detent/). Every item below was found by reading the source, running the built binaries, or attempting a clean build. The website already documents each user-visible gap with an "unimplemented" note and collects them on its Roadmap page (`website/src/content/docs/roadmap.md`). When an item is resolved, please update that page and remove the matching note.
+**Context:** Written while building the public documentation website in `site/` (published at https://kronuz.github.io/Detent/). Every item below was found by reading the source, running the built binaries, or attempting a clean build. The website already documents each user-visible gap with an "unimplemented" note and collects them on its Roadmap page (`site/src/content/docs/roadmap.md`). When an item is resolved, please update that page and remove the matching note.
 
 Items are ordered by priority within each section.
 
@@ -70,13 +70,13 @@ Proven useful in other configuration systems (Xapiand's own tooling, LaunchDarkl
 
 ## 7. Keeping the website in sync
 
-The website lives in `website/` (Astro + Starlight, the same theme as the Xapiand docs) and deploys from `main` through `.github/workflows/pages.yml` whenever `website/**` changes. When changing user-visible behavior, please update the matching page:
+The website lives in `site/` (Astro + Starlight, the same theme as the Xapiand docs) and deploys from `main` through `.github/workflows/pages.yml` whenever `site/**` changes. When changing user-visible behavior, please update the matching page:
 
 | Change | Page |
 | --- | --- |
-| CLI flags or output | `website/src/content/docs/reference/cli/*.md` |
-| HTTP endpoints, headers, status codes | `website/src/content/docs/reference/http-api/*.md` |
-| Config fields, env vars, directories | `website/src/content/docs/reference/configuration.md` |
-| Public C++ API | `website/src/content/docs/reference/cpp-api/*.md` |
-| Limits | `website/src/content/docs/reference/limits.md` |
-| Status of any item above | `website/src/content/docs/roadmap.md` |
+| CLI flags or output | `site/src/content/docs/reference/cli/*.md` |
+| HTTP endpoints, headers, status codes | `site/src/content/docs/reference/http-api/*.md` |
+| Config fields, env vars, directories | `site/src/content/docs/reference/configuration.md` |
+| Public C++ API | `site/src/content/docs/reference/cpp-api/*.md` |
+| Limits | `site/src/content/docs/reference/limits.md` |
+| Status of any item above | `site/src/content/docs/roadmap.md` |
