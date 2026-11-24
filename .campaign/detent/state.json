@@ -7795,6 +7795,8 @@
       "after": [
         "consensus-fetch-alongside-flake"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-rpc-host-stream-gap",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -7811,6 +7813,7 @@
         "include/consensus/transport/**",
         "docs/mechanisms/transport*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -7818,9 +7821,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-23T19:18:09"
+      "updated": "2026-11-24T01:33:37",
+      "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
