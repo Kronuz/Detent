@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-113944-9df262 261124-114001-fe77b1 261124-114006-501c4f 261124-114010-09df4a 261124-114015-8765f9 261124-114019-068816, and CI at e0fd383
+State: waiting on job 261124-123229-68cd34 (A1) and CI at e0fd383
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -18,11 +18,21 @@ on the new plain run unchanged (D152); the parser tolerates an empty table. Sign
 
 Evidence at e0fd383, all queued once: 261124-113944-9df262 (A2, exclusive same-host A/B, BOUND 90),
 A3 261124-114001-fe77b1 (trace hash and VERIFY), 114006-501c4f / 114010-09df4a (core mutants),
-114015-8765f9 (custom mutants), A1 261124-114019-068816 (old per-phase, strict). The A3 jobs are
+114015-8765f9 (custom mutants), A1 261124-123229-68cd34 (old per-phase, committed probes; 114019-068816 failed in its parser). The A3 jobs are
 submitted with --inputs on include/consensus/**, src/** and the test: `campaign job rerun` reused
 the c4c70f8 results, since a job's identity is only the files its command names, and main changed
 core.h. CI on the pushed head: see the check (the macos-x86_64 consensus_transport_rpc_host_fetch
 stall is consensus-fetch-oversize-abort's, outside my files, not touched).
+
+## Msg from the coordinator (A1 068816 failed again)
+
+Cause: phases.sh's parser matched "steps", but instrument.py prints "events", so the table was
+empty and max() raised; the old run had finished (no alarm). Not the uncommitted edit: the job ran
+that file. Fix: the regex takes events|steps; an empty table exits "no per-phase rows"; a baseline
+over the alarm prints "over the alarm (400 s)" (rc 0). Tested on the real 068816 log (EVENTS rows,
+rc 0) and an empty log (message, rc 1). The probes are committed in the home's tree at
+Detent-wt .campaign/detent/probes/consensus-liveness-asan-timeout/ (537e942b), and A1 is requeued once
+from there: 261124-123229-68cd34 at e0fd383. A2 9df262 passed with BOUND=90, the fix's own total.
 
 ## Next
 
@@ -37,7 +47,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-114019-068816 (old harness per phase at the merged head; over the alarm is recorded as a result); table: 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; FreeBSD 14.2x the default's events; main's test file is unchanged) |
+| A1 | 261124-123229-68cd34 (old harness per phase at the merged head; over the alarm is recorded as a result; its predecessor 068816 printed the table: FreeBSD 13.45x, Linux 5.04x, arm64 7.38x the default events); table: 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; FreeBSD 14.2x the default's events; main's test file is unchanged) |
 | A2 | 261124-113944-9df262 (exclusive A/B at e0fd383); earlier 261124-072638-7efa59 (c4c70f8: ASan 129.7 -> 64.8 s); CI linux-asan-ubsan 40.79 s (0.284 of consensus_shared_worker; main 0.590-0.728); --fails-without at main 261124-051846-6e6be3 (plain ASan 132.5 s > 90 s) |
 | A3 | 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 (at e0fd383; earlier at c4c70f8: 261124-072640-a63185, 072642-7d4f31, 072644-b5fbdb, 072646-006a62) |
 | A4 | pending: CI at e0fd383 |
