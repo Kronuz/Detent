@@ -504,8 +504,11 @@ class Authority {
 		}
 	}
 	// One group: every producer writes one uniform key, each a value no key has held, so none is
-	// NoChange; seeded values are the key indexes, so group values start past them.
-	void group(std::mt19937_64 &random, std::size_t keys, int salt) {
+	// NoChange; seeded values are the key indexes, so group values start past them. ROOTS root
+	// entries ride in the same group as mutations of its last transaction (a group holds at most 64),
+	// about 62 B each (a key, a 32-byte override and two values: {namespace, incarnation, position,
+	// root}).
+	void group(std::mt19937_64 &random, std::size_t keys, int salt, std::size_t roots = 0) {
 		std::uniform_int_distribution<std::size_t> pick(0, keys - 1);
 		std::int64_t value = std::int64_t(values_.size()) + std::int64_t(salt) * std::int64_t(commands_.size());
 		picked_.clear();
@@ -515,7 +518,17 @@ class Authority {
 			c.mutations = {{"ns:feature_" + std::to_string(key), detent::KnobDef{value++}, {}, {}}};
 			++c.sequence;
 		}
-		submit(commands_);
+		if (!roots) {
+			submit(commands_);
+		} else {
+			auto batch = commands_;
+			for (std::size_t j = 0; j < roots; ++j) {
+				detent::KnobDef root{++root_value_};
+				root.overrides.emplace(std::string(32, char('a' + j % 26)), root_value_);
+				batch.back().mutations.push_back({"ns:root_" + std::to_string(j), std::move(root), {}, {}});
+			}
+			submit(batch);
+		}
 		for (const auto &[key, v] : picked_)
 			values_[key] = v;
 		picked_.clear();
@@ -589,6 +602,7 @@ class Authority {
 	a::NodeOptions options_;
 	std::unique_ptr<a::Node> node_;
 	std::vector<a::Command> commands_;
+	std::int64_t root_value_ = std::int64_t(1) << 40; // past every key's value
 	std::vector<a::Completion> completed_;
 	std::vector<std::int64_t> values_;							  // each seeded key's value, by index
 	std::vector<std::pair<std::size_t, std::int64_t>> picked_; // the group in flight
@@ -714,6 +728,13 @@ class PassPool {
 		s.pending.arrived.push_back(now);
 	}
 	void notify() { wake_.notify_all(); }
+	// Passes finished since the last call: the root entries the loop has to propose.
+	std::uint64_t take_finished() {
+		const auto now = finished_.load();
+		const auto out = now - taken_;
+		taken_ = now;
+		return out;
+	}
 	// Builds what is pending, then stops the workers.
 	void finish() {
 		stopping_ = true;
@@ -813,6 +834,7 @@ class PassPool {
 			out.relocations += r.relocations;
 			out.written += r.written;
 			++out.passes;
+			++finished_;
 			out.pass_ms.push_back(since_ms(begin));
 			out.pass_changes.push_back(double(taken.arrived.size()));
 			for (const auto &arrived : taken.arrived)
@@ -833,6 +855,8 @@ class PassPool {
 	std::condition_variable wake_;
 	std::size_t cursor_ = 0;
 	std::atomic<bool> stopping_{false};
+	std::atomic<std::uint64_t> finished_{0};
+	std::uint64_t taken_ = 0; // the loop's, read only by take_finished()
 	std::vector<std::thread> pool_;
 };
 
@@ -944,8 +968,9 @@ int commit(int argc, char **argv) {
 // whatever the authority's own rate, with arms interleaved for paired deltas against the none blocks
 // beside them. Each round is ten blocks of GROUPS groups, none alternating with thread, pool (one
 // build per namespace on NAMESPACES threads), write, pass4 (option 2's pool: four threads, a pass per
-// namespace every 250 ms, over changes arriving at SEAL_RATE x 2,048/s) and aa (a none labelled
-// apart: the A/A); those five rotate by one per round.
+// namespace every 250 ms, over changes arriving at SEAL_RATE x 2,048/s), pass4r (pass4 whose root
+// entries, one per pass, ride the next group) and aa (a none labelled apart: the A/A); those six
+// rotate by one per round.
 int paced(int argc, char **argv) {
 	check(argc == 8, "usage: paced DIR NAMESPACES KEYS SEAL_RATE ROUNDS GROUPS");
 	const std::filesystem::path dir = argv[2];
@@ -969,7 +994,7 @@ int paced(int argc, char **argv) {
 	std::fflush(stdout);
 	std::mt19937_64 random(11);
 	int salt = 0;
-	const std::array<const char *, 5> others{"thread", "pool", "write", "pass4", "aa"};
+	const std::array<const char *, 6> others{"thread", "pool", "write", "pass4", "pass4r", "aa"};
 	constexpr std::size_t pass_threads = 4;
 	constexpr std::chrono::milliseconds pass_interval{250};
 	const double change_rate = seal_rate * double(a::LayoutPolicy{}.seal_transactions);
@@ -986,7 +1011,7 @@ int paced(int argc, char **argv) {
 			std::optional<PassPool> passes;
 			std::atomic<bool> stop_feed{false};
 			std::thread feeder;
-			if (arm == "pass4") {
+			if (arm == "pass4" || arm == "pass4r") {
 				passes.emplace(memory, pass_threads, pass_interval, false);
 				feeder = std::thread([&] {
 					feed(*passes, memory.keys(), change_rate, 1e9, 0, 0, 0, stop_feed);
@@ -999,9 +1024,15 @@ int paced(int argc, char **argv) {
 			const auto cpu0 = process_cpu_ms();
 			const auto start = Clock::now();
 			std::vector<double> latency;
+			std::uint64_t root_entries = 0, root_backlog = 0;
 			for (std::size_t g = 0; g < groups; ++g) {
 				const auto t = Clock::now();
-				authority.group(random, authority_keys, ++salt);
+				// A transaction holds at most 128 mutations: the rest ride the next group.
+				root_backlog += arm == "pass4r" ? passes->take_finished() : 0;
+				const auto roots = std::min<std::uint64_t>(root_backlog, 120);
+				root_backlog -= roots;
+				root_entries += roots;
+				authority.group(random, authority_keys, ++salt, roots);
 				latency.push_back(since_ms(t));
 				// Rounded to the nearest seal, so a block posts RATE x its length on average.
 				for (const auto due = std::uint64_t(seal_rate * since_ms(start) / 1e3 + 0.5); posted < due; ++posted)
@@ -1039,12 +1070,12 @@ int paced(int argc, char **argv) {
 						"\"worst_service_gap_ms\":%.3f,\"seals\":%llu,\"builds\":%llu,\"build_cpu_ms\":%.1f,"
 						"\"lag_ms_p50\":%.1f,\"lag_ms_p99\":%.1f,\"lag_ms_max\":%.1f,\"build_ms_max\":%.1f,\"drain_ms\":%.1f,"
 						"\"process_cpu_ms\":%.1f,\"disk_written\":%llu,"
-						"\"pages_written\":%llu,\"resident_mb\":%.1f}\n",
+						"\"pages_written\":%llu,\"root_entries\":%llu,\"resident_mb\":%.1f}\n",
 						round, slot, arm.c_str(), groups, run_ms, 1000.0 * double(groups * 64) / run_ms,
 						percentile(latency, 0.5), percentile(latency, 0.9), percentile(latency, 1), authority.worst_gap_ms,
 						(unsigned long long)posted, (unsigned long long)build.builds, build.cpu_ms, percentile(lag, 0.5),
 						percentile(lag, 0.99), percentile(lag, 1), percentile(build_ms, 1), drain_ms, process_cpu_ms() - cpu0, (unsigned long long)(disk_written() - disk0),
-						(unsigned long long)build.written, resident_mb());
+						(unsigned long long)build.written, (unsigned long long)root_entries, resident_mb());
 			std::fflush(stdout);
 		}
 	const auto timed_ms = since_ms(timed);

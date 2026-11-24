@@ -129,7 +129,7 @@ def combine(logs: list[str]) -> None:
     print(json.dumps(summary, indent=1))
 
 
-BUILDERS = ("thread", "pool", "write", "pass4")
+BUILDERS = ("thread", "pool", "write", "pass4", "pass4r")
 
 
 def check_paced(rows: list[dict[str, object]], rate: float) -> None:
@@ -154,6 +154,10 @@ def check_paced(rows: list[dict[str, object]], rate: float) -> None:
             fail(f"{arm} round {rnd}: {builds} builds for {seals} seals")
         if arm == "write" and int(b["pages_written"]) <= 0:
             fail("arm write wrote no pages")
+        if arm == "pass4r" and int(b.get("root_entries", 0)) < builds - 40:
+            fail(
+                f"pass4r round {rnd}: {b.get('root_entries')} root entries for {builds} passes"
+            )
     # Each block posts the seals due by the clock, rounded to the nearest.
     posted = (
         sum(int(b["seals"]) for b in blocks)
