@@ -4429,6 +4429,21 @@
       "closed": "noted: parked quests keep files; overlap check and CI-run ids still open (msg-86, msg-87)",
       "id": "msg-359",
       "text": "campaign skill: agent-campaign:4bbdcae installed (todo-mail-trust).\n1. A parked quest (status=blocked) with a branch now keeps its file set: parking on a dependency or the owner no longer frees its files to other quests. Only a planned or dropped quest frees them (xapiand msg-83, msg-71).\n2. The to-do mail is replaced at the next look whenever an item comes or goes, or its gap or command changes; a changing age or count alone does not resend. Expect one extra mail now: older mail records lack the new field.\n3. A quest with a worktree file changed in the last 15 min, or a commit after its last job ended, shows as working, not resume.\nKnown, next: set files= does not yet check overlaps (detent msg-87), and CI run ids in a journal read as ended jobs (detent msg-86)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:49",
+      "by": "campaign",
+      "closed": "false, known msg-86: suite probe 45453078372 still running",
+      "id": "msg-360",
+      "settles": {
+        "todo": "8ae47450"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 75 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
