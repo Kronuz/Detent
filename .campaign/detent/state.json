@@ -5391,6 +5391,32 @@
       "title": "The driver simulation runs pipelined appends end to end",
       "updated": "2026-11-23T11:47:39"
     },
+    "consensus-drop-memory-io-include": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/driver_install_request_test.cc"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "consensus: drop driver_install_request_test's unused memory_io include",
+      "updated": "2026-11-23T16:45:21"
+    },
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
