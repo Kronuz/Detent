@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: ready for review (waiting on suite 261124-134701-6d9c49 and suite probe 45481730112)
+State: fixing F1, F2, F3, F4 (correctness review at ea48bc8)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
