@@ -1,36 +1,39 @@
 # consensus-liveness-asan-timeout: consensus_liveness stays well inside its timeout under ASan
 
-Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-liveness-asan-timeout`.
+Risk: normal (a test's cost). The lead writes this quest; contributors read it and never edit it.
+Its machine state is in `state.json`: `campaign status consensus-liveness-asan-timeout`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+consensus CI run 45299975989 (linux-asan-ubsan, consensus-simulation-asan-timeout at
+consensus:cbe0522, whose diff does not touch liveness_test.cc): `consensus_liveness` timed out at
+180 s. On main's last ten CI runs it passed under ASan in 66.6-168.8 s, so its margin against the
+180 s TIMEOUT is as small as 6%. The same shape as consensus-simulation-asan-timeout: find what
+dominates its time under ASan (unscaled timeouts, fixed round counts) and cut it, without weakening
+what the test checks.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Where the time goes, measured: per-case or per-phase times under ASan at main, the dominant
+  cost named: a job.
+- A2 At the fix, the ASan run takes at most half its TIMEOUT on CI's runner class (CI run times at
+  main and at the fix, same runner), and a `--fails-without` job at main shows the slow phase.
+- A3 Each check the test made at main is still made at the fix (listed in the Result).
+- A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: its own quest, after consensus-simulation-asan-timeout, which applies the same
+method to the simulation.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Not applicable.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
