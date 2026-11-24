@@ -8396,6 +8396,8 @@
         "consensus-liveness-asan-timeout",
         "consensus-follower-read"
       ],
+      "base": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+      "branch": "quest/detent/consensus-next-deadline-removal",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -8411,6 +8413,7 @@
         "test/core_deadline_test.cc",
         "docs/mechanisms/deadlines.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
       "landed": [],
       "lenses": [
         "correctness"
@@ -8421,9 +8424,10 @@
       "reason": "its needs landed: consensus-follower-read and consensus-liveness-asan-timeout",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T12:44:28"
+      "updated": "2026-11-24T12:45:00",
+      "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
