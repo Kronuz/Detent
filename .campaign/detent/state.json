@@ -6042,8 +6042,44 @@
         "test/transport/groups_test.cc",
         "docs/mechanisms/rpc-lane.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T01:35:29",
+          "ci": {
+            "carried": true,
+            "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+            "runs": [
+              45299903223
+            ]
+          },
+          "commit": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "criteria": {
+            "A1": "261124-011538-2cc9c4",
+            "A2": "261124-011538-445ae6; fails without: 261123-141159-efa9e4",
+            "A3": "261124-011538-b3b1e4, 261124-011539-a5e48e",
+            "A4": "`ci:macos-x86_64`, `ci:ci` (CI run 45299903223 at consensus:4dbaee0, attempt 2; attempt 1 failed only in rpc_host_stream, filed as consensus-rpc-host-stream-gap)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-x86_64",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "reason": "",
+          "tested": "512e3ef46c9d17f55d725de33cd808e6264144d2"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -6066,10 +6102,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T23:37:16",
-      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
+      "updated": "2026-11-24T01:35:36",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
