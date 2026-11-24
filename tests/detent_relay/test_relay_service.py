@@ -6,7 +6,8 @@ head + 1, raw and zstd), is byte-identical at the authority, A and B, and on A's
 also when every other W5 next answers `409 session_busy`; the answer at no cursor, read here
 without HttpUpstream, equals the probe's at every endpoint. Relay C reads past a voter that
 refuses (503) within one sync, and past one that lags behind its mirror to the current one.
-A2: A and B restart, fetch no file their mirror holds, and answer unchanged.
+A2: A and B restart, fetch no file their mirror holds, and answer unchanged. At rest the relays
+wait on their upstreams and make no sync (relay-mirror-idle-wake).
 A3: the relays refuse member routes and a `voters` configuration and link no consensus.
 A5: a voter that knows no live leader (two voters stopped) answers both history routes 503 while
 its `/v1/health` reports it not ready, and from its return when it was stopped itself (the absence
@@ -111,8 +112,9 @@ class Proxy:
                     proxy.stale += 1
                     self.answer(*proxy.first)
                     return
+                # A relay's parked next waits up to 30 s.
                 connection = http.client.HTTPSConnection(
-                    "localhost", upstream, context=context, timeout=10
+                    "localhost", upstream, context=context, timeout=45
                 )
                 try:
                     connection.request(
@@ -814,8 +816,19 @@ def main() -> int:
             f"byte-identical at the authority, A and B, the answer at no cursor also read directly; "
             f"heads {heads}"
         )
-        # Relay C is at the authority's seal; its only open upstream now answers an older one.
+        # At rest each relay waits on its upstream: no sync in 2 s, where every 100 ms polled 20.
+        rested = {name: run.mirror(name)["syncs"] for name in ("a", "b", "c")}
+        time.sleep(2)
+        for name, syncs in rested.items():
+            check(
+                run.mirror(name)["syncs"] - syncs <= 1,
+                f"relay {name} synced at rest: {syncs} then {run.mirror(name)}",
+            )
+        run.log("idle: relays A, B and C made no sync in 2 s at rest")
+        # Relay C is at the authority's seal; its only open upstream now answers an older one, and
+        # a write wakes C to read it.
         lagging.lagging = True
+        run.churn(1, 6)
         deadline = time.monotonic() + 30
         while not lagging.stale and time.monotonic() < deadline:
             time.sleep(0.05)
