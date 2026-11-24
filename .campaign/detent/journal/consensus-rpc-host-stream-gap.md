@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: working
+State: waiting on jobs 261124-013928-c5f6e7
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1 probe: commit consensus:a61d466 makes the stream case print, for each heartbeat gap over 300 ms, the stage (post->send on loop 1, send->deliver) and the test thread's post gap. Job 261124-013928-c5f6e7 runs it beside 16 burners, 4 copies at once (script ~/.scratch/detent/consensus-rpc-host-stream-gap/repro.sh).
 
 ## Next
 
-1. <step>
+1. Read the stage split: test thread late (post gap), loop 1 late (post->send), or the wire/loop 2 (send->deliver). Fix that cause; the Lag-based bound the fetch case uses (1000 + lag.worst) is the repo's own pattern for host stalls.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing
 
 ## Evidence
 
