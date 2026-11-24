@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: working: CI probe run 45449779597 (probe/detent/fetch-stall at consensus:cd844d4)
+State: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,23 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Probe results so far:
+- 45449779597 (cd844d4, rpc_host cases under ctest --parallel 2, fetch beside stalled-peer as
+  CI pairs them): shards 3 and 4 (macos-15-intel, 4 CPUs, 14 GB, nmbclusters 65536): 50 of 50
+  passed, every loop's worst stall under 100 ms, links ended dead/stuck/failed 0. The pairing
+  alone does not reproduce it; shards 1, 2 and arm64 still running.
+- So the trigger needs the whole suite before it (CI's failures came ~20 min into a suite).
+  45453078372 (0bc64d2): 2 macos-15-intel shards run whole suites for 120 min each; every
+  fetch run prints loops' worst stalls, kernel counters over the run (mbuf waits, 16 KB
+  cluster failures, free pages, pageins, decompressions) and its sockets; a failed run prints
+  the 100 ms samples, vm_stat, netstat -m and a spindump if a loop sits in U.
+- Prior art: groups-upload-loop-stall found a macos-15-intel connection loop in write(2) in
+  state U (uninterruptible kernel wait, likely m_clalloc mbuf growth) for 0.3-4.6 s; the
+  fetch-alongside stall (45372452058) sampled loops inside the test's fetch reader with the
+  process stalled up to 2.6 s. Which one this is waits for a captured failure.
+Next when resumed: read 45453078372's fetch lines (grep "^fetch: \|^probe: one's"), name the
+rule and the held loop; then the fix and the A1/A2 CI loops at the fix and at main.
 
 Lead's ruling (this session): reproduce on CI's runner. Probe branch probe/detent/fetch-stall
 (consensus:cd844d4 = d659f76 + test/transport/fetch_probe.h, groups_test's LoopProbe/KernelProbe/
