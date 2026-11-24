@@ -98,9 +98,9 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261123-164613-bc5203 (main arm 261123-164611-b61059) |
+| A1 | fix arm 261123-234627-ba4f71 at consensus:54c6599 (rerun of 261123-164613-bc5203: seed 16 alone 9.1 s); main arm 261123-164611-b61059 at main (67.8 s) |
 | A2 | 261123-164555-fab10d; fails without: 261123-164556-ea8620 |
-| A3 | 261123-164638-102d1c, 261123-164640-63086e, 261123-164642-b0667c, 261123-164644-7f8b53, 261123-164646-e01d38, 261123-164648-db8cb5, 261123-164651-246bb9, 261123-164655-774a2b, 261123-164659-f34d60 |
+| A3 | 261123-234628-4a9e7f, 261123-234629-04ee62, 261123-234631-e6bbf2, 261123-234633-c71016, 261123-234635-528637, 261123-234638-5eef1a, 261123-234639-fc1877, 261123-234641-c0a1e9, 261123-234642-9d6dc5 (9 shards of 6 ASan runs at consensus:54c6599, none over 200 s; reruns of the 164638-164659 round) |
 | A4 | `ci:linux-asan-ubsan`, `ci:ci`: run 45299975989 attempt 2 green at consensus:cbe0522 (consensus_simulation 59.09 s, 145/145 ASan tests); attempt 1's two failures are outside this diff (Doing, CI) |
 
 Jobs examined and superseded: round 1 261123-120158-c6e7a8, 261123-120853-0b47e0 (10-minute
