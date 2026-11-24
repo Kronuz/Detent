@@ -3753,6 +3753,21 @@
         "todo": "52cb6d99"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 68 min: ready for review (A3: the suite verify and CI of 551a5e6 were still running when written); to land: quest/detent/consensus-driver-pipelined-sim changes files outside its file set (test/driver_simulation.cc, test/simulation_test.cc): docs/mechanisms/simulation.md; new): `campaign status consensus-driver-pipelined-sim`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T05:36:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T05:36:16",
+      "by": "campaign",
+      "closed": "fresh contributor resumed sector-checks with its latency verdict",
+      "id": "msg-316",
+      "settles": {
+        "todo": "1be114bb"
+      },
+      "text": "to do, critical path first:\ntodo: resume journal-turn-sector-checks (its journal waits on jobs 261123-180604-09a8dc, 261123-180608-7b9211, 261123-180645-514406, 261123-180639-e460e3, 261123-180640-75fc0c and 261123-180642-577728, which passed 2 min ago; new): `campaign status journal-turn-sector-checks`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
