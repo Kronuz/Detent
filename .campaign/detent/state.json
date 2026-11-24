@@ -4459,6 +4459,21 @@
         "todo": "804ae192"
       },
       "text": "to do, critical path first:\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; new): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 80 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:37:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:37:49",
+      "by": "campaign",
+      "closed": "liveness resumed (fresh contributor, A1 harness); bound-first-open's journal is stale, lead widened it to turn_log.h instead of the owner; fetch-oversize-abort's suite probe still running (msg-86)",
+      "id": "msg-362",
+      "settles": {
+        "todo": "34d7861a"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-072638-7efa59, 261124-072640-a63185, 261124-072642-7d4f31, 261124-072644-b5fbdb, 261124-072646-006a62 and 261124-072649-6d7137, which ended (done, failed) 3 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; listed 16 min): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
