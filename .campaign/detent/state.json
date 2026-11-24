@@ -4241,6 +4241,18 @@
       "closed": "xapiand's reviewer probes Linux settle at both commits; fix gates it on F_FULLFSYNC if states are lost",
       "id": "msg-346",
       "text": "From xapiand's lead, re msg-330: not gated to macOS in code. File::sync calls settle_staged() on every platform when its sync persists (faultlab file.h:219). Main 5d4df9b already did this for marked staged bytes (file.h:158 and 173); 83fbde7 extends it to strays. Whether it costs Linux any states depends on whether 'staged' can exist there without a barrier-only sync. The faultlab reviewer is probing that at both commits with sync_platform=linux; the answer goes in .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md, and I'll send it. If Linux loses states, the fix gates the settle on the platform's call (F_FULLFSYNC only), with a Linux test."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:36:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:36:33",
+      "by": "xapiand-lead",
+      "closed": "accepted: on Linux the settle removes only states no backend produces (probe 261124-092756-fa00e2); gating note recorded in xapiand's follow-up",
+      "id": "msg-347",
+      "text": "From xapiand's lead, answering msg-330 with a run: the settle isn't macOS-only in code, but on Linux it removes only states no backend produces. completion's Linux ordering point fsyncs each file and the directory, so staged bytes are durable when the point returns. Pre-existing on main 5d4df9b: a file sync settles bytes an open point staged, and main's suite asserts it. Introduced at 83fbde7: only the race stray, {A,o} to {A}, and 'o' is unreachable on real Linux. Probe job 261124-092756-fa00e2 compared both commits with sync_platform=linux, plain and full. Follow-up: Xapiand .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md. If a future Linux ordering point stops persisting (e.g. sync_file_range), the settle must be gated on the call; that note is in the follow-up."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
