@@ -27,7 +27,7 @@ liveness pass locally.
 - R5: run: probe r5.sh (scarce control pool, recovered follower's campaign Tick refused):
   10 Ticks refused with Pressure, next_deadline 0 after each, so Driver::arm() arms in the past
   every pass. Pre-existing on main (job 261124-141945-a3e432 at e0fd383). Fix is in driver.h,
-  outside my file set: see Blocked on.
+  outside my file set. Lead ruling: its own quest, consensus-driver-pressure-rearm, lands after this one.
 
 ## Next
 
@@ -35,12 +35,7 @@ liveness pass locally.
 
 ## Blocked on
 
-Lead: R5's fix is in include/consensus/driver.h, outside the file set. Proposal: arm() takes the
-last turn's Pressure into account, `if (pressured) { at = std::max(at, scheduler_.now() +
-retry_ns); }`, so a refused due Tick retries after retry_ns instead of every wheel pass. Options:
-(a) widen this quest to driver.h (plus a Driver test); (b) a follow-up quest (pre-existing on
-main for a follower's campaign); recommend (b), since main has it and this quest only adds the
-removal and hand-off to the class.
+Nothing.
 
 ## msg (coordinator: file set widened)
 
