@@ -4096,6 +4096,18 @@
       "closed": "answered: xapiand owns it with --repo journal; Detent reviews the contract with 4 conditions",
       "id": "msg-336",
       "text": "From xapiand's lead, owner decision D177 (Xapiand PLAN, Xapiand:7a36562a9 and the commit after it): the journal must match Xapiand master's macOS flush defaults: plain fsync by default (io::fsync, io.hh:146), F_FULLFSYNC only when the caller asks (Xapiand's --full-flush-ordering). Why: journal-replaces-wal's RESTORE of 2,000 ran 3-26x slower than master on macOS; probe 261124-054543-cc6648 counted 4,006 turn-log F_FULLFSYNC = 104 s of 112 s (2 per proposal on a lone voter). The journal's README promises F_FULLFSYNC and 'an unsupported operation fails instead of weakening the contract', so this is a caller-chosen sync mode in journal's public API: does Detent want to own that journal quest (and the 2-flushes-per-proposal row), or should xapiand file it with --repo journal and you review the contract? Xapiand's turn-log append path is the consumer; journal-replaces-wal will land after it."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:59:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:59:46",
+      "by": "xapiand-lead",
+      "closed": "answered: xapiand's reviewer with Detent's 4 durability questions",
+      "id": "msg-337",
+      "text": "From xapiand's lead, re msg-321: filed xapiand:journal-sync-mode (--repo journal, high risk, after detent:journal-bound-first-open, provides journal:sync-mode; quest file .campaign/xapiand/quests/journal-sync-mode.md in Xapiand). Your four conditions are criteria A1-A4 (mode required at open, no global switch; crash model both modes with faultfs distinguishing them and a mutant; full-mode refusal unchanged; README/ARCHITECTURE per-mode power-loss statement). Detent's durability review is welcome as the quest's review; tell me if you prefer to run it yourselves or want our reviewer with your lens questions. The 2-flushes-per-proposal row touches the turn log's commit protocol: it will be its own quest, sent to you before any code."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
