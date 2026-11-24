@@ -3589,6 +3589,80 @@
         ]
       },
       "text": "consensus-simulation-asan-timeout landed: unlocks consensus-driver-pipelined-sim; frees test/driver_simulation.cc for driver-pipeline; frees CMakeLists.txt for consensus-follower-read"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:33:56",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:33:56",
+      "by": "xapiand-lead",
+      "closed": "ordered both after xapiand:consensus-join-v2",
+      "id": "msg-302",
+      "text": "From xapiand's lead, re your consensus-follower-read and consensus-rpc-host-stream-gap (msg-294/295 here): both overlap xapiand:consensus-join-v2, which changes consensus:node-admission (token v2, DTJN0002 join, key pins) and is security-reviewed, waiting only on its fixture-fix CI at consensus:f01607b and on your consensus-fetch-alongside-flake landing. Could you order both after it (--after xapiand:consensus-join-v2) and build against its brief, rather than me re-reviewing it on top of yours? If either must land first, tell me which files and I'll weigh narrowing."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T02:20:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T02:20:16",
+      "by": "xapiand-lead",
+      "closed": "detent-multicast-seeds now lands after xapiand:consensus-join-v2",
+      "id": "msg-304",
+      "text": "From xapiand's lead: your detent-multicast-seeds consumes consensus:seed-discovery, which two of ours change: xapiand:consensus-join-v2 (seeds_test and the join/hello path; near landing at consensus:81ada17, CI and fuzzers running) and xapiand:netlab-consensus (green except linux-asan consensus_simulation's 300 s timeout, which your consensus-simulation-asan-timeout owns). Suggest --after xapiand:consensus-join-v2 and building against both briefs."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:38:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:38:40",
+      "by": "contributor consensus-follower-read",
+      "closed": "file sets fixed: follower-read gains the four, rpc-host-stream-gap narrowed",
+      "id": "msg-303",
+      "text": "consensus-follower-read needs its file set fixed (lead's call): 1. include/consensus/codec.h does not exist; the Message codec is include/consensus/transport/codec.h, which consensus-rpc-host-stream-gap holds via include/consensus/transport/** (narrow it or order them). 2. include/consensus/admission.h: its plan static_asserts on every Message type, so the two new frames do not compile without a case there. 3. fuzz/seed.cc (writes the decoder corpus seeds) and test/transport/codec_test.cc (codec round trip of the new kinds). I am building against these in the worktree now; recommendation: campaign set consensus-follower-read files+= those four, and exclude transport/codec.h from rpc-host-stream-gap."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:23:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:23:49",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "todo-mail landed; noted",
+      "id": "msg-305",
+      "notice": "skill landed 709523e12303de3b82e915fc67da6586a78e05d0",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:e3afa75 Mail the lead its to-do from the worker until each item is done; agent-campaign:2de723c Ignore cmux tree calls in the sidebar tests' call logs; agent-campaign:709523e Keep the mailing worker while a lead lives, not via lead commands"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:24:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:24:02",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "todo-mail installed (agent-campaign:709523e)",
+      "id": "msg-306",
+      "notice": "skill installed 709523e12303de3b82e915fc67da6586a78e05d0",
+      "text": "campaign skill: agent-campaign:709523e installed here, 3 commits: agent-campaign:e3afa75 Mail the lead its to-do from the worker until each item is done; agent-campaign:2de723c Ignore cmux tree calls in the sidebar tests' call logs; agent-campaign:709523e Keep the mailing worker while a lead lives, not via lead commands"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:24:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:24:20",
+      "by": "kronuz",
+      "closed": "todo-mail behavior noted",
+      "id": "msg-307",
+      "text": "campaign skill: agent-campaign:709523e installed (todo-mail). What changes for you:\n1. Your to-do now arrives as mail from the worker: one message per campaign, critical path first, each line with its evidence, age and exact command, ending 'or park it with a reason'.\n2. It repeats every 30 minutes (CAMPAIGN_TODO_REPEAT) while an item is undone; each new mail replaces the last. Closing the mail declines nothing: park the quest with a reason, or answer it.\n3. An item undone 2 hours after its first mail is escalated to the owner once (a notify, plus a '\ud83d\udea8 N to do, oldest 2h' pill in your workspace that clears when the list empties).\n4. To-do lines in status, brief and wait now start with 'todo: ' instead of '- ': if your output filter dropped '- ' lines, it no longer hides them.\nMail goes only to a live recorded lead."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5650,6 +5724,8 @@
     "consensus-driver-pipelined-sim": {
       "accepted": {},
       "after": [],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-driver-pipelined-sim",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -5669,6 +5745,7 @@
         "test/driver_simulation.cc",
         "test/simulation_test.cc"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -5679,9 +5756,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-23T11:47:39"
+      "updated": "2026-11-24T01:34:07",
+      "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
       "accepted": {},
@@ -6026,8 +6104,44 @@
         "test/transport/groups_test.cc",
         "docs/mechanisms/rpc-lane.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T01:35:29",
+          "ci": {
+            "carried": true,
+            "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+            "runs": [
+              45299903223
+            ]
+          },
+          "commit": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "criteria": {
+            "A1": "261124-011538-2cc9c4",
+            "A2": "261124-011538-445ae6; fails without: 261123-141159-efa9e4",
+            "A3": "261124-011538-b3b1e4, 261124-011539-a5e48e",
+            "A4": "`ci:macos-x86_64`, `ci:ci` (CI run 45299903223 at consensus:4dbaee0, attempt 2; attempt 1 failed only in rpc_host_stream, filed as consensus-rpc-host-stream-gap)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-x86_64",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "reason": "",
+          "tested": "512e3ef46c9d17f55d725de33cd808e6264144d2"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -6050,10 +6164,41 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T23:37:16",
-      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
+      "updated": "2026-11-24T01:35:36",
+      "worktree": ""
+    },
+    "consensus-fetch-alongside-loop-stall": {
+      "accepted": {},
+      "after": [
+        "xapiand:consensus-join-v2"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/transport/**",
+        "include/consensus/transport/**",
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/transport*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
+      "updated": "2026-11-24T03:28:09"
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -6240,8 +6385,11 @@
       "after": [
         "consensus-quiesce-election-stall",
         "consensus-peers-wake",
-        "xapiand:consensus-request-install"
+        "xapiand:consensus-request-install",
+        "xapiand:consensus-join-v2"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-follower-read",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6254,14 +6402,18 @@
       "files": [
         "include/consensus/core.h",
         "include/consensus/types.h",
-        "include/consensus/codec.h",
         "include/consensus/driver.h",
         "test/follower_read_test.cc",
         "CMakeLists.txt",
         "docs/mechanisms/follower-read.md",
         "fuzz/corpus/decoders/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "include/consensus/transport/codec.h",
+        "include/consensus/admission.h",
+        "fuzz/seed.cc",
+        "test/follower_read_mutants.py"
       ],
+      "journal": "../Detent-wt/detent/consensus-follower-read",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6269,11 +6421,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "msg-303: the set named a codec.h that does not exist; the read-index frames live in transport/codec.h, admission.h, fuzz/seed.cc; no other quest holds them",
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-21T22:27:20"
+      "updated": "2026-11-24T02:38:52",
+      "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
       "accepted": {
@@ -6969,6 +7123,8 @@
       "after": [
         "consensus-simulation-asan-timeout"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-liveness-asan-timeout",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -6982,6 +7138,7 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6989,9 +7146,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-23T20:00:52"
+      "updated": "2026-11-24T01:33:42",
+      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -7789,8 +7947,11 @@
     "consensus-rpc-host-stream-gap": {
       "accepted": {},
       "after": [
-        "consensus-fetch-alongside-flake"
+        "consensus-fetch-alongside-flake",
+        "xapiand:consensus-join-v2"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-rpc-host-stream-gap",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -7802,21 +7963,24 @@
       "consumes": [],
       "files": [
         "test/transport/rpc_host_test.cc",
+        "test/transport/rpc_hosts.h",
         "test/transport/repeat.sh",
-        "src/transport/**",
-        "include/consensus/transport/**",
-        "docs/mechanisms/transport*.md"
+        "docs/mechanisms/transport*.md",
+        "docs/mechanisms/rpc-lane.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review F2: Lag::stop() joins the sampler; Lag lives in rpc_hosts.h, used only by rpc_host_test.cc",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-23T19:18:09"
+      "updated": "2026-11-24T03:30:04",
+      "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
@@ -11682,7 +11846,8 @@
       "accepted": {},
       "after": [
         "dense-distribution-build",
-        "xapiand:node-admission"
+        "xapiand:node-admission",
+        "xapiand:consensus-join-v2"
       ],
       "checks": [
         {
@@ -11734,13 +11899,16 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-21T03:24:13"
+      "updated": "2026-11-24T03:25:52"
     },
     "detent-on-drivers": {
       "accepted": {},
@@ -12641,13 +12809,16 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-driver-pipelined-sim"
+      ],
       "provides": [],
+      "reason": "shares driver files with consensus-driver-pipelined-sim and consensus-follower-read; starts after the sim lands",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-21T21:51:28"
+      "updated": "2026-11-24T01:34:50"
     },
     "driver-witness-removal-sink": {
       "accepted": {
@@ -18639,12 +18810,15 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "correctness review round 2 F1: the agent names a new slot in selected before growing change; the cause is in agent_store.cc",
+      "reason": "fix round 2 review CHANGES (F5); a third round needs the owner's go (asked 2026-11-24); contributor held",
       "repo": ".",
       "risk": "critical",
-      "status": "active",
+      "status": "blocked",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-24T00:26:58",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T03:25:17",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
@@ -24750,13 +24924,16 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-20T18:25:38"
+      "updated": "2026-11-24T03:25:41"
     },
     "observability-design": {
       "accepted": {
@@ -25915,14 +26092,16 @@
       "lenses": [],
       "milestone": "",
       "needs": [
-        "reader-s6"
+        "reader-s6",
+        "legacy-h"
       ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "paged reads: one first-touch page check",
-      "updated": "2026-11-20T18:25:42"
+      "updated": "2026-11-24T03:25:48"
     },
     "peers-busy-roundtrip-bound": {
       "accepted": {},
@@ -28447,6 +28626,8 @@
       "after": [
         "loop-idle-waits"
       ],
+      "base": "b3bfc1c7655da0c40315033800eddc7a53c83318",
+      "branch": "quest/detent/relay-mirror-idle-wake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -28475,9 +28656,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-23T16:53:54"
+      "updated": "2026-11-24T03:25:58",
+      "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
       "accepted": {},
@@ -30077,13 +30259,16 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:42:11"
+      "updated": "2026-11-24T03:25:45"
     },
     "split-journal": {
       "accepted": {},

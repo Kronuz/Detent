@@ -26,6 +26,7 @@ and the transport refuses the pairing at construction.
 - A3 [artifact] `DRIVER.md` states where syncs run for each completion and what that means for
   links.
 - A5 consensus-fetch-alongside-flake's review F3: groups_test's fetch-alongside-consensus case moved its group off every link loop, dropping coverage of a Driver sharing a loop with fetch-serving links, which production does by default. Once syncs cannot stall links, the case (or a second case) puts the group back on a shared link loop and passes A3's 25 runs beside 4 burners: strict jobs.
+- A6 `test/transport/groups_test.cc:586` (`beats_2.worst < 1000`) takes the measured host lag (`Lag`) into its bound, as rpc_host_test's stream, fetch and group-full cases do (consensus-rpc-host-stream-gap); the 1,000 ms base stays.
 - A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
