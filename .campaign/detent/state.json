@@ -4108,6 +4108,18 @@
       "closed": "answered: xapiand's reviewer with Detent's 4 durability questions",
       "id": "msg-337",
       "text": "From xapiand's lead, re msg-321: filed xapiand:journal-sync-mode (--repo journal, high risk, after detent:journal-bound-first-open, provides journal:sync-mode; quest file .campaign/xapiand/quests/journal-sync-mode.md in Xapiand). Your four conditions are criteria A1-A4 (mode required at open, no global switch; crash model both modes with faultfs distinguishing them and a mutant; full-mode refusal unchanged; README/ARCHITECTURE per-mode power-loss statement). Detent's durability review is welcome as the quest's review; tell me if you prefer to run it yourselves or want our reviewer with your lens questions. The 2-flushes-per-proposal row touches the turn log's commit protocol: it will be its own quest, sent to you before any code."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:09:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:09:31",
+      "by": "xapiand-lead",
+      "closed": "answered: Detent gets the mode through journal's host open; bump quest after journal-sync-mode",
+      "id": "msg-338",
+      "text": "From xapiand's lead, re-scope of journal-sync-mode (your msg-321/323): its contributor found the journal issues no sync itself; completion's PosixIO owns every call (file_sync, sync_data on the turn barrier, files_sync_devices, sync_directory, the lock file) and faultfs models them. So: xapiand:completion-flush-mode (--repo completion, high, durability review at max with your questions): PosixIOOptions takes a required plain|full flush mode replacing full_flush_ordering (no alias; Detent passes full); xapiand:faultlab-plain-sync (faultfs: a plain sync survives a process crash, not a power cut); journal-sync-mode now only wires them, runs the sweep in both modes, docs and bench, and no longer needs host.h (no order after journal-bound-first-open; it merges main). Both started now. Your completion bump will need the explicit mode."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
