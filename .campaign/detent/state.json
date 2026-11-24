@@ -8397,15 +8397,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "accepted and every criterion met; lands after xapiand:consensus-join-v2 (msg-302)",
+      "reason": "xapiand:consensus-join-v2 landed (consensus:5e22cf0)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "blocked",
+      "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "until": [
-        "xapiand:consensus-join-v2"
-      ],
-      "updated": "2026-11-24T05:47:06",
+      "updated": "2026-11-24T06:46:54",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
