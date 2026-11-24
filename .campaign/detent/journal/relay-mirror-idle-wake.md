@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: waiting on jobs 261124-034543-d72b56 261124-034500-c0335d 261124-034503-387342
+State: waiting on jobs 261124-035147-903054 261124-035149-ce2080 261124-035150-981777 261124-035152-3ac6f3 261124-035154-314fca 261124-035211-92ed4b 261124-034503-387342
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on the lead (msg-310, file set) and jobs. The fix is written in the worktree but its
-out-of-set files are uncommitted: src/detent_relay/mirror_service.cc (in set, uncommitted since it
-needs the headers), include/detent_relay/{mirror_service,namespace_relay,http_upstream}.hh,
-src/detent_relay/http_upstream.cc. Probe commit c97932cb (dangling, made with `git commit-tree`;
-holds exactly that diff) runs the relay tests: probe 261124-034543-d72b56 (no evidence).
-Baselines at b06a8102 (main's binaries) vs main 24c5601a (no src change since the branch base):
-A/A idle 261124-034500-c0335d, A/A latency 261124-034503-387342, both exclusive, queued.
+msg-310: the lead widened the set; the fix is committed (e2f92d48), main merged (80393d76, no
+src change), branch pushed. Dangling probe c97932cb and its job 261124-034543-d72b56 cancelled.
+Queued at 80393d76 against main ba79caae:
+- A3 fixed side: 261124-035147-903054 (test_http_upstream). Fails-without at main: 261124-033951-a94472
+  (exit 8, "B synced 37 times in 1.5 s at rest").
+- A5 suite: 261124-035149-ce2080.
+- A1 idle CPU relay+authority at 250 ms, 3 rounds interleaved, exclusive: 261124-035150-981777;
+  A/A band (main twice, at b06a8102): 261124-035211-92ed4b (the first A/A, 261124-034500-c0335d,
+  was superseded by the A1 job and cancelled).
+- A2 latency p50/p99, exclusive: 250 ms 261124-035152-3ac6f3, 10 ms 261124-035154-314fca; A/A
+  latency band 261124-034503-387342.
 
-Smoke 261124-033656-d26b03 (main's code, 5 s, 5 samples): idle relay 1.56% of a core, 4.36
-syncs/s, authority 2.34% at 250 ms; latency p50 145 ms.
-A3 fails-without 261124-033951-a94472 at b06a8102 (main's mirror + the idle test): exit 8 at the
-first check, "B synced 37 times in 1.5 s at rest" (passes as --fails-without).
+Smoke 261124-033656-d26b03 (main's code, 5 s): idle relay 1.56% of a core, 4.36 syncs/s,
+authority 2.34% at 250 ms; latency p50 145 ms.
 
 ## Design (sent to the lead as msg-310)
 
@@ -37,13 +39,12 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. On msg-310's answer: commit the fix (mirror_service.cc and the four out-of-set files), then
-   `campaign verify --for A1`(suite) and A1/A2 exclusive head-vs-main jobs; push.
-2. CHANGELOG line; Result with numbers; core-seconds a day and power.
+1. Read the jobs; Result: idle CPU per relay and authority in core-seconds a day and watts, latency
+   p50/p99 against the bands; paste the Evidence table; a correctness review.
 
 ## Blocked on
 
-The lead: file set (msg-310). In-set work continues meanwhile.
+Nothing (msg-310 answered: the set now holds the headers and http_upstream.cc).
 
 ## Evidence
 
