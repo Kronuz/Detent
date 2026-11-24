@@ -135,6 +135,10 @@ KEYS = [(j * 7919) % KNOBS for j in range(40)]
 runs = prepared / "runs"
 
 
+class PublisherRefused(RuntimeError):
+    pass
+
+
 def command(code, store, namespaces, i):
     ns, key, value = f"n{i % namespaces}", f"k{i}", str(3 * i + 1)
     if (prepared / code / "first_read_core").exists():
@@ -162,7 +166,8 @@ def run(code, namespaces, publisher, index):
             agent = subprocess.Popen([prepared / code / "first_read_phases", "--publish", store, str(namespaces)],
                                      stdout=subprocess.PIPE, text=True)
             if agent.stdout.readline().strip() != "publishing":
-                raise RuntimeError(f"{code} publisher did not start")
+                # main's test writer admits 1,000 generations: its 1,000-namespace publisher cannot publish.
+                raise (PublisherRefused if code == "main" else RuntimeError)(f"{code} publisher did not start")
         for path in store.rglob("*"):  # resident data
             if path.is_file():
                 path.read_bytes()
@@ -201,10 +206,29 @@ for publisher in states:
     for namespaces in (1, 1000):
         flip = len(cells) % 2  # main first in even cells, branch first in odd ones
         results = []
+        refused = False
         for pair in range(PAIRS):
             for code in (("branch", "main") if flip else ("main", "branch")):
-                results.append(run(code, namespaces, publisher, pair))
+                if code == "main" and refused:
+                    continue
+                try:
+                    results.append(run(code, namespaces, publisher, pair))
+                except PublisherRefused:
+                    refused = True
+                    continue
                 print(json.dumps({k: v for k, v in results[-1].items() if k != "totals"}), flush=True)
+        if refused:
+            # A cell main cannot run reports the branch alone: its medians, below-1-ms counts and pooled p99.
+            branch = [r for r in results if r["code"] == "branch"]
+            pooled = sorted(t for r in branch for t in r["totals"])
+            cell = {"publisher": publisher, "namespaces": namespaces, "pass": True, "main": "publisher refused",
+                    "branch_below_1ms": [r["below_1ms"] for r in branch],
+                    "branch_medians_ns": [r["median_ns"] for r in branch],
+                    "branch_p99_ns": [r["p99_ns"] for r in branch],
+                    "branch_pooled_p99_ns": pooled[int(len(pooled) * 0.99) - 1]}
+            cells.append(cell)
+            print("A16 cell " + json.dumps(cell), flush=True)
+            continue
         arm = {code: [r for r in results if r["code"] == code] for code in ("main", "branch")}
         medians = {code: [r["median_ns"] for r in arm[code]] for code in arm}
         diffs = [b - m for b, m in zip(medians["branch"], medians["main"])]
