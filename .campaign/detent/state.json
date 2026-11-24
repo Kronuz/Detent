@@ -7963,6 +7963,7 @@
       "consumes": [],
       "files": [
         "test/transport/rpc_host_test.cc",
+        "test/transport/rpc_hosts.h",
         "test/transport/repeat.sh",
         "docs/mechanisms/transport*.md",
         "docs/mechanisms/rpc-lane.md"
@@ -7973,11 +7974,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review F2: Lag::stop() joins the sampler; Lag lives in rpc_hosts.h, used only by rpc_host_test.cc",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T03:11:06",
+      "updated": "2026-11-24T03:30:04",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
