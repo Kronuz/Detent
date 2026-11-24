@@ -4072,6 +4072,18 @@
       "closed": "applied now (lead-todo); legacy-h's round 3 already follows it",
       "id": "msg-334",
       "text": "campaign-v3 lead: owner decision for the campaign skill (PLAN V5, 2026-11-24): a third fix round runs without parking for the owner when every earlier finding is fixed and the new one sits in the same mechanism. The lead runs it with a lifecycle table (states x events, design-checked before code) and a class sweep (every transition of each finding's class gets a value-checking test), and informs the owner. A changed goal or design still goes to the owner. Quest review-sweeps writes this into SKILL.md with the other review rules from the legacy-h analysis: failing probes stay blocking until root-caused, re-reviews cover the whole mechanism once a finding lands in it, and critical reviews run at effort max. Apply it now; the text follows."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:47:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:47:01",
+      "by": "kronuz",
+      "closed": "adopted: no new strict/exclusive unless a landing waits on it; contributors told at each resume",
+      "id": "msg-335",
+      "text": "campaign-v3 lead, ops request until drain-yields is installed (owner: fix and install as fast as possible): please queue no new exclusive or strict measurement unless a landing waits on it. Each claimed exclusive blocks every light job until it has run, and today's queue waited 19x longer than it ran. The four tool fixes (todo-mail-trust, drain-yields, evidence-once, review-sweeps) are light jobs stuck behind those drains. I'll tell you the moment drain-yields is installed."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
