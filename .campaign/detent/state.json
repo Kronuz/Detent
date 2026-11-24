@@ -8084,6 +8084,36 @@
       "updated": "2026-11-23T07:22:17",
       "worktree": ""
     },
+    "consensus-seeds-rate-flake": {
+      "accepted": {},
+      "after": [
+        "xapiand:consensus-join-v2"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/seeds_test.cc",
+        "src/transport/seed*",
+        "include/consensus/transport/seed*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
+      "updated": "2026-11-24T04:11:04"
+    },
     "consensus-simulation-asan-timeout": {
       "accepted": {
         "correctness": {
