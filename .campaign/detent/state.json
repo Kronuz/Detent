@@ -15067,7 +15067,12 @@
         "docs/perf/first-read*",
         "tests/detent_local/test_trusted_paths.cc",
         "tests/detent_local/test_read_counters.cc",
-        "src/detent_testing/generation_writer.cc"
+        "src/detent_testing/generation_writer.cc",
+        "src/detent_reader/core.cc",
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "tests/detent_local/CMakeLists.txt",
+        "tests/detent_reader/test_reader_core.cc",
+        "tests/detent_local/test_table_pages.cc"
       ],
       "history": [
         {
@@ -15122,12 +15127,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "it now changes the selected table's on-disk verification format (per-page digests via lazy_page_access), a persistent format on an authenticity surface",
+      "reason": "the table-pages format (layout 3): the reader core's Table holds the paged table, the format doc describes it, and a new table-pages test registers; no active quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T14:46:59",
+      "updated": "2026-11-24T15:01:32",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
