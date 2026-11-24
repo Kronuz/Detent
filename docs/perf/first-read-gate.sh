@@ -6,7 +6,7 @@
 #   first-read-gate.sh prepare OUT   light, in the branch checkout with --ref BASELINE=main: builds
 #       both trees (pinned LLVM 23.1.2, Release, DETENT_READ_COUNTERS=OFF) and each tree's own store
 #       of 10,000 int knobs in 1 and in 1,000 namespaces, under OUT (the job's own path depth).
-#   first-read-gate.sh measure OUT [stopped|running]   exclusive: six main/branch pairs per cell;
+#   first-read-gate.sh measure OUT [STATE[:NAMESPACES]...]   exclusive: six main/branch pairs per cell;
 #       fails unless the branch's paired difference and pooled p99 stay within main's plus their floors.
 #   first-read-gate.sh profile-prepare OUT   light: the branch's first_read_core with the probe's marks
 #       (docs/perf/first-read-probe.py) under OUT/probe, its sources restored after the build.
@@ -129,7 +129,11 @@ from pathlib import Path
 
 # mode: "measure" gates D140's bound (exclusive, D142); "count" gates only that the branch never fails
 # and counts main's refusals, which do not depend on load (light).
-mode, prepared, states = sys.argv[1], Path(sys.argv[2]).resolve(), sys.argv[3:] or ["stopped", "running"]
+# Each argument is a state (both cells) or STATE:NAMESPACES (one cell: an exclusive job holds one).
+mode, prepared, cells_wanted = sys.argv[1], Path(sys.argv[2]).resolve(), []
+for arg in sys.argv[3:] or ["stopped", "running"]:
+    state, _, count = arg.partition(":")
+    cells_wanted += [(state, int(count))] if count else [(state, 1), (state, 1000)]
 KNOBS, READS, PAIRS, WARMUP = 10000, 200, 6, 5
 KEYS = [(j * 7919) % KNOBS for j in range(40)]
 runs = prepared / "runs"
@@ -202,9 +206,8 @@ def spread(medians):
 
 runs.mkdir(exist_ok=True)
 cells, ok = [], True
-for publisher in states:
-    for namespaces in (1, 1000):
-        flip = len(cells) % 2  # main first in even cells, branch first in odd ones
+for publisher, namespaces in cells_wanted:
+        flip = namespaces == 1000  # main first for 1 namespace, branch first for 1,000
         results = []
         refused = False
         for pair in range(PAIRS):
@@ -266,5 +269,5 @@ prepare) prepare "${2:?OUT}" ;;
 measure | count) measure "$1" "${2:?OUT}" "${@:3}" ;;
 profile-prepare) profile_prepare "${2:?OUT}" ;;
 profile) profile "${2:?OUT}" "${@:3}" ;;
-*) echo "usage: $0 prepare OUT | measure OUT [stopped|running] | count OUT [stopped|running] | profile-prepare OUT | profile OUT stopped|running..." >&2; exit 2 ;;
+*) echo "usage: $0 prepare OUT | measure OUT [STATE[:NAMESPACES]...] | count OUT [stopped|running] | profile-prepare OUT | profile OUT stopped|running..." >&2; exit 2 ;;
 esac
