@@ -6321,13 +6321,16 @@
       "files": [
         "include/consensus/core.h",
         "include/consensus/types.h",
-        "include/consensus/codec.h",
         "include/consensus/driver.h",
         "test/follower_read_test.cc",
         "CMakeLists.txt",
         "docs/mechanisms/follower-read.md",
         "fuzz/corpus/decoders/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "include/consensus/transport/codec.h",
+        "include/consensus/admission.h",
+        "fuzz/seed.cc",
+        "test/follower_read_mutants.py"
       ],
       "journal": "../Detent-wt/detent/consensus-follower-read",
       "landed": [],
@@ -6337,12 +6340,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "xapiand msg-302: consensus-join-v2 changes node-admission and is security-reviewed; land after it",
+      "reason": "msg-303: the set named a codec.h that does not exist; the read-index frames live in transport/codec.h, admission.h, fuzz/seed.cc; no other quest holds them",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T01:34:22",
+      "updated": "2026-11-24T02:38:52",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
