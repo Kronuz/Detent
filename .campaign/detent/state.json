@@ -3979,6 +3979,21 @@
       "id": "msg-329",
       "notice": "skill landed 0f935e3753908c497782c37418241079834cb61e",
       "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:b97af27 docs/v3: quests with nothing moving them, before and after lead-driver; agent-campaign:03aedc1 docs/v3: lead presence beside the idle hours; installs by window; agent-campaign:7b1e2b1 docs/v3: the lead-driver measurement script next to its page; agent-campaign:598db54 docs/v3: set usage-limit outages apart in the lead-driver measurement; agent-campaign:0f935e3 docs/v3: restate lead-driver's measurement with the outage set apart"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:27:28",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:27:28",
+      "by": "campaign",
+      "closed": "legacy-h: round 3 in progress (D154); rpc-host-stream-gap: reruns cited, waits on CI at c363ad4; pipelined-sim: waits on CI at 0301530",
+      "id": "msg-329",
+      "settles": {
+        "todo": "94a61dfe"
+      },
+      "text": "to do, critical path first:\ntodo: review legacy-h (its journal says ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native); then launch its correctness and design review; new): `campaign set legacy-h status=review`\ntodo: finish consensus-rpc-host-stream-gap (nothing moved it for 2 h: ready for review; review accepted at consensus:e416bb0; lands after xapiand:consensus-join-v2; to land: criteria without evidence at c363ad4492a2: A1-A3 (`campaign status consensus-rpc-host-stream-gap` lists them); new): `campaign status consensus-rpc-host-stream-gap`\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 2 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: criteria without evidence at 03015302a970: A1-A3 (`campaign status consensus-driver-pipelined-sim` lists them); listed 32 min): `campaign status consensus-driver-pipelined-sim`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
