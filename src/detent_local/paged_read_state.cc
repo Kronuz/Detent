@@ -10,13 +10,15 @@ std::optional<BorrowedDefinition> PagedReadState::definition(std::string_view ns
                                                              std::string_view knob) const {
 	if (!root.pages)
 		return {};
-	std::array<char, 202> storage{};
+	std::array<char, 202> storage;
 	const auto size = ns.size() + knob.size() + 3;
 	if (size > storage.size())
 		return {};
 	storage[0] = 'K';
 	std::copy(ns.begin(), ns.end(), storage.begin() + 1);
+	storage[ns.size() + 1] = 0;
 	std::copy(knob.begin(), knob.end(), storage.begin() + ns.size() + 2);
+	storage[size - 1] = 0;
 	const std::string_view key(storage.data(), size);
 	const auto body = lookup(key, paged::PageKind::Definition);
 	if (!body)
@@ -66,17 +68,23 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 				at = {};
 			}
 			const auto node = at.decode(bytes, nodes_end, paged_format_limits());
+			const bool matches = node.prefix.size() <= key.size() - cursor &&
+			                     !std::memcmp(node.prefix.data(), key.data() + cursor, node.prefix.size());
 			if (node.kind != paged::PageKind::Branch) {
-				std::array<char, 202> actual{};
-				if (cursor > actual.size() || node.prefix.size() > actual.size() - cursor)
-					throw ReadSourceFailure("local leaf key exceeds format bounds");
-				std::copy_n(key.data(), cursor, actual.data());
-				std::copy(node.prefix.begin(), node.prefix.end(), actual.begin() + cursor);
-				if (paged::decode_key({actual.data(), cursor + node.prefix.size()}).kind != node.kind)
+				// Every leaf visited holds a key of its own kind; a matching one's key is a prefix of `key`.
+				std::array<char, 202> copy;
+				std::string_view actual = key.substr(0, cursor + node.prefix.size());
+				if (!matches) {
+					if (cursor > copy.size() || node.prefix.size() > copy.size() - cursor)
+						throw ReadSourceFailure("local leaf key exceeds format bounds");
+					std::copy_n(key.data(), cursor, copy.data());
+					std::copy(node.prefix.begin(), node.prefix.end(), copy.begin() + cursor);
+					actual = {copy.data(), cursor + node.prefix.size()};
+				}
+				if (paged::decode_key(actual).kind != node.kind)
 					throw ReadSourceFailure("local leaf key type mismatch");
 			}
-			if (node.prefix.size() > key.size() - cursor ||
-				std::memcmp(node.prefix.data(), key.data() + cursor, node.prefix.size()))
+			if (!matches)
 				return {};
 			cursor += node.prefix.size();
 			if (node.kind != paged::PageKind::Branch) {
