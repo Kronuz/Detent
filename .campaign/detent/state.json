@@ -17106,7 +17106,92 @@
       "worktree": ""
     },
     "journal-turn-sector-checks": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-23T16:20:59",
+          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "blobs": {
+            "AGENTS.md": "100644:e8796b22c2e8563d6de731422fa9b413f8024aa1",
+            "ARCHITECTURE.md": "100644:eda93c1105c92202832d811c28516495f3e53dbf",
+            "CHANGELOG.md": "100644:d43878166c5ddad337c7fd8c08a0d1c5e1abe862",
+            "bench/turn_bench.cc": "100644:4098da24006d715ea40bdb6dd14e45d688aecfb0",
+            "docs/design/host-layout.md": "100644:0b701a250d142b77f3ce8b78df3707cd20dcb8ae",
+            "docs/mechanisms/framing.md": "100644:bb8afb58824b27d43ad2aec65f6b803489fd191d",
+            "docs/mechanisms/turn-log-damage.md": "100644:1d1191a6513fd51230269948cf5ea09dbe6e1b13",
+            "docs/mechanisms/turn-seal.md": "100644:2219de03cfd0242337cdde95713f38b6f036a7c5",
+            "include/journal/framing.h": "100644:f174c398833bd3aaebda20fb3120dc9e0ee052a6",
+            "include/journal/turn_log.h": "100644:d0a1b5f289e9abea1260287f5bee885048fdb371",
+            "test/fixtures/crc32c/turn-log/turns-000000000000000c": "100644:013eb1abee87c42a568015d53ca0e63c703eca84",
+            "test/fixtures/crc32c/turn-log/turns-000000000000000d": "100644:d9057ab6533b743cbee91a0371da13030f2609fa",
+            "test/fixtures/crc32c/turn-log/turns-000000000000000e": "100644:dba0161dcb236889d4a3d00f22972c1cf6822a12",
+            "test/fixtures/crc32c/turn-log/turns-000000000000000f": "100644:3ae4472e32846c9be80707a271dbbd1183ebd7f0",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000010": "100644:cd61227fa5ac9cad6091003610ad8cc854e2693e",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000011": "100644:4f9558fb2e2feb10362907e6e81c1227538e1fbd",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000012": "100644:b2b5a0c84cd5e69621f17e1366d53a10280b7b28",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000013": "100644:753a414afcd72a7ed7b2d7c2d5f1a92aa26c61f7",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000014": "100644:fc583d13e1ef810b7d0f4637a099fdca162f2f06",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000015": "100644:d80110d245d8e0223b138d704bc3f114f856d8b5",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000016": "100644:fae8bf0c50ff07e65a9b896c89809b2196a22ad6",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000017": "100644:e664dd39b8a1e00788078c767a2a30956a5063dc",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000018": "100644:5a983b476e015b91936c2c3e741effaefc873906",
+            "test/fixtures/crc32c/turn-log/turns-0000000000000019": "100644:4671a49d06378d071e6ce6f21e104ed5f648df24",
+            "test/fixtures/crc32c/turn-log/turns-000000000000001a": "100644:f72421e9e634ec26f54c5c6a455ad43626b7adc5",
+            "test/fixtures/crc32c/turn-log/turns-000000000000001b": "100644:929bc9b82e2d22defc3d88e789ccf2139f033567",
+            "test/fixtures/crc32c/turn-log/turns-000000000000001c": "deleted",
+            "test/host_test.cc": "100644:0bd93e4218509c2fa59065dd015bf644d6ddb0ab",
+            "test/lost_bound_test.cc": "100644:676dbbaf3618b0b7aadb1cd288da1e0324b3e4c8",
+            "test/turn_buffers_test.cc": "100644:52960b7fba14fee1209a485e939d77e219f8ab69",
+            "test/turn_log_power_test.cc": "100644:37f91f1fd23a9c6fda5daa2f70cf90e591f0a63d",
+            "test/turn_log_test.cc": "100644:af92990f0787f7ddef2e9ee7dd62f87a6c36246d",
+            "test/turn_seal_test.cc": "100644:189d50120e504886b3d4c509ac591a7396bf7849"
+          },
+          "by": "review",
+          "commit": "8bf1d1d9668f1e86195e446d5eb3a8efde15ecb1",
+          "criteria": "65925497dfaa5b88",
+          "diffs": {
+            "": "a0e2f20af0246201",
+            "AGENTS.md": "2bdd41f005654ccc",
+            "ARCHITECTURE.md": "45d6d62341541379",
+            "CHANGELOG.md": "b490faa604dcab9b",
+            "bench/turn_bench.cc": "91338ed6bcd75b4e",
+            "docs/design/host-layout.md": "fd1f1a31797fc171",
+            "docs/mechanisms/framing.md": "4d2e943888db9756",
+            "docs/mechanisms/turn-log-damage.md": "9acf3b7a8ed1c2cb",
+            "docs/mechanisms/turn-seal.md": "49280947cf952fa7",
+            "include/journal/framing.h": "7d5cc74b477cb243",
+            "include/journal/turn_log.h": "3e4c8f37d561c0ea",
+            "test/host_test.cc": "874b3a674d6d9597",
+            "test/lost_bound_test.cc": "7864d1987b53fe65",
+            "test/turn_buffers_test.cc": "0eb32f9a21630829",
+            "test/turn_log_power_test.cc": "9f1b073dbf02ef15",
+            "test/turn_log_test.cc": "fe0f523d23d6a16d",
+            "test/turn_seal_test.cc": "550f89a0f28ee5b7"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c 'set -e; (cd .scratch && build/journal_turn_log_test midwrite_reads); bash /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-sector-checks/run.sh run shared_sector_probe.cc invariant :: shared_sector_probe.cc midwrite | tee .scratch/f1-probe.out; grep -q '\"'\"'Corruption in 0 of'\"'\"' .scratch/f1-probe.out'",
+                  "commit": "8bf1d1d9668f1e86195e446d5eb3a8efde15ecb1",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261123-160744-836752",
+                  "level": "light",
+                  "seconds": 69.1,
+                  "state": "done",
+                  "what": "F1: midwrite_reads at the fix, and the reviewer's shared_sector_probe midwrite (0 throws required) and invariant"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "b253ce87c297ec899d8e481bda960bdd6730317d",
+          "reviewed": "f1ca348a5bd8e7e3dfab8d78af2f951c8801f85a",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
       "branch": "quest/detent/journal-turn-sector-checks",
@@ -17176,7 +17261,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-23T10:56:14",
+      "updated": "2026-11-23T16:20:59",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
