@@ -1,6 +1,6 @@
 # journal-bound-first-open: journal
 
-State: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix
+State: waiting on jobs 261124-113916-a045ce 261124-113919-ce832d 261124-113923-f05db6 and the suite/CI checks at journal:a2d65da
 Quest: .campaign/detent/quests/journal-bound-first-open.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,66 +9,53 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 2 (coordinator's message: lost_bound fails at 529565e; open time +80%; sweep the class).
-Local runs under `quiet light` (scratch `.scratch/detent/journal-bound-first-open/`: lbt.sh,
-profile.sh, probe_main.sh; outputs attribution.txt, fixed.txt, zeroed.txt, probe_main.txt,
-profile.txt). Head journal:4d3df89, not pushed; no evidence queued (waits on the ruling below).
+Round 3 (coordinator: file set widened with turn_log.h; the +78% is not accepted). Head
+journal:a2d65da, pushed. Evidence queued once: A1 261124-113916-a045ce (lost_bound, every case),
+A2 261124-113919-ce832d (`--fails-without`, first_open at mutant journal:b7d73c1 = head with
+origin/main's host.h and turn_log.h; ref refs/mutants/journal-bound-first-open/no-fix), open-time
+A/B 261124-113923-f05db6 (exclusive, main 4eb8165 vs a2d65da, 192 MiB, 7 runs x 2, same shape as
+c99934; must land in main's band, 733/743 ms), `campaign verify --for A1` (suite, CI).
 
-1. Cause of "gap, later turn: the uncut open bounds group 1" (lost both): the merge, not the fix.
-   journal:0951710 (pre-merge) 138 checks, 0 failures; journal:179e1c6 (the merge) 1 failure;
-   mutant journal:b050603 (no fix) and journal:529565e (fix) the same 1 failure. RFTW0002 checks
-   whole sectors: gap() put batch 3, and its flipped byte, in W+1's first sector, which holds W+1's
-   header and with it W's manifest (rule 3: each block's manifest is in the next block's header),
-   so no manifest named W and every group was lost. Fixed in the layout, not the check
-   (journal:00d25fe): batch 3 sits in W+1's second sector; first_open asserts both groups' status
-   and bound per layout. `spans()` on main has the same flaw (it passed vacuously: "lost" is
-   accepted); it now uses gap() and lays its damage off the header sector too.
-2. Class sweep, and what it found: with the layouts fixed, main's host.h (mutant journal:f9df208)
-   agrees at every cut of all four flipped-byte layouts (154 checks, 0 failures), and so does the
-   reviewer's probe at main's host.h (seeds 2,028 checks, nested 6,208, 0 failures).
-   journal-turn-sector-checks made a failed sector past an earlier epoch's kept turn damage
-   (turn_log.h `recover`, the `else` of `if (newest_epoch)`), so a flipped byte survives the
-   first open's cut without the fix. A lost write does not: a zeroed sector reads as never
-   written, and only rule 6 (a later turn, newest epoch alone) shows it. journal:0dd28f0 adds
-   "dropped turns, zeroed" and "gap, later turn, zeroed": with the fix 344 checks, 0 failures
-   (journal:0dd28f0); without it (mutant journal:c76f1f4) "gap, later turn, zeroed" disagrees at
-   11 of 17 cuts (cuts 6-16, both reopens: groups reopen stored at next 2, uncut bounded at 3),
-   the original N1 count. So the fix is still needed, for lost writes; A2's fails-without is this.
-   "dropped turns, zeroed" agrees at main (an incomplete turn followed by a complete one is
-   damage in any epoch): a guard.
-3. Open time: job 261124-063448-c99934 (exclusive, 192 MiB, 7 runs x 2): main 4eb8165 732.6 and
-   743.2 ms, fix 1,332.3 and 1,292.4 ms, +78%. Not the merge (main itself is at RFTW0002).
-   `sample` of 30 opens (profile.txt, sample-*.txt): at the fix, Host::Host 11,887 samples,
-   settle_damage 4,537 (3,811 TurnLog::read: the full recovery scan, preads, record assembly;
-   726 freeing the returned map of every record), the drivers' own TurnLog recovery 4,579. The
-   extra cost is exactly one more recovery. Inherent to a host.h-only fix: `TurnLog::read` is the
-   only way host.h can see the verdict before the TurnLog constructor writes the open record.
-   docs/mechanisms/lost-bound.md (journal:4d3df89) states the cost and why the verdict precedes
-   the open record under RFTW0002.
+Mechanism change (the durability review must re-check it): no `TurnLog::read`. `TurnLogGroups`
+gains `settle`, a callback the `TurnLog` constructor calls with its recovery before it writes the
+open record; `Host::open` sets it on each loop's groups to `settle_damage(recovery)`, which commits
+the bounds (`mark_bounds`) and the losses (`mark_lost`). Each log is read once. The verdict is
+stored per loop before that loop's open record (before: all loops before any). `mark_bounds`'s
+second pass (clearing a bound a later checkpoint supersedes) reads every driver's records, so it
+runs only once `drivers_.size() == loops_` (before: `!drivers_.empty()`; the same outside the
+open), and the open's post-driver pass runs it as on main. turn_driver.h is unchanged: it passes
+`known` through.
 
-Earlier round (superseded): jobs 261124-063445-61ecfe (A1, failed: cause above),
-261124-063446-3123df (A2 at mutant b050603: exit 1, but only the uncut check failed, not the
-cuts: no evidence), CI run 45415700103 (failed, same cause).
+Local (quiet light, scratch round3.txt): at a2d65da lost_bound 344 checks 0 failures (17, 17, 12,
+17, 12, 17 cuts; every layout's both-group verdict as asserted), host 77,730, placement 1,197,906,
+turn_log 12,099, host_delete 2,107, driver 49, turn_log_power 31,268, all 0 failures. Mutant
+b7d73c1: 22 failures, all "gap, later turn, zeroed" at cuts 6-16 of 17 (11 cuts, both reopens).
+
+Same-layout sweep on main: spans() was the only test laying a two-block gap with its damage in
+W+1's first sector (fixed here, in my set). Other loss-tolerant checks (turn_log_test 191, 240,
+264; placement_test 192, 282; crc_fixture_test 303) are safety properties over other layouts, and
+turn_log_test `damage` asserts a kept group (4) that a lost manifest would fail. The reviewer's
+probe (.scratch/detent/review-bound-first-open/probe.cc) includes lost_bound_test.cc's gap(), so it
+inherits the fix. Nothing outside my set to name.
+
+Round 2, superseded by round 3: the cause of the 529565e failure was the merge (RFTW0002 checks
+whole sectors; gap() damaged W+1's first sector, which holds W's manifest): 0951710 passes,
+179e1c6 fails, with or without the fix. Fixed in the layout (journal:00d25fe). RFTW0002 already
+keeps a flipped byte's verdict at main (mutant f9df208: 0 failures; reviewer probe at main's
+host.h: seeds 2,028 and nested 6,208 checks, 0 failures); lost writes (zeroed sectors) do not
+(journal:0dd28f0, 11 of 17 cuts at main). The two-read fix cost +78% open time (c99934: main
+732.6/743.2 ms, fix 1,332.3/1,292.4; `sample`: settle_damage's TurnLog::read 3,811 samples plus
+726 freeing its records, against the drivers' own recovery 4,579).
 
 ## Next
 
-1. Owner's ruling (Blocked on). Then the final head; queue the evidence once there:
-   lost_bound (A1), `--fails-without` at the no-fix mutant (A2, must fail at "gap, later turn,
-   zeroed"), the open-time A/B (exclusive), `campaign verify` (suite, CI); push.
-2. The durability review must re-check: the test changed (layouts, zeroed variants) and, if the
-   ruling moves the fix into turn_log.h, the fix's code.
+1. When the jobs finish: Evidence from `campaign brief`; Result with the A/B numbers; "ready for
+   review" only if A1, A2, the A/B (within main's band), the suite and CI pass. The durability
+   review re-checks (recovery code changed).
 
 ## Blocked on
 
-Owner (via the lead): the fix makes every open, damaged or not, read each log twice: +78% open
-time on a 192 MiB log (733/743 to 1,332/1,292 ms, c99934), for a case only lost-write damage past
-the newest epoch's kept turn now needs (RFTW0002 already keeps flipped-byte damage). Options:
-1. Land as is, the cost recorded; journal-open-single-read removes it later.
-2. Widen this quest's files to turn_log.h and turn_driver.h and store the verdict between
-   `TurnLog::recover` and the open record (one read; the code changes, so a re-review).
-3. Merge this quest into journal-open-single-read.
-Recommendation: 2 (or 3). A +78% open regression for every open to cover lost writes is the
-wrong trade when the one-read hook removes it; the test (zeroed layouts, A2 mutant) carries over.
+Nothing (the open-cost ruling: remove the second read; done in round 3).
 
 ## Evidence
 
