@@ -157,7 +157,8 @@ PyObject *reader_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
             PyErr_SetString(PyExc_OverflowError, "publisher_uid does not fit in 32 bits");
         return nullptr;
     }
-    // Keep the namespace strings alive until detent_open has copied what it needs.
+    // A tuple owns its items, so the strings outlive detent_open, which runs without the GIL while
+    // another thread may change the caller's list.
     PyObject *sequence = nullptr;
     std::vector<detent_str> names;
     if (namespaces && namespaces != Py_None) {
@@ -166,14 +167,18 @@ PyObject *reader_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
             PyErr_SetString(PyExc_TypeError, "namespaces must be an iterable of str, not a single string");
             return nullptr;
         }
-        sequence = PySequence_Fast(namespaces, "namespaces must be an iterable of str");
+        sequence = PySequence_Tuple(namespaces);
         if (!sequence) {
             Py_DECREF(path);
+            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                PyErr_Clear();
+                PyErr_SetString(PyExc_TypeError, "namespaces must be an iterable of str");
+            }
             return nullptr;
         }
-        for (Py_ssize_t i = 0; i < PySequence_Fast_GET_SIZE(sequence); ++i) {
+        for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(sequence); ++i) {
             detent_str name;
-            if (!text_arg(PySequence_Fast_GET_ITEM(sequence, i), "namespaces item", false, &name)) {
+            if (!text_arg(PyTuple_GET_ITEM(sequence, i), "namespaces item", false, &name)) {
                 Py_DECREF(sequence);
                 Py_DECREF(path);
                 return nullptr;

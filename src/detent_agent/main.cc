@@ -284,7 +284,7 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "(or managed_path or generation_dir in the config) the read fails: no source configured.\n"
 					 "Config: agent.json in the standard Detent config directory.\n"
 					 "Managed readers: --publisher-user USER_OR_UID; --reader-mapping-bytes N caps the\n"
-					 "bytes the reader maps (0: 512 MiB). The other reader_* settings are detent-agent's.\n"
+					 "bytes the reader maps (default 512 MiB). The other reader_* settings are detent-agent's.\n"
 					 "Flags override environment variables, which override config.\n";
 #else
 const char *kUsage =
