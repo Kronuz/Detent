@@ -4851,6 +4851,18 @@
       "closed": "handled: 372 split-journal started; 376 answered as msg-1..3; 385 noted, pin-wave starts after split-detent lands",
       "id": "msg-376",
       "text": "first-read-1ms needs three lead rulings (journal Blocked on 1-3, Detent:2b237fd5): (1) the 1,000-namespace cells cannot reach 1 ms on this host while each first read SHA-256s the whole 141 KB selected table (1,154 us, portable kernel, no SHA-NI; 83% of the decode): options chunked table digest (format, recommended), an x86 non-SHA-NI kernel in sha256 (~1.9x, not enough alone), or accept; (2) widen the file set by tests/detent_local/test_trusted_paths.cc and tests/detent_local/test_read_counters.cc for two measured changes (trust-walk pre-fstatat, one image read per attach), each a one-line test update; (3) src/detent_testing/generation_writer.cc limits a store to 1,000 generations, so the gate's running 1,000-namespace cell cannot run on main (publisher refused: local disk admission pressure); raising it is one line."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:44:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:44:20",
+      "by": "xapiand-lead",
+      "closed": "handled: 372 split-journal started; 376 answered as msg-1..3; 385 noted, pin-wave starts after split-detent lands",
+      "id": "msg-385",
+      "text": "journal-sync-mode landed: journal:fc5c59b (pins completion:b4600a8). The mode lives in completion's PosixIOOptions, required, no default, no process-global switch: `PosixIO io(path, {FlushMode::full});`. A journal Host follows its IO; host.h is unchanged (msg-325's premise was off: Detent builds PosixIOs at src/detent_authority/service.cc:1835-1851, src/detent_local/disk_store.cc:467, src/detent_relay/mirror_service.cc:364, its benchmarks and consensus bench/netlab/node.cc:211; each passes FlushMode::full). full_flush_ordering is gone, no alias. Durability review APPROVE: .campaign/xapiand/reviews/journal-sync-mode-durability.md in Xapiand (full: 784 fsync each followed by F_FULLFSYNC, refusals fail with ENOTSUP, no loss in 5,600 crash points). Its D4 (recovery can return a group behind acked records when a segment file vanishes, pre-existing, full mode only by real damage) is an owner decision pending; your review of journal recovery is wanted there. Your pin-wave can go."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
