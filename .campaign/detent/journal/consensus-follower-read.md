@@ -1,6 +1,6 @@
 # consensus-follower-read: journal
 
-State: working
+State: waiting on jobs 261124-020815-08319a 261124-020820-b56679 261124-022329-b17412 261124-022331-49a7de and the 15 mutant jobs 261124-022336-337103 .. 261124-022430-586762
 Quest: .campaign/detent/quests/consensus-follower-read.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,25 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 1 built at consensus:d2126d0 (branch quest/detent/consensus-follower-read, merged main
-512e3ef first). Local mutant pass running; then evidence jobs.
+Round 1 at consensus:49deff5, pushed. Jobs:
+
+- Suite: 261124-022329-b17412 (`campaign verify --for A1`, head); 261124-020815-08319a at
+  consensus:d2126d0 (an early signal; only the test harness changed since).
+- Plain test, every case, 2000 randomized seeds: 261124-022331-49a7de (A1, A2, A3).
+- Decoder fuzz, control frames, ASan+UBSan, 2 x 15 min: 261124-020820-b56679 (A4), at d2126d0.
+- Mutants (`--fails-without`, `test/follower_read_mutants.py 49deff5 NAME`, the case it names):
+  A1 apply-skipped 337103, ready-without-quorum c81897, leader-change-kept 175f5a,
+  campaign-keeps-reads dcf92d, any-peer 7f7c21, any-term 8dbf8a, refusal-unsent 57781f,
+  nonce-unchecked 5d0874; A2 start-ignored 7ae2c2; A3 no-deadline acefff, deadline-unarmed
+  48b968, probe-shared d8cba0, answer-completes-all e779c8, rests-with-read fbfaaf;
+  A4 codec-unchecked 586762 (ids prefixed 261124-0223 / -0224).
+- Local pass before submitting: all 15 mutants killed (no-deadline hung the harness; fixed in
+  49deff5 so it fails at once).
 
 ## Next
 
-1. Submit evidence jobs: plain test (A1-A3), 15 mutant jobs (`--fails-without`, commits from
-   `test/follower_read_mutants.py HEAD NAME`), decoder fuzz (A4), `campaign verify --for A1`.
-2. Push the branch once only jobs remain.
+1. Read the jobs; paste `campaign brief`'s Evidence table; write the Result; State "ready for
+   review".
 
 ## Blocked on
 
