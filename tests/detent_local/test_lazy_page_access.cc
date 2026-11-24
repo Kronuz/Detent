@@ -1,5 +1,3 @@
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
 #include "detent_local/reader.hh"
 #include "generation_file_access.hh"
 #include "lazy_page_access.hh"
@@ -59,16 +57,6 @@ int main() {
 		std::filesystem::remove(alias);
 	}
 	auto fixture = std::make_shared<Fixture>();
-	{
-		l::ClientSourceOptions source;
-		source.directory = fixture->path;
-		source.prepared_publisher = ::getuid();
-		source.auto_refresh = false;
-		detent::InitOptions options;
-		options.read_source = l::make_local_read_source(source);
-		detent::Client client(options);
-		check(client.get("a:k").value() == 42);
-	}
 	{
 		l::GenerationReader reader(fixture->path, {}, {}, ::getuid());
 		check(reader.refresh());

@@ -28,7 +28,7 @@ host: "Each app host" {
   vertical-gap: 70
   agent: "detent-agent\nmanaged.json"
   disk: "generation_dir\nselected,\ngenerations" {shape: cylinder; style.fill: "#E8E2F0"}
-  app: "detent::Client\nor detent get"
+  app: "detent::Reader\nor detent get"
   agent -> disk: "publish"
   app -> disk: "map"
 }

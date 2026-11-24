@@ -1,0 +1,13 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..6450f606 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -256,7 +256,7 @@ impl Reader {
+         let mut out = fallback;
+         // SAFETY: the handle is live for `&self`; every string outlives the call.
+         let raw = unsafe {
+-            detent_get(self.handle, text(name), optional(hash), optional(switch_value), fallback, &mut out)
++            detent_get(self.handle, text(name), optional(None), optional(switch_value), fallback, &mut out)
+         };
+         match raw {
+             0 => Ok(out),

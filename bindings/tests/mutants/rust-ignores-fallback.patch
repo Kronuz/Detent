@@ -1,0 +1,13 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..4c340068 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -230,7 +230,7 @@ impl Reader {
+         hash: Option<&str>,
+         switch_value: Option<&str>,
+     ) -> i64 {
+-        self.lookup(name, fallback, hash, switch_value).unwrap_or(fallback)
++        self.lookup(name, 0, hash, switch_value).unwrap_or(0)
+     }
+ 
+     /// The knob read as `T`, as C++'s `get_as<T>`: `fallback` on any error or when the value is out of

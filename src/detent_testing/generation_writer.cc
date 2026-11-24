@@ -1,5 +1,6 @@
 #include "detent_testing/generation_writer.hh"
 #include "detent/json_schema.hh"
+#include "detent_distribution/frame_input.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution/wire_encoder.hh"
@@ -16,6 +17,7 @@
 #include <map>
 #include <optional>
 #include <sys/stat.h>
+#include <utility>
 #include <vector>
 
 namespace detent::testing {
@@ -87,6 +89,12 @@ std::string encode(const Snapshot &knobs, const d::Cursor &cursor, std::vector<s
 	}
 	return out;
 }
+// A namespace's own cursor: its scope, and so its incarnation, is the name's, as on a delivery frame.
+d::Cursor own_cursor(const d::Cursor &cursor, std::string_view name) {
+	auto own = cursor;
+	own.scope = d::frame_cursor(name, d::namespace_cursor(cursor)).scope;
+	return own;
+}
 void unwrap(std::exception_ptr error) {
 	if (error)
 		std::rethrow_exception(error);
@@ -94,15 +102,16 @@ void unwrap(std::exception_ptr error) {
 } // namespace
 struct GenerationWriter::Impl {
 	std::filesystem::path store;
+	Layout layout;
 	std::shared_ptr<d::StorageLedger> baseline = std::make_shared<d::StorageLedger>(segment);
 	std::shared_ptr<d::StorageLedger> heap = std::make_shared<d::StorageLedger>(64 * segment);
 	d::RetirementRuntime runtime{baseline, 1};
-	d::RetirementDomain domain = runtime.domain(heap, 256);
+	d::RetirementDomain domain = runtime.domain(heap, 1 << 16); // owners: each namespace keeps its recovered head
 	l::DiskStoreOptions options;
 	std::shared_ptr<l::DiskStore> disk;
 	d::Cursor cursor;
 
-	explicit Impl(std::filesystem::path path) : store(std::move(path)) {
+	Impl(std::filesystem::path path, Layout table) : store(std::move(path)), layout(table) {
 		std::filesystem::create_directories(store);
 		::chmod(store.c_str(), 0700);
 		options.mode = std::filesystem::exists(store / "owner.lock") ? l::StoreOpenMode::ExistingManaged
@@ -119,8 +128,8 @@ struct GenerationWriter::Impl {
 		// The writer continues only an intact generation: a failed entry is the agent's to repair.
 		if (disk->status() != l::StoreStatus::Ready || !disk->failed().empty())
 			throw std::runtime_error("test store did not open: " + store.string());
-		if (auto selected = disk->selection().descriptor)
-			cursor.revision = selected->cursor.position;
+		for (const auto &entry : disk->selection().namespaces)
+			cursor.revision = std::max(cursor.revision, entry.descriptor.cursor.position);
 	}
 	~Impl() {
 		disk->close();
@@ -144,10 +153,8 @@ struct GenerationWriter::Impl {
 		disk->advance();
 		unwrap(disk->error());
 	}
-	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {
-		auto next = cursor;
-		if (!repair)
-			++next.revision;
+	// One snapshot plan of `knobs` at `next` over entry `name`'s generation (empty: the only entry).
+	l::detail::PagedPlan plan(const Snapshot &knobs, const d::Cursor &next, std::string_view name, bool repair) {
 		std::vector<std::string> namespaces;
 		const auto wire = encode(knobs, next, namespaces);
 		d::Limits limits;
@@ -159,22 +166,69 @@ struct GenerationWriter::Impl {
 			decoder.feed(input, budget);
 		}
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+		const auto selection = disk->selection();
 		std::optional<l::RecoveredGeneration> actual;
-		if (disk->selection().descriptor)
-			actual.emplace(l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk)));
-		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), domain.factory(),
-		                                            heap, options.recovery_limits, repair);
+		if (name.empty() ? selection.descriptor.has_value() : selection.find(name) != nullptr)
+			actual.emplace(l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk, name)));
+		auto &builder = *builders.emplace_back(std::make_unique<l::detail::PagedSnapshotPlanBuilder>(
+		    snapshot, actual, disk->directory_identity(), domain.factory(), heap, options.recovery_limits, repair));
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		disk->begin(builder.take());
-		drive();
+		return builder.take();
+	}
+	// Each plan's builder lives until its publication settles, as the agent's does: its retirement
+	// owners keep the old generation's segments until the store confirms the new one.
+	std::vector<std::unique_ptr<l::detail::PagedSnapshotPlanBuilder>> builders;
+	// Settles a published cycle: recovers and confirms each namespace it published.
+	void settle() {
 		if (disk->publication_status() != l::DiskPublicationStatus::Published)
 			throw std::runtime_error("test publication was refused");
-		auto current = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
-		disk->confirm_recovered(current);
+		if (layout == Layout::OneEntry)
+			disk->confirm_recovered(
+			    l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk)));
+		else
+			for (const auto &name : disk->pending())
+				disk->confirm_recovered(name, l::detail::ManagedRecovery::recover(
+				                                  store, l::detail::ManagedRecovery::capture(*disk, name)));
 		drive();
+		builders.clear();
+	}
+	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {
+		auto next = cursor;
+		if (!repair)
+			++next.revision;
+		if (layout == Layout::OneEntry) {
+			disk->begin(plan(knobs, next, {}, repair));
+			drive();
+			settle();
+		} else {
+			// An entry per namespace (namespace-delivery D8), each at the new revision.
+			std::map<std::string, Snapshot, std::less<>> split;
+			for (const auto &[name, def] : knobs.knobs) {
+				const std::string_view full = name;
+				const auto colon = full.find(':');
+				if (colon == full.npos)
+					throw std::invalid_argument("knob name needs a namespace: " + std::string(full));
+				split[std::string(full.substr(0, colon))].knobs.emplace(name, def);
+			}
+			std::vector<std::string> dropped;
+			for (const auto &entry : disk->selection().namespaces)
+				if (!split.contains(entry.name))
+					dropped.push_back(entry.name);
+			// Cycles of at most 16 plans keep the builds inside the writer's heap ledger.
+			auto at = split.begin();
+			do {
+				std::vector<l::NamespacePublication> cycle;
+				for (; at != split.end() && cycle.size() != 16; ++at)
+					cycle.push_back({at->first, std::make_unique<l::detail::PagedPlan>(
+					                                plan(at->second, own_cursor(next, at->first), at->first, repair))});
+				disk->begin(std::move(cycle), std::exchange(dropped, {}));
+				drive();
+				settle();
+			} while (at != split.end());
+		}
 		cursor = next;
 		return cursor.revision;
 	}
@@ -185,24 +239,39 @@ struct GenerationWriter::Impl {
 		m::string(out, std::string_view(value.scope.data(), value.scope.size()), true);
 		m::unsigned_integer(out, value.revision);
 	}
-	void publish_plan(l::detail::PagedPlan plan) {
-		disk->begin(std::move(plan));
+	void publish_plan(l::detail::PagedPlan built, std::string_view name = {}) {
+		if (name.empty())
+			disk->begin(std::move(built));
+		else {
+			std::vector<l::NamespacePublication> cycle;
+			cycle.push_back({std::string(name), std::make_unique<l::detail::PagedPlan>(std::move(built))});
+			disk->begin(std::move(cycle));
+		}
 		drive();
-		if (disk->publication_status() != l::DiskPublicationStatus::Published)
-			throw std::runtime_error("test publication was refused");
-		auto current = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
-		disk->confirm_recovered(current);
-		drive();
+		settle();
 	}
 	std::uint64_t delta(const std::vector<std::string> &scope, std::string_view name_space,
 	                    const std::map<std::string, std::int64_t> &upserts,
 	                    const std::vector<std::string> &removals) {
-		const auto found = std::find(scope.begin(), scope.end(), name_space);
-		if (found == scope.end())
+		if (std::find(scope.begin(), scope.end(), name_space) == scope.end())
 			throw std::invalid_argument("delta namespace is not in the scope");
-		const auto namespace_index = static_cast<std::uint64_t>(found - scope.begin());
-		auto next = cursor;
-		++next.revision;
+		// PerNamespace: the namespace's own entry, from its own revision.
+		const bool own = layout == Layout::PerNamespace;
+		const std::vector<std::string> alone{std::string(name_space)};
+		const auto &names = own ? alone : scope;
+		const std::string_view entry = own ? name_space : std::string_view();
+		const auto namespace_index =
+		    static_cast<std::uint64_t>(std::find(names.begin(), names.end(), name_space) - names.begin());
+		auto base = own ? own_cursor(cursor, name_space) : cursor;
+		if (own) {
+			const auto selection = disk->selection();
+			const auto *selected = selection.find(name_space);
+			if (!selected)
+				throw std::invalid_argument("delta namespace has no entry");
+			base.revision = selected->cursor.position;
+		}
+		auto next = base;
+		next.revision = cursor.revision + 1;
 		std::map<std::string, std::optional<std::int64_t>> changes;
 		for (const auto &[name, value] : upserts)
 			changes[name] = value;
@@ -218,7 +287,7 @@ struct GenerationWriter::Impl {
 		m::array(wire, 2);
 		m::unsigned_integer(wire, 1);
 		m::unsigned_integer(wire, 1);
-		put_cursor(wire, cursor);
+		put_cursor(wire, base);
 		put_cursor(wire, next);
 		m::array(wire, 4);
 		m::unsigned_integer(wire, 1);
@@ -245,25 +314,27 @@ struct GenerationWriter::Impl {
 		}
 		d::Limits limits;
 		limits.storage_account = heap;
-		d::DeltaDecoder decoder(cursor, scope, limits, d::UpdateKind::Delta);
+		d::DeltaDecoder decoder(base, names, limits, d::UpdateKind::Delta);
 		std::span<const char> input(wire.data(), wire.size());
 		while (!input.empty()) {
 			d::WorkBudget budget{1 << 20, 1 << 16};
 			decoder.feed(input, budget);
 		}
 		auto source = std::make_shared<const d::ValidatedDelta>(decoder.finish());
-		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
+		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk, entry));
 		const auto bounds = l::detail::paged_limits(options.recovery_limits, l::paged::root_bytes);
 		l::detail::PagedDeltaPlanBuilder builder(actual, source, domain.factory(), heap, bounds);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
-		publish_plan(builder.take());
-		cursor = next;
+		publish_plan(builder.take(), entry);
+		cursor.revision = next.revision;
 		return cursor.revision;
 	}
 	void compact(std::size_t packs) {
+		if (layout != Layout::OneEntry)
+			throw std::logic_error("compaction needs the one-entry layout");
 		const auto context = l::detail::ManagedRecovery::capture(*disk);
 		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
 		std::array<l::SegmentId, 8> selected{};
@@ -285,7 +356,8 @@ struct GenerationWriter::Impl {
 		publish_plan(builder.take());
 	}
 };
-GenerationWriter::GenerationWriter(std::filesystem::path store) : impl_(std::make_unique<Impl>(std::move(store))) {}
+GenerationWriter::GenerationWriter(std::filesystem::path store, Layout layout)
+    : impl_(std::make_unique<Impl>(std::move(store), layout)) {}
 GenerationWriter::~GenerationWriter() = default;
 std::uint64_t GenerationWriter::publish(const Snapshot &knobs) { return impl_->publish(knobs); }
 std::uint64_t GenerationWriter::publish_json(std::string_view json) {
@@ -325,7 +397,8 @@ extern "C" {
 detent_testing_writer *detent_testing_open(const char *store) {
 	try {
 		auto handle = std::make_unique<detent_testing_writer>();
-		handle->writer = std::make_unique<detent::testing::GenerationWriter>(store);
+		handle->writer = std::make_unique<detent::testing::GenerationWriter>(
+		    store, detent::testing::GenerationWriter::Layout::PerNamespace);
 		return handle.release();
 	} catch (const std::exception &error) {
 		open_error = error.what();

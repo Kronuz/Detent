@@ -4174,6 +4174,587 @@
         "todo": "12af0c87"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 3 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 15 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. ARCHITECTURE.md): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); listed 2 h): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: resume warm-relay-agent-boot (its journal waits on jobs 261123-165613-3cde33, which passed 16 h ago; new): `campaign status warm-relay-agent-boot`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:58:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:58:07",
+      "by": "campaign",
+      "closed": "in review (whole-mechanism reviewer running); its jobs are queued",
+      "id": "msg-342",
+      "settles": {
+        "todo": "b6b21e90"
+      },
+      "text": "to do, critical path first:\ntodo: finish legacy-h (nothing moved it for 64 min: ready for review (fix round 3, the last (D154), at `Detent:5cc302f8`; jobs 261124-075318-9b7397 261124-075309-3e8f55 261124-075314-c9ce1c 261124-075331-f4ad0a and CI queued); to land: criteria without evidence at dceeb890b1b3: A1-A8, A10, A12-A13, A18-A21 (`campaign status legacy-h` lists them); new): `campaign status legacy-h`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:16:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:16:08",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: review-sweeps landed upstream; the lead already applies it; installation is campaign-v3's",
+      "id": "msg-343",
+      "notice": "skill landed deeff8120ca3568c73345eac19a704101c91d772",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:be73b75 review-sweeps: fix rounds sweep the class; failing probes stay blocking; agent-campaign:3222ea0 review-sweeps: a third fix round in the same mechanism runs; agent-campaign:deeff81 Prompts: fix rounds sweep a finding's class; lifecycle fixes get whole re-reviews"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:24:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:24:32",
+      "by": "campaign",
+      "closed": "answered: re-scoped; reproduce on CI and fix the stall",
+      "id": "msg-344",
+      "settles": {
+        "todo": "d7147859"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-fetch-oversize-abort (its journal waits on the lead: blocked on lead: the abort is not the oversize path; re-scope (options under Blocked on); it asks: Lead: the quest's premise (the oversize refusal costs the link) does not hold; the cause is a Bulk-connection stall on macos-x86_64 CI that a dead_after rule (5 s) then ends, the same stall as the heartbeat-gap failures. It does not reproduce on this host. Options: 1. Recommended: keep this quest o\u2026; new): `campaign status consensus-fetch-oversize-abort`, answer it (`campaign message consensus-fetch-oversize-abort TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:26:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:26:17",
+      "by": "xapiand-lead",
+      "closed": "asked xapiand to confirm the full-sync settling is macOS-only",
+      "id": "msg-345",
+      "text": "From xapiand's lead: xapiand:faultlab-plain-sync landed on faultlab main at 83fbde7. faultfs gains set_flush_mode(flush_mode, sync_platform); the default stays full on the host, and over 200,000 state hashes it is identical to main. One full-mode change: a full file sync now also settles files staged with no ordering point open, which before only sync_directory did. Only a concurrent race shows it: R4a goes from {A,o} to {A}. completion-flush-mode (PosixIOOptions::flush_mode, required) is in its durability review at max with your questions; the review file is .campaign/xapiand/reviews/completion-flush-mode-durability.md, and I'll send its id when it's done."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:27:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:27:13",
+      "by": "xapiand-lead",
+      "closed": "xapiand's reviewer probes Linux settle at both commits; fix gates it on F_FULLFSYNC if states are lost",
+      "id": "msg-346",
+      "text": "From xapiand's lead, re msg-330: not gated to macOS in code. File::sync calls settle_staged() on every platform when its sync persists (faultlab file.h:219). Main 5d4df9b already did this for marked staged bytes (file.h:158 and 173); 83fbde7 extends it to strays. Whether it costs Linux any states depends on whether 'staged' can exist there without a barrier-only sync. The faultlab reviewer is probing that at both commits with sync_platform=linux; the answer goes in .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md, and I'll send it. If Linux loses states, the fix gates the settle on the platform's call (F_FULLFSYNC only), with a Linux test."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:36:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:36:33",
+      "by": "xapiand-lead",
+      "closed": "accepted: on Linux the settle removes only states no backend produces (probe 261124-092756-fa00e2); gating note recorded in xapiand's follow-up",
+      "id": "msg-347",
+      "text": "From xapiand's lead, answering msg-330 with a run: the settle isn't macOS-only in code, but on Linux it removes only states no backend produces. completion's Linux ordering point fsyncs each file and the directory, so staged bytes are durable when the point returns. Pre-existing on main 5d4df9b: a file sync settles bytes an open point staged, and main's suite asserts it. Introduced at 83fbde7: only the race stray, {A,o} to {A}, and 'o' is unreachable on real Linux. Probe job 261124-092756-fa00e2 compared both commits with sync_platform=linux, plain and full. Follow-up: Xapiand .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md. If a future Linux ordering point stops persisting (e.g. sync_file_range), the settle must be gated on the call; that note is in the follow-up."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:49:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:49:23",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: review-sweeps installed (agent-campaign:deeff81)",
+      "id": "msg-348",
+      "notice": "skill installed deeff8120ca3568c73345eac19a704101c91d772",
+      "text": "campaign skill: agent-campaign:deeff81 installed here, 8 commits: agent-campaign:b97af27 docs/v3: quests with nothing moving them, before and after lead-driver; agent-campaign:03aedc1 docs/v3: lead presence beside the idle hours; installs by window; agent-campaign:7b1e2b1 docs/v3: the lead-driver measurement script next to its page; agent-campaign:598db54 docs/v3: set usage-limit outages apart in the lead-driver measurement; agent-campaign:0f935e3 docs/v3: restate lead-driver's measurement with the outage set apart; agent-campaign:be73b75 review-sweeps: fix rounds sweep the class; failing probes stay blocking; agent-campaign:3222ea0 review-sweeps: a third fix round in the same mechanism runs; agent-campaign:deeff81 Prompts: fix rounds sweep a finding's class; lifecycle fixes get whole re-reviews"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:49:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:49:39",
+      "by": "kronuz",
+      "closed": "applied; legacy-h's round 3 already ran under these rules",
+      "id": "msg-349",
+      "text": "campaign skill: agent-campaign:deeff81 installed (review-sweeps). The review rules from the legacy-h analysis now apply:\n1. A fix round that adds a mechanism or state machine starts with a lifecycle table (states x events), design-checked before code.\n2. Each finding's fix sweeps its class: every transition gets a value-checking test.\n3. A reviewer's failing probe stays blocking until root-caused to a finding with a fails-without; 'unreachable' is shown by a run, and the lead never relabels it.\n4. Once a finding lands in a lifecycle, the re-review covers the whole mechanism, not the diff.\n5. Every review of a critical quest, re-reviews included, launches at effort max.\n6. PLAN V5 (owner): when every earlier finding is fixed and the new one sits in the same mechanism, the lead runs the third fix round and informs the owner, without parking.\nNext to install: todo-mail-trust (a parked quest keeps its file set), then drain-yields and evidence-once."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:02:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:02:02",
+      "by": "campaign",
+      "closed": "not ended: probe runs 45449779597 (queued) and 45453078372 (running) are CI runs, not jobs; a waiter resumes the contributor",
+      "id": "msg-350",
+      "settles": {
+        "todo": "e1694809"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); new): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:12:48",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:12:48",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-340",
+      "items": {
+        "consensus-fetch-oversize-abort": "frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "consensus-fetch-oversize-abort",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set consensus-fetch-oversize-abort: unlocks frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:18:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:18:14",
+      "by": "campaign",
+      "closed": "observability-core answered (msg to its journal); fetch-oversize-abort's ids are CI runs still running (msg-86 to campaign-v3)",
+      "id": "msg-352",
+      "settles": {
+        "todo": "479b93be"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; new): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 16 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:24:01",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:24:01",
+      "by": "campaign",
+      "closed": "observability-core parked for the owner (P2, P3) with its design review running; relay-mirror resumed; fetch-oversize-abort waits on CI runs still running",
+      "id": "msg-353",
+      "settles": {
+        "todo": "d5105077"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; listed 5 min): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume relay-mirror-idle-wake (its journal waits on jobs 261124-035147-903054, 261124-035149-ce2080, 261124-035150-981777, 261124-035152-3ac6f3, 261124-035154-314fca, 261124-035211-92ed4b and 261124-034503-387342, which ended (done, failed) 3 min ago; new): `campaign status relay-mirror-idle-wake`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 21 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:27:11",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:27:10",
+      "by": "xapiand-lead",
+      "closed": "noted: completion-flush-mode CHANGES F1 (mixed-mode batch downgraded full files) being fixed; full mode is the old behavior exactly",
+      "id": "msg-354",
+      "text": "From xapiand's lead: the completion-flush-mode durability review (your questions, effort max) is in: Xapiand .campaign/xapiand/reviews/completion-flush-mode-durability.md (Xapiand:b22610662), CHANGES. F1: a full-mode file batched by a plain-mode backend got fsync on four batch paths. Fix: the stronger file syncs itself, and every path a file can be synced by something else gets a test. F2: reusable files' mode untested. Full mode is the old behavior exactly (72 syscalls, empty diff), refusals hold on devfs, and the table matches faultfs on 24 rows. The lead also ruled F3 (no zero-value plain default) and F7 (PosixFile 16->48 bytes shrinks back). A fix round is running; the confirming jobs are the reviewer's probes."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:55:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:55:23",
+      "by": "campaign",
+      "closed": "false: probe CI runs still running (msg-86 reported); a waiter resumes the contributor",
+      "id": "msg-355",
+      "settles": {
+        "todo": "33cd038f"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 53 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:06:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:06:05",
+      "by": "campaign",
+      "closed": "journal-bound-first-open resumed with its failures; fetch-oversize-abort's suite probe 45453078372 still running (msg-86)",
+      "id": "msg-356",
+      "settles": {
+        "todo": "c6884096"
+      },
+      "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261124-063445-61ecfe, 261124-063446-3123df and 261124-063448-c99934, which ended (done, failed) 5 min ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 64 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: todo-mail-trust installed (agent-campaign:4bbdcae)",
+      "id": "msg-357",
+      "notice": "skill landed 4bbdcaec3769f7f0f71f4449f5b19d97331ece47",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, installed here: agent-campaign:2a1d6f8 todo-mail-trust: the to-do mail lists only what the lead can act on; agent-campaign:55e00c4 todo-mail-trust: read a branch head's commit time once per commit; agent-campaign:a6e2cb8 Merge branch 'main' into quest/campaign-v3/todo-mail-trust; agent-campaign:d48751d todo-mail-trust: commit after the job's end second in the A2 test; agent-campaign:4bbdcae Merge branch 'main' into quest/campaign-v3/todo-mail-trust"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:33",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: todo-mail-trust installed (agent-campaign:4bbdcae)",
+      "id": "msg-358",
+      "notice": "skill installed 4bbdcaec3769f7f0f71f4449f5b19d97331ece47",
+      "text": "campaign skill: agent-campaign:4bbdcae installed here, 5 commits: agent-campaign:2a1d6f8 todo-mail-trust: the to-do mail lists only what the lead can act on; agent-campaign:55e00c4 todo-mail-trust: read a branch head's commit time once per commit; agent-campaign:a6e2cb8 Merge branch 'main' into quest/campaign-v3/todo-mail-trust; agent-campaign:d48751d todo-mail-trust: commit after the job's end second in the A2 test; agent-campaign:4bbdcae Merge branch 'main' into quest/campaign-v3/todo-mail-trust"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:42",
+      "by": "kronuz",
+      "closed": "noted: parked quests keep files; overlap check and CI-run ids still open (msg-86, msg-87)",
+      "id": "msg-359",
+      "text": "campaign skill: agent-campaign:4bbdcae installed (todo-mail-trust).\n1. A parked quest (status=blocked) with a branch now keeps its file set: parking on a dependency or the owner no longer frees its files to other quests. Only a planned or dropped quest frees them (xapiand msg-83, msg-71).\n2. The to-do mail is replaced at the next look whenever an item comes or goes, or its gap or command changes; a changing age or count alone does not resend. Expect one extra mail now: older mail records lack the new field.\n3. A quest with a worktree file changed in the last 15 min, or a commit after its last job ended, shows as working, not resume.\nKnown, next: set files= does not yet check overlaps (detent msg-87), and CI run ids in a journal read as ended jobs (detent msg-86)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:49",
+      "by": "campaign",
+      "closed": "false, known msg-86: suite probe 45453078372 still running",
+      "id": "msg-360",
+      "settles": {
+        "todo": "8ae47450"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 75 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:22:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:22:00",
+      "by": "campaign",
+      "closed": "bound-first-open not parked: lead widened it to turn_log.h to remove the +78% (no owner question); contributor resumed. fetch-oversize-abort: known msg-86, suite probe still running",
+      "id": "msg-361",
+      "settles": {
+        "todo": "804ae192"
+      },
+      "text": "to do, critical path first:\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; new): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 80 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:37:49",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:37:49",
+      "by": "campaign",
+      "closed": "liveness resumed (fresh contributor, A1 harness); bound-first-open's journal is stale, lead widened it to turn_log.h instead of the owner; fetch-oversize-abort's suite probe still running (msg-86)",
+      "id": "msg-362",
+      "settles": {
+        "todo": "34d7861a"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-072638-7efa59, 261124-072640-a63185, 261124-072642-7d4f31, 261124-072644-b5fbdb, 261124-072646-006a62 and 261124-072649-6d7137, which ended (done, failed) 3 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; listed 16 min): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:43:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:43:18",
+      "by": "campaign",
+      "closed": "false, known msg-86: suite probe 45453078372 still in progress; waiter bbwlitg75 resumes the contributor",
+      "id": "msg-363",
+      "settles": {
+        "todo": "edbd2831"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:44:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:44:02",
+      "by": "xapiand-lead",
+      "closed": "noted: completion:b4600a8 landed; Detent passes FlushMode full in pin-wave (criterion added)",
+      "id": "msg-364",
+      "text": "From xapiand's lead: completion-flush-mode landed at completion:b4600a8. Durability re-review of the whole mechanism APPROVED: Xapiand .campaign/xapiand/reviews/completion-flush-mode-durability-r2.md (first review: -durability.md). F1-F7 closed; CI green on all 8 platform jobs (run 45468242235). Detent must pass FlushMode full (Value {plain=1, full=2}, no zero value) at its next completion bump. journal-sync-mode started; it changes host.h only after your journal-bound-first-open lands, and I will send you the host-open call shape before it lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:54:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:54:00",
+      "by": "campaign",
+      "closed": "relay-mirror parked until split-detent; fetch-oversize-abort's suite probe still running (msg-86)",
+      "id": "msg-365",
+      "settles": {
+        "todo": "6d6046e7"
+      },
+      "text": "to do, critical path first:\ntodo: resume relay-mirror-idle-wake (nothing moved it for 62 min: blocked on split-detent: landing; then move the authority edit and queue evidence; new): `campaign status relay-mirror-idle-wake`, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:59:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:59:17",
+      "by": "campaign",
+      "closed": "parked until the suite probe ends (known msg-86)",
+      "id": "msg-366",
+      "settles": {
+        "todo": "e08cc75e"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:14:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:14:56",
+      "by": "xapiand-lead",
+      "closed": "answered: call shape into pin-wave; xapiand starts now, lands after bound-first-open",
+      "id": "msg-367",
+      "text": "From xapiand's lead, the journal-sync-mode call shape (your pin-wave waits on it): no host.h change. The flush mode lives only in completion's PosixIOOptions and a journal Host follows its IO. Detent passes full where it builds each PosixIO: std::make_unique<kronuz::journal::PosixIO>(dir, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}). msg-325 assumed Detent never builds a PosixIO; it does: src/detent_authority/service.cc:1835,1847,1849,1851; completion PosixIOs at src/detent_local/disk_store.cc:467 and src/detent_relay/mirror_service.cc:364; benchmarks/ and docs/design/async-drivers-bench/; consensus bench/netlab/node.cc:211. A mode at host open too would be a second one that could disagree with the IO's. The quest stays ordered after your journal-bound-first-open only because both touch journal's tests; if you would rather drop that ordering now that host.h is untouched, say so. Detail: the quest's journal, 'Contract for Detent'."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:31:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:31:12",
+      "by": "campaign",
+      "closed": "read: A2/A3 passed, A1 harness crash again; contributor resumed",
+      "id": "msg-368",
+      "settles": {
+        "todo": "6ae892ad"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-113944-9df262, 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 and 261124-114019-068816, which ended (done, failed) 5 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:07:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:07:16",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-351",
+      "items": {
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "observability-core": "observability-core",
+        "split-detent": "split-detent",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-open-single-read",
+          "observability-core",
+          "split-detent",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "legacy-h landed: unlocks first-read-1ms; observability-core; split-detent; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:44:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:44:09",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-369",
+      "items": {
+        "consensus-next-deadline-removal": "consensus-next-deadline-removal (until consensus-follower-read, consensus-liveness-asan-timeout met: `campaign set consensus-next-deadline-removal status=planned`)",
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "consensus-next-deadline-removal",
+          "first-read-1ms",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "consensus-liveness-asan-timeout landed: unlocks consensus-next-deadline-removal (until consensus-follower-read, consensus-liveness-asan-timeout met: `campaign set consensus-next-deadline-removal status=planned`); first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:03:06",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:03:06",
+      "by": "campaign",
+      "closed": "started first-read-1ms; contributor launched",
+      "id": "msg-371",
+      "settles": {
+        "todo": "3d7954eb"
+      },
+      "text": "to do, critical path first:\ntodo: start first-read-1ms (launchable; new): `campaign start first-read-1ms`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:02:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:02:22",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-370",
+      "items": {
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set first-read-1ms: unlocks first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:25:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:25:12",
+      "by": "campaign",
+      "closed": "split-journal parked until xapiand:journal-sync-mode lands (same test files)",
+      "id": "msg-373",
+      "settles": {
+        "todo": "3693eb89"
+      },
+      "text": "to do, critical path first:\ntodo: start split-journal (launchable; new): `campaign start split-journal`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:30:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:30:32",
+      "by": "campaign",
+      "closed": "review launches once the contributor drops the holdable() guard (in progress), so it sees final code",
+      "id": "msg-374",
+      "settles": {
+        "todo": "12459201"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-next-deadline-removal (its journal says ready for review; then launch its correctness review; new): `campaign set consensus-next-deadline-removal status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:46:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:46:40",
+      "by": "campaign",
+      "closed": "A1 pair, the 20-run test and A2 x200 passed; the suite timed out at 30 min under load 60 (invalid, not a failure), rerun as 6d9c49; CI green; the macOS suite probe is queued",
+      "id": "msg-375",
+      "settles": {
+        "todo": "d90f97db"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its journal waits on jobs 261124-123054-1bea5f, 261124-123059-eda87c, 261124-123104-84309d and 261124-123112-1fc948, which ended (done, timeout) 4 min ago; new): `campaign status consensus-fetch-oversize-abort`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:13:36",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:13:36",
+      "by": "campaign",
+      "closed": "read; suite rerun 6d9c49 under load; contributor updating its journal",
+      "id": "msg-377",
+      "settles": {
+        "todo": "28a656e5"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its journal waits on jobs 261124-123054-1bea5f, 261124-123059-eda87c, 261124-123104-84309d and 261124-123112-1fc948, which ended (done, timeout) 31 min ago; new): `campaign status consensus-fetch-oversize-abort`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:16:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:16:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: drain-yields installed (agent-campaign:5ab2eef); lead lifts its interim no-new-exclusive rule",
+      "id": "msg-378",
+      "notice": "skill landed 5ab2eef2c2a741d31b57d440fd5aa82833a51a42",
+      "text": "campaign skill: 9 commits landed on agent-campaign's main, installed here: agent-campaign:51faab2 Let light work run while a claimed drain waits for its turn; agent-campaign:048e9b0 Describe how a claimed drain waits for its turn; agent-campaign:2350013 Fill an overdue drain's wait only beside strict work; agent-campaign:95743f5 Give a due drain its turn ahead of strict work; agent-campaign:2d013b8 Hold far-running light work back while a drain holds the machine; agent-campaign:53bce4f Merge remote-tracking branch 'origin/main' into quest/campaign-v3/drain-yields; agent-campaign:a4bb8ac Start no light work while an admitted drain holds the machine; agent-campaign:7f29005 Merge remote-tracking branch 'origin/main' into quest/campaign-v3/drain-yields; agent-campaign:5ab2eef Claim every due drain while the first waits"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:16:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:16:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: drain-yields installed (agent-campaign:5ab2eef); lead lifts its interim no-new-exclusive rule",
+      "id": "msg-379",
+      "notice": "skill installed 5ab2eef2c2a741d31b57d440fd5aa82833a51a42",
+      "text": "campaign skill: agent-campaign:5ab2eef installed here, 9 commits: agent-campaign:51faab2 Let light work run while a claimed drain waits for its turn; agent-campaign:048e9b0 Describe how a claimed drain waits for its turn; agent-campaign:2350013 Fill an overdue drain's wait only beside strict work; agent-campaign:95743f5 Give a due drain its turn ahead of strict work; agent-campaign:2d013b8 Hold far-running light work back while a drain holds the machine; agent-campaign:53bce4f Merge remote-tracking branch 'origin/main' into quest/campaign-v3/drain-yields; agent-campaign:a4bb8ac Start no light work while an admitted drain holds the machine; agent-campaign:7f29005 Merge remote-tracking branch 'origin/main' into quest/campaign-v3/drain-yields; agent-campaign:5ab2eef Claim every due drain while the first waits"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:16:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:16:38",
+      "by": "kronuz",
+      "closed": "noted; interim no-new-exclusive rule lifted",
+      "id": "msg-380",
+      "text": "campaign skill: agent-campaign:5ab2eef installed (drain-yields). Exclusive and strict measurements may be queued again.\n1. A claimed drain no longer blocks light work while it waits for its quiet hold; once admitted it holds the machine as before.\n2. Drains are claimed one at a time in a lull; once drains fall due, every due one is claimed so a batch runs back to back.\n3. A priority -1 drain waits for a stretch with no queued work of higher priority.\nReplay of 2026-11-23/24 against main: idle light slot-minutes beside runnable work 2349 -> 2126 (-9.5%), drains over 60 min past due 2 -> 1 of 32, worst drain wait 76 -> 73 min. Modest, measured. Report any drain that waits far past its due time."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -4478,11 +5059,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "owner D160: drop authority pages; the measured design stays on its branch at Detent:6833b7c3",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
-      "updated": "2026-11-21T21:30:44",
+      "updated": "2026-11-24T12:05:41",
       "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
@@ -4505,7 +5087,7 @@
         "tests/detent_authority/**",
         "tests/detent_system/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -4540,11 +5122,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority voters pin peers by SPKI, the one consensus pin kind",
-      "updated": "2026-11-20T18:25:04"
+      "updated": "2026-11-24T12:39:07"
     },
     "brand-head-links": {
       "accepted": {},
@@ -6996,12 +7579,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "narrowed off seeds files held by consensus-seeds-rate-flake; transport is header-only",
+      "reason": "ready at consensus:ea48bc8",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T08:12:56",
+      "updated": "2026-11-24T14:14:13",
       "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
@@ -7845,18 +8428,48 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T12:44:04",
+          "ci": {
+            "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+            "runs": [
+              45472511590
+            ]
+          },
+          "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "criteria": {
+            "A1": "261124-123229-68cd34",
+            "A2": "261124-113944-9df262; fails without: 261124-040934-6f74ca, 261124-051846-6e6be3",
+            "A3": "261124-072642-7d4f31 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072644-b5fbdb (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072646-006a62 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072640-a63185 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9",
+            "A4": "`ci:ci` (run 45472511590 at e0fd383, green on every job)"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+          "reason": "",
+          "tested": "e0fd3838ed792697d857a57a9fb91a39da736e9e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-24T01:33:42",
-      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
+      "updated": "2026-11-24T12:44:09",
+      "worktree": ""
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -7950,6 +8563,8 @@
         "consensus-liveness-asan-timeout",
         "consensus-follower-read"
       ],
+      "base": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+      "branch": "quest/detent/consensus-next-deadline-removal",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -7963,8 +8578,12 @@
         "include/consensus/core.h",
         "src/core*",
         "test/core_deadline_test.cc",
-        "docs/mechanisms/deadlines.md"
+        "docs/mechanisms/deadlines.md",
+        "CMakeLists.txt",
+        "test/liveness_test.cc",
+        "docs/mechanisms/liveness.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
       "landed": [],
       "lenses": [
         "correctness"
@@ -7972,16 +8591,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "start would hold include/consensus/core.h that the accepted, parked follower-read lands with; A3 needs liveness's held-Tick harness on main",
+      "reason": "ready at consensus:d9c7747",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "blocked",
+      "status": "review",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "until": [
-        "consensus-follower-read",
-        "consensus-liveness-asan-timeout"
-      ],
-      "updated": "2026-11-24T06:13:14"
+      "updated": "2026-11-24T13:32:32",
+      "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
@@ -8896,20 +9512,56 @@
         "src/transport/seed*",
         "include/consensus/transport/seed*"
       ],
-      "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T10:00:51",
+          "ci": {
+            "carried": true,
+            "commit": "803c37e232311f91132444f6d9213b42ff9f336e",
+            "runs": [
+              45428288634
+            ]
+          },
+          "commit": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+          "criteria": {
+            "A1": "261124-091322-79245a; fails without: 261124-041541-5d4555",
+            "A2": "261124-091322-79245a; fails without: 261124-041548-778dca",
+            "A3": "261124-091322-7392b0",
+            "A4": "261124-091325-548d18 (suite at the merge 5341bd3); `ci:ci` (CI run 45428288634 at 803c37e, green, carried across the clean merge)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-091325-548d18",
+              "level": "light",
+              "seconds": 1443.8,
+              "state": "done",
+              "what": "consensus-seeds-rate-flake check suite at 5341bd3166c3"
+            }
+          ],
+          "final": true,
+          "from": "37966262d8f81d93ffc0e35094342e97f1a77343",
+          "reason": "",
+          "tested": "5341bd3166c3442a5acc7df87a3f5333ae2a600f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T07:45:00",
-      "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
+      "updated": "2026-11-24T10:01:27",
+      "worktree": ""
     },
     "consensus-simulation-asan-timeout": {
       "accepted": {
@@ -12727,7 +13379,7 @@
         "include/detent_authority/**",
         "tests/detent_system/test_multicast_seeds*",
         "docs/USAGE.md",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "history": [
         {
@@ -12764,12 +13416,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-24T03:25:52"
+      "updated": "2026-11-24T12:39:14"
     },
     "detent-on-drivers": {
       "accepted": {},
@@ -13324,49 +13976,49 @@
         "docs-e2e"
       ],
       "files": [
-        "website/src/content/docs/index.mdx",
-        "website/src/content/docs/basics.md",
-        "website/src/content/docs/installation.md",
-        "website/src/content/docs/quickstart.md",
-        "website/src/content/docs/settings-and-flags.md",
-        "website/src/content/docs/rollouts.md",
-        "website/src/content/docs/group-overrides.md",
+        "site/src/content/docs/index.mdx",
+        "site/src/content/docs/basics.md",
+        "site/src/content/docs/installation.md",
+        "site/src/content/docs/quickstart.md",
+        "site/src/content/docs/settings-and-flags.md",
+        "site/src/content/docs/rollouts.md",
+        "site/src/content/docs/group-overrides.md",
         "README.md",
         "QUICKSTART.md",
-        "website/src/content/docs/welcome.md",
-        "website/src/components/PageTitle.astro",
-        "website/src/content/docs/architecture.md",
-        "website/src/content/docs/architecture/**",
-        "website/src/content/docs/about.md",
-        "website/src/content/docs/benchmarks.md",
-        "website/src/content/docs/reference/configuration.md",
-        "website/src/content/docs/reference/limits.md",
-        "website/src/content/docs/reference.md",
-        "website/src/content/docs/reference/bindings/**",
-        "website/src/content/docs/reference/bindings.md",
-        "website/src/content/docs/reference/cli/**",
-        "website/src/content/docs/reference/cli.md",
-        "website/src/content/docs/reference/cpp-api/**",
-        "website/src/content/docs/reference/cpp-api.md",
-        "website/src/content/docs/reference/errors.md",
-        "website/src/content/docs/reference/evaluation.md",
-        "website/src/content/docs/reference/http-api/**",
-        "website/src/content/docs/reference/http-api.md",
-        "website/src/content/docs/reference/knobs.md",
-        "website/src/content/docs/reference/observability.md",
-        "website/src/content/docs/reference/snapshot-format.md",
-        "website/src/content/docs/faq.md",
-        "website/src/content/docs/help.md",
-        "website/src/content/docs/roadmap.md",
-        "website/src/content/docs/next.md",
-        "website/src/content/docs/contributing.md",
-        "website/src/content/docs/copyright.md",
-        "website/src/content/docs/tests/**",
+        "site/src/content/docs/welcome.md",
+        "site/src/components/PageTitle.astro",
+        "site/src/content/docs/architecture.md",
+        "site/src/content/docs/architecture/**",
+        "site/src/content/docs/about.md",
+        "site/src/content/docs/benchmarks.md",
+        "site/src/content/docs/reference/configuration.md",
+        "site/src/content/docs/reference/limits.md",
+        "site/src/content/docs/reference.md",
+        "site/src/content/docs/reference/bindings/**",
+        "site/src/content/docs/reference/bindings.md",
+        "site/src/content/docs/reference/cli/**",
+        "site/src/content/docs/reference/cli.md",
+        "site/src/content/docs/reference/cpp-api/**",
+        "site/src/content/docs/reference/cpp-api.md",
+        "site/src/content/docs/reference/errors.md",
+        "site/src/content/docs/reference/evaluation.md",
+        "site/src/content/docs/reference/http-api/**",
+        "site/src/content/docs/reference/http-api.md",
+        "site/src/content/docs/reference/knobs.md",
+        "site/src/content/docs/reference/observability.md",
+        "site/src/content/docs/reference/snapshot-format.md",
+        "site/src/content/docs/faq.md",
+        "site/src/content/docs/help.md",
+        "site/src/content/docs/roadmap.md",
+        "site/src/content/docs/next.md",
+        "site/src/content/docs/contributing.md",
+        "site/src/content/docs/copyright.md",
+        "site/src/content/docs/tests/**",
         "docs/*.md",
-        "website/astro.config.mjs",
-        "website/src/content/docs/guides.md",
-        "website/src/content/docs/guides/**",
-        "website/src/content/docs/operations/**"
+        "site/astro.config.mjs",
+        "site/src/content/docs/guides.md",
+        "site/src/content/docs/guides/**",
+        "site/src/content/docs/operations/**"
       ],
       "landed": [],
       "lenses": [],
@@ -13380,11 +14032,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: features and quick start",
-      "updated": "2026-11-20T06:55:39"
+      "updated": "2026-11-24T12:39:20"
     },
     "docs-site-usage": {
       "accepted": {},
@@ -14336,6 +14989,8 @@
       "after": [
         "reader-s6"
       ],
+      "base": "294217293769b04e7ff82cb965f96af8a1d72e72",
+      "branch": "quest/detent/first-read-1ms",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -14382,15 +15037,15 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [
-        "legacy-h"
-      ],
+      "needs": [],
       "provides": [],
+      "reason": "its need on observability-core was a file overlap only; observability-core is parked for the owner and narrowed to its doc and model",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-23T10:18:44"
+      "updated": "2026-11-24T13:03:14",
+      "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
       "accepted": {},
@@ -16043,25 +16698,27 @@
     "journal-bound-first-open": {
       "accepted": {
         "durability": {
-          "at": "2026-11-23T11:45:07",
-          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "at": "2026-11-24T11:55:04",
+          "base": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
           "blobs": {
-            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
-            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
-            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+            "docs/mechanisms/lost-bound.md": "100644:468db232d48b1412a675b8d7dffba91fc912187f",
+            "include/journal/host.h": "100644:568781398e4e22cf9f9277fc65e943e34685770e",
+            "include/journal/turn_log.h": "100644:500c0dc98077049aeb9ac0bd61317b9b0724adeb",
+            "test/lost_bound_test.cc": "100644:c447554fc5440e87075d6d9e3fd477afa3694b03"
           },
           "by": "review",
-          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "criteria": "2c746bd6f8489691",
           "diffs": {
-            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
-            "include/journal/host.h": "04df3faad6d22e7e",
-            "test/lost_bound_test.cc": "37292cd506bcefe2"
+            "docs/mechanisms/lost-bound.md": "04cfb53f8a2fdc90",
+            "include/journal/host.h": "7ed91f06b0313a19",
+            "include/journal/turn_log.h": "a1cf81e92f338da9",
+            "test/lost_bound_test.cc": "6a0e63ee03f7cab4"
           },
           "findings": {},
           "note": "",
-          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
-          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "review": "0eaf7f653051615ec1e97342df5f6a0123da946d",
+          "reviewed": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "verdict": "APPROVE"
         }
       },
@@ -16088,7 +16745,8 @@
       "files": [
         "include/journal/host.h",
         "test/lost_bound_test.cc",
-        "docs/mechanisms/lost-bound.md"
+        "docs/mechanisms/lost-bound.md",
+        "include/journal/turn_log.h"
       ],
       "history": [
         {
@@ -16108,21 +16766,56 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-bound-first-open",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T13:22:03",
+          "ci": {
+            "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+            "runs": [
+              45472487271
+            ]
+          },
+          "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+          "criteria": {
+            "A1": "261124-113916-a045ce",
+            "A2": "261124-131510-b857bb; fails without: 261123-110049-af725e, 261124-063446-3123df, 261124-113919-ce832d",
+            "A3": "`docs/mechanisms/lost-bound.md`: \"the shard, the state byte's `bounded_state` bit, then 8 bytes after the base). The verdict is stored\""
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+          "reason": "",
+          "tested": "a2d65da45e72f142695934bd605910e60fd1d3cd"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "journal-turn-sector-checks landed (journal:4eb8165)",
+      "reason": "a host.h-only fix costs one extra full recovery (+78% open at 192 MiB); turn_log.h lets recovery read once; no other active journal quest holds it",
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-24T06:31:20",
-      "worktree": "../journal-wt/detent/journal-bound-first-open"
+      "updated": "2026-11-24T13:22:07",
+      "worktree": ""
     },
     "journal-close-in-doubt": {
       "accepted": {
@@ -18079,6 +18772,7 @@
           ]
         }
       ],
+      "into": "journal-bound-first-open",
       "landed": [],
       "lenses": [
         "durability"
@@ -18086,11 +18780,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "superseded: journal-bound-first-open landed (journal:a2d65da) with the single read; device calls equal main's (292, 559; review Detent:8fed6364), open A/B f05db6 within main's spread; A2-A5 met by its jobs, doc and CI",
       "repo": "../journal",
       "risk": "high",
-      "status": "planned",
+      "status": "dropped",
       "title": "An open reads each turn log once",
-      "updated": "2026-11-23T11:45:11"
+      "updated": "2026-11-24T13:24:12"
     },
     "journal-power-silent-loss": {
       "accepted": {
@@ -19097,14 +19792,14 @@
     },
     "legacy-h": {
       "accepted": {
-        "design": {
-          "at": "2026-11-23T15:49:27",
-          "base": "18ce371da1e30502f778ede6a5fbb04ad1971095",
+        "correctness": {
+          "at": "2026-11-24T09:14:53",
+          "base": "880eda1422dfadebbba02dd2864f44f545b85034",
           "blobs": {
             ".github/workflows/ci.yml": "100644:da2604ada97d5acf9d31beaa5ff936e489d0156d",
             ".gitignore": "100644:5aa71ae91430a49e9d584bf4117bff262279a00a",
-            "CHANGELOG.md": "100644:a6d8d841ba06925b2ab70d8c9a2669c57eb11113",
-            "CMakeLists.txt": "100644:68ce4ee17babdc49f9629efe8f80038c3f49b502",
+            "CHANGELOG.md": "100644:ef787cbaff95bc4ac174daee894c9c18f7c1ee50",
+            "CMakeLists.txt": "100644:07782d3fafca484ad45ab0fa4cfc4ef5fc23438c",
             "README.md": "100644:9fe7596a4d0f9d97951c6bc73ea1bca4421a5aab",
             "benchmarks/CMakeLists.txt": "100644:044ef984b056db80a97b4fb459154c89dd006b81",
             "benchmarks/btree-repair/actual_type_sweep.cc": "100644:51af802fa26fa2cd58677166a958b66ed95ec91c",
@@ -19113,9 +19808,11 @@
             "benchmarks/detent_read_bench.cc": "deleted",
             "benchmarks/detent_update_bench.cc": "deleted",
             "benchmarks/library_adoption_measure.py": "100644:4c12d10a860651b04ea2cbfaa722b822359ce953",
+            "benchmarks/reader_bench.cc": "100644:a69a34337eda301e30ee0b4d4a0556817b2b5445",
+            "benchmarks/reader_namespaces.sh": "100755:332fcfe7eca553e0338833795fc94da886194616",
             "bindings/CMakeLists.txt": "100644:453eb06d4c1412dc055541d854ffde4c8dad9925",
-            "bindings/python/CMakeLists.txt": "100644:6b4aa71fb850cf6d9cf43864a31b025c77b91609",
-            "bindings/python/detent_python.cc": "100644:b9bb488b960b7ccc11fc60d73cb91cd743703e60",
+            "bindings/python/CMakeLists.txt": "100644:af8a2c32f4bacba7a4bce3790c44dae5868b0082",
+            "bindings/python/detent_python.cc": "100644:b36a28d8a2392637bac7a89a13c27d133e526bef",
             "bindings/python/tests/test_detent.py": "100644:6498ff09fbe23305060ceb4c4eea6c257793fa2c",
             "bindings/rust/CMakeLists.txt": "100644:f39c42050c7839e73edd4458df855b3832dc986a",
             "bindings/rust/Cargo.lock": "100644:10c3a7c227434971a1d4ca5c169b2ba12811c4b7",
@@ -19127,7 +19824,7 @@
             "bindings/rust/tests/common/mod.rs": "100644:ade7947bdcadd7ad00d4a151cac3da8a5affb5f0",
             "bindings/rust/tests/integration.rs": "100644:da6ed6c6100999e25e0061fb12c4ca707c172ce6",
             "bindings/rust/tests/lifetime.rs": "100644:a00a67fd4ba3d9914dec185e06da78d8907ee3aa",
-            "bindings/tests/legacy_grep.sh": "100755:ec6e982e6666ff0277339814b2d115673ba95e28",
+            "bindings/tests/legacy_grep.sh": "100755:b4687eb7e4b1400eeef0e2ea61b25860bc2ed990",
             "bindings/tests/mutants/f1-rust-flag-any-nonzero.patch": "100644:323333a1c6524d9b3dbb8a6189a0195a6efbc7c1",
             "bindings/tests/mutants/f2-python-drops-mapping-bytes.patch": "100644:fbdd18375d73fa5fb2280c38431c9a6d49771612",
             "bindings/tests/mutants/f2-rust-drops-mapping-bytes.patch": "100644:edb24bc78619199ade06cf661651a868c3fbe5d8",
@@ -19157,10 +19854,11 @@
             "docs/SCALING.md": "100644:626a4180dd1e976fecc67692c2c4128c5f74adf9",
             "docs/SERVICES.md": "100644:8db2bc7afc04ab7a1a536d116816deaad048be5f",
             "docs/USAGE.md": "100644:b98f01543b0af46bffc3d7238a833c4fe7e6ba2b",
-            "docs/design/client-local-source.md": "100644:75e7ceeba5848b44beb9a3efcf937bee362ed311",
+            "docs/design/client-local-source.md": "100644:842b6259ae0384a97cfc4b4b24922687469c94eb",
             "docs/diagrams/actors-where.d2": "100644:6a0b0700da674926daa2bcb355371c822a014897",
             "docs/diagrams/actors-where.png": "100644:b054a73a204b7449cbd0e8f69f0a322c70fd0466",
             "docs/mechanisms/evaluation.md": "100644:1df4474ff62206a4d7692d1013e5837fddc4d78e",
+            "docs/mechanisms/reader-core.md": "100644:6308cc487c47958c405aae2908ad58ea6b04cccf",
             "docs/status/legacy-wave2.md": "100644:fb670011a8c04cf363a3adc944fe8c72fa004937",
             "examples/CMakeLists.txt": "100644:440cc9e6d90f5749fa8c8daa15892766328eaca1",
             "examples/demo.cc": "100644:e83525af8707a583ba975d80d9a153bb50c96203",
@@ -19177,7 +19875,9 @@
             "include/detent/snapshot_ref.hh": "deleted",
             "include/detent/testing.hh": "deleted",
             "include/detent_local/client_source.hh": "deleted",
-            "include/detent_testing/store.hh": "100644:c5053c31b39157e5adc2d6c6786b8970dff17fe5",
+            "include/detent_testing/generation_writer.h": "100644:952b820051ee3bd2b6f6a0c24e3993c1149af27d",
+            "include/detent_testing/generation_writer.hh": "100644:9ce642ca3d2f57cbdaff10a58e06de802840b6d5",
+            "include/detent_testing/store.hh": "100644:a0d5c508bd176f46c5db38bd16f09597907008ff",
             "src/CMakeLists.txt": "100644:09bb6e821aff7eb9d78a029ec3e5993a8089f5d2",
             "src/detent/client.cc": "deleted",
             "src/detent/errors.cc": "100644:557e441e299c3384df1aac2880a0a94c3ffd41f5",
@@ -19188,18 +19888,24 @@
             "src/detent/test_hook.cc": "deleted",
             "src/detent/testing.cc": "deleted",
             "src/detent_agent/config.cc": "100644:fc19e1dda2112d73ac349c2e8614af2d30006011",
-            "src/detent_agent/main.cc": "100644:3045ec08b0c7647143509d6b0c6bb25d88d9f8cd",
+            "src/detent_agent/main.cc": "100644:9f77e2c04d26605caee1e87e98ce44286619630d",
             "src/detent_local/CMakeLists.txt": "100644:d35d0c1b3dc0cca0f4f69aa79fa87681d57e4c4e",
+            "src/detent_local/agent_store.cc": "100644:da2a8f90cd1248d860659dca5641df60f696f3b2",
             "src/detent_local/client_source.cc": "deleted",
             "src/detent_local/evaluation.hh": "100644:20f6c2194490a480e05a69696ced7945796af792",
+            "src/detent_local/generation.cc": "100644:ed49535d5db28f079f42b03f7761108b5b455f07",
+            "src/detent_local/generation_file_access.hh": "100644:b9f6a5e9375131a1be49df5a2fc74e09bd0d3cde",
             "src/detent_reader/CMakeLists.txt": "100644:9b804e3e29481b1f9faf00bdf5355abd969e3ec7",
+            "src/detent_reader/core.cc": "100644:031af2babae5a752911126dce61cc7ba2e157363",
             "src/detent_reader/exports.list": "100644:d4d0bd99b6ba4a63aaaf032c426b55c7e171d386",
-            "src/detent_testing/CMakeLists.txt": "100644:1cda0819d7d3bb31c174b644508e53983b0fea44",
+            "src/detent_reader/testing.hh": "100644:154f40d484872b9c03e02b8de0e7242ca7c964d8",
+            "src/detent_testing/CMakeLists.txt": "100644:b10edc9d88a69975f56a11149007c3c9a51fc6f4",
             "src/detent_testing/exports.list": "100644:831b5cbde59f769dc11560720a0e1a44843ccff0",
+            "src/detent_testing/generation_writer.cc": "100644:50b63272e16397332bde5362637e1d37d0a98868",
             "tests/CMakeLists.txt": "100644:b66c8090ef8fcbf8611cfef080a219ed3592e709",
             "tests/cmake_consumer/installed/CMakeLists.txt": "100644:fd807de1fe74b5d5a9cb8c0fb8bce1559e4c5d9b",
             "tests/cmake_consumer/installed/check.cmake": "100644:bc3c572115113fe8a9579107b84387448b99dd5b",
-            "tests/cmake_consumer/installed/main.cc": "100644:9068b069d9b5d051c09d016a0224f41f3a4a2676",
+            "tests/cmake_consumer/installed/main.cc": "100644:0b6340b0e27970d03984e4a3fbb2985967967a13",
             "tests/cmake_consumer/main.cc": "100644:2f7833b1dd73c90fd5901f5a27463d34b68920b5",
             "tests/detent/CMakeLists.txt": "100644:f66e472e49493cc073b330c194e2bd62c96d9284",
             "tests/detent/mutants/c3-bool-accepts-any-nonnegative.patch": "100644:3937c8e0f7eb7cc428b64532a03c514b4b356bc0",
@@ -19220,26 +19926,36 @@
             "tests/detent_local/test_client_source.cc": "deleted",
             "tests/detent_local/test_evaluation.cc": "100644:6b48315e1ddd96488b3d985c79662c4fb14edebb",
             "tests/detent_local/test_lazy_page_access.cc": "100644:31a4405903c608a7c173856271354758bbbb3737",
-            "tests/detent_reader/CMakeLists.txt": "100644:19f00a1678983c69374d6208a868da607ee42f55",
+            "tests/detent_reader/CMakeLists.txt": "100644:2341ee40079ff86e5f5693b11f4ba6f2c1d068a6",
             "tests/detent_reader/check_exports.cmake": "100644:884e05d5e5cb1a8c5ecd3b6352a345679237e40a",
-            "tests/detent_reader/test_reader_scenarios.cc": "100644:a12edf304606624f0b4d16b040576bdd11a61904",
-            "tests/detent_reader/test_reader_switch.cc": "100644:ed4ba99f081186ef7af5e506a4bf6cb5c306f9a3",
-            "tests/detent_system/CMakeLists.txt": "100644:5fde8145d7cdd07f1dc18dc1763d4fa92bfa5d1d",
+            "tests/detent_reader/reader_capacity_probe.cc": "100644:44cdba759e3e1db22ebcf23f5bd667f29f5397e6",
+            "tests/detent_reader/test_reader_core.cc": "100644:28a69d22740124d66fd233d7530f719040dd12b5",
+            "tests/detent_reader/test_reader_files.cc": "100644:cb903b991ab553f15aeb64a041be5b462ca4d27d",
+            "tests/detent_reader/test_reader_scenarios.cc": "100644:99dfb506174c0c8aeabb00f7812dc132b5a593a1",
+            "tests/detent_reader/test_reader_switch.cc": "100644:2f30ef57a75ef8464f57922daa833cc65d6fec60",
+            "tests/detent_reader/test_reader_syscalls.cc": "100644:00d1278b758881acb54ef42df2a70b140c7c1f69",
+            "tests/detent_system/CMakeLists.txt": "100644:5ed8a7f244b40a6fdd5799eaddfa6869cc30c944",
             "tests/detent_system/dense_reader_measure.py": "100644:1eec90f21a3b0567abfb9f79dc155fbb1b5201bb",
             "tests/detent_system/evidence.py": "100644:5deadab30ad6fefe6636bde789d24bbe9c5af818",
+            "tests/detent_system/first_read_phases.cc": "100644:c634243ca45ba9c641b6f47715418a4f391b5811",
             "tests/detent_system/local_oracle.cc": "100644:67aeef78415e5ccb634700ef0366842a962e4462",
             "tests/detent_system/mixed_oracle.cc": "100644:b63be046e0cb9d7ed3ba298fa3e7752965a837af",
             "tests/detent_system/prepared_client_probe.cc": "100644:eb22739f1131cb720e9689ad074faf97b0dfe9a4",
             "tests/detent_system/reader_benchmark.hh": "100644:1ab87758470884958813f1a449628ef9486546b2",
+            "tests/detent_testing/test_generation_writer.cc": "100644:d5fb961f58b25b83ffd1a28fa9093f3927066fcc",
+            "tests/docs/check_docs.py": "100755:b0577e557c02fde9adca24b03c25d279db8f4e57",
+            "tests/docs/docs_exceptions.txt": "100644:cd92c9c3625419849dba5cb359b29ec6cb08bb36",
+            "tests/docs/e2e_exceptions.txt": "100644:50797e40f9a7c91d1462b9cbaeda20fc1c190a21",
+            "tests/docs/mutants.py": "100755:4c2c1369ccedb1a6632bd800400b04c181c80461",
             "tools/w5/bench_rows.sh": "100755:058cab8c399059cbaab7cdfa6ac6ceffb575476a",
             "tools/w5/run_ab.sh": "100755:654f3b82e102f3ee4015cab702542a799c514611",
             "tools/w5/w5_detent.cc": "100644:32b58b4edf2c9e6c59ff74148c7f62ba9ffcebca",
             "website/src/content/docs/about.md": "100644:b9e2960fe9c9c23bce844a7fb12c5432a13220ad",
             "website/src/content/docs/architecture.md": "100644:131620591d48f7d54dcfef35896c18eaad646577",
             "website/src/content/docs/architecture/dependencies.md": "100644:6df738c0f5a07d001516721068f63329691a4d30",
-            "website/src/content/docs/architecture/how-it-works.md": "100644:2946d2f9811b5c47b2239218302975d5f9f736b9",
+            "website/src/content/docs/architecture/how-it-works.md": "100644:cc23a1b8b31b6899211e1dcfc5e65ac0093a306e",
             "website/src/content/docs/architecture/read-path.md": "100644:e5ad88bd38743ded3dcc567a31338c51be6d82e5",
-            "website/src/content/docs/architecture/update-path.md": "100644:6bdbf8a73603b53f744d54765ef38c1dc95f5ae2",
+            "website/src/content/docs/architecture/update-path.md": "100644:d2eb493a0d5e8e80717c73080046adf3ea114e92",
             "website/src/content/docs/basics.md": "100644:f2cd726a75e7d3805945ce9daaeb3ce4b1d80c2f",
             "website/src/content/docs/benchmarks.md": "100644:c82b963600dae675e842562df931042d89d64749",
             "website/src/content/docs/contributing.md": "100644:b97d30bcb5b24f5d3f2d8481e22014e085ee36ad",
@@ -19251,7 +19967,7 @@
             "website/src/content/docs/guides/kill-switches.md": "100644:81edd6018e219ec9b7204a20a72eaf975250d690",
             "website/src/content/docs/guides/live-updates.md": "deleted",
             "website/src/content/docs/guides/managed-delivery.md": "100644:07d769efc26652e07b5523b2ae31048ff2d9f536",
-            "website/src/content/docs/guides/python-and-rust.md": "100644:28f2fe5c8a24bd11f4a7e21b27ead90d2a47c557",
+            "website/src/content/docs/guides/python-and-rust.md": "100644:342f08a1d27746f04b2a39d567f7fab1b05908a9",
             "website/src/content/docs/guides/shell-and-agent.md": "100644:81686a703434cc059feaad47f99d51a0bb9e3f23",
             "website/src/content/docs/guides/testing.md": "100644:4e3c99013e544c95f43b1a6f7d8932c6677bed95",
             "website/src/content/docs/installation.md": "100644:c85c993d54ed4755e0ca53ad8db19fbbfac99ccf",
@@ -19260,14 +19976,14 @@
             "website/src/content/docs/operations/upgrading.md": "100644:8370864751b7543b055de82c2d004406f32ed546",
             "website/src/content/docs/quickstart.md": "100644:b09cf347146e7307a00c2ed34b20e02bdbb6a2b4",
             "website/src/content/docs/reference/bindings.md": "100644:902752127a37eadd6cf09757f39011eccb2ea27c",
-            "website/src/content/docs/reference/bindings/python.md": "100644:1f5394aabc004116415457430d01e82cd2792ced",
-            "website/src/content/docs/reference/bindings/rust.md": "100644:9bb92f6273e82de45dd05733efaed3abeb635c74",
-            "website/src/content/docs/reference/cli/detent.md": "100644:2492222576ac3c3cb2a04c4c97b62e4ce661fff4",
+            "website/src/content/docs/reference/bindings/python.md": "100644:3047dfeed9462e9533f302a20734e4e3781d46a6",
+            "website/src/content/docs/reference/bindings/rust.md": "100644:99c514599974594f29ef3f66b48cb2187770ccf2",
+            "website/src/content/docs/reference/cli/detent.md": "100644:5173cf248563fa91b1a9f575936bbd2da1e552ce",
             "website/src/content/docs/reference/configuration.md": "100644:661c5bf93e09cc58db27005c05072c544d7d3295",
             "website/src/content/docs/reference/cpp-api.md": "100644:73685f88ef4f12aa9916dba552d23fb280457e1e",
             "website/src/content/docs/reference/cpp-api/client.md": "deleted",
             "website/src/content/docs/reference/cpp-api/global-and-testing.md": "deleted",
-            "website/src/content/docs/reference/cpp-api/reader.md": "100644:5c949b0787e67c8b9226d66ed8e6fb9a82fb25d9",
+            "website/src/content/docs/reference/cpp-api/reader.md": "100644:e0ddca735bc1a192855d3661e5fa479efe1f4446",
             "website/src/content/docs/reference/cpp-api/sources.md": "deleted",
             "website/src/content/docs/reference/errors.md": "100644:21135ad9a9cb17bf038329027e62fcc431755dfe",
             "website/src/content/docs/reference/evaluation.md": "100644:038216578a86ad73c3a46ba2840969fe4a58693f",
@@ -19282,14 +19998,14 @@
             "website/src/lib/sidebar.mjs": "100644:dd22f211fd4076235edfcdb8edb8da3d60e34d70"
           },
           "by": "review",
-          "commit": "dbbbf98503ae460b9891080f0def71d60bcc4898",
-          "criteria": "58e5049bb535c2ce",
+          "commit": "dceeb890b1b3fa3470732b81e0a17ba8ef72ab5d",
+          "criteria": "0ae5dc226f3b40f7",
           "diffs": {
             "": "bb512f3475657a73",
             ".github/workflows/ci.yml": "f8c84a0ecc7d4db5",
             ".gitignore": "e3b7b7068f10d7d3",
-            "CHANGELOG.md": "9e66f774729c9cf8",
-            "CMakeLists.txt": "53bd7548329e13ee",
+            "CHANGELOG.md": "0791a971e7bda2be",
+            "CMakeLists.txt": "928a21619df571ee",
             "README.md": "5585a32ae0fdcb5d",
             "benchmarks/CMakeLists.txt": "8625086f4f43489a",
             "benchmarks/btree-repair/actual_type_sweep.cc": "3fce34623451e316",
@@ -19298,9 +20014,11 @@
             "benchmarks/detent_read_bench.cc": "35fbf5215319dcfe",
             "benchmarks/detent_update_bench.cc": "6848ce75711d036c",
             "benchmarks/library_adoption_measure.py": "fc762000d116cde2",
+            "benchmarks/reader_bench.cc": "b802daca530a6bb2",
+            "benchmarks/reader_namespaces.sh": "fa33b7ad8a98b5f3",
             "bindings/CMakeLists.txt": "1dbff4867cd609d8",
-            "bindings/python/CMakeLists.txt": "49a97ecad71df423",
-            "bindings/python/detent_python.cc": "be02108e0472a1e1",
+            "bindings/python/CMakeLists.txt": "c27dde8a23bf5cf0",
+            "bindings/python/detent_python.cc": "0d2a5733f0773b8c",
             "bindings/python/tests/test_detent.py": "622ae2f7c8eedb19",
             "bindings/rust/CMakeLists.txt": "15fac733729e380a",
             "bindings/rust/Cargo.lock": "910fd1a796258f49",
@@ -19312,7 +20030,7 @@
             "bindings/rust/tests/common/mod.rs": "9a2af8f5e4f2f646",
             "bindings/rust/tests/integration.rs": "31b800fdcdae3a56",
             "bindings/rust/tests/lifetime.rs": "086989c9618733b6",
-            "bindings/tests/legacy_grep.sh": "739209f0b1f4758d",
+            "bindings/tests/legacy_grep.sh": "8535b92f5ef64cac",
             "bindings/tests/mutants/f1-rust-flag-any-nonzero.patch": "9b963e4f19d4df2a",
             "bindings/tests/mutants/f2-python-drops-mapping-bytes.patch": "015c84b94a4d7a92",
             "bindings/tests/mutants/f2-rust-drops-mapping-bytes.patch": "53ba611ccb03ba0e",
@@ -19342,9 +20060,10 @@
             "docs/SCALING.md": "141507b834fea0c8",
             "docs/SERVICES.md": "e25e5cb7c9e2b604",
             "docs/USAGE.md": "13fd6915953a15c0",
-            "docs/design/client-local-source.md": "d6b2921a0c690f9d",
+            "docs/design/client-local-source.md": "e112856b6338873e",
             "docs/diagrams/actors-where.d2": "2b7e8f3e7ee0a42c",
             "docs/mechanisms/evaluation.md": "f508e1fffd81ccbc",
+            "docs/mechanisms/reader-core.md": "bdcc88d39419011d",
             "docs/status/legacy-wave2.md": "c5de1222355a630b",
             "examples/CMakeLists.txt": "e95860c9bbb254c2",
             "examples/demo.cc": "9d258e2bf55efa6b",
@@ -19361,7 +20080,9 @@
             "include/detent/snapshot_ref.hh": "ccd4e522142e7256",
             "include/detent/testing.hh": "6ae2e11add03de8f",
             "include/detent_local/client_source.hh": "2870b457f5ab90ba",
-            "include/detent_testing/store.hh": "e593115d39f875b8",
+            "include/detent_testing/generation_writer.h": "55cc2719879ebccd",
+            "include/detent_testing/generation_writer.hh": "e8ed190f3fb40b8c",
+            "include/detent_testing/store.hh": "c7510acb754d59b3",
             "src/CMakeLists.txt": "1399c7bd9be75600",
             "src/detent/client.cc": "ae1cb5ad104421d7",
             "src/detent/errors.cc": "5f01df255573f23c",
@@ -19372,18 +20093,24 @@
             "src/detent/test_hook.cc": "f2deb44f5bca4f50",
             "src/detent/testing.cc": "9214a84631c95fe9",
             "src/detent_agent/config.cc": "6be8613ff1cf94ab",
-            "src/detent_agent/main.cc": "e6f3993f81f7eccc",
+            "src/detent_agent/main.cc": "d9e942d610f7dd68",
             "src/detent_local/CMakeLists.txt": "d25a6b6b31584f9a",
+            "src/detent_local/agent_store.cc": "3add6857aceb7f32",
             "src/detent_local/client_source.cc": "fdee4d162a0e8af5",
             "src/detent_local/evaluation.hh": "3db0b405a05bdbce",
+            "src/detent_local/generation.cc": "2710f7b4902f290d",
+            "src/detent_local/generation_file_access.hh": "2d43c3e4e78217c6",
             "src/detent_reader/CMakeLists.txt": "65d32270d428ab6d",
+            "src/detent_reader/core.cc": "f0155b1d5c01986f",
             "src/detent_reader/exports.list": "93fa78cd216f24cc",
-            "src/detent_testing/CMakeLists.txt": "69ccf00d40b6d1bd",
+            "src/detent_reader/testing.hh": "f661705457e070c1",
+            "src/detent_testing/CMakeLists.txt": "a78b7470e5ab30b3",
             "src/detent_testing/exports.list": "1dcbc08452fa0d91",
+            "src/detent_testing/generation_writer.cc": "781b18a3cd56e412",
             "tests/CMakeLists.txt": "67948a043aa92c5a",
             "tests/cmake_consumer/installed/CMakeLists.txt": "81a8859f84452433",
             "tests/cmake_consumer/installed/check.cmake": "d814e7f6353a3a2b",
-            "tests/cmake_consumer/installed/main.cc": "72e080126cc2e0e2",
+            "tests/cmake_consumer/installed/main.cc": "93ef6b4080aade61",
             "tests/cmake_consumer/main.cc": "5136da5b17ea4761",
             "tests/detent/CMakeLists.txt": "24da47711c6d34e0",
             "tests/detent/mutants/c3-bool-accepts-any-nonnegative.patch": "b801c16f1f5c1030",
@@ -19404,26 +20131,36 @@
             "tests/detent_local/test_client_source.cc": "9946a15d02d49063",
             "tests/detent_local/test_evaluation.cc": "c09f4dcc77f81d06",
             "tests/detent_local/test_lazy_page_access.cc": "294f138cf5feabeb",
-            "tests/detent_reader/CMakeLists.txt": "5953b65b035e8068",
+            "tests/detent_reader/CMakeLists.txt": "6d69b3cfd7b56921",
             "tests/detent_reader/check_exports.cmake": "323b12045a218948",
-            "tests/detent_reader/test_reader_scenarios.cc": "773dee1ad36b4228",
-            "tests/detent_reader/test_reader_switch.cc": "ed0883976d8d7f2e",
+            "tests/detent_reader/reader_capacity_probe.cc": "f321db04a304f164",
+            "tests/detent_reader/test_reader_core.cc": "15df638717014c56",
+            "tests/detent_reader/test_reader_files.cc": "d58cc8b3258ddea4",
+            "tests/detent_reader/test_reader_scenarios.cc": "586522e1d5bdcfca",
+            "tests/detent_reader/test_reader_switch.cc": "7a678b02857fead9",
+            "tests/detent_reader/test_reader_syscalls.cc": "06eec99e024cb538",
             "tests/detent_system/CMakeLists.txt": "ed16a89e0feb6b50",
             "tests/detent_system/dense_reader_measure.py": "a5783ba664bc4226",
             "tests/detent_system/evidence.py": "acfcc30ca86e740f",
+            "tests/detent_system/first_read_phases.cc": "283bceab499a5c33",
             "tests/detent_system/local_oracle.cc": "8e1d90d3aad15636",
             "tests/detent_system/mixed_oracle.cc": "9462e1b699aa49b1",
             "tests/detent_system/prepared_client_probe.cc": "5f406beb2788892f",
             "tests/detent_system/reader_benchmark.hh": "ecf3cb6e82643f3f",
+            "tests/detent_testing/test_generation_writer.cc": "9e3cfc405b735a99",
+            "tests/docs/check_docs.py": "75e79a82f0371127",
+            "tests/docs/docs_exceptions.txt": "aeabdc3eef1e76bf",
+            "tests/docs/e2e_exceptions.txt": "f125de4db9efe7bb",
+            "tests/docs/mutants.py": "d08f306973145aab",
             "tools/w5/bench_rows.sh": "43906b9d8312e4ef",
             "tools/w5/run_ab.sh": "28c4d7a7d46d86d5",
             "tools/w5/w5_detent.cc": "970954375d1f0791",
             "website/src/content/docs/about.md": "5df1e6083f111f3c",
             "website/src/content/docs/architecture.md": "b5f877f9e739134f",
             "website/src/content/docs/architecture/dependencies.md": "e437a24c57a84acc",
-            "website/src/content/docs/architecture/how-it-works.md": "e6c18a7a3cb88d48",
+            "website/src/content/docs/architecture/how-it-works.md": "5ce2e240894eb7c9",
             "website/src/content/docs/architecture/read-path.md": "0733a5116f74016f",
-            "website/src/content/docs/architecture/update-path.md": "e4719a408f95e227",
+            "website/src/content/docs/architecture/update-path.md": "1878ecaf5fae39bf",
             "website/src/content/docs/basics.md": "bb947614f9e1fb94",
             "website/src/content/docs/benchmarks.md": "1538c7f4383fdda2",
             "website/src/content/docs/contributing.md": "f4d30ecf8c52ee9b",
@@ -19435,7 +20172,7 @@
             "website/src/content/docs/guides/kill-switches.md": "1de5ddd8bc0ad450",
             "website/src/content/docs/guides/live-updates.md": "193733a1c0d92bc1",
             "website/src/content/docs/guides/managed-delivery.md": "77c9b20db8bacd90",
-            "website/src/content/docs/guides/python-and-rust.md": "54067c3cb48765d8",
+            "website/src/content/docs/guides/python-and-rust.md": "13f5aa6303911a05",
             "website/src/content/docs/guides/shell-and-agent.md": "5bc695630084fd49",
             "website/src/content/docs/guides/testing.md": "e33d268fb2d73f73",
             "website/src/content/docs/installation.md": "7de63fe2822d0b6f",
@@ -19444,14 +20181,430 @@
             "website/src/content/docs/operations/upgrading.md": "741c0786ac2cfb05",
             "website/src/content/docs/quickstart.md": "6843848e5c625a71",
             "website/src/content/docs/reference/bindings.md": "8d6e6573b7e96146",
-            "website/src/content/docs/reference/bindings/python.md": "700ab271baef3f9b",
-            "website/src/content/docs/reference/bindings/rust.md": "8ff701c4505f385c",
-            "website/src/content/docs/reference/cli/detent.md": "295a7c1b8fac77f7",
+            "website/src/content/docs/reference/bindings/python.md": "383b2dc3f0805494",
+            "website/src/content/docs/reference/bindings/rust.md": "efd6093275c2d1f7",
+            "website/src/content/docs/reference/cli/detent.md": "1c56e897090a3538",
             "website/src/content/docs/reference/configuration.md": "9d4b5bdf9c2bc0b7",
             "website/src/content/docs/reference/cpp-api.md": "2b16a1d9109b5f83",
             "website/src/content/docs/reference/cpp-api/client.md": "6ecc7a88efc8a9d9",
             "website/src/content/docs/reference/cpp-api/global-and-testing.md": "0d051e3fe5d437a2",
-            "website/src/content/docs/reference/cpp-api/reader.md": "acea27f583a2ba4c",
+            "website/src/content/docs/reference/cpp-api/reader.md": "81aee00fac4acf8f",
+            "website/src/content/docs/reference/cpp-api/sources.md": "c95d1c8a0a65250a",
+            "website/src/content/docs/reference/errors.md": "d90383f22d438373",
+            "website/src/content/docs/reference/evaluation.md": "9ed63db203c28b19",
+            "website/src/content/docs/reference/knobs.md": "353907b3bdbf3026",
+            "website/src/content/docs/reference/limits.md": "e33fe3a41c6ac249",
+            "website/src/content/docs/reference/observability.md": "db70cb047e12bd74",
+            "website/src/content/docs/reference/snapshot-format.md": "4dae795493018459",
+            "website/src/content/docs/roadmap.md": "e7de2d565d04925d",
+            "website/src/content/docs/rollouts.md": "d0311be7782610b5",
+            "website/src/content/docs/settings-and-flags.md": "7cf7024c9c1c07cf",
+            "website/src/content/docs/welcome.md": "e261714bd85d38dc",
+            "website/src/lib/sidebar.mjs": "52b9dd04e8fceded"
+          },
+          "findings": {},
+          "note": "",
+          "review": "542957a27347b168121d68dd73e0e9eb63bf93a2",
+          "reviewed": "5cc302f8e6ecef7dede6722d09d2282185994372",
+          "verdict": "APPROVE"
+        },
+        "design": {
+          "at": "2026-11-24T09:15:21",
+          "base": "880eda1422dfadebbba02dd2864f44f545b85034",
+          "blobs": {
+            ".github/workflows/ci.yml": "100644:da2604ada97d5acf9d31beaa5ff936e489d0156d",
+            ".gitignore": "100644:5aa71ae91430a49e9d584bf4117bff262279a00a",
+            "CHANGELOG.md": "100644:ef787cbaff95bc4ac174daee894c9c18f7c1ee50",
+            "CMakeLists.txt": "100644:07782d3fafca484ad45ab0fa4cfc4ef5fc23438c",
+            "README.md": "100644:9fe7596a4d0f9d97951c6bc73ea1bca4421a5aab",
+            "benchmarks/CMakeLists.txt": "100644:044ef984b056db80a97b4fb459154c89dd006b81",
+            "benchmarks/btree-repair/actual_type_sweep.cc": "100644:51af802fa26fa2cd58677166a958b66ed95ec91c",
+            "benchmarks/container-alternative/container_pair.py": "100644:3b1880ed7cea3f872fb1e843766e846f22e3653a",
+            "benchmarks/container-alternative/model_lookup.cc": "deleted",
+            "benchmarks/detent_read_bench.cc": "deleted",
+            "benchmarks/detent_update_bench.cc": "deleted",
+            "benchmarks/library_adoption_measure.py": "100644:4c12d10a860651b04ea2cbfaa722b822359ce953",
+            "benchmarks/reader_bench.cc": "100644:a69a34337eda301e30ee0b4d4a0556817b2b5445",
+            "benchmarks/reader_namespaces.sh": "100755:332fcfe7eca553e0338833795fc94da886194616",
+            "bindings/CMakeLists.txt": "100644:453eb06d4c1412dc055541d854ffde4c8dad9925",
+            "bindings/python/CMakeLists.txt": "100644:af8a2c32f4bacba7a4bce3790c44dae5868b0082",
+            "bindings/python/detent_python.cc": "100644:b36a28d8a2392637bac7a89a13c27d133e526bef",
+            "bindings/python/tests/test_detent.py": "100644:6498ff09fbe23305060ceb4c4eea6c257793fa2c",
+            "bindings/rust/CMakeLists.txt": "100644:f39c42050c7839e73edd4458df855b3832dc986a",
+            "bindings/rust/Cargo.lock": "100644:10c3a7c227434971a1d4ca5c169b2ba12811c4b7",
+            "bindings/rust/Cargo.toml": "100644:3aa678314f0a5e6dbfe2923fe65b535c5674d298",
+            "bindings/rust/build.rs": "100644:b6fc8b56325e8c37929ad4154e935c15a2f5a3b9",
+            "bindings/rust/src/lib.rs": "100644:3dc3d36275dffcb93b5d133789a2291b86ffd221",
+            "bindings/rust/src/shim.cc": "deleted",
+            "bindings/rust/src/shim.hh": "deleted",
+            "bindings/rust/tests/common/mod.rs": "100644:ade7947bdcadd7ad00d4a151cac3da8a5affb5f0",
+            "bindings/rust/tests/integration.rs": "100644:da6ed6c6100999e25e0061fb12c4ca707c172ce6",
+            "bindings/rust/tests/lifetime.rs": "100644:a00a67fd4ba3d9914dec185e06da78d8907ee3aa",
+            "bindings/tests/legacy_grep.sh": "100755:b4687eb7e4b1400eeef0e2ea61b25860bc2ed990",
+            "bindings/tests/mutants/f1-rust-flag-any-nonzero.patch": "100644:323333a1c6524d9b3dbb8a6189a0195a6efbc7c1",
+            "bindings/tests/mutants/f2-python-drops-mapping-bytes.patch": "100644:fbdd18375d73fa5fb2280c38431c9a6d49771612",
+            "bindings/tests/mutants/f2-rust-drops-mapping-bytes.patch": "100644:edb24bc78619199ade06cf661651a868c3fbe5d8",
+            "bindings/tests/mutants/f3-python-misnumbers-untrusted.patch": "100644:680923215427c7a4069db3a48fda4b066fc6c0ce",
+            "bindings/tests/mutants/f3-rust-misnumbers-untrusted.patch": "100644:8447be3b4f458acdddd4b13c21d7548a9e691d09",
+            "bindings/tests/mutants/f7-exports-prefix-check.patch": "100644:2850437d1087008909593b376b147429d46bf149",
+            "bindings/tests/mutants/python-drops-hash.patch": "100644:4b2c67f44e56dc0d9eaad9b565fc23e64ca1a1d9",
+            "bindings/tests/mutants/python-ignores-fallback.patch": "100644:60268cc503e558879392f0cd60dd6abd03e0818f",
+            "bindings/tests/mutants/python-untrusted-is-ok.patch": "100644:69988d95f05eedef7898769bf49dca13556f4e35",
+            "bindings/tests/mutants/rust-drops-hash.patch": "100644:79b275d099e67472cca4e361caba1cb5b05d7d43",
+            "bindings/tests/mutants/rust-ignores-fallback.patch": "100644:ebfda46fd852780c7155a496fff0709b0b5964e6",
+            "bindings/tests/mutants/rust-untrusted-is-ok.patch": "100644:c8fb6a966c4925109312af19b4603debd0e48b10",
+            "bindings/tests/run.sh": "100755:81e214d38ff4e2e570fd86f1c892eb80b0cefe46",
+            "bindings/tests/scenarios.json": "100644:96e9017b45ecea31fd9fca92c620abc8ba0286aa",
+            "diagrams/01_overview.d2": "100644:c6eef08bfc94fef0ecdcf35ac582748060a3c5d7",
+            "diagrams/01_overview.svg": "100644:7034dd842f9896352750c04f60f3bbdb5cdc3a90",
+            "diagrams/04_read_path.d2": "100644:56b97964e5872d0d14ed8d2f7b3661495bdf36c5",
+            "diagrams/04_read_path.svg": "100644:00350bb2626a3812320fd6c3befafa1e2146aa2a",
+            "diagrams/05_update_path.d2": "100644:bc018fa09f67d94ade04bb3b313ec4ef305c2be7",
+            "diagrams/05_update_path.svg": "100644:6ceeb1c7e2adb81d7d4fc0c06b36840b86cb3d75",
+            "diagrams/06_adapters.d2": "deleted",
+            "diagrams/06_adapters.svg": "deleted",
+            "docs/ACTORS.md": "100644:dfa51784d6f7de77da7617d46866569682709456",
+            "docs/HOW_IT_WORKS.md": "100644:9ad20b466555a9f3ef3aed60c0bd4b3c8da27c11",
+            "docs/LOCAL_IMAGE_FORMAT.md": "100644:7643f2ff707ac7496f112ab64ee3b4c7eb077915",
+            "docs/SCALE_TARGETS.md": "100644:7ddb1871c5394cc973b88044fe2412fd1190e75f",
+            "docs/SCALING.md": "100644:626a4180dd1e976fecc67692c2c4128c5f74adf9",
+            "docs/SERVICES.md": "100644:8db2bc7afc04ab7a1a536d116816deaad048be5f",
+            "docs/USAGE.md": "100644:b98f01543b0af46bffc3d7238a833c4fe7e6ba2b",
+            "docs/design/client-local-source.md": "100644:842b6259ae0384a97cfc4b4b24922687469c94eb",
+            "docs/diagrams/actors-where.d2": "100644:6a0b0700da674926daa2bcb355371c822a014897",
+            "docs/diagrams/actors-where.png": "100644:b054a73a204b7449cbd0e8f69f0a322c70fd0466",
+            "docs/mechanisms/evaluation.md": "100644:1df4474ff62206a4d7692d1013e5837fddc4d78e",
+            "docs/mechanisms/reader-core.md": "100644:6308cc487c47958c405aae2908ad58ea6b04cccf",
+            "docs/status/legacy-wave2.md": "100644:fb670011a8c04cf363a3adc944fe8c72fa004937",
+            "examples/CMakeLists.txt": "100644:440cc9e6d90f5749fa8c8daa15892766328eaca1",
+            "examples/demo.cc": "100644:e83525af8707a583ba975d80d9a153bb50c96203",
+            "include/detent/client.hh": "deleted",
+            "include/detent/detail/evaluation.hh": "100644:d38f66dfda9f77e52e4188310409c24825c25738",
+            "include/detent/detail/file.hh": "deleted",
+            "include/detent/detail/test_hook.hh": "deleted",
+            "include/detent/errors.hh": "100644:b0025c3f0dac5e11e887adec20449d6c6a6ebb45",
+            "include/detent/global.hh": "deleted",
+            "include/detent/json_schema.hh": "100644:12a161f42a550877f03fe0f111cd803ccd074c63",
+            "include/detent/model.hh": "100644:41ac591620803092f2932e0cdfa92b6573423d39",
+            "include/detent/overrides.hh": "deleted",
+            "include/detent/read_view.hh": "deleted",
+            "include/detent/snapshot_ref.hh": "deleted",
+            "include/detent/testing.hh": "deleted",
+            "include/detent_local/client_source.hh": "deleted",
+            "include/detent_testing/generation_writer.h": "100644:952b820051ee3bd2b6f6a0c24e3993c1149af27d",
+            "include/detent_testing/generation_writer.hh": "100644:9ce642ca3d2f57cbdaff10a58e06de802840b6d5",
+            "include/detent_testing/store.hh": "100644:a0d5c508bd176f46c5db38bd16f09597907008ff",
+            "src/CMakeLists.txt": "100644:09bb6e821aff7eb9d78a029ec3e5993a8089f5d2",
+            "src/detent/client.cc": "deleted",
+            "src/detent/errors.cc": "100644:557e441e299c3384df1aac2880a0a94c3ffd41f5",
+            "src/detent/global.cc": "deleted",
+            "src/detent/json_schema.cc": "100644:e6767a14d4f5527e1c83299fcecc0fdd4f7b7014",
+            "src/detent/overrides.cc": "deleted",
+            "src/detent/read_view.cc": "deleted",
+            "src/detent/test_hook.cc": "deleted",
+            "src/detent/testing.cc": "deleted",
+            "src/detent_agent/config.cc": "100644:fc19e1dda2112d73ac349c2e8614af2d30006011",
+            "src/detent_agent/main.cc": "100644:9f77e2c04d26605caee1e87e98ce44286619630d",
+            "src/detent_local/CMakeLists.txt": "100644:d35d0c1b3dc0cca0f4f69aa79fa87681d57e4c4e",
+            "src/detent_local/agent_store.cc": "100644:da2a8f90cd1248d860659dca5641df60f696f3b2",
+            "src/detent_local/client_source.cc": "deleted",
+            "src/detent_local/evaluation.hh": "100644:20f6c2194490a480e05a69696ced7945796af792",
+            "src/detent_local/generation.cc": "100644:ed49535d5db28f079f42b03f7761108b5b455f07",
+            "src/detent_local/generation_file_access.hh": "100644:b9f6a5e9375131a1be49df5a2fc74e09bd0d3cde",
+            "src/detent_reader/CMakeLists.txt": "100644:9b804e3e29481b1f9faf00bdf5355abd969e3ec7",
+            "src/detent_reader/core.cc": "100644:031af2babae5a752911126dce61cc7ba2e157363",
+            "src/detent_reader/exports.list": "100644:d4d0bd99b6ba4a63aaaf032c426b55c7e171d386",
+            "src/detent_reader/testing.hh": "100644:154f40d484872b9c03e02b8de0e7242ca7c964d8",
+            "src/detent_testing/CMakeLists.txt": "100644:b10edc9d88a69975f56a11149007c3c9a51fc6f4",
+            "src/detent_testing/exports.list": "100644:831b5cbde59f769dc11560720a0e1a44843ccff0",
+            "src/detent_testing/generation_writer.cc": "100644:50b63272e16397332bde5362637e1d37d0a98868",
+            "tests/CMakeLists.txt": "100644:b66c8090ef8fcbf8611cfef080a219ed3592e709",
+            "tests/cmake_consumer/installed/CMakeLists.txt": "100644:fd807de1fe74b5d5a9cb8c0fb8bce1559e4c5d9b",
+            "tests/cmake_consumer/installed/check.cmake": "100644:bc3c572115113fe8a9579107b84387448b99dd5b",
+            "tests/cmake_consumer/installed/main.cc": "100644:0b6340b0e27970d03984e4a3fbb2985967967a13",
+            "tests/cmake_consumer/main.cc": "100644:2f7833b1dd73c90fd5901f5a27463d34b68920b5",
+            "tests/detent/CMakeLists.txt": "100644:f66e472e49493cc073b330c194e2bd62c96d9284",
+            "tests/detent/mutants/c3-bool-accepts-any-nonnegative.patch": "100644:3937c8e0f7eb7cc428b64532a03c514b4b356bc0",
+            "tests/detent/test_client_publication_failure.cc": "deleted",
+            "tests/detent/test_concurrency_stress.cc": "deleted",
+            "tests/detent/test_duplicate_precedence.cc": "100644:d4d9946f21a73727a3ae7e16a3c45db91e7b6a42",
+            "tests/detent/test_eval_semantics.cc": "deleted",
+            "tests/detent/test_file_source.cc": "deleted",
+            "tests/detent/test_model_alloc_failure.cc": "100644:c420d1082adc3bfe5c2a2c96747d7b52cf7a1ee3",
+            "tests/detent/test_model_and_schema.cc": "100644:594c1d5083460a9e70d82a813583191439a5a168",
+            "tests/detent/test_one_knob_differential.cc": "100644:956868d1b3b9e26128e540da985edc2b8b75c1e8",
+            "tests/detent/test_overrides.cc": "deleted",
+            "tests/detent/test_read_view.cc": "deleted",
+            "tests/detent/test_testing_guard.cc": "deleted",
+            "tests/detent_agent/test_agent_cli.cmake": "100644:bec6e74a95367c7b1dabb93cd123029fbcf0698b",
+            "tests/detent_delivery/test_managed_process.sh": "100644:32e04fee9a850eeec8ff0fb28fdf095d0f2fff32",
+            "tests/detent_local/CMakeLists.txt": "100644:0347fb4bd6641dcfdad13bc53e57aa420c7ba30a",
+            "tests/detent_local/test_client_source.cc": "deleted",
+            "tests/detent_local/test_evaluation.cc": "100644:6b48315e1ddd96488b3d985c79662c4fb14edebb",
+            "tests/detent_local/test_lazy_page_access.cc": "100644:31a4405903c608a7c173856271354758bbbb3737",
+            "tests/detent_reader/CMakeLists.txt": "100644:2341ee40079ff86e5f5693b11f4ba6f2c1d068a6",
+            "tests/detent_reader/check_exports.cmake": "100644:884e05d5e5cb1a8c5ecd3b6352a345679237e40a",
+            "tests/detent_reader/reader_capacity_probe.cc": "100644:44cdba759e3e1db22ebcf23f5bd667f29f5397e6",
+            "tests/detent_reader/test_reader_core.cc": "100644:28a69d22740124d66fd233d7530f719040dd12b5",
+            "tests/detent_reader/test_reader_files.cc": "100644:cb903b991ab553f15aeb64a041be5b462ca4d27d",
+            "tests/detent_reader/test_reader_scenarios.cc": "100644:99dfb506174c0c8aeabb00f7812dc132b5a593a1",
+            "tests/detent_reader/test_reader_switch.cc": "100644:2f30ef57a75ef8464f57922daa833cc65d6fec60",
+            "tests/detent_reader/test_reader_syscalls.cc": "100644:00d1278b758881acb54ef42df2a70b140c7c1f69",
+            "tests/detent_system/CMakeLists.txt": "100644:5ed8a7f244b40a6fdd5799eaddfa6869cc30c944",
+            "tests/detent_system/dense_reader_measure.py": "100644:1eec90f21a3b0567abfb9f79dc155fbb1b5201bb",
+            "tests/detent_system/evidence.py": "100644:5deadab30ad6fefe6636bde789d24bbe9c5af818",
+            "tests/detent_system/first_read_phases.cc": "100644:c634243ca45ba9c641b6f47715418a4f391b5811",
+            "tests/detent_system/local_oracle.cc": "100644:67aeef78415e5ccb634700ef0366842a962e4462",
+            "tests/detent_system/mixed_oracle.cc": "100644:b63be046e0cb9d7ed3ba298fa3e7752965a837af",
+            "tests/detent_system/prepared_client_probe.cc": "100644:eb22739f1131cb720e9689ad074faf97b0dfe9a4",
+            "tests/detent_system/reader_benchmark.hh": "100644:1ab87758470884958813f1a449628ef9486546b2",
+            "tests/detent_testing/test_generation_writer.cc": "100644:d5fb961f58b25b83ffd1a28fa9093f3927066fcc",
+            "tests/docs/check_docs.py": "100755:b0577e557c02fde9adca24b03c25d279db8f4e57",
+            "tests/docs/docs_exceptions.txt": "100644:cd92c9c3625419849dba5cb359b29ec6cb08bb36",
+            "tests/docs/e2e_exceptions.txt": "100644:50797e40f9a7c91d1462b9cbaeda20fc1c190a21",
+            "tests/docs/mutants.py": "100755:4c2c1369ccedb1a6632bd800400b04c181c80461",
+            "tools/w5/bench_rows.sh": "100755:058cab8c399059cbaab7cdfa6ac6ceffb575476a",
+            "tools/w5/run_ab.sh": "100755:654f3b82e102f3ee4015cab702542a799c514611",
+            "tools/w5/w5_detent.cc": "100644:32b58b4edf2c9e6c59ff74148c7f62ba9ffcebca",
+            "website/src/content/docs/about.md": "100644:b9e2960fe9c9c23bce844a7fb12c5432a13220ad",
+            "website/src/content/docs/architecture.md": "100644:131620591d48f7d54dcfef35896c18eaad646577",
+            "website/src/content/docs/architecture/dependencies.md": "100644:6df738c0f5a07d001516721068f63329691a4d30",
+            "website/src/content/docs/architecture/how-it-works.md": "100644:cc23a1b8b31b6899211e1dcfc5e65ac0093a306e",
+            "website/src/content/docs/architecture/read-path.md": "100644:e5ad88bd38743ded3dcc567a31338c51be6d82e5",
+            "website/src/content/docs/architecture/update-path.md": "100644:d2eb493a0d5e8e80717c73080046adf3ea114e92",
+            "website/src/content/docs/basics.md": "100644:f2cd726a75e7d3805945ce9daaeb3ce4b1d80c2f",
+            "website/src/content/docs/benchmarks.md": "100644:c82b963600dae675e842562df931042d89d64749",
+            "website/src/content/docs/contributing.md": "100644:b97d30bcb5b24f5d3f2d8481e22014e085ee36ad",
+            "website/src/content/docs/faq.md": "100644:8054a5bc6963393ebfb5ec12be5c5e4f3064a820",
+            "website/src/content/docs/group-overrides.md": "100644:c5ac5eeeccb338544242afc7eb241f36a505a18e",
+            "website/src/content/docs/guides.md": "100644:2c815b4cd960f500af05e91a3ffef0378ec70fe9",
+            "website/src/content/docs/guides/cpp-application.md": "100644:f78a93e5c644b4448aeedd74a02f4fbca4608cd1",
+            "website/src/content/docs/guides/durable-authority.md": "100644:b340649a7ccc4f00c64928f610bff4b178cf1151",
+            "website/src/content/docs/guides/kill-switches.md": "100644:81edd6018e219ec9b7204a20a72eaf975250d690",
+            "website/src/content/docs/guides/live-updates.md": "deleted",
+            "website/src/content/docs/guides/managed-delivery.md": "100644:07d769efc26652e07b5523b2ae31048ff2d9f536",
+            "website/src/content/docs/guides/python-and-rust.md": "100644:342f08a1d27746f04b2a39d567f7fab1b05908a9",
+            "website/src/content/docs/guides/shell-and-agent.md": "100644:81686a703434cc059feaad47f99d51a0bb9e3f23",
+            "website/src/content/docs/guides/testing.md": "100644:4e3c99013e544c95f43b1a6f7d8932c6677bed95",
+            "website/src/content/docs/installation.md": "100644:c85c993d54ed4755e0ca53ad8db19fbbfac99ccf",
+            "website/src/content/docs/next.md": "100644:0139a1587d7b6d389390d9aae0e0a6561d30a4fb",
+            "website/src/content/docs/operations/security.md": "100644:7016e040f3e27cec7e3c16005d16be043cec52c4",
+            "website/src/content/docs/operations/upgrading.md": "100644:8370864751b7543b055de82c2d004406f32ed546",
+            "website/src/content/docs/quickstart.md": "100644:b09cf347146e7307a00c2ed34b20e02bdbb6a2b4",
+            "website/src/content/docs/reference/bindings.md": "100644:902752127a37eadd6cf09757f39011eccb2ea27c",
+            "website/src/content/docs/reference/bindings/python.md": "100644:3047dfeed9462e9533f302a20734e4e3781d46a6",
+            "website/src/content/docs/reference/bindings/rust.md": "100644:99c514599974594f29ef3f66b48cb2187770ccf2",
+            "website/src/content/docs/reference/cli/detent.md": "100644:5173cf248563fa91b1a9f575936bbd2da1e552ce",
+            "website/src/content/docs/reference/configuration.md": "100644:661c5bf93e09cc58db27005c05072c544d7d3295",
+            "website/src/content/docs/reference/cpp-api.md": "100644:73685f88ef4f12aa9916dba552d23fb280457e1e",
+            "website/src/content/docs/reference/cpp-api/client.md": "deleted",
+            "website/src/content/docs/reference/cpp-api/global-and-testing.md": "deleted",
+            "website/src/content/docs/reference/cpp-api/reader.md": "100644:e0ddca735bc1a192855d3661e5fa479efe1f4446",
+            "website/src/content/docs/reference/cpp-api/sources.md": "deleted",
+            "website/src/content/docs/reference/errors.md": "100644:21135ad9a9cb17bf038329027e62fcc431755dfe",
+            "website/src/content/docs/reference/evaluation.md": "100644:038216578a86ad73c3a46ba2840969fe4a58693f",
+            "website/src/content/docs/reference/knobs.md": "100644:773ac38edf90add7172f29f88dcb806b2b5f5a49",
+            "website/src/content/docs/reference/limits.md": "100644:dd6403725de2a26f7989732b9f40cb4b51504707",
+            "website/src/content/docs/reference/observability.md": "100644:97854bfbbeda9321e05f2b78f97069d946a562a1",
+            "website/src/content/docs/reference/snapshot-format.md": "100644:3337a4e83d3deb6ef6cae1de375778f8684a9405",
+            "website/src/content/docs/roadmap.md": "100644:20543a4ff6922ca8606fd80fc092442623e3a0f5",
+            "website/src/content/docs/rollouts.md": "100644:923249445e463a2127d0793f671342c3f8b283f1",
+            "website/src/content/docs/settings-and-flags.md": "100644:4430a159697884906ca6b27c3f88363ebdf08780",
+            "website/src/content/docs/welcome.md": "100644:53f70543783b386111efc9e6f602f06fa9bb5f77",
+            "website/src/lib/sidebar.mjs": "100644:dd22f211fd4076235edfcdb8edb8da3d60e34d70"
+          },
+          "by": "review",
+          "commit": "dceeb890b1b3fa3470732b81e0a17ba8ef72ab5d",
+          "criteria": "0ae5dc226f3b40f7",
+          "diffs": {
+            "": "bb512f3475657a73",
+            ".github/workflows/ci.yml": "f8c84a0ecc7d4db5",
+            ".gitignore": "e3b7b7068f10d7d3",
+            "CHANGELOG.md": "0791a971e7bda2be",
+            "CMakeLists.txt": "928a21619df571ee",
+            "README.md": "5585a32ae0fdcb5d",
+            "benchmarks/CMakeLists.txt": "8625086f4f43489a",
+            "benchmarks/btree-repair/actual_type_sweep.cc": "3fce34623451e316",
+            "benchmarks/container-alternative/container_pair.py": "6c253d9f013fc9ed",
+            "benchmarks/container-alternative/model_lookup.cc": "6cce7670e6c338c7",
+            "benchmarks/detent_read_bench.cc": "35fbf5215319dcfe",
+            "benchmarks/detent_update_bench.cc": "6848ce75711d036c",
+            "benchmarks/library_adoption_measure.py": "fc762000d116cde2",
+            "benchmarks/reader_bench.cc": "b802daca530a6bb2",
+            "benchmarks/reader_namespaces.sh": "fa33b7ad8a98b5f3",
+            "bindings/CMakeLists.txt": "1dbff4867cd609d8",
+            "bindings/python/CMakeLists.txt": "c27dde8a23bf5cf0",
+            "bindings/python/detent_python.cc": "0d2a5733f0773b8c",
+            "bindings/python/tests/test_detent.py": "622ae2f7c8eedb19",
+            "bindings/rust/CMakeLists.txt": "15fac733729e380a",
+            "bindings/rust/Cargo.lock": "910fd1a796258f49",
+            "bindings/rust/Cargo.toml": "e573a5ec9b577b9a",
+            "bindings/rust/build.rs": "646204d59eaef893",
+            "bindings/rust/src/lib.rs": "295cbdd6f5e2184f",
+            "bindings/rust/src/shim.cc": "7b497ddd212b9b25",
+            "bindings/rust/src/shim.hh": "39da0bf34dc8acc6",
+            "bindings/rust/tests/common/mod.rs": "9a2af8f5e4f2f646",
+            "bindings/rust/tests/integration.rs": "31b800fdcdae3a56",
+            "bindings/rust/tests/lifetime.rs": "086989c9618733b6",
+            "bindings/tests/legacy_grep.sh": "8535b92f5ef64cac",
+            "bindings/tests/mutants/f1-rust-flag-any-nonzero.patch": "9b963e4f19d4df2a",
+            "bindings/tests/mutants/f2-python-drops-mapping-bytes.patch": "015c84b94a4d7a92",
+            "bindings/tests/mutants/f2-rust-drops-mapping-bytes.patch": "53ba611ccb03ba0e",
+            "bindings/tests/mutants/f3-python-misnumbers-untrusted.patch": "424df8de883ae0b2",
+            "bindings/tests/mutants/f3-rust-misnumbers-untrusted.patch": "1957d4d7575d9544",
+            "bindings/tests/mutants/f7-exports-prefix-check.patch": "c12d18b27cd1494c",
+            "bindings/tests/mutants/python-drops-hash.patch": "810965ec64d54bac",
+            "bindings/tests/mutants/python-ignores-fallback.patch": "6d2b8443a1650000",
+            "bindings/tests/mutants/python-untrusted-is-ok.patch": "632caac1d2a6c8fd",
+            "bindings/tests/mutants/rust-drops-hash.patch": "c69d07c8e6ebe167",
+            "bindings/tests/mutants/rust-ignores-fallback.patch": "d06a59dc2faf3761",
+            "bindings/tests/mutants/rust-untrusted-is-ok.patch": "7c019a8be0ef4626",
+            "bindings/tests/run.sh": "9b839f24e8286a62",
+            "bindings/tests/scenarios.json": "4ea8ab4576c581da",
+            "diagrams/01_overview.d2": "8d9723b985bbe03c",
+            "diagrams/01_overview.svg": "33b5697aa251387a",
+            "diagrams/04_read_path.d2": "0ce81f243d30d03c",
+            "diagrams/04_read_path.svg": "19ee31574036b06d",
+            "diagrams/05_update_path.d2": "b733138ceddb39d8",
+            "diagrams/05_update_path.svg": "136aeca1c6599508",
+            "diagrams/06_adapters.d2": "56c1f6f9b7620c3c",
+            "diagrams/06_adapters.svg": "de38c3875a0be2cc",
+            "docs/ACTORS.md": "8d8e51d2bd12f030",
+            "docs/HOW_IT_WORKS.md": "71a13129c0aff8fe",
+            "docs/LOCAL_IMAGE_FORMAT.md": "f0aa910b583d1211",
+            "docs/SCALE_TARGETS.md": "0e713edf779ad0ac",
+            "docs/SCALING.md": "141507b834fea0c8",
+            "docs/SERVICES.md": "e25e5cb7c9e2b604",
+            "docs/USAGE.md": "13fd6915953a15c0",
+            "docs/design/client-local-source.md": "e112856b6338873e",
+            "docs/diagrams/actors-where.d2": "2b7e8f3e7ee0a42c",
+            "docs/mechanisms/evaluation.md": "f508e1fffd81ccbc",
+            "docs/mechanisms/reader-core.md": "bdcc88d39419011d",
+            "docs/status/legacy-wave2.md": "c5de1222355a630b",
+            "examples/CMakeLists.txt": "e95860c9bbb254c2",
+            "examples/demo.cc": "9d258e2bf55efa6b",
+            "include/detent/client.hh": "b324ec11914084e5",
+            "include/detent/detail/evaluation.hh": "26df0592caf5f6ba",
+            "include/detent/detail/file.hh": "fcbdb4490973ec76",
+            "include/detent/detail/test_hook.hh": "30d71f97a19feb0c",
+            "include/detent/errors.hh": "6d68dd76207e46b8",
+            "include/detent/global.hh": "3113b666e1fee118",
+            "include/detent/json_schema.hh": "a0b06a39502760fc",
+            "include/detent/model.hh": "3a0baf1446255157",
+            "include/detent/overrides.hh": "b84fd9b7ebe0a69d",
+            "include/detent/read_view.hh": "f4a322af254c3714",
+            "include/detent/snapshot_ref.hh": "ccd4e522142e7256",
+            "include/detent/testing.hh": "6ae2e11add03de8f",
+            "include/detent_local/client_source.hh": "2870b457f5ab90ba",
+            "include/detent_testing/generation_writer.h": "55cc2719879ebccd",
+            "include/detent_testing/generation_writer.hh": "e8ed190f3fb40b8c",
+            "include/detent_testing/store.hh": "c7510acb754d59b3",
+            "src/CMakeLists.txt": "1399c7bd9be75600",
+            "src/detent/client.cc": "ae1cb5ad104421d7",
+            "src/detent/errors.cc": "5f01df255573f23c",
+            "src/detent/global.cc": "22dc79765530ba9b",
+            "src/detent/json_schema.cc": "16451ccbb81c095a",
+            "src/detent/overrides.cc": "5b5ccd5811c009b9",
+            "src/detent/read_view.cc": "1b974a9887aba5f8",
+            "src/detent/test_hook.cc": "f2deb44f5bca4f50",
+            "src/detent/testing.cc": "9214a84631c95fe9",
+            "src/detent_agent/config.cc": "6be8613ff1cf94ab",
+            "src/detent_agent/main.cc": "d9e942d610f7dd68",
+            "src/detent_local/CMakeLists.txt": "d25a6b6b31584f9a",
+            "src/detent_local/agent_store.cc": "3add6857aceb7f32",
+            "src/detent_local/client_source.cc": "fdee4d162a0e8af5",
+            "src/detent_local/evaluation.hh": "3db0b405a05bdbce",
+            "src/detent_local/generation.cc": "2710f7b4902f290d",
+            "src/detent_local/generation_file_access.hh": "2d43c3e4e78217c6",
+            "src/detent_reader/CMakeLists.txt": "65d32270d428ab6d",
+            "src/detent_reader/core.cc": "f0155b1d5c01986f",
+            "src/detent_reader/exports.list": "93fa78cd216f24cc",
+            "src/detent_reader/testing.hh": "f661705457e070c1",
+            "src/detent_testing/CMakeLists.txt": "a78b7470e5ab30b3",
+            "src/detent_testing/exports.list": "1dcbc08452fa0d91",
+            "src/detent_testing/generation_writer.cc": "781b18a3cd56e412",
+            "tests/CMakeLists.txt": "67948a043aa92c5a",
+            "tests/cmake_consumer/installed/CMakeLists.txt": "81a8859f84452433",
+            "tests/cmake_consumer/installed/check.cmake": "d814e7f6353a3a2b",
+            "tests/cmake_consumer/installed/main.cc": "93ef6b4080aade61",
+            "tests/cmake_consumer/main.cc": "5136da5b17ea4761",
+            "tests/detent/CMakeLists.txt": "24da47711c6d34e0",
+            "tests/detent/mutants/c3-bool-accepts-any-nonnegative.patch": "b801c16f1f5c1030",
+            "tests/detent/test_client_publication_failure.cc": "299dcc7023dbed5f",
+            "tests/detent/test_concurrency_stress.cc": "b96c19141edc22a1",
+            "tests/detent/test_duplicate_precedence.cc": "a991342c4aadcac8",
+            "tests/detent/test_eval_semantics.cc": "f36dfe107d49957b",
+            "tests/detent/test_file_source.cc": "92547ff4f9414a25",
+            "tests/detent/test_model_alloc_failure.cc": "904769946dc27b20",
+            "tests/detent/test_model_and_schema.cc": "c3ff3b2ea217ff57",
+            "tests/detent/test_one_knob_differential.cc": "4298da4ad114060d",
+            "tests/detent/test_overrides.cc": "df2a86f62077fc95",
+            "tests/detent/test_read_view.cc": "b847aca0aa865e1b",
+            "tests/detent/test_testing_guard.cc": "d94c5fa5bb27ae63",
+            "tests/detent_agent/test_agent_cli.cmake": "57c3cf7bc9330fd2",
+            "tests/detent_delivery/test_managed_process.sh": "e5211316b4db1239",
+            "tests/detent_local/CMakeLists.txt": "0d3f309da1bb2588",
+            "tests/detent_local/test_client_source.cc": "9946a15d02d49063",
+            "tests/detent_local/test_evaluation.cc": "c09f4dcc77f81d06",
+            "tests/detent_local/test_lazy_page_access.cc": "294f138cf5feabeb",
+            "tests/detent_reader/CMakeLists.txt": "6d69b3cfd7b56921",
+            "tests/detent_reader/check_exports.cmake": "323b12045a218948",
+            "tests/detent_reader/reader_capacity_probe.cc": "f321db04a304f164",
+            "tests/detent_reader/test_reader_core.cc": "15df638717014c56",
+            "tests/detent_reader/test_reader_files.cc": "d58cc8b3258ddea4",
+            "tests/detent_reader/test_reader_scenarios.cc": "586522e1d5bdcfca",
+            "tests/detent_reader/test_reader_switch.cc": "7a678b02857fead9",
+            "tests/detent_reader/test_reader_syscalls.cc": "06eec99e024cb538",
+            "tests/detent_system/CMakeLists.txt": "ed16a89e0feb6b50",
+            "tests/detent_system/dense_reader_measure.py": "a5783ba664bc4226",
+            "tests/detent_system/evidence.py": "acfcc30ca86e740f",
+            "tests/detent_system/first_read_phases.cc": "283bceab499a5c33",
+            "tests/detent_system/local_oracle.cc": "8e1d90d3aad15636",
+            "tests/detent_system/mixed_oracle.cc": "9462e1b699aa49b1",
+            "tests/detent_system/prepared_client_probe.cc": "5f406beb2788892f",
+            "tests/detent_system/reader_benchmark.hh": "ecf3cb6e82643f3f",
+            "tests/detent_testing/test_generation_writer.cc": "9e3cfc405b735a99",
+            "tests/docs/check_docs.py": "75e79a82f0371127",
+            "tests/docs/docs_exceptions.txt": "aeabdc3eef1e76bf",
+            "tests/docs/e2e_exceptions.txt": "f125de4db9efe7bb",
+            "tests/docs/mutants.py": "d08f306973145aab",
+            "tools/w5/bench_rows.sh": "43906b9d8312e4ef",
+            "tools/w5/run_ab.sh": "28c4d7a7d46d86d5",
+            "tools/w5/w5_detent.cc": "970954375d1f0791",
+            "website/src/content/docs/about.md": "5df1e6083f111f3c",
+            "website/src/content/docs/architecture.md": "b5f877f9e739134f",
+            "website/src/content/docs/architecture/dependencies.md": "e437a24c57a84acc",
+            "website/src/content/docs/architecture/how-it-works.md": "5ce2e240894eb7c9",
+            "website/src/content/docs/architecture/read-path.md": "0733a5116f74016f",
+            "website/src/content/docs/architecture/update-path.md": "1878ecaf5fae39bf",
+            "website/src/content/docs/basics.md": "bb947614f9e1fb94",
+            "website/src/content/docs/benchmarks.md": "1538c7f4383fdda2",
+            "website/src/content/docs/contributing.md": "f4d30ecf8c52ee9b",
+            "website/src/content/docs/faq.md": "d733e5494aede690",
+            "website/src/content/docs/group-overrides.md": "e43b75436d17945b",
+            "website/src/content/docs/guides.md": "f2cf495354239eec",
+            "website/src/content/docs/guides/cpp-application.md": "0d563cf27a1fe811",
+            "website/src/content/docs/guides/durable-authority.md": "0e1b7484bc73f8a9",
+            "website/src/content/docs/guides/kill-switches.md": "1de5ddd8bc0ad450",
+            "website/src/content/docs/guides/live-updates.md": "193733a1c0d92bc1",
+            "website/src/content/docs/guides/managed-delivery.md": "77c9b20db8bacd90",
+            "website/src/content/docs/guides/python-and-rust.md": "13f5aa6303911a05",
+            "website/src/content/docs/guides/shell-and-agent.md": "5bc695630084fd49",
+            "website/src/content/docs/guides/testing.md": "e33d268fb2d73f73",
+            "website/src/content/docs/installation.md": "7de63fe2822d0b6f",
+            "website/src/content/docs/next.md": "d101678526055101",
+            "website/src/content/docs/operations/security.md": "505f955096352bca",
+            "website/src/content/docs/operations/upgrading.md": "741c0786ac2cfb05",
+            "website/src/content/docs/quickstart.md": "6843848e5c625a71",
+            "website/src/content/docs/reference/bindings.md": "8d6e6573b7e96146",
+            "website/src/content/docs/reference/bindings/python.md": "383b2dc3f0805494",
+            "website/src/content/docs/reference/bindings/rust.md": "efd6093275c2d1f7",
+            "website/src/content/docs/reference/cli/detent.md": "1c56e897090a3538",
+            "website/src/content/docs/reference/configuration.md": "9d4b5bdf9c2bc0b7",
+            "website/src/content/docs/reference/cpp-api.md": "2b16a1d9109b5f83",
+            "website/src/content/docs/reference/cpp-api/client.md": "6ecc7a88efc8a9d9",
+            "website/src/content/docs/reference/cpp-api/global-and-testing.md": "0d051e3fe5d437a2",
+            "website/src/content/docs/reference/cpp-api/reader.md": "81aee00fac4acf8f",
             "website/src/content/docs/reference/cpp-api/sources.md": "c95d1c8a0a65250a",
             "website/src/content/docs/reference/errors.md": "d90383f22d438373",
             "website/src/content/docs/reference/evaluation.md": "9ed63db203c28b19",
@@ -19469,15 +20622,15 @@
             "F1": {
               "jobs": [
                 {
-                  "cmd": "bindings/tests/run.sh",
-                  "commit": "9ab802969c403ae3e200df4e68330145713fd3c8",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261123-145542-ea7b40",
+                  "job": "261124-075318-9b7397",
                   "level": "light",
-                  "seconds": 234.7,
+                  "seconds": 1159.9,
                   "state": "done",
-                  "what": "bindings run.sh (plain, A12/A20 baseline) at 9ab802969c40"
+                  "what": "legacy-h check native at 5cc302f8e6ec"
                 }
               ],
               "kind": "defect",
@@ -19486,15 +20639,15 @@
             "F2": {
               "jobs": [
                 {
-                  "cmd": "bindings/tests/run.sh",
-                  "commit": "9ab802969c403ae3e200df4e68330145713fd3c8",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261123-145542-ea7b40",
+                  "job": "261124-075318-9b7397",
                   "level": "light",
-                  "seconds": 234.7,
+                  "seconds": 1159.9,
                   "state": "done",
-                  "what": "bindings run.sh (plain, A12/A20 baseline) at 9ab802969c40"
+                  "what": "legacy-h check native at 5cc302f8e6ec"
                 }
               ],
               "kind": "defect",
@@ -19503,15 +20656,15 @@
             "F3": {
               "jobs": [
                 {
-                  "cmd": "bindings/tests/run.sh",
-                  "commit": "9ab802969c403ae3e200df4e68330145713fd3c8",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261123-145542-ea7b40",
+                  "job": "261124-075318-9b7397",
                   "level": "light",
-                  "seconds": 234.7,
+                  "seconds": 1159.9,
                   "state": "done",
-                  "what": "bindings run.sh (plain, A12/A20 baseline) at 9ab802969c40"
+                  "what": "legacy-h check native at 5cc302f8e6ec"
                 }
               ],
               "kind": "gap",
@@ -19520,15 +20673,15 @@
             "F4": {
               "jobs": [
                 {
-                  "cmd": "bindings/tests/run.sh",
-                  "commit": "9ab802969c403ae3e200df4e68330145713fd3c8",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261123-145542-ea7b40",
+                  "job": "261124-075318-9b7397",
                   "level": "light",
-                  "seconds": 234.7,
+                  "seconds": 1159.9,
                   "state": "done",
-                  "what": "bindings run.sh (plain, A12/A20 baseline) at 9ab802969c40"
+                  "what": "legacy-h check native at 5cc302f8e6ec"
                 }
               ],
               "kind": "gap",
@@ -19704,11 +20857,77 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T10:07:07",
+          "ci": {
+            "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+            "runs": [
+              45430641589,
+              45430641919
+            ]
+          },
+          "commit": "7fafdc8c80c707fcab83bf19444667d5bacbd930",
+          "criteria": {
+            "A1": "261124-075318-9b7397",
+            "A10": "261124-091551-8c7559",
+            "A11": "[artifact] `CHANGELOG.md`, \"Legacy removal (wave 2, step H)\"",
+            "A12": "261124-075331-f4ad0a; fails without: 261123-115751-5bff53, 261123-115753-f3287a, 261123-115755-5cd01d, 261123-115757-c99c71, 261123-115759-1641e1, 261123-115802-d5ab2f, 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8",
+            "A13": "261124-091550-ca58ab",
+            "A14": "[artifact] `website/src/content/docs/reference/cpp-api/reader.md`: \"share it; lookups are thread-safe on one reader.\"; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep)",
+            "A15": "[decision] D13",
+            "A16": "[decision] D14",
+            "A17": "[decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18)",
+            "A18": "261124-075318-9b7397",
+            "A19": "261124-075318-9b7397",
+            "A2": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A20": "261124-075331-f4ad0a; fails without: 261123-115804-bf7616, 261123-115806-c752e0, 261123-115808-e4edc7, 261123-115811-ea984a, 261123-115813-9d3c88, 261123-115815-a432cd, 261123-132722-52d35a, 261123-132740-6858e4, 261123-145743-a3b9c5, 261123-145747-841eac, 261123-145751-a77953, 261123-145755-cd3bb8, 261123-145800-81ce67, 261123-145804-7bcb89, 261123-145808-ac5564",
+            "A21": "261124-091549-10bfff, 261124-091550-0e8703, 261124-091552-916f34; fails without: 261123-175727-3d4b80, 261123-200448-f006cc, 261123-204320-f48488, 261124-004900-19d2cc, 261124-004904-f88615, 261124-075309-3e8f55, 261124-075314-c9ce1c",
+            "A22": "`ci:ci` (CI 45430641919), Docs 45430641589 at `Detent:5cc302f8`",
+            "A3": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A4": "261124-075318-9b7397, 261124-075331-f4ad0a",
+            "A5": "261124-075331-f4ad0a",
+            "A6": "261124-075318-9b7397",
+            "A7": "261124-075318-9b7397",
+            "A8": "261124-075318-9b7397",
+            "A9": "`ci:linux-asan-ubsan`, `ci:linux-tsan` (CI 45430641919 at `Detent:5cc302f8`)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-075318-9b7397",
+              "level": "light",
+              "seconds": 1159.9,
+              "state": "done",
+              "what": "legacy-h check native at 5cc302f8e6ec"
+            },
+            {
+              "check": "asan",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "state": "done"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "5cc302f8e6ecef7dede6722d09d2282185994372",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "11e394608f8d61328c311a6cdd57f13d9793aca2",
+          "reason": "",
+          "tested": "805cd0c6c1ff960f1cb7b66e41dbec29ca36b53e"
+        }
+      ],
       "lenses": [
         "correctness",
         "design"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
         "reader-s6"
@@ -19721,10 +20940,42 @@
       "reason": "round 3 (D154) ready at Detent:5cc302f8: lifecycle table D7, F5 fix 021dfa5e, class sweep",
       "repo": ".",
       "risk": "critical",
-      "status": "review",
+      "status": "landed",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-24T07:54:15",
-      "worktree": "../Detent-wt/detent/legacy-h"
+      "updated": "2026-11-24T10:07:16",
+      "worktree": ""
+    },
+    "legacy-h-lifecycle-docs": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/client-local-source.md",
+        "docs/**/*.md",
+        "site/src/content/docs/**",
+        "bindings/**/*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "legacy-h"
+      ],
+      "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "D7 lists every per-namespace transition, slot-reuse pages and D155 pages say what the code does",
+      "updated": "2026-11-24T12:39:26"
     },
     "legacy-i": {
       "accepted": {},
@@ -19747,8 +20998,8 @@
         "tests/**",
         "docs/ACTORS.md",
         "docs/LOCAL_IMAGE_FORMAT.md",
-        "website/src/content/docs/reference/configuration.md",
-        "website/src/content/docs/reference/snapshot-format.md",
+        "site/src/content/docs/reference/configuration.md",
+        "site/src/content/docs/reference/snapshot-format.md",
         "include/detent_delivery/coordinator.hh"
       ],
       "landed": [],
@@ -19763,11 +21014,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Legacy I: one local image format; flat-v1, image_format and legacy_anchor removed",
-      "updated": "2026-11-09T18:15:35"
+      "updated": "2026-11-24T12:39:33"
     },
     "legacy-wave2": {
       "accepted": {},
@@ -23320,18 +24572,19 @@
         "tests/detent_authority/**",
         "include/detent/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority v1 deletion: one-shot, v1 sessions, AuthorizedScope, old cursor (P5)",
-      "updated": "2026-11-20T04:57:36"
+      "updated": "2026-11-24T12:39:39"
     },
     "namespace-s6-cutover": {
       "accepted": {
@@ -25778,6 +27031,8 @@
       "after": [
         "reader-s6"
       ],
+      "base": "39b952173bbaa3b3fdf5eba059bfc9e8879ef2fa",
+      "branch": "quest/detent/observability-core",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -25788,13 +27043,9 @@
       ],
       "consumes": [],
       "files": [
-        "include/detent/reader.h",
-        "include/detent/reader.hh",
-        "include/detent_local/read_counters.hh",
-        "src/detent_reader/**",
-        "tests/detent_reader/**",
         "docs/design/observability.md",
-        "docs/mechanisms/read-counters.md"
+        "tests/detent_reader/usage_claim_model.cc",
+        "tests/detent_reader/usage_claim_model.sh"
       ],
       "history": [
         {
@@ -25833,12 +27084,16 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "design round 3 CHANGES (T1-T11, Detent:780c353f): the cross-publish fold for exact ever_read since open fails a third round; owner decides Q7's scope. Files narrowed to what its branch changes, so first-read-1ms can run; the set is widened again when it resumes",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "blocked",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T03:25:41"
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T13:02:16",
+      "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
       "accepted": {
@@ -27458,9 +28713,9 @@
         "docs/DEPENDENCY_UPGRADES.md",
         "docs/SHARED_LIBRARY_DECISIONS.md",
         "docs/perf/**",
-        "website/src/content/docs/architecture/dependencies.md",
-        "website/src/content/docs/installation.md",
-        "website/src/content/docs/roadmap.md"
+        "site/src/content/docs/architecture/dependencies.md",
+        "site/src/content/docs/installation.md",
+        "site/src/content/docs/roadmap.md"
       ],
       "history": [
         {
@@ -27580,11 +28835,12 @@
       "provides": [
         "dependency-manifest"
       ],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-22T22:05:26"
+      "updated": "2026-11-24T12:39:46"
     },
     "post-w2": {
       "accepted": {},
@@ -29529,7 +30785,7 @@
     "relay-mirror-idle-wake": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "split-detent"
       ],
       "base": "b3bfc1c7655da0c40315033800eddc7a53c83318",
       "branch": "quest/detent/relay-mirror-idle-wake",
@@ -29553,7 +30809,8 @@
         "tests/detent_relay/**",
         "bench/idle-wakeups/**",
         "docs/mechanisms/relay-mirror*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [
@@ -29562,12 +30819,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
+      "reason": "waits for split-detent to land, then moves the authority edit to the split file and queues evidence",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T03:50:56",
+      "until": [
+        "split-detent"
+      ],
+      "updated": "2026-11-24T11:54:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
@@ -30815,7 +32075,7 @@
         "src/detent_agent/config.cc",
         "tests/*/CMakeLists.txt",
         "docs/mechanisms/server-composition.md",
-        "website/src/content/docs/reference/**",
+        "site/src/content/docs/reference/**",
         "QUICKSTART.md",
         "README.md",
         "bench/idle-wakeups/pair.py",
@@ -30849,13 +32109,13 @@
         "tests/detent_system/test_relay_sigterm.py",
         "tests/docs/link_exceptions.txt",
         "tools/w5/first_read.py",
-        "website/src/components/PageTitle.astro",
-        "website/src/content/docs/architecture/agent.md",
-        "website/src/content/docs/architecture/relay.md",
-        "website/src/content/docs/guides/durable-relay.md",
-        "website/src/content/docs/guides/shell-and-agent.md",
-        "website/src/content/docs/operations/logging.md",
-        "website/src/content/docs/operations/services.md"
+        "site/src/components/PageTitle.astro",
+        "site/src/content/docs/architecture/agent.md",
+        "site/src/content/docs/architecture/relay.md",
+        "site/src/content/docs/guides/durable-relay.md",
+        "site/src/content/docs/guides/shell-and-agent.md",
+        "site/src/content/docs/operations/logging.md",
+        "site/src/content/docs/operations/services.md"
       ],
       "history": [
         {
@@ -30890,7 +32150,7 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "needs pin-wave's task bump (f937bc2+); pin-wave needs legacy-h",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "blocked",
@@ -30898,7 +32158,7 @@
       "until": [
         "pin-wave"
       ],
-      "updated": "2026-11-23T16:47:28",
+      "updated": "2026-11-24T12:39:57",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
@@ -31120,6 +32380,8 @@
         "dense-distribution-build",
         "reader-s6"
       ],
+      "base": "a06cbf1c8c77ce603e8516ff710330ca90ba05c0",
+      "branch": "quest/detent/split-detent",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -31135,7 +32397,22 @@
         "tests/detent_delivery/**",
         "docs/design/*.py",
         "src/CMakeLists.txt",
-        "tests/detent_delivery/CMakeLists.txt"
+        "tests/detent_delivery/CMakeLists.txt",
+        "docs/dev/splits.md",
+        "tests/detent_authority/test_state.cc",
+        "tests/docs/check_docs.py",
+        "tests/detent_authority/history_mutant.sh",
+        "tests/detent_authority/revert_followup_check.sh",
+        "tests/detent_authority/revert_ready_check.sh",
+        "tests/detent_authority/test_history_ranges_mutant_unbounded.patch",
+        "tests/detent_delivery/mutants/loop_idle_waits.sh",
+        "tests/detent_relay/mutants/absence-trusted.patch",
+        "tests/detent_relay/mutants/history-not-gated.patch",
+        "tests/detent_relay/mutants/layouts-no-enable.patch",
+        "docs/mechanisms/authority-capacity-raise.md",
+        "docs/mechanisms/authority-reply.md",
+        "docs/mechanisms/authority-retained-state.md",
+        "docs/mechanisms/format-refusal.md"
       ],
       "history": [
         {
@@ -31172,18 +32449,18 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "the split moves code that check_docs, mutant patches and scripts and four CURRENT mechanism docs cite by file; parked msgpack/persistent-map/voter-read/relay-mirror globs cover some of them but their branches edit none (checked); dated design records and docs-site-audit stay for the docs wave",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T03:25:45"
+      "updated": "2026-11-24T12:59:24",
+      "worktree": "../Detent-wt/detent/split-detent"
     },
     "split-journal": {
       "accepted": {},
       "after": [
-        "journal-tail-second-sector",
-        "xapiand:journal-lost-bound"
+        "xapiand:journal-sync-mode"
       ],
       "checks": [
         {
@@ -31231,11 +32508,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "moves test/**, which xapiand's journal-sync-mode is editing; moving code under an open edit makes both merges conflict, so it starts after that lands",
       "repo": "../journal",
       "risk": "low",
-      "status": "planned",
+      "status": "blocked",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:45:01"
+      "until": [
+        "xapiand:journal-sync-mode"
+      ],
+      "updated": "2026-11-24T13:25:21"
     },
     "stage-0-architecture": {
       "accepted": {},
@@ -33079,9 +34360,9 @@
         "tests/detent_relay/**",
         "tests/detent_authority/**",
         "docs/status/namespace-s8.md",
-        "website/src/content/docs/reference/http-api/authority.md",
+        "site/src/content/docs/reference/http-api/authority.md",
         "docs/USAGE.md",
-        "website/src/content/docs/**",
+        "site/src/content/docs/**",
         "docs/MANAGED_FAILOVER_ARCHITECTURE.md",
         "tests/detent_system/**",
         "tests/detent_delivery/test_source_selection.cc"
@@ -33096,7 +34377,7 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "follower-read landed; starting would hold server-composition-adoption's files",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "high",
       "status": "blocked",
@@ -33104,7 +34385,7 @@
       "until": [
         "server-composition-adoption"
       ],
-      "updated": "2026-11-24T07:40:21",
+      "updated": "2026-11-24T12:40:08",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
@@ -33304,11 +34585,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "drain-yields installed (agent-campaign:5ab2eef): its exclusive A1 rerun is cheap enough now",
       "repo": ".",
       "risk": "low",
       "status": "active",
       "title": "agent cold bootstrap against a warm relay at 100K, 1M and 5M",
-      "updated": "2026-11-20T04:06:49",
+      "updated": "2026-11-24T14:17:05",
       "worktree": "../Detent-wt/detent/warm-relay-agent-boot"
     },
     "wheel-evidence": {

@@ -4,7 +4,7 @@
 vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
 style.fill: transparent
 grid-rows: 2
-grid-columns: 3
+grid-columns: 2
 horizontal-gap: 190
 vertical-gap: 150
 
@@ -17,22 +17,14 @@ authority: Authority\n(detent-authority) {
   shape: rectangle
 }
 
-agent: Host agent\n(detent-agent) {
+reader: App process\n(detent::Reader)\nor `detent get` {
   shape: rectangle
 }
 
-spacer: "" {style.opacity: 0}
-
-defaults: Baked defaults\n(defaults.json) {
-  shape: page
-  style.fill: "#F4F1EA"
-}
-
-reader: App process or\n`detent get` {
+agent: Host agent\n(detent-agent) {
   shape: rectangle
 }
 
 publisher -> authority: "POST\n/v2/transactions"
 authority -> agent: "snapshot or\ndelta, TLS"
 agent -> reader: "immutable\ngenerations"
-defaults -> reader: "fallback"
