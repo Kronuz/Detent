@@ -6,7 +6,8 @@
 set -eu
 B='mkdir -p .scratch && cmake -S . -B .scratch/build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build-rel -j4 --target detent-authority detent-agent detent-relay detent_system_mixed_oracle && git rev-parse HEAD >.scratch/build-rel/BUILT_COMMIT'
 d=docs/measurements/warm-relay-agent-boot
-q=(--quest warm-relay-agent-boot --build "$B")
+# --force: job identity misses boot.py beside the named row.sh until docs-script-code lands.
+q=(--quest warm-relay-agent-boot --build "$B" --force)
 row() { # SIZE ROUND AFTER FIXTURE MODE
   local size=$1 round=$2 after=$3 fixture=$4 mode=$5
   campaign job submit "${q[@]}" --for A1 --level exclusive --minutes 10 --after "$after" \
