@@ -7720,7 +7720,30 @@
       "worktree": ""
     },
     "consensus-simulation-asan-timeout": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T23:29:26",
+          "base": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+          "blobs": {
+            "docs/mechanisms/simulation.md": "100644:3a36844bd1e8739b127625a3d6c3039118f8623d",
+            "test/driver_simulation.cc": "100644:7b7f322d32b32d2299601a2cabbaf1fdea5fb185",
+            "test/simulation_test.cc": "100644:8128d9254606b9ca9cf1532bfbc1d3f0f98098b0"
+          },
+          "by": "review",
+          "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "criteria": "2364cf33e9c2dd42",
+          "diffs": {
+            "docs/mechanisms/simulation.md": "5ec08671b1c413e6",
+            "test/driver_simulation.cc": "1ed0751bdc7197eb",
+            "test/simulation_test.cc": "c4ef58d1634d53fb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "029f164f296890d08784e7953bf0957037112659",
+          "reviewed": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
       "branch": "quest/detent/consensus-simulation-asan-timeout",
@@ -7746,7 +7769,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -7754,7 +7779,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus_simulation stays well inside its timeout under ASan",
-      "updated": "2026-11-23T21:09:28",
+      "updated": "2026-11-23T23:29:26",
       "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
