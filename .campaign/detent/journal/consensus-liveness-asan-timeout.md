@@ -1,31 +1,36 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-040934-6f74ca 261124-040939-f3dbf8 261124-040943-062bfb 261124-040947-6ef39b 261124-040951-86f5e6, CI 45390900739
+State: waiting on jobs 261124-051825-444ce3 261124-051827-1d53c7 261124-051829-5486f3 261124-051830-677391 261124-051832-d5a4f8 261124-051846-6e6be3
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
 
-Fix is consensus:1bbef40 (test) + 0894152 (docs/mechanisms/liveness.md). Old contributor's edit
-committed as f63a75c; 1bbef40 drops its inaccurate "hundred times" cost claim. Probes in the
-home's `.scratch/detent/consensus-liveness-asan-timeout/` (common.sh, phases.sh, mutants.sh,
-instrument.py, ci-times.sh). Old build dirs in the worktree deleted.
+Coordinator's message (scaled windows lose kills, D152): window scaling abandoned. A3 jobs
+261124-040943-062bfb and 261124-040951-86f5e6 showed main's harness alone catching
+votes-and-pre-votes-without-the-log-check ("a node fenced", Linux seed 7 heal: probe in
+.scratch where/), lone-campaigns-after-12-election-timeouts (arm64, Linux, FreeBSD), and
+lone-campaigns-after-15000ms in 4 profiles vs 1.
 
-Jobs out:
-- 261124-040934-6f74ca A2 --fails-without at main: MAX_RATIO=3, a profile above 3x the default's events.
-- 261124-040939-f3dbf8 A2 at fix: plain ASan old vs new (same host), new per-phase, MAX_RATIO=3.
-- 261124-040943-062bfb, 261124-040947-6ef39b A3: tools/mutants.sh core mutants, old vs new harness.
-- 261124-040951-86f5e6 A3: 12 custom mutants (no pre-vote, pre-vote raises own term, pre-vote
-  ignores leader contact, pre-vote counts refusals, vote ignores leader contact, lone campaigns
-  after 15000 ms / after 12 election timeouts, witness never / late (3 timeouts, 1500 ms) hand-off,
-  hand-off target ignores liveness, no CheckQuorum).
-- CI 45390900739 at 1bbef40 (pushed): liveness vs consensus_shared_worker ratio.
+New fix (consensus:3d788fe, f2fb... see git log): main's windows unchanged; the harness holds a
+node's Tick before Core::next_deadline() (read after each core step) instead of stepping it, still
+drawing its delay, and delivers it before the node's next event. A leader's Tick is held only with a
+settled membership and not as a witness (a D3 removal waits for a Tick: next_deadline() does not
+report it; found by LIVENESS_VERIFY). Messages move instead of copy. Exactness: trace.py hashes
+every action list (time, node, kind, message kind+term); old == new == LIVENESS_VERIFY in every
+profile (job 261124-050515-3d9f0f at 3d788fe). Release 20 seeds: 5.1 s -> 2.0 s locally.
+
+Profiles: old harness 261124-044728-e459f6; new (followers only) 261124-051424-4f6936: Core::step
+53%, leader drive 36% (replicas() set per tick 14%), next_deadline 10%, queue 12%.
+
+Jobs out at e44fe39: 444ce3 (A2 ASan old vs new same host), 1d53c7 (equiv), 5486f3/677391/d5a4f8
+(A3 mutants, now also reporting identical output), 6e6be3 (A2 --fails-without at main: plain ASan
+above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): superseded by 6e6be3.
 
 ## Next
 
-1. Read the jobs; the custom mutant lone-campaigns-after-12-election-timeouts is expected to
-   separate old (FreeBSD's lone window was 104 timeouts) from new (10 everywhere, the default's);
-   report it either way.
-2. CI times at fix vs main (ci-times.sh), docs table, Result, push 0894152.
+1. Read the jobs. If ASan new is not well under 90 s locally, cut more (queue entries without
+   std::function, fewer next_deadline calls) keeping the trace hash equal.
+2. CI time on the pushed fix vs consensus_shared_worker; push e44fe39+docs.
 
 ## Blocked on
 
