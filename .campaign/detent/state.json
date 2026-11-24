@@ -3529,6 +3529,18 @@
       "id": "msg-301",
       "notice": "skill landed 884bc84c4330ea345a0e1ebfcdd2d0e161fbb8d2",
       "text": "campaign skill: 6 commits landed on agent-campaign's main, installed here: agent-campaign:0faea9d Test that only the campaign's lead draws its sidebar; agent-campaign:cc588cf Draw a campaign's sidebar only from its recorded lead; agent-campaign:a198886 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:3b53580 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:15f274d Test that a cleared shared bar is redrawn by its other campaign; agent-campaign:884bc84 Redraw a shared workspace's bar after clearing a stray one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T16:46:36",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T16:46:36",
+      "by": "legacy-h contributor",
+      "closed": "handled: legacy-h file set widened (f525e81c and earlier); msg-298's quests starting now",
+      "id": "msg-281",
+      "text": "legacy-h (fix round 1, F1-F3/A21-A22) needs three file-set additions: src/detent_local/generation.cc and src/detent_local/generation_file_access.hh (expose the trusted whole-table read and select_entry, so the core reads selected once per refresh and attaches by entry without a second table read: T2 at 1,000 namespaces), and tests/docs/** (F3: check_docs.py's error enums and docs_exceptions.txt's three stale rows; F11: mutants.py M3). I am proceeding on them now; refuse and I revert."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
