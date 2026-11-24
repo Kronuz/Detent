@@ -1,6 +1,6 @@
 # consensus-follower-read: journal
 
-State: waiting on jobs 261124-043342-61c0c9, 261124-043347-acca2c
+State: waiting on jobs 261124-043342-61c0c9 and the 16 mutants at 30 seeds (Evidence, msg D152)
 Quest: .campaign/detent/quests/consensus-follower-read.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,7 +14,8 @@ fuzz 261124-033426-3bcef3 stands. CI at 0b8c911 is running (A5).
 
 ## Next
 
-1. When the suite, the mutant and CI finish, cite them and CI at 0b8c911 in Evidence, set State "ready for review".
+1. D152 check: if any of the 16 mutants at 30 seeds survives, restore 200 and give
+   consensus_follower_read a ctest TIMEOUT that fits ASan (as consensus_liveness's 180 s). Then, when the suite, the mutants and CI finish, cite them and CI at 0b8c911 in Evidence, set State "ready for review".
 2. Follow-up (lead): N2, below.
 
 ## Blocked on
@@ -28,6 +29,7 @@ test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is 
 | Criterion | Evidence |
 |---|---|
 | A1 | at 0b8c911: suite 261124-043342-61c0c9, plain 261124-043343-fb8ffd; fails without: 261124-043347-acca2c (nonce-reused, review N4). At 49deff5 (core unchanged since): 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
+| D152 | the 16 mutants on 0b8c911, each running `consensus_follower_read_test` as ctest does (all cases, 30 seeds), fails without: 261124-044549-28af93, 261124-044552-e472bc, 261124-044555-0e35a4, 261124-044557-b70cd2, 261124-044559-d35d51, 261124-044602-c4a84d, 261124-044604-d19c7e, 261124-044607-fc2b43, 261124-044609-1df389, 261124-044611-744e09, 261124-044614-fd3b26, 261124-044617-6cb4c7, 261124-044619-9bf8aa, 261124-044622-65c96c, 261124-044625-3aa7e1, 261124-044628-2ed859 |
 | A2 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
 | A3 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
 | A4 | 261124-033426-3bcef3 (fuzz at 49deff5; the decoder is unchanged at 0b8c911); codec mutant 261124-022430-586762 (fails without, at 49deff5's mutant); seeds `fuzz/corpus/decoders/seed-read-index-request`, `seed-read-index-response`, `seed-read-index-refusal` |
@@ -49,8 +51,9 @@ before. A follower holding a read does not rest and arms its deadline.
 
 Numbers: 16 mutants, one per rule, each killed by its case (jobs above). `randomized` runs the
 correctness review's fault schedule (by seed: no faults, ReadIndex frames, or every frame dropped,
-delayed, duplicated and re-injected; restarts with a fresh nonce); ctest runs 30 seeds (12 s of
-CPU under ASan, inside ctest's 30 s), the jobs 2000. At 0b8c911, 2000 seeds (fb8ffd): 179,110 reads
+delayed, duplicated and re-injected; restarts with a fresh nonce); ctest runs 30 seeds, down from
+200 (12 s of CPU under ASan, inside ctest's 30 s; 200 took 73 s): 30 seeds complete 2,836 reads, 1,668 at
+followers (200: 17,912 and 10,061). It stays 30 only if every mutant still fails at it (D152 row); the jobs run 2000. At 0b8c911, 2000 seeds (fb8ffd): 179,110 reads
 completed, 100,015 at followers, none stale; 424,318 refused; 156,587 frames re-injected. At 49deff5, before the schedule, 2000 seeds (49a7de): 231,988 reads
 completed, 134,742 of them at followers, none below a commit made before it began; 386,932
 refused. Suite 163/163 at 49deff5. Cost: 36- and 52-byte frames per read plus the leader's
