@@ -8,6 +8,9 @@
 #       of 10,000 int knobs in 1 and in 1,000 namespaces, under OUT (the job's own path depth).
 #   first-read-gate.sh measure OUT [stopped|running]   exclusive: six main/branch pairs per cell;
 #       fails unless the branch's paired difference and pooled p99 stay within main's plus their floors.
+#   first-read-gate.sh profile-prepare OUT   light: the branch's first_read_core with the probe's marks
+#       (docs/perf/first-read-probe.py) under OUT/probe, its sources restored after the build.
+#   first-read-gate.sh profile OUT stopped|running...   strict: each cell's phases, median and p90.
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 # CMake detects implicit includes under the SDK LLVM's config file names; any other sysroot leaves
@@ -73,6 +76,50 @@ EOF
 		done
 	done
 	file "$out"/*/first_read_*
+}
+
+profile_prepare() {
+	local branch=$PWD out build files="src/detent_reader/core.cc src/detent_local/prepared_reader.cc src/detent_local/lazy_page_access.cc"
+	mkdir -p "$1/probe"
+	out=$(cd "$1" && pwd)
+	build=$branch/.scratch/first-read-probe-build
+	# shellcheck disable=SC2086
+	git -C "$branch" diff --quiet -- $files || { echo "profile-prepare: marked files have local changes" >&2; return 1; }
+	cat > "$out/targets.cmake" <<EOF
+add_executable(first_read_phases "$branch/tests/detent_system/first_read_phases.cc")
+target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(first_read_phases PRIVATE detent::local_view detent::testing_store)
+add_executable(first_read_core "$branch/tests/detent_system/first_read_phases.cc")
+target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
+target_link_libraries(first_read_core PRIVATE detent::reader)
+EOF
+	echo "cmake_language(DEFER CALL include \"$out/targets.cmake\")" > "$out/defer.cmake"
+	# shellcheck disable=SC2064,SC2086
+	trap "git -C '$branch' checkout -- $files" RETURN
+	/usr/local/bin/python3 -I "$branch/docs/perf/first-read-probe.py" mark "$branch" "$out/probe/frp.hh"
+	cmake -S "$branch" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PROJECT_detent_INCLUDE="$out/defer.cmake" \
+		-DCMAKE_CXX_COMPILER="$llvm/clang++" -DCMAKE_C_COMPILER="$llvm/clang" -DCMAKE_OSX_SYSROOT="$sdk" \
+		-DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF \
+		-DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DDETENT_READ_COUNTERS=OFF >/dev/null
+	check "$build"
+	cmake --build "$build" -j4 --target first_read_core first_read_phases
+	cp "$build/first_read_core" "$build/first_read_phases" "$out/probe/"
+	git -C "$branch" rev-parse HEAD > "$out/probe/commit.txt"
+	for namespaces in 1 1000; do
+		rm -rf "$out/probe/store-${namespaces}ns"
+		"$out/probe/first_read_phases" --generate "$out/probe/store-${namespaces}ns" "$namespaces" "$knobs"
+	done
+}
+
+profile() {
+	local out state namespaces
+	out=$(cd "$1" && pwd)
+	for state in "${@:2}"; do
+		for namespaces in 1 1000; do
+			/usr/local/bin/python3 -I "$PWD/docs/perf/first-read-probe.py" run "$out/probe/first_read_core" \
+				"$out/probe/first_read_phases" "$out/probe/store-${namespaces}ns" "$namespaces" "$state" 200
+		done
+	done
 }
 
 measure() {
@@ -193,5 +240,7 @@ PY
 case ${1:-} in
 prepare) prepare "${2:?OUT}" ;;
 measure | count) measure "$1" "${2:?OUT}" "${@:3}" ;;
-*) echo "usage: $0 prepare OUT | measure OUT [stopped|running] | count OUT [stopped|running]" >&2; exit 2 ;;
+profile-prepare) profile_prepare "${2:?OUT}" ;;
+profile) profile "${2:?OUT}" "${@:3}" ;;
+*) echo "usage: $0 prepare OUT | measure OUT [stopped|running] | count OUT [stopped|running] | profile-prepare OUT | profile OUT stopped|running..." >&2; exit 2 ;;
 esac
