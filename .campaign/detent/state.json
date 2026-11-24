@@ -32407,12 +32407,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "split-journal moves test/**, which xapiand's journal-sync-mode edits; split after it lands",
+      "reason": "moves test/**, which xapiand's journal-sync-mode is editing; moving code under an open edit makes both merges conflict, so it starts after that lands",
       "repo": "../journal",
       "risk": "low",
-      "status": "planned",
+      "status": "blocked",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T13:23:52"
+      "until": [
+        "xapiand:journal-sync-mode"
+      ],
+      "updated": "2026-11-24T13:25:21"
     },
     "stage-0-architecture": {
       "accepted": {},
