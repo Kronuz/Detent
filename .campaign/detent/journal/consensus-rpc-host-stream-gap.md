@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-033248-45a895 261124-033251-9931b1 261124-033255-d1fab5 261124-033258-c0b16a 261124-033301-bd7ae6 and CI of consensus:0d5f362 (A4); then ready for review
+State: waiting on jobs 261124-041209-359b5d (fetch probe), 261124-033258-c0b16a, 261124-033301-bd7ae6 and CI of consensus:0d5f362 (A4: red on rpc_host_fetch and seeds_rate)
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -55,3 +55,4 @@ stream row. Review F1-F3 folded in (consensus:0e000db): the stream waits for its
 - Mutant fails-without: build.sh/patch.py copied from the review dir into ~/.scratch/detent/consensus-rpc-host-stream-gap/; mutant.sh holds Control 1,500 and 2,000 ms with no probe tail; job 261124-032545-3c3ebf passes when both fail at the fix.
 - Evidence rows to cite after the jobs: A1 261124-032555-cf6897; A2 261124-032548-9e4ff0, fails without 261124-032545-3c3ebf; A3 261124-032552-5023a3; A4 CI at 0e000db.
 - F4 (Detent:5a71c17e), consensus:0d5f362: the stream case requires the tail wait to succeed (`arrived` joins `ok`). Mutant drop.sh (patch.py MUTANT_MODE=drop: Control frames dropped after the call starts) fails at the fix: job 261124-033248-45a895. Jobs at 0d5f362: A1 261124-033301-bd7ae6; A2 261124-033255-d1fab5, fails without 261124-033248-45a895 (drop) and 261124-033251-9931b1 (delay 1,500/2,000 ms); A3 261124-033258-c0b16a; A4 CI at 0d5f362.
+- CI 45385145255 at 0d5f362, rpc_host_fetch on macos-x86_64: gap 2125 ms of 1024 (lag 24 ms), fetch 4131 ms (the passing macos run took 3.35 s: Bulk did not stop for 2.1 s). My F1-F4 edits do not touch the fetch case (F2 reads lag at the same point, after the same work), and xapiand's b92b6c8 (without them) fails fetch too (aborted connection), so it predates the quest. Probe: fetchprobe.py/fbuild.sh/frun.sh in ~/.scratch/detent/consensus-rpc-host-stream-gap/ time each heartbeat's post, loop send and delivery; job 261124-041209-359b5d runs 16 runs 8 at once beside 16 burners. Hypothesis to confirm: busy loop threads wait while the 1 ms sleeper (Lag) keeps waking, so Lag under-reports starvation of loop threads; a transport loop held under Bulk belongs to consensus-fetch-alongside-loop-stall.
