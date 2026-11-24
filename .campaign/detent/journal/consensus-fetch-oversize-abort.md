@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: ready for review (waiting on jobs 261124-151246-f0ad2c..261124-151310-7f0e32 and CI 45507969326)
+State: ready for review (waiting on jobs 261124-151248-f49548..261124-151310-7f0e32 and CI 45507969326; 261124-151246-f0ad2c passed)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -167,7 +167,7 @@ A fetch whose connection ends under it is asked once more on the next connection
 Doing; docs/mechanisms/rpc-lane.md. Open: the macOS kernel's 5 s uninterruptible sendto itself
 (groups-upload-loop-stall's class); capping TLS records below 16 KB is an unmeasured option.
 Cleanup after landing: the probe branch probe/detent/fetch-stall and its worktree
-~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the local branch
+~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the worktree mutant-wt beside it and the local branches mutant/fetch-any-connection, mutant/fetch-no-clear, mutant/fetch-oversize-aborts and
 mutant/fetch-not-asked-again.
 
 ## Rulings I made
