@@ -36,33 +36,12 @@ Jobs: 261124-144100-b5ba51 (A1 rerun at `Detent:3a2eec05`, running), 261124-1441
 
 ## Blocked on
 
-1. The lead: the 1,000-namespace cells cannot reach 1 ms on this host while every first read
-   hashes the whole `selected` table with SHA-256 (141 KB for 1,000 entries; 1,154 us on this
-   i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel; 83% of a table
-   decode by `sample`). The table's format (D43, namespace-s7) fixes the digest. Options:
-   a. A chunked table digest (or a cheaper checksum), so a first read hashes its entry's chunk:
-      a format change; greenfield, no compat. Recommended.
-   b. An x86 SHA-256 kernel without SHA-NI in the sha256 library (CommonCrypto runs 141 KB in
-      643-780 us against the portable kernel's 1,169-1,382 us here, about 1.9x): helps every
-      SHA-256 on this host (table, image, `.read`, first-touch pages) but leaves the table at
-      about 600 us.
-   c. Accept the 1,000-namespace cells above 1 ms on hosts without SHA hardware.
-2. The lead: widen the file set by two test files, so two measured changes can land:
-   - Change 2 (`.scratch/fr/change2-walk-precheck.patch`): the trust walk opens each component
-     first and runs `fstatat` only to classify a failed open (alias or refusal), keeping the
-     post-open name check. Screen with change 1: -333 us (1 ns) and -348 us (1,000 ns) against
-     main, against change 1 alone -243 and -214 (floors 30-155 us). It needs
-     `tests/detent_local/test_trusted_paths.cc`: its race hook fires on the second `fstatat` of
-     "raced" (`race_calls == 2`), which becomes the first.
-   - Change 4 (`.scratch/fr/change4-image-once.patch`): attach takes the image bytes the
-     selection read (with their ACL checked there), so a first read opens `.image` once, not
-     twice. It needs `tests/detent_local/test_read_counters.cc`: the Client open counts 4 records,
-     not 5, and 320 fewer table bytes (CI's counters job).
-3. The lead: the running 1,000-namespace cell cannot run on main. The test writer
-   (`src/detent_testing/generation_writer.cc`) limits a store to 1,000 generations, so a
-   1,000-namespace store refuses the publisher's next publish ("local disk admission pressure").
-   Raising that limit is one line; the probe skips the cell meanwhile, and the gate's `measure
-   ... running` fails on it.
+1. The lead: design check of "Design: table pages" in docs/perf/first-read-1ms.md (lifecycle
+   rows), and widening for the files it names: src/detent_reader/core.cc,
+   docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt,
+   tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered by msg-1.
+2. For the security review: change 4 checks the image bytes read before the lease is taken; they
+   are content-addressed by the entry's digest, and the lease then holds the generation's files.
 
 ## Evidence
 
