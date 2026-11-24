@@ -64,6 +64,10 @@ if(TARGET detent::relay_mirror_service AND TARGET detent-authority AND TARGET de
       $<TARGET_FILE:detent-authority> $<TARGET_FILE:detent-relay> $<TARGET_FILE:test_relay_probe>
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
   set_tests_properties(test_relay_service PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 240)
+  # relay-mirror-idle-wake: at rest a relay's parked next costs the relay no sync and the authority no turns.
+  add_test(NAME test_relay_idle
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_idle.py ${PROJECT_BINARY_DIR})
+  set_tests_properties(test_relay_idle PROPERTIES TIMEOUT 120)
 endif()
 
 # Dense distribution DD4: the page window and Merkle diff against the occurrence-write oracle. With
