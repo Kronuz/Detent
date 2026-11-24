@@ -28146,7 +28146,7 @@
           "final": true,
           "from": "1941ec85caa231e88076640fb1fc3d3429400543",
           "later": [
-            "261123-101536-f6fb44"
+            "261124-011607-d30224"
           ],
           "reason": "",
           "tested": "28c442b5644e931c833c3831e362fe59799e607e"
@@ -28184,7 +28184,7 @@
       "risk": "high",
       "status": "landed",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-23T10:15:37",
+      "updated": "2026-11-24T01:16:07",
       "worktree": "../Detent-wt/detent/reader-s6"
     },
     "reader-s7-s9": {
