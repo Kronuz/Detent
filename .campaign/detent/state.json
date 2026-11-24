@@ -20692,7 +20692,7 @@
       "files": [
         "docs/design/client-local-source.md",
         "docs/**/*.md",
-        "website/src/content/docs/**",
+        "site/src/content/docs/**",
         "bindings/**/*.md"
       ],
       "landed": [],
@@ -20702,11 +20702,12 @@
         "legacy-h"
       ],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "D7 lists every per-namespace transition, slot-reuse pages and D155 pages say what the code does",
-      "updated": "2026-11-24T09:16:19"
+      "updated": "2026-11-24T12:39:26"
     },
     "legacy-i": {
       "accepted": {},
