@@ -28,7 +28,7 @@ test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | at 0b8c911: suite 261124-043342-61c0c9, plain 261124-043343-fb8ffd; fails without: 261124-043347-acca2c (nonce-reused, review N4). At 49deff5 (core unchanged since): 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
+| A1 | at 0b8c911: suite 261124-043342-61c0c9, plain 261124-043343-fb8ffd; fails without: 261124-044625-3aa7e1 (nonce-reused, review N4). At 49deff5 (core unchanged since): 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
 | D152 | the 16 mutants on 0b8c911, each running `consensus_follower_read_test` as ctest does (all cases, 30 seeds), fails without: 261124-044549-28af93, 261124-044552-e472bc, 261124-044555-0e35a4, 261124-044557-b70cd2, 261124-044559-d35d51, 261124-044602-c4a84d, 261124-044604-d19c7e, 261124-044607-fc2b43, 261124-044609-1df389, 261124-044611-744e09, 261124-044614-fd3b26, 261124-044617-6cb4c7, 261124-044619-9bf8aa, 261124-044622-65c96c, 261124-044625-3aa7e1, 261124-044628-2ed859 |
 | A2 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
 | A3 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
@@ -38,6 +38,8 @@ test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is 
 Other jobs examined: 261124-020815-08319a (suite at d2126d0, superseded), 261124-020817-d6cced
 (cancelled, superseded by 49a7de), 261124-020820-b56679 (fuzz at d2126d0; rerun at the head);
 261124-040935-e4aada, 261124-040937-e8b581, 261124-040949-975e1f (at c88f5b7, cancelled, superseded by 0b8c911).
+261124-043347-acca2c (nonce-reused, randomized only; cancelled, superseded by 261124-044625-3aa7e1).
+D152 progress: apply-skipped, ready-without-quorum, leader-change-kept done, each fails (exit 1); 13 queued.
 
 ## Result
 
