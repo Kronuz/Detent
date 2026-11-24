@@ -18,9 +18,7 @@ def rep(a, b):
     s = s.replace(a, b, 1)
 
 
-m = re.search(r"\tbool holdable\(NodeId id\) \{\n.*?\n\t\}\n", s, re.S)
-assert m, "no holdable()"
-s = s[: m.start()] + """\tbool holdable(NodeId) { return %s; }
+count = """
 \tvoid count_held(NodeId id) {
 \t\tconst Core& core = *nodes_.at(id).core;
 \t\tconst auto& m = core.membership();
@@ -29,11 +27,21 @@ s = s[: m.start()] + """\tbool holdable(NodeId) { return %s; }
 \t\tif (find_member(m, id)->role == MemberRole::Witness) { ++held_witness; }
 \t\tif (m.leaving || core.committed_membership() != m) { ++held_leaving; }
 \t}
-""" % ("true" if mode == "held" else "false") + s[m.end():]
+"""
+# A harness with a holdable() guard (before this quest) gets it replaced; one without holds every
+# Tick, and the stepped variant reads no deadline.
+m = re.search(r"\tbool holdable\(NodeId id\) \{\n.*?\n\t\}\n", s, re.S)
+if m:
+    s = s[: m.start()] + "\tbool holdable(NodeId) { return %s; }\n" % ("true" if mode == "held" else "false") + count + s[m.end():]
+else:
+    rep("\tvoid tick(NodeId id, Node& n) {\n", count + "\tvoid tick(NodeId id, Node& n) {\n")
+    if mode == "stepped":
+        rep("n.hold_until = n.core->next_deadline();", "n.hold_until = 0;")
 rep("using namespace kronuz::consensus;", """using namespace kronuz::consensus;
 namespace { thread_local unsigned long long held_leaving = 0, held_witness = 0, held_nonvoter = 0; }""")
 rep("\t\tif (tick.now < *n.hold_until) {\n", "\t\tif (tick.now < *n.hold_until) {\n\t\t\tcount_held(id);\n")
-rep("""\t\t\tauto actions = step(id, tick);
+if "retired_log_entries() == retired" not in s:
+  rep("""\t\t\tauto actions = step(id, tick);
 \t\t\tcheck(actions.empty() && n.core->next_deadline() == deadline, "a held Tick changes nothing");""",
     """\t\t\tconst auto retired = n.core->retired_log_entries();
 \t\t\tauto actions = step(id, tick);
