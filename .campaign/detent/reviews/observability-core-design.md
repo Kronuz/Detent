@@ -1,12 +1,122 @@
 # observability-core review: design
 
-Commit: Detent:1fbd4cd974e49bfbce8f5b2191d79a0a2f60109c
+Commit: Detent:0e096e0edd0a877a4ca9227727b08fb599feaf4d
 Verdict: CHANGES
 Date: 2026-11-24
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+## Re-review at Detent:0e096e0e
+
+This round checks the rewrite of `docs/design/observability.md` into one paged-core design. The
+round-1 findings are below, unchanged, as reviewed at `Detent:1fbd4cd9`. The claim protocol is now
+correct: F1, F2 and F3 are fixed, and I checked each with a model I wrote from the doc's text, not
+from the quest's own model. F7 and F8 are fixed as text. Three of F4-F6 are fixed only in part, and
+each leaves a blocking gap, all text and test-spec fixes:
+
+1. Index sizing makes knobs past the bound probe on every lookup, which contradicts G1 and the
+   `overflow` test.
+2. The `cycle` test cannot pass.
+3. G2's 2% at 8 and 64 threads loosens the owner's 10 ns ceiling.
+4. The (b) side of D10 omits the cost of exactness across publishes.
+
+### Evidence
+
+- Probe job `261124-110456-c8a8ef` (light, exit 0, TSan, no report) at `Detent:0e096e0e`, run with
+  `.scratch/detent/review-observability-core-design/run_v2.sh`. It runs:
+  - `claim_model_v2.cc`: D3 as the doc states it, including its index sizing
+    2^⌈log2(2·min(usage_slots, records))⌉, with forced windows.
+  - The quest's `tests/detent_reader/usage_claim_model.sh`: "all outcomes as designed", 10 of 10.
+    This reproduces `261124-104834-6ab99d` at this commit.
+- The D10 memory table, recomputed from its stated sizes (row 288 B, set 4 B, slot 16 B, 16 KB per
+  segment, 63.15 B of segment per knob): 1.34, 1.34 and 1.34 MB for (a) at the default against
+  1.33, 2.21 and 6.16 MB for (b); exact (a) is 34.0 MB, 329.9 MB and 1,775 MB. Every figure matches.
+- Earlier job `261124-105836-c2f298` failed to compile my model (my error). It decides nothing.
+
+### Round-1 findings
+
+| ID | Status | How it is shown |
+|---|---|---|
+| F1 | fixed | The row (or the flag) is published before the address. In my model, an *unsampled* read returns while the winner is parked after its name or after its address, and the row is visible ("as expected", both windows). |
+| F2 | fixed | An insert-only name set published from private rows. With a claimer parked at RowWritten, NamePublished or AddressClaimed: one row, and the second claimer progresses (both models). Equal hashes give two rows (quest model). |
+| F3 | fixed | Fallbacks claim no row. Quest model `spray`: 64 missing names, then a defined knob keeps its row with no overflow. Limit 10 states the lost per-name `missing` detail. |
+| F4 | partly | Both sides' arithmetic is right. The (b) side is incomplete: R1. |
+| F5 | partly | The table is rebuilt from `core.cc`. The re-add, index-refused, `detent_revision`, view-state, `kept_generation` (`Stats::claims`) and `fresh_handle` rows are now failable. R2 and R4 remain. |
+| F6 | partly | G1 counts events, so it decides at any level. G2 is R3. |
+| F7 | fixed | One design. 0 means the default everywhere, `detent get` uses `DETENT_USAGE_OFF` (line 357), and no bitmap-position text remains. |
+| F8 | fixed | D6 states the maximum (8,388,608 → INVALID_ARGUMENT), that the ABI version stays 1, `CLOCK_MONOTONIC` through `clock_gettime`, the off-handle results, and callbacks run with no pin. |
+| N1-N6, N8 | fixed | D4 (`switch_forced`, `get_as<bool>`), Limits 3 and 8, D3 Fork (anonymous remap), the D6 totals, D6 item 1. |
+| N7 | open | The file set in state.json still lacks `src/detent_local/view.cc`, `tests/detent_local/test_evaluation.cc` and `tests/detent/test_one_knob_differential.cc`. That is the lead's to fix. |
+
+### Q2, the mechanism, for the owner
+
+The (a) column is right. The (b) column is right for one generation. What follows is judged from the
+code; nothing is measured, because neither mechanism is built.
+
+- **Hot path of (b).** `PageTable::State::resolve` already has the leaf's `Segment` in hand
+  (`lazy_page_access.cc:237`). If `resolve` returns it, and `PagedReadState::definition` passes it
+  out with the body, a warm hit is offset = body − segment base, then one test of the bitmap word.
+  That is one load after the walk, with no multiply and no probe chain. (a)'s hit is a multiply, then
+  1.07 expected probes at the default's load of 1/8. Scattered knobs more than 4 KB apart touch one
+  line each under either mechanism. So **(b) is no slower than (a) on a warm hit**, and probably
+  slightly cheaper.
+- **Concurrency of (b).** It is simpler. The mark is an idempotent test-before-set `fetch_or` that
+  the reader itself performs, so there is no claim protocol, no visibility window, no spares and no
+  half-full rule. The segment mapping is stable for its `PageTable`'s life. A fork child remaps the
+  bitmaps as it does the indexes.
+- **Surface of (b) in src/detent_local.**
+  - The `PagedPageAccess::resolve` interface (`paged_page_access.hh`) and its implementers
+    (`lazy_page_access`, `prepared_reader.cc`) and test users (`test_lazy_page_access`,
+    `test_lazy_page_bitmap`, `test_dense_reads`, `test_dense_fullbuild`).
+  - `PagedReadState::definition`, and the `Segment` constructor.
+  - The mapping cap: if the bitmap is charged to it, `core.cc:59-60`'s static_assert moves the ABI
+    constant `DETENT_MINIMUM_MAPPING_BYTES` (`reader.h:32`) by 16 KB. If it is not charged, it is an
+    uncapped 1/64 of mapped bytes, 8 MB at the 512 MiB default.
+- **Exactness of (b) across publishes.** (b) is exact for every definition within a generation. A
+  new generation has a new `PageTable`, so new bitmaps. Keeping "read since open" across a publish
+  needs D10's fold: name each retiring bit by walking that generation's verified pages, then look
+  each name up in the successor. That costs about R cold lookups, each re-verifying its pages on
+  first touch, on the lookup thread that holds `refreshing`. The alternative is to put the retiring
+  names into rows, which bounds (b) by `usage_slots` across publishes, as (a) is. The doc names the
+  fold but neither prices it nor says which of the two (b) takes. Its "R = every knob: 6.2 MB" is a
+  single-generation figure.
+
+Plainly: within a generation (b) is exact, 288 times cheaper than an exact (a) at 5M (6.2 MB against
+1.78 GB), and no slower on a warm hit. At the shipped default it costs more than (a) (6.2 against
+1.34 MB at 5M), and it reaches src/detent_local. Its exactness since open, across publishes, costs a
+fold that the comparison leaves out. If the owner holds Q7, (b) is the right mechanism once the fold
+is priced. If the owner accepts the bound, (a) is.
+
+### Q4, the gate
+
+G1 is exact counts and decides at any level. G2 decides only when a run is valid (A/A within
+±0.5%). Nothing shows a strict run can be valid. The strict screens the doc cites already alternated
+on and off per block of 64, and a ratio cancels only load that stretches both arms in proportion. The
+validity rule makes a false pass impossible, but it can leave the gate undecided forever. At 64
+threads, a light run at nice 19 on shared CPUs is unlikely to be valid. So: G1 decides at light, G2
+at strict if valid, and G2 needs an exclusive fallback (R3).
+
+### Findings (re-review)
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R1 | yes | gap | D10's (b) states "exact for every definition" and 6.2 MB with every knob read, but that holds per generation. Across publishes, (b) needs the fold (R cold lookups on the thread that holds `refreshing`, each re-verifying pages in the new `PageTable`), or it falls back to rows and to (a)'s bound. The fold is not priced, and (b)'s src/detent_local surface is not listed: the resolve interface and its implementers, and the mapping cap with `DETENT_MINIMUM_MAPPING_BYTES`. The owner chooses on this table. | `lazy_page_access.cc:237`, `paged_page_access.hh`, `core.cc:59-60`, `reader.h:32`; observability.md:245,257 | Price the fold (an estimate from dense-pages' first-touch cost is enough) or choose the rows fallback. List the surface. State plainly that (b) is no slower on the warm hit (Q2 above). |
+| R2 | yes | defect | Knobs past the bound are never claimed. With records above `usage_slots`, the index has 2·`usage_slots` slots and stops claiming at half, which is exactly when the table fills. So every knob past the bound probes to an empty slot on every lookup and never "holds the overflow row". G1 ("the knobs past the bound take the same counts ... their index slots hold the overflow row") and the `overflow` row ("probe at most 1.25 times per hit") are false at the doc's sizing. The quest's `full_table` sizes its index at 8 for a 2-row table, which hides this. | Probe `261124-110456-c8a8ef`: `usage_slots` 256 with 1,024 knobs gives 0 of 768 past-bound knobs holding the overflow row, and 1.91 probes per past-bound lookup | Either size the index above the table, so that table-full claims get slots (4·min, or keep claiming to 3/4), or state the past-bound cost: an unsuccessful search at load 1/2, about 2 probes, plus the `used` and flag loads. Then make G1 and `overflow` assert it, with the quest model sized as D3 says. |
+| R3 | yes | gap | G2's ceilings move the owner's. Two percent at 8 and 64 threads is 15 to 19 ns on the S6 core's 767 to 961 ns lookups at 8 threads (D2's `none`), against D48/D61's 10 ns. And no level is named for when strict runs keep coming back invalid. | observability.md:58,83; PLAN.md D48, D61 | Make each case's threshold D48's ns divided by that case's own off median (the ratio still cancels load), or put 2% to the owner. Add: after N invalid strict runs, one exclusive run of the finished feature decides (D135). |
+| R4 | yes | defect | `cycle` cannot pass. At period 64 with reloads in [1, 127], a name goes unsampled through 64 cycles with probability (63/64)^64 = 0.36. | Probe `261124-110456-c8a8ef`: 362 to 393 of 1,024 names unsampled after 64 cycles; every name sampled after 478 to 500 cycles | Seed it through the seam and assert coverage within 1,000 cycles. Or assert the distinct names sampled in k cycles against the fixed reload's 16. |
+| R5 | no | defect | At the table's last row, a second claimer of the same name finds no row to take. It sets the flag and keeps the overflow row in its index slot, though the knob ends with a row. Absence is then reported as unproven, and that generation's samples land in overflow. This errs on the conservative side, but costs precision. | Probe `261124-110456-c8a8ef` `boundary`: 1 row, overflowed 1, 2 overflow samples | When `take` fails, re-examine the slot before setting the flag. Or state it under Limit 3. |
+| R6 | no | nit | `fresh_handle` fails falsely with probability (126/127)^1000 = 3.7e-4 per run (0 of 1,000 sampled). | arithmetic | Use 10,000 handles, or the seeding seam. |
+| R7 | no | nit | T4's "0.23 MB to spare" treats the existing core heap as zero, and T4 already exempts per-segment bitmaps, which (b)'s are. | observability.md:255; reader.md T4 | Restate it with the current core heap, and say whether (b)'s bitmap counts under T4's exemption. |
+| R8 | no | gap | No lifecycle row tests a callback that looks up knobs or calls `detent_usage`, which D6 item 4 allows. | observability.md:175 | Add a `callback_reentry` row. |
+
+### Not run (re-review)
+
+- No strict or exclusive run (instructed), so G2's validity under strict is not shown.
+- I did not measure the cost of (b) or of the fold; Q2 above is from the code.
+
+## Round 1 (Detent:1fbd4cd9)
 
 Scope: `docs/design/observability.md` "In the paged core" P1-P6 at `Detent:1fbd4cd9`, a design before
 code. The claim index is a sound, simpler shape than segment bitmaps (core.cc only, names in hand, no
