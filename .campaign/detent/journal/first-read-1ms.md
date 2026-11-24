@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1: profiling the core's fresh first read. Local builds of both trees under `.scratch/fr/out`
+(gate `prepare`, main from a detached scratch worktree `.scratch/main-tree`); a scratch-only probe
+header `.scratch/fr/probe/frp.hh` marks each sub-step (never committed).
 
 ## Next
 
-1. <step>
+1. A1 profile job of the slowest cell, top costs named with numbers.
+2. Remove the top costs one at a time, each screened with an interleaved A/B against main.
+3. reader_bench hot path (1 and 8 threads, hot and scattered) against main.
+4. A2 exclusive gate runs (stopped, running) at the final head; A3 via `campaign verify` and CI.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -38,4 +43,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- R1: the gate runs the reader core in both trees once a tree has `src/detent_reader` (reader-s6
+  landed): this quest's A/B is core against core; main before reader-s6 still runs its Client.

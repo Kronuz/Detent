@@ -47,7 +47,9 @@ EOF
 	echo "cmake_language(DEFER CALL include \"$out/targets.cmake\")" > "$out/defer.cmake"
 	for code in main branch; do
 		local src build targets=first_read_phases
-		if [ "$code" = main ]; then src=${JOB_REF_BASELINE:?--ref BASELINE=main}; else src=$branch; targets="$targets first_read_core"; fi
+		if [ "$code" = main ]; then src=${JOB_REF_BASELINE:?--ref BASELINE=main}; else src=$branch; fi
+		# A tree with the reader core reads through it; main before reader-s6 reads through its Client.
+		[ -d "$src/src/detent_reader" ] && targets="$targets first_read_core"
 		build=$src/.scratch/first-read-build
 		rm -rf "${out:?}/$code"
 		mkdir -p "$out/$code"
@@ -83,7 +85,7 @@ runs = prepared / "runs"
 
 def command(code, store, namespaces, i):
     ns, key, value = f"n{i % namespaces}", f"k{i}", str(3 * i + 1)
-    if code == "branch":
+    if (prepared / code / "first_read_core").exists():
         return [prepared / code / "first_read_core", "--core", store, f"{ns}:{key}", value]
     return [prepared / code / "first_read_phases", "--client", store, ns, key, value]
 
