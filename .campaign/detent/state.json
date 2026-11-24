@@ -3333,6 +3333,26 @@
       "closed": "noted a88fe2c4; merged into the lead's main and pushed; the rename waits for legacy-h",
       "id": "msg-286",
       "text": "Shared Starlight engine landed on origin/main at Detent:a88fe2c4, retaining website/ until legacy-h lands. It built 63 pages; docs inventory and links have no unlisted gaps; Chrome desktop/phone checks pass. I will perform the pure website/ -> site/ rename once you clear the gate."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T18:12:26",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T18:12:25",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-287",
+      "items": {
+        "consensus-follower-read": "frees CMakeLists.txt for consensus-follower-read"
+      },
+      "settles": {
+        "start": [
+          "consensus-follower-read"
+        ]
+      },
+      "text": "consensus-drop-memory-io-include landed: unlocks frees CMakeLists.txt for consensus-follower-read"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -15218,9 +15238,42 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-drop-memory-io",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T18:57:41",
+          "ci": {
+            "commit": "4f8a03809d17c6de465892dd26a0df733a672f30",
+            "runs": [
+              45311128840
+            ]
+          },
+          "commit": "4f8a03809d17c6de465892dd26a0df733a672f30",
+          "criteria": {
+            "A1": "261123-181729-3e6d81, 261123-181730-c059ab"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "4f8a03809d17c6de465892dd26a0df733a672f30",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "4f8a03809d17c6de465892dd26a0df733a672f30",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "reason": "",
+          "tested": "4f8a03809d17c6de465892dd26a0df733a672f30"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "journal-tail-second-sector"
@@ -15228,10 +15281,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/journal",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "journal: delete memory_io.h",
-      "updated": "2026-11-23T06:52:42",
-      "worktree": "../journal-wt/detent/journal-drop-memory-io"
+      "updated": "2026-11-23T18:57:47",
+      "worktree": ""
     },
     "journal-earlier-turn-loss": {
       "accepted": {
