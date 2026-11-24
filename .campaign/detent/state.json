@@ -11751,7 +11751,8 @@
       "accepted": {},
       "after": [
         "dense-distribution-build",
-        "xapiand:node-admission"
+        "xapiand:node-admission",
+        "xapiand:consensus-join-v2"
       ],
       "checks": [
         {
@@ -11805,11 +11806,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "xapiand msg-304: join-v2 changes seeds_test and the join/hello path",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-21T03:24:13"
+      "updated": "2026-11-24T02:20:30"
     },
     "detent-on-drivers": {
       "accepted": {},
