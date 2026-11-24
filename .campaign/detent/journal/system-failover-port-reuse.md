@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-175259-d3dd57 (A1 x96 at 24 with the answer-time distribution) 261123-175619-13aea1 261123-175626-e51c59 (test_relay_service x48 at 8 parallel at main 11b8d2a3 and at the head, same build) 261123-144511-1ff0d9 (A2, failed; rerun after the fix)
+State: waiting on jobs 261123-175619-13aea1 (test_relay_service x48 at 8 parallel, main 11b8d2a3) 261123-175626-e51c59 (same, at 756d2c3c, the quest's lease) 261123-181753-4707aa 261123-181754-1e1ca2 261123-181755-9df8e6 261123-181755-ccd2db 261123-181756-29fcce 261123-181757-a6dd85 261123-181757-95980a 261123-181758-f68e8e (A3 at 509d3ef8) 261123-181759-ca3c2e (A2 suite at 509d3ef8); A1 passed: 261123-181552-9c6cf3
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -59,14 +59,30 @@ exception group; a load flake of the old reserve-and-release harness, not read f
 
 ## Round 4 (fresh contributor)
 
-- 2c2f0f: the harness's lag was 0.0 s because HostLag times a thread of the harness itself; the stand-in
-  is another process. The failure's own ps/lsof: the stand-in R, 00:20, no output, and lsof showing it
-  LISTENing only by the time ps/lsof ran (the 20 s poll had just ended): it came up late, it did not
-  fail to bind. `python3 -c pass` x96 at once takes 1.3 s here (probe, idle host), so the exec alone
-  does not explain 20 s; d3dd57 prints each restart's answer time to see the tail (756d2c3c).
-- 1ff0d9's test_relay_service failure (relay C, 404 on /v2/history/file) is not a bind error. It also
-  fails in A3 shards 1,2,3,4,7 (about 5 of 21 runs under -j8 load, e.g. 144457-e9b628). A/B at main
-  vs the head: 13aea1 (main) and e51c59 (head), 48 runs each at 8 parallel.
+- 2c2f0f (A1 x96 at 24) was starvation of the restarted stand-in's start, not the bind defect, and the
+  lag measure missed it because it timed a thread of the harness. Evidence, in order:
+  1. d82e63 (96 runs, 288 restarts at 24 parallel, stand-in timestamps in the events): spawn to
+     answer median 0.30 s, p90 15.2 s, max 18.2 s; of that, spawn to the script's first line p90 14.9 s,
+     imports 0.13 s, bind 0.00 s, bind to serving 0.01 s, serving to first answer 0.05 s. The bind is
+     not slow: the process starts late.
+  2. 45463b sampled stuck stand-ins: pid 77633 was `/bin/sh` (the wrapper script `detent-authority`
+     the test wrote) in state S, 0% CPU, at `_dyld_start` 7 s after the spawn.
+  3. 970c61 (probe /Users/kronuz/.scratch/sfpr/probe/spawn.py, 24 workers, 360 starts per variant,
+     kill then respawn): a freshly written `#!/bin/sh` wrapper exec'ing python: median 0.05 s, p90 1.8
+     to 3.3 s, max 4.0 to 10.5 s; the same python started directly: max 0.17 s. A HostLag probe that
+     started python directly saw 0.1 s of lag while the stand-in waited 20 s (6a1058, FAILED at run 81
+     of 288 though the job exited 0: my script ended in awk), so a spawn probe is not the measure.
+  Fix bb3ea221 (509d3ef8 after amend): Authority takes the member's command as a Path or a list, and
+  the test passes `[sys.executable, __file__, "--serve"]`, no wrapper script. 9c6cf3: 288 runs at 24
+  parallel beside 8 light holds, all pass; 864 restarts answered in median 1.11 s, p90 1.93 s, max
+  3.61 s (before: max 18.7 s). Same parallelism as the earlier 96 x 24 claim, three times the runs.
+  The HostLag from f62791e9 stays (thread lag); the progress line prints each restart's answer time.
+- 1ff0d9's test_relay_service failure (relay C, 404 on /v2/history/file under history_reply) is not a
+  bind error: it also fails in A3 shards 1,2,3,4,7 at 144457-e9b628 etc. (about 5 of 21 runs under
+  -j8 load) with nothing but the lease changed in that file; the authority answers 404 when a file
+  named by a layout is absent at its latest seal. A/B on the same loop (48 runs, 8 parallel): 13aea1 at
+  main, e51c59 at the quest head (pre-fix probe commit; test_relay_service.py is identical at 509d3ef8).
+  If main fails at a similar rate it is the lead's to file; if main passes, read the lease change.
 
 ## Next
 
