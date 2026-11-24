@@ -3166,6 +3166,19 @@
       "id": "msg-256",
       "notice": "skill installed bd54f12b7ff3c0c19fdd4f95714358abb9118517",
       "text": "campaign skill: agent-campaign:bd54f12 installed here, 12 commits: agent-campaign:7023ca3 Tell every campaign's lead of skill commits it did not land; agent-campaign:5614004 Merge branch 'main' into quest/campaign-v3/broadcast-every-lead; agent-campaign:8969e84 Tell a lander of its own commits when they are installed; agent-campaign:b6cf285 Merge main into quest/campaign-v3/broadcast-every-lead; agent-campaign:3fc989d Contributor: never run campaign land, --merge-main included; agent-campaign:c72a1c2 Evidence rows and their hints follow the land gate; agent-campaign:05a9e8e Read a cited fails-without job by its own rule; share ci_named; agent-campaign:b4ee5cf Revert A4 and the ci_named move; land A1-A3 first; agent-campaign:8ab02c3 Merge main into quest/campaign-v3/evidence-hints; agent-campaign:2cfe40c Merge main into quest/campaign-v3/evidence-hints; agent-campaign:8f4d92b Merge main into quest/campaign-v3/evidence-hints; agent-campaign:bd54f12 Make A1's test merge code from main, as msg-32's landings do"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T07:30:33",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "skill install notice read; agent-campaign:63249d4 installed",
+      "id": "msg-258",
+      "notice": "skill landed fce5f0d20ab3d43e9deea3fa1961bef24cf55c35",
+      "text": "campaign skill: 11 commits landed on agent-campaign's main, not installed here yet: agent-campaign:97ea118 Run a landing quest's voided evidence at landing priority; agent-campaign:c298eb2 Type rerun_jobs' minutes and the test's job spec; agent-campaign:bb3ea82 Decide landing priority from gap kinds, not their wording; agent-campaign:089c2be Merge main into quest/campaign-v3/landing-priority; agent-campaign:a4d542e Raise a reused queued submit's priority and say so on stderr; agent-campaign:3cd60ed Merge main into quest/campaign-v3/landing-priority; agent-campaign:fa21275 Merge main into quest/campaign-v3/landing-priority; agent-campaign:36a1c08 Merge main into quest/campaign-v3/landing-priority; agent-campaign:7ecb3ea Read the reuse note on stderr in gate and scenario tests; agent-campaign:4233e0c Merge main into quest/campaign-v3/landing-priority; agent-campaign:fce5f0d Merge main into quest/campaign-v3/landing-priority"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
