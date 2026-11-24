@@ -14,6 +14,13 @@ neither data nor `busy`. Find the cause (the server's oversize path closing the 
 calls are in flight, a race in how the refusal is sent, or the test's expectation) and fix the
 cause: an oversize request is refused with `message_size` and never costs another call on the link.
 
+Re-scope (lead, 2026-11-24, after the contributor's hunt): the oversize path is not the cause. On
+macos-x86_64 CI the Bulk link stalls about 5 s while Control keeps beating, and the dead_after rule
+(5 s) ends the link, so every call on it ends `connection_aborted` (CI 45384169136: the 16 MiB fetch
+aborted at 5995 ms, Control heartbeats 194 ms). The quest now owns that stall: reproduce it on CI's
+runner (a probe branch looping the test), name why the Bulk link stalls, and fix the cause; A1-A2's
+runs may be CI loop runs cited by run id.
+
 ## Acceptance criteria
 
 - A1 The cause, named with a trace or probe that reproduces it (a forced ordering or a stress job);
