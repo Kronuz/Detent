@@ -170,14 +170,17 @@ struct GenerationWriter::Impl {
 		std::optional<l::RecoveredGeneration> actual;
 		if (name.empty() ? selection.descriptor.has_value() : selection.find(name) != nullptr)
 			actual.emplace(l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk, name)));
-		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), domain.factory(),
-		                                            heap, options.recovery_limits, repair);
+		auto &builder = *builders.emplace_back(std::make_unique<l::detail::PagedSnapshotPlanBuilder>(
+		    snapshot, actual, disk->directory_identity(), domain.factory(), heap, options.recovery_limits, repair));
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
 		}
 		return builder.take();
 	}
+	// Each plan's builder lives until its publication settles, as the agent's does: its retirement
+	// owners keep the old generation's segments until the store confirms the new one.
+	std::vector<std::unique_ptr<l::detail::PagedSnapshotPlanBuilder>> builders;
 	// Settles a published cycle: recovers and confirms each namespace it published.
 	void settle() {
 		if (disk->publication_status() != l::DiskPublicationStatus::Published)
@@ -190,6 +193,7 @@ struct GenerationWriter::Impl {
 				disk->confirm_recovered(name, l::detail::ManagedRecovery::recover(
 				                                  store, l::detail::ManagedRecovery::capture(*disk, name)));
 		drive();
+		builders.clear();
 	}
 	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {
 		auto next = cursor;
