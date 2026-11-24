@@ -3491,6 +3491,19 @@
         ]
       },
       "text": "journal-drop-memory-io landed: unlocks journal-faultlab-repin; frees CMakeLists.txt for consensus-follower-read"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:30:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:30:42",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "sidebar-lead-only installed (agent-campaign:884bc84)",
+      "id": "msg-299",
+      "notice": "skill installed 884bc84c4330ea345a0e1ebfcdd2d0e161fbb8d2",
+      "text": "campaign skill: agent-campaign:884bc84 installed here, 6 commits: agent-campaign:0faea9d Test that only the campaign's lead draws its sidebar; agent-campaign:cc588cf Draw a campaign's sidebar only from its recorded lead; agent-campaign:a198886 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:3b53580 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:15f274d Test that a cleared shared bar is redrawn by its other campaign; agent-campaign:884bc84 Redraw a shared workspace's bar after clearing a stray one"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
