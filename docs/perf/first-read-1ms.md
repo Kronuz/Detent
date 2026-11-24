@@ -58,6 +58,52 @@ main. Two changes, together, median p50 ns (strict beside light holds, 6 pairs):
 2. `Detent:d20bbadb` checks a matching leaf's key kind on the looked-up key in place, instead of
    zero-filling and copying a 202-byte key at every leaf.
 
+## Design: table pages (layout 3)
+
+A first read verifies only the table bytes it reads, as a first lookup verifies only the trie pages
+it reaches: per-page SHA-256 digests chained to one table digest, and a verified mark per page.
+
+Layout. `selected` keeps its magic `DTTABLE1`; `agent_store_layout` becomes 3 (a layout-2 table is
+`LayoutRefused`, D43). The 64-byte header adds the page count and `slots` (the highest entry slot
+plus one) to today's fields. The index follows: per page, its SHA-256 and its last entry's name
+(length byte, bytes). The table digest, SHA-256 of the header and index, follows the index. Then
+the pages: 4,096 bytes each, the last one shorter; each holds whole entries in name order, today's
+entry encoding, and zero padding to its end. A 1,000-namespace table is 35 pages and a 1.6 KB index.
+
+What the digest commits to. The table digest covers the header and the index, so it commits to
+every page through the page's digest and to the name range each page holds through the last names.
+`selected` stays the store's trust root: its owner, mode and ACL checks are unchanged, and nothing
+outside it names the table digest.
+
+What a read hashes. Opening a table reads the file, checks the header and the table digest, and
+decodes the index: about 2 KB hashed for 1,000 namespaces. `find(name)` binary-searches the last
+names, and on the page's first touch hashes that page (4 KB), checks its digest, decodes all its
+entries (order within the page, after the previous page's last name, its last name equal to the
+index's, each slot below `slots`, zero padding) and marks it verified. `decode_table`, the agent's
+and the store's whole read, verifies every page plus what spans pages: entry count and unique slots.
+
+Failure. A damaged header, index or digest refuses the table at its read (`TableRefused`, today's
+status for the reader core: `DETENT_SOURCE_FAILURE`). A damaged page refuses each `find` that reaches
+it with the same exception and is never marked; namespaces on other pages keep reading. The agent's
+whole read still fences the store on any damage.
+
+| Event | Reads and hashes | Mark | A lookup answers |
+|---|---|---|---|
+| Attach (table read) | the file; header, index and table digest | all pages clear | after `find` |
+| First read of an entry | its page, once | sets the page's mark (release) | the entry, or not listed |
+| Another entry on a verified page | nothing (mark read with acquire) | unchanged | the entry, from the page's bytes |
+| A corrupt page | that page, on each `find` reaching it | stays clear | `TableRefused`: source failure |
+| Publish (a new table renamed over) | the next table read, at the `change` bump | a new table: all clear | through the new table |
+| Close (last view of the table) | nothing | freed with the table | none |
+
+Two threads that first touch a page together both hash it; both marks agree. The table's bytes, its
+index and its marks live as long as the reader core's `Table` (shared by its views).
+
+Files outside this quest's set that the format touches: `src/detent_reader/core.cc` (its `Table`
+holds the paged table and asks `find` and `slots`, not the entry vector),
+`docs/LOCAL_IMAGE_FORMAT.md` (the table layout), `tests/detent_local/CMakeLists.txt` (a table-pages
+test) and `tests/detent_reader/test_reader_core.cc` if a refusal moves from open to read.
+
 ## What is left
 
 The 1,000-namespace cells hash the whole `selected` table on every first read: 60% of the cell on
