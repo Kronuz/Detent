@@ -3,7 +3,7 @@
 With no client, once both report ready and have settled, the script reads over --seconds each
 process's rusage (interrupt and package-idle wakeups, CPU) through the usage helper, the
 authority's owner turns (`owner_turn_ns.count` in /v1/health) and the relay's turns (`turns`,
-where its build reports it). It prints one JSON line. The relay syncs every --interval-ms, by
+where its build reports it) and the relay's mirror syncs. It prints one JSON line. The relay syncs every --interval-ms, by
 default once a minute, so the counts show each loop's own deadlines rather than sync traffic.
 
     idle_loops.py --build BUILD --usage USAGE_HELPER --label NAME [--seconds 10] [--interval-ms N]
@@ -47,6 +47,7 @@ def main() -> None:
                 "relay": usage(args.usage, pair.children["relay"].pid),
                 "owner_turns": authority["owner_turn_ns"]["count"],
                 "relay_turns": relay.get("turns"),
+                "relay_syncs": relay["mirror"]["syncs"],
                 "at": time.monotonic(),
             }
 
@@ -70,6 +71,9 @@ def main() -> None:
         }
     result["authority"]["owner_turns_per_s"] = round(
         (after["owner_turns"] - before["owner_turns"]) / seconds, 1
+    )
+    result["relay"]["syncs_per_s"] = round(
+        (after["relay_syncs"] - before["relay_syncs"]) / seconds, 2
     )
     if after["relay_turns"] is not None:
         result["relay"]["turns_per_s"] = round(

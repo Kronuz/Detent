@@ -1,9 +1,10 @@
 // Reads one upstream (a voter or a relay) through HttpUpstream and prints, as JSON, the digest of
 // every answer test_relay_service.py compares: the layouts, each file, and the W6 body at every
 // cursor of every namespace (none, another incarnation, and R = 0 .. head + 1), raw, and zstd at
-// none, another incarnation, R = 0 and the last three.
+// none, another incarnation, R = 0 and the last three. With --heads, only each namespace's head:
+// {"name":["incarnation-hex",position]}.
 //
-//   relay_probe CA PORT TOKEN CLUSTER-HEX NAME...
+//   relay_probe CA PORT TOKEN CLUSTER-HEX [--heads] NAME...
 #include "detent_distribution/session_frames.hh"
 #include "detent_relay/http_upstream.hh"
 #include "sha256.h"
@@ -48,6 +49,14 @@ std::map<std::string, d::NamespaceCursor> heads(std::string_view body) {
 	decoder.finish();
 	return sink.heads;
 }
+std::string hex(const d::Identity &bytes) {
+	std::string out;
+	for (unsigned char byte : bytes) {
+		out += "0123456789abcdef"[byte >> 4];
+		out += "0123456789abcdef"[byte & 15];
+	}
+	return out;
+}
 const char *kind(r::MirrorFile::Kind k) {
 	return k == r::MirrorFile::Kind::Base ? "base" : k == r::MirrorFile::Kind::Block ? "block" : "section";
 }
@@ -58,7 +67,8 @@ int main(int argc, char **argv) {
 		if (argc < 6)
 			throw std::invalid_argument("usage: relay_probe CA PORT TOKEN CLUSTER-HEX NAME...");
 		const auto cluster = identity(argv[4]);
-		const std::vector<std::string> names(argv + 5, argv + argc);
+		const bool heads_only = std::string_view(argv[5]) == "--heads";
+		const std::vector<std::string> names(argv + 5 + heads_only, argv + argc);
 		auto upstream = [&](bool compression) {
 			r::HttpUpstreamOptions options;
 			options.endpoints.emplace_back(asio::ip::address_v4::loopback(), std::stoi(argv[2]));
@@ -71,6 +81,16 @@ int main(int argc, char **argv) {
 		};
 		auto raw = upstream(false), zstd = upstream(true);
 		std::string out = "{";
+		if (heads_only) {
+			std::vector<r::Position> everything;
+			for (const auto &name : names)
+				everything.push_back({name, std::nullopt});
+			for (const auto &[name, cursor] : heads(raw->frames(everything)))
+				out += std::string(out.size() > 1 ? "," : "") + "\"" + name + "\":[\"" + hex(cursor.incarnation) +
+					   "\"," + std::to_string(cursor.position) + "]";
+			std::cout << out << "}" << std::endl;
+			return 0;
+		}
 		const auto table = raw->layouts(names);
 		const auto &layouts = table.entries;
 		out += "\"layouts\":\"" + sha(r::encode_mirror_table(table)) + "\",\"files\":[";
