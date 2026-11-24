@@ -26589,12 +26589,15 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "design P6: the claim index needs evaluation.hh's lookup result (one-line caller changes) and the cost gate's bench",
+      "reason": "owner: P2 narrows Q7 (exact up to usage_slots) and P3's C ABI; design reviewer checking P1-P6 meanwhile",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T10:16:23",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T10:24:09",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
