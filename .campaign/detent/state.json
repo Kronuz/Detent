@@ -26533,7 +26533,9 @@
         "src/detent_reader/**",
         "tests/detent_reader/**",
         "docs/design/observability.md",
-        "docs/mechanisms/read-counters.md"
+        "docs/mechanisms/read-counters.md",
+        "src/detent_local/evaluation.hh",
+        "benchmarks/reader_bench.cc"
       ],
       "history": [
         {
@@ -26572,12 +26574,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "design P6: the claim index needs evaluation.hh's lookup result (one-line caller changes) and the cost gate's bench",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T10:08:33",
+      "updated": "2026-11-24T10:16:23",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
