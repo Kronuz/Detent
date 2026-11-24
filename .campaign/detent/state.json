@@ -34585,15 +34585,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "waits for evidence-once to keep its 14 exclusive A1 rows valid across a merge that touched no src/include/cmake (msg-80), or drain-yields to make the rerun cheap; not an owner decision",
+      "reason": "drain-yields installed (agent-campaign:5ab2eef): its exclusive A1 rerun is cheap enough now",
       "repo": ".",
       "risk": "low",
-      "status": "blocked",
+      "status": "active",
       "title": "agent cold bootstrap against a warm relay at 100K, 1M and 5M",
-      "until": [
-        "campaign-v3:evidence-once"
-      ],
-      "updated": "2026-11-24T08:57:02",
+      "updated": "2026-11-24T14:17:05",
       "worktree": "../Detent-wt/detent/warm-relay-agent-boot"
     },
     "wheel-evidence": {
