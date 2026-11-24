@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-200442-1898b2 261123-200445-c50712 261123-200445-a58f5d 261123-200445-4a0de1 261123-200448-f006cc 261123-200500-f13c52 261123-200502-4fbd30 and CI at `Detent:109f51ae`
+State: waiting on jobs 261123-204256-3ca620 261123-204300-e4fd2c 261123-204301-a7a0cc 261123-204301-46672f 261123-204301-53e01c 261123-204301-67a905 261123-204320-f48488 and CI at `Detent:dec0d978`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,10 +16,12 @@ Results at `Detent:8d61d548` (the lead's msg): review probe 261123-175725-7fad98
 - bindings 261123-175722-b26bcf and CI `bindings-*`: `detent get` exit 127; `test_reader_scenarios`
   now depends on `detent-reader` (`Detent:109f51ae`). `detent_python_test` timed out at 120 s at
   load ~32 (22 s at light load); bound 300 s.
-- CI `ci / macos-x86_64`: `test_reader_switch` parks, line 387 (`seen == pinned_rev`): when the
-  refusals' 8 ms backoff runs out before the released reader resumes, its stale lookup refreshes and
-  answers `rev` (D4). The lookup path is the same at `Detent:e30799b8`; the check takes either.
-  Local: parks 30 of 30 alone, 90 of 90 six-way parallel. `test_authority_frames_service` (409
+- CI `ci / macos-x86_64`: `test_reader_switch` parks (`seen == pinned_rev`): when the refusals'
+  backoff ran out before the released reader resumed, its stale lookup refreshed first and never read
+  its pinned view. `Detent:dec0d978` (lead's correction of `Detent:109f51ae`'s either-value check):
+  testing knob `hold_retry` closes the retry clock until the next publish; the case sleeps 250 ms
+  before release and checks `seen == pinned_rev` exactly. Without the knob 5 of 5 fail there; with it
+  30 of 30 alone and 90 of 90 six-way parallel pass. `test_authority_frames_service` (409
   session_busy) is not this quest's.
 - native 261123-175720-145715: `test_reader_switch`, `test_agent_store_crash` timed out at load
   ~32; rerun alone 261123-200502-4fbd30. `test_relay_service` is the lead's (port-reuse A/B).
@@ -29,10 +31,10 @@ Local after the merge: reader, testing, bindings, CLI, installed tests pass (26 
 
 ## Next
 
-1. Read: native 261123-200442-1898b2; bindings 261123-200445-c50712; review probe
-   261123-200445-a58f5d; T2 261123-200445-4a0de1; fails-without 261123-200448-f006cc (mutant
-   `Detent:816cbf23`, `refs/mutants/legacy-h/a21-one-entry-core`); A13 261123-200500-f13c52; switch and
-   store-crash alone 261123-200502-4fbd30; CI at `Detent:109f51ae` (A9, A22, `ci:ci`).
+1. Read at `Detent:dec0d978`: native 261123-204256-3ca620; switch and store-crash alone
+   261123-204300-e4fd2c; bindings 261123-204301-a7a0cc; review probe 261123-204301-46672f; T2
+   261123-204301-53e01c; A13 (split build) 261123-204301-67a905; fails-without 261123-204320-f48488
+   (mutant `Detent:5ecf5b8c`, `refs/mutants/legacy-h/a21-one-entry-core`); CI (A9, A22, `ci:ci`).
 2. Evidence table from `campaign brief`; T2 numbers into Result and reader-core.md; ready for review.
 
 ## Blocked on
