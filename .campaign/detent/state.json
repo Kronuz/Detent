@@ -3873,6 +3873,21 @@
         ]
       },
       "text": "set consensus-follower-read: unlocks frees include/consensus/core.h for consensus-next-deadline-removal; frees tests/detent_system/test_multicast_seeds*, docs/USAGE.md, website/src/content/docs/** for detent-multicast-seeds; frees include/detent/reader.h, include/detent/reader.hh, src/detent_reader/**, tests/detent_reader/**, docs/design/observability.md, docs/mechanisms/read-counters.md for observability-core; frees tests/detent_local/test_lazy_page_access.cc, tests/detent_local/*paged*, tests/detent_system/run_partition.py, docs/perf/delta-plan-scaling.md for paged-first-touch-one-shape; frees docs/mechanisms/relay-mirror*.md for relay-service-refused-sync-flake; frees tests/detent_delivery/**, docs/design/*.py, src/CMakeLists.txt for split-detent"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:13:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:13:09",
+      "by": "campaign",
+      "closed": "parked until follower-read and liveness-asan-timeout land",
+      "id": "msg-321",
+      "settles": {
+        "todo": "1278bfc7"
+      },
+      "text": "to do, critical path first:\ntodo: start consensus-next-deadline-removal (launchable; new): `campaign start consensus-next-deadline-removal`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
