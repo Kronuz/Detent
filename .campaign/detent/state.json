@@ -4835,12 +4835,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "ready at Detent:28ca4c31; A4/Q1 decided (D156/D157)",
+      "reason": "owner D160: drop authority pages; the measured design stays on its branch at Detent:6833b7c3",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "dropped",
       "title": "Design: should the authority build its own trie and pages, and serve pages or records by range",
-      "updated": "2026-11-24T10:46:45",
+      "updated": "2026-11-24T12:05:41",
       "worktree": "../Detent-wt/detent/authority-pages-design"
     },
     "authority-spki-pins": {
