@@ -18375,7 +18375,9 @@
         "src/detent_local/generation.cc",
         "src/detent_local/generation_file_access.hh",
         "tests/detent_testing/test_generation_writer.cc",
-        "tests/docs/**"
+        "tests/docs/**",
+        "src/detent_local/agent_store.cc",
+        "tests/detent_local/test_agent_store*.cc"
       ],
       "history": [
         {
@@ -18481,11 +18483,12 @@
         "detent-rust",
         "detent-get-cli"
       ],
+      "reason": "correctness review round 2 F1: the agent names a new slot in selected before growing change; the cause is in agent_store.cc",
       "repo": ".",
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T18:12:52",
+      "updated": "2026-11-24T00:26:58",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
