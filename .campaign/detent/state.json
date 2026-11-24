@@ -4631,6 +4631,32 @@
         "todo": "3d7954eb"
       },
       "text": "to do, critical path first:\ntodo: start first-read-1ms (launchable; new): `campaign start first-read-1ms`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:02:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:02:22",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-370",
+      "items": {
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "set first-read-1ms: unlocks first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -16639,21 +16665,56 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/journal-bound-first-open",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T13:22:03",
+          "ci": {
+            "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+            "runs": [
+              45472487271
+            ]
+          },
+          "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+          "criteria": {
+            "A1": "261124-113916-a045ce",
+            "A2": "261124-131510-b857bb; fails without: 261123-110049-af725e, 261124-063446-3123df, 261124-113919-ce832d",
+            "A3": "`docs/mechanisms/lost-bound.md`: \"the shard, the state byte's `bounded_state` bit, then 8 bytes after the base). The verdict is stored\""
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
+          "reason": "",
+          "tested": "a2d65da45e72f142695934bd605910e60fd1d3cd"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "a host.h-only fix costs one extra full recovery (+78% open at 192 MiB); turn_log.h lets recovery read once; no other active journal quest holds it",
       "repo": "../journal",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-24T11:55:04",
-      "worktree": "../journal-wt/detent/journal-bound-first-open"
+      "updated": "2026-11-24T13:22:07",
+      "worktree": ""
     },
     "journal-close-in-doubt": {
       "accepted": {
