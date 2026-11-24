@@ -34,7 +34,7 @@ Nothing
 | A1 | 261124-050028-665c4f (e416bb0: gap over 1,000 ms equals the host's lag; was 261124-033301-bd7ae6 at 0d5f362); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main: 6 of 7 stops fail at 1,521-1,573 ms) |
 | A2 | 261124-050027-dd85d6 (7 stops at e416bb0); fails without: 261124-014707-1319b1 (main, stopped process), 261124-050014-f52514 (Control frames dropped: LOST), 261124-050018-ff695c (Control held 1,500 and 2,000 ms; 1,000 ms passes at 999) |
 | A3 | 261124-050028-760936 (50 runs beside 4 burners at e416bb0) |
-| A4 | CI of consensus:e416bb0 (pushed; `campaign verify --for A4` submitted); rpc_host_fetch: see Rulings |
+| A4 | `ci:macos-x86_64`, `ci:ci` (CI run 45398915033 at consensus:e416bb0, green) |
 
 ## Result
 
