@@ -4174,6 +4174,21 @@
         "todo": "12af0c87"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 3 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 15 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. ARCHITECTURE.md): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); listed 2 h): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: resume warm-relay-agent-boot (its journal waits on jobs 261123-165613-3cde33, which passed 16 h ago; new): `campaign status warm-relay-agent-boot`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T08:58:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T08:58:07",
+      "by": "campaign",
+      "closed": "in review (whole-mechanism reviewer running); its jobs are queued",
+      "id": "msg-342",
+      "settles": {
+        "todo": "b6b21e90"
+      },
+      "text": "to do, critical path first:\ntodo: finish legacy-h (nothing moved it for 64 min: ready for review (fix round 3, the last (D154), at `Detent:5cc302f8`; jobs 261124-075318-9b7397 261124-075309-3e8f55 261124-075314-c9ce1c 261124-075331-f4ad0a and CI queued); to land: criteria without evidence at dceeb890b1b3: A1-A8, A10, A12-A13, A18-A21 (`campaign status legacy-h` lists them); new): `campaign status legacy-h`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
