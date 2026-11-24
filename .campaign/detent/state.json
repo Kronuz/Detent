@@ -4391,6 +4391,19 @@
         "todo": "c6884096"
       },
       "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261124-063445-61ecfe, 261124-063446-3123df and 261124-063448-c99934, which ended (done, failed) 5 min ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 64 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:16:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:16:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: todo-mail-trust installed (agent-campaign:4bbdcae)",
+      "id": "msg-357",
+      "notice": "skill landed 4bbdcaec3769f7f0f71f4449f5b19d97331ece47",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, installed here: agent-campaign:2a1d6f8 todo-mail-trust: the to-do mail lists only what the lead can act on; agent-campaign:55e00c4 todo-mail-trust: read a branch head's commit time once per commit; agent-campaign:a6e2cb8 Merge branch 'main' into quest/campaign-v3/todo-mail-trust; agent-campaign:d48751d todo-mail-trust: commit after the job's end second in the A2 test; agent-campaign:4bbdcae Merge branch 'main' into quest/campaign-v3/todo-mail-trust"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
