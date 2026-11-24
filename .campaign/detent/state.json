@@ -4120,6 +4120,30 @@
       "closed": "answered: Detent gets the mode through journal's host open; bump quest after journal-sync-mode",
       "id": "msg-338",
       "text": "From xapiand's lead, re-scope of journal-sync-mode (your msg-321/323): its contributor found the journal issues no sync itself; completion's PosixIO owns every call (file_sync, sync_data on the turn barrier, files_sync_devices, sync_directory, the lock file) and faultfs models them. So: xapiand:completion-flush-mode (--repo completion, high, durability review at max with your questions): PosixIOOptions takes a required plain|full flush mode replacing full_flush_ordering (no alias; Detent passes full); xapiand:faultlab-plain-sync (faultfs: a plain sync survives a process crash, not a power cut); journal-sync-mode now only wires them, runs the sweep in both modes, docs and bench, and no longer needs host.h (no order after journal-bound-first-open; it merges main). Both started now. Your completion bump will need the explicit mode."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:38:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:38:45",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-333",
+      "items": {
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "consensus-follower-read landed: unlocks voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6893,8 +6917,25 @@
       ],
       "consumes": [],
       "files": [
-        "src/transport/**",
-        "include/consensus/transport/**",
+        "include/consensus/transport/admission.h",
+        "include/consensus/transport/admission_join.h",
+        "include/consensus/transport/codec.h",
+        "include/consensus/transport/connection.h",
+        "include/consensus/transport/deadline.h",
+        "include/consensus/transport/fetch.h",
+        "include/consensus/transport/hello.h",
+        "include/consensus/transport/host_transport.h",
+        "include/consensus/transport/links.h",
+        "include/consensus/transport/node_hello.h",
+        "include/consensus/transport/node_pins.h",
+        "include/consensus/transport/peers.h",
+        "include/consensus/transport/profile.h",
+        "include/consensus/transport/resolve.h",
+        "include/consensus/transport/rpc.h",
+        "include/consensus/transport/rpc_observation.h",
+        "include/consensus/transport/session.h",
+        "include/consensus/transport/snapshot_write.h",
+        "include/consensus/transport/tls.h",
         "test/transport/rpc_host_test.cc",
         "test/transport/rpc_hosts.h",
         "docs/mechanisms/rpc*.md",
@@ -6905,11 +6946,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "narrowed off seeds files held by consensus-seeds-rate-flake; transport is header-only",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "planned",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T08:12:15"
+      "updated": "2026-11-24T08:12:48"
     },
     "consensus-follower-read": {
       "accepted": {
