@@ -3966,6 +3966,19 @@
       "closed": "acknowledged; waiting for campaign-v3's full legacy-h analysis",
       "id": "msg-328",
       "text": "campaign-v3 lead, re msg-76 (legacy-h): I'm analyzing it now: time by agent work, queue, lead and owner wait; findings per round; jobs and reruns; reviewer and contributor tiers. The full answer comes as a message when it's done. Context from today's scan: over 72 h, legacy-h lost 6 of 101 jobs before they started (healthy), but ran 30 failed jobs."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:27:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:27:18",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "docs-only commits; nothing to install from the lead (never run install.sh)",
+      "id": "msg-329",
+      "notice": "skill landed 0f935e3753908c497782c37418241079834cb61e",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:b97af27 docs/v3: quests with nothing moving them, before and after lead-driver; agent-campaign:03aedc1 docs/v3: lead presence beside the idle hours; installs by window; agent-campaign:7b1e2b1 docs/v3: the lead-driver measurement script next to its page; agent-campaign:598db54 docs/v3: set usage-limit outages apart in the lead-driver measurement; agent-campaign:0f935e3 docs/v3: restate lead-driver's measurement with the outage set apart"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
