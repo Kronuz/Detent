@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261124-065709-635779 261124-065725-fc6f20 261124-065725-acad60 261124-065726-e44a71 261124-065726-43d298 261124-065727-8185bb 261124-065727-ca279e 261124-065728-9ec83f 261124-065728-3d2260
+State: waiting on jobs 261124-065725-fc6f20
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,10 +10,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Fix round 1 after the design review (CHANGES at 65576604, F1-F11) is done in the doc: every ⟨…⟩ marker filled
-from the fix-round rows (18937291), main merged (a6bc98d7, tests only: no src or bench change). At head: suite
-261124-065709-635779 and the reruns `campaign brief` listed: seal rows 261124-065725-fc6f20 (100K, exclusive),
--065725-acad60 (5M, exclusive), commit rows -065726-e44a71 (100K), -065726-43d298 (5M), idle -065727-8185bb,
-strict seals -065727-ca279e, -065728-9ec83f, -065728-3d2260.
+from the fix-round rows (18937291), main merged (a6bc98d7, tests only: no src or bench change). At head: suite 261124-065709-635779 passed; exclusive 100K seal rerun 261124-065725-fc6f20 running. The lead
+cancelled the other seven reruns at a6bc98d7 (acad60, 43d298, e44a71, 8185bb, ca279e, 3d2260, 9ec83f): no new
+strict or exclusive jobs until campaign-v3's drain-yields lands. Reruns of the measurement jobs at the merged head
+are deferred until the owner decides A4; the merge touched tests only, so the original jobs measure the same src
+and bench, and the evidence cites them.
 
 Fix-round rows (at 7a4d6f83; the merge since touched tests only), summarized:
 - Paced commit, `check.py pairs` (arm p50 minus adjacent none, ms; mean [95% CI]): 5M exclusive PE
@@ -44,15 +45,14 @@ Blocking findings, each with what confirms its fix (all in docs/design/authority
   261123-193520-a9b30c, 261123-193523-d6ce25). Confirm F4=261123-193520-a9b30c.
 - F5 (decision rows): "What it changes" table names Limit 1, D1, D4, D6, D7, Q4, D34, D133 (with the landed
   code), D145. Text; confirm F5=261124-065709-635779.
-Non-blocking: F6 LAG table and coalescing (63b0f2); F7 range quoted; F8 exclusive seal reruns at head queued
-(fc6f20, acad60); F9 stated; F10 decision request option 5; F11 Limits 4.
+Non-blocking: F6 LAG table and coalescing (63b0f2); F7 range quoted; F8 exclusive seal reruns at head deferred
+until A4 (fc6f20 only, running); F9 stated; F10 decision request option 5; F11 Limits 4.
 
 ## Next
 
-1. When the jobs pass: check the exclusive seal reruns (fc6f20, acad60) against the doc's 78.8 / 604.8 ms and
-   9.0 s cold; cite them for F8 if they agree (else update the cost tables); paste the brief's Evidence table;
-   set State "ready for review". The lead accepts the design review with the confirms under Doing and launches
-   the correctness reviewer.
+1. When 261124-065725-fc6f20 passes: compare it with the doc's 78.8 ms at 100K (cite it if it agrees), set State
+   "ready for review". Queue no strict or exclusive job. The lead accepts the design review with the confirms
+   under Doing and launches the correctness reviewer.
 
 ## Blocked on
 
@@ -62,8 +62,8 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | docs/design/authority-pages.md prices (a)-(d) at 100K and 5M, every number citing its job. Seals: exclusive 261122-210428-976f07, 261122-210429-1ed7a8 (reruns at head 261124-065725-fc6f20, -065725-acad60); strict 261123-143709-e27543, -143709-c59049, -143710-993a49, idle -143708-866493 (reruns at head -065727-ca279e, -065728-9ec83f, -065728-3d2260, -065727-8185bb). First commit rows (inline ruling): 261123-143701-b2823a, -143704-14eaf8 and 261123-102558-6f96c6 to -102613-0c4d8c (reruns at head -065726-e44a71, -065726-43d298). Paced commit: 261123-193517-519b4d (exclusive), -193507-f0eafa, -193510-65f196, -193513-95a0ae. Root lag and window: 261123-193520-a9b30c, -193523-d6ce25, -193525-e60802, -193528-1675da, -193531-962367 (exclusive). Reviewer probes 261123-145400-63b0f2, -145405-24d1dd |
-| A2 | 261123-193433-2e4687 (smoke at 7a4d6f83; the merge since touches tests only); fails without: 261123-102546-6e81cf (with 261123-102550-885bdd). Every row is strict or exclusive at a named commit; before = arm none / option (a), interleaved; noise floor = the aa (A/A) arm's 95% CI (paced), min-max of 30 seals (seals). Suite at head 261124-065709-635779 |
+| A1 | docs/design/authority-pages.md prices (a)-(d) at 100K and 5M, every number citing its job. Seals: exclusive 261122-210428-976f07, 261122-210429-1ed7a8; strict 261123-143709-e27543, -143709-c59049, -143710-993a49, idle -143708-866493. First commit rows (inline ruling): 261123-143701-b2823a, -143704-14eaf8 and 261123-102558-6f96c6 to -102613-0c4d8c. Paced commit: 261123-193517-519b4d (exclusive), -193507-f0eafa, -193510-65f196, -193513-95a0ae. Root lag and window: 261123-193520-a9b30c, -193523-d6ce25, -193525-e60802, -193528-1675da, -193531-962367 (exclusive). Reviewer probes 261123-145400-63b0f2, -145405-24d1dd. All at their named commits; reruns at the merged head (tests-only merge) deferred until A4 |
+| A2 | 261123-193433-2e4687 (smoke at 7a4d6f83; the merge since touches tests only); fails without: 261123-102546-6e81cf (with 261123-102550-885bdd). Every row is strict or exclusive at a named commit; before = arm none / option (a), interleaved; noise floor = the aa (A/A) arm's 95% CI (paced), min-max of 30 seals (seals). Suite at head 261124-065709-635779 (passed) |
 | A3 | docs/design/authority-pages.md, "Recommendation" and "What it changes": Limit 1 closed with a bounded detection delay (open against a lying relay, Q1); Q4 (b) stands for pages, the authority serves records and roots; D6 unchanged plus split answers; D1, D4, D7, D34 (reason: off the service loop) and D133 amended; quests added: authority-root-entries, authority-builder-pool, relay-authority-root, agent-root-check; none dropped |
 | A4 | [manual] open: the owner's decision, requested at the doc's end ("Decision request"). Recommendation, option 2: (b) on four builder threads with 250 ms passes, agents publish and verify at the next root; at 5M 1.3-1.8 cores and a 135-243 MB head on the leader, commit p50 unchanged inside the A/A band, detection delay p99 0.33 s (0.56 s burst, 3.3-6.2 s after a leader change); (d) the fallback at 9.4% of a core per voter |
 
