@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, "Design: table pages") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc
+State: working: layout 3 (paged table) built and tested locally; screening it against main
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,28 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Changes 2 and 4 landed on the branch (`Detent:dee58172`, `Detent:9c8a44ee`) with their test
-updates; test_local_trusted_paths, test_local_read_counters (counters on) and test_reader_core
-pass locally. The table-pages design is committed (`Detent:aacf37cf`); code waits for its check.
-Jobs: 261124-144100-b5ba51 (A1 rerun at `Detent:3a2eec05`, running), 261124-144154-201723
-(reader_bench A/B at `Detent:3a2eec05`, queued; the hot path has not changed since). Cancelled
-261124-144143-080cef (a screen of code since replaced).
+Layout 3 is committed: `Detent:91d391cf` (PagedTable, per-page verification with VerifiedPages marks,
+core on it, test_table_pages, a damaged-page test in test_reader_core), `Detent:e11f470c` (format doc,
+writer limits), `Detent:160d37d7` (the gate reports a cell main cannot run), and the mapped table read.
+Local tests pass: test_local_table_pages, test_reader_core, test_reader_files, test_local_managed_reader,
+test_local_disk_store, test_local_read_counters (counters on), test_agent_store_crash and 8 more; only
+test_agent_store fails (Blocked on 1).
+Mutant `Detent:1bb490d8` (the page digest is not checked) is ready for a --fails-without job.
+Screens, strict beside light holds, branch median vs main (us): stopped 1 ns 930 vs 1,224; stopped
+1,000 ns 1,111 vs 2,880; running 1 ns 1,053 vs 1,309; running 1,000 ns 1,297 (main cannot run it).
 
 ## Next
 
-1. On the design check and widening: code layout 3 (store_table.cc codec, a paged table view with
-   per-page marks, core.cc's `Table` on it), a table-pages test, LOCAL_IMAGE_FORMAT.md.
-2. Raise generation_writer.cc's generation limit; un-skip the running 1,000-namespace cell.
-3. Screen against main; then queue A2 (exclusive, stopped and running) at the final head, rerun
-   A1 and reader_bench there, `campaign verify --for A3`, push.
+1. Screen the mapped table; queue at the final head: A1 profile rerun, A2 gate exclusive (stopped
+   and running jobs), the mutant job, reader_bench, `campaign verify --for A3`; push; ready for review.
 
 ## Messages
+
+- msg-3 (lead: design passed, files widened): built per its three conditions. 1: the marks are
+  `VerifiedPages` (one line in the design says why it fits). 2: `static_assert(table_entry_bytes(255) <
+  table_page_bytes)` in store_table.hh and test_table_pages' `bound` (100 entries of 255-byte names,
+  ten to a page). 3: one value test per lifecycle row in test_table_pages, the corrupt page included,
+  with mutant `Detent:1bb490d8`; test_reader_core's `damaged_page` reads around a damaged page.
 
 - msg-1 (lead, Blocked on 1-3): (1) option a taken: design section and lifecycle rows in
   docs/perf/first-read-1ms.md "Design: table pages" (`Detent:aacf37cf`); files outside the set it
@@ -36,12 +42,13 @@ Jobs: 261124-144100-b5ba51 (A1 rerun at `Detent:3a2eec05`, running), 261124-1441
 
 ## Blocked on
 
-1. The lead: design check of "Design: table pages" in docs/perf/first-read-1ms.md (lifecycle
-   rows), and widening for the files it names: src/detent_reader/core.cc,
-   docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt,
-   tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered by msg-1.
-2. For the security review: change 4 checks the image bytes read before the lease is taken; they
-   are content-addressed by the entry's digest, and the lease then holds the generation's files.
+1. The lead: widen `tests/detent_agent/test_agent_store.cc`. Layout 3 bumps `agent_store_layout`,
+   which `derive_generation` hashes, so its pinned name moves to
+   `generation-a3a0f029e196353de7b1b9f816bc1ac4` (line 105); and `table_codec`'s `resign` re-signs a
+   trailing whole-file digest, which layout 3 does not have (line 151 fails; line 149's byte 65 is now
+   the header's slot field). Proposed: update the pin, re-sign the table digest after the index, and
+   point the order check at the first entry's name in its page. Recommended over keeping layout 2,
+   which would read an old table as damage instead of `LayoutRefused`.
 
 ## Evidence
 
