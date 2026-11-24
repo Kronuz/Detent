@@ -9001,18 +9001,54 @@
         "include/consensus/transport/seed*"
       ],
       "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T10:00:51",
+          "ci": {
+            "carried": true,
+            "commit": "803c37e232311f91132444f6d9213b42ff9f336e",
+            "runs": [
+              45428288634
+            ]
+          },
+          "commit": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+          "criteria": {
+            "A1": "261124-091322-79245a; fails without: 261124-041541-5d4555",
+            "A2": "261124-091322-79245a; fails without: 261124-041548-778dca",
+            "A3": "261124-091322-7392b0",
+            "A4": "261124-091325-548d18 (suite at the merge 5341bd3); `ci:ci` (CI run 45428288634 at 803c37e, green, carried across the clean merge)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-091325-548d18",
+              "level": "light",
+              "seconds": 1443.8,
+              "state": "done",
+              "what": "consensus-seeds-rate-flake check suite at 5341bd3166c3"
+            }
+          ],
+          "final": true,
+          "from": "37966262d8f81d93ffc0e35094342e97f1a77343",
+          "reason": "",
+          "tested": "5341bd3166c3442a5acc7df87a3f5333ae2a600f"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T07:45:00",
+      "updated": "2026-11-24T10:00:55",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
