@@ -15289,12 +15289,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "its pinned generation name and codec re-signing check depend on the table layout, which layout 3 changes; no active quest holds it",
+      "reason": "ready at Detent:e52669a7",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T15:52:48",
+      "updated": "2026-11-24T15:55:47",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
