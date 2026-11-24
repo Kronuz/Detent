@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-160740-42038e 261123-160744-836752 261123-160755-5fb5e6 261123-160755-a04ac3 261123-160756-3b5db8 261123-160756-ede889 261123-160757-1330f1; ci:ci at journal:8bf1d1d
+State: waiting on jobs 261123-160756-ede889 261123-160757-1330f1; ci:ci at journal:8bf1d1d
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -68,11 +68,14 @@ defect:
 
 ## Next
 
-1. Jobs at journal:8bf1d1d (pushed; CI running): F1 261123-160740-42038e (fails without),
-   261123-160744-836752 (fix + reviewer probe); reruns A1 261123-160755-5fb5e6, A2
-   261123-160755-a04ac3, A3 261123-160756-3b5db8, A4 bytes 261123-160756-ede889 and latency
-   261123-160757-1330f1 (strict); `ci:ci` for A6. Then the Evidence table, Result, "ready for
-   review".
+1. Queued strict at journal:8bf1d1d: A4 bytes 261123-160756-ede889, latency 261123-160757-1330f1;
+   `ci:ci` for A6 (pushed). Done at 8bf1d1d, exit as required: F1 fails without
+   261123-160740-42038e (921 of 10854 checks fail, "log record changed since it was written");
+   F1 at the fix 261123-160744-836752 (midwrite_reads 10854 checks 0 failures; reviewer's
+   invariant 92029 checks 0 failures; midwrite "Corruption in 0 of 4768" turns, 0 of 28080 peeks;
+   was 4414 of 4768 at f1ca348); A1 261123-160755-5fb5e6 (main newest SILENT 36, fix 6473 checks 0
+   failures), A2 261123-160755-a04ac3, A3 261123-160756-3b5db8. Then the Evidence table from
+   `campaign brief`, the Result, "ready for review".
 
 ## Blocked on
 
