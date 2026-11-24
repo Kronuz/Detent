@@ -3105,6 +3105,28 @@
       "closed": "repin quests: consensus-faultlab-repin (running, suite 45cab6), journal-faultlab-repin (after journal-drop-memory-io)",
       "id": "msg-277",
       "text": "faultlab main 5d4df9b (landed): a sync_directory that fails before its effect, on files it didn't stage, used to pop its ordering point but leave that epoch's at_mark records, so a later point's crash restored stale bytes. drop_last_mark() now clears them; test 'a removed ordering point leaves no at_mark' (fails at the parent, passes at the fix). Crash tests that inject failing directory syncs may have read stale bytes before it; a repin picks it up."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T14:33:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T14:33:23",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-276",
+      "items": {
+        "consensus-follower-read": "frees include/consensus/driver.h, CHANGELOG.md for consensus-follower-read",
+        "first-read-1ms": "frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
+      },
+      "settles": {
+        "start": [
+          "consensus-follower-read",
+          "first-read-1ms"
+        ]
+      },
+      "text": "consensus-driver-flow landed: unlocks frees include/consensus/driver.h, CHANGELOG.md for consensus-follower-read; frees src/detent_local/**, include/detent_local/**, benchmarks/**, docs/perf/first-read* for first-read-1ms"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5400,18 +5422,46 @@
       "files": [
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/consensus-faultlab-repin",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T16:12:23",
+          "ci": {
+            "commit": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+            "runs": [
+              45285109967
+            ]
+          },
+          "commit": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+          "criteria": {
+            "A1": "261123-150133-45cab6",
+            "A2": "`ci:ci`"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "e58ea966e6351e0e240a11bca191bf608f54e072",
+          "reason": "",
+          "tested": "3aa135546ddf527f0e9274636b75d0f70cf10348"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "consensus pins faultlab at 5d4df9b (stale at_mark fix)",
-      "updated": "2026-11-23T15:01:07",
-      "worktree": "../consensus-wt/detent/consensus-faultlab-repin"
+      "updated": "2026-11-23T16:12:27",
+      "worktree": ""
     },
     "consensus-fetch-alongside-flake": {
       "accepted": {},
