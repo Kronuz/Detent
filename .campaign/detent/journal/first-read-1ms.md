@@ -59,7 +59,19 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending job 261124-134303-81190d; local profile below |
+| A1 | 261124-134303-81190d (strict, probe at `Detent:3f0d12cb`, the reader code main has): see "Profile (A1)"; rerun at the final head for the after-profile |
+
+## Profile (A1)
+
+Job 261124-134303-81190d (strict beside light holds, main's reader code at `Detent:3f0d12cb`), 200
+reads per cell, median of each marked step (us):
+- 1 ns stopped: median 1,361, p99 12,346 (one stall). Trust walk 567 (42%), attach 236 (selection
+  58, lease 53, image 51, `.read` 64, root decode 10), first-touch pages 141 (SHA-256 verify 113,
+  node checks 28), segment open and map 103, `selected` 96, `change` 76, handle 31.
+- 1,000 ns stopped: median 3,082, p99 4,915. `selected` 1,837 (60%: its SHA-256 and decode), trust
+  walk 534 (17%), attach 330, segment 110, `change` 75.
+- 1 ns running: median 1,369, p99 2,462; the same shares (trust walk 518).
+- 1,000 ns running: skipped, the publisher cannot start (Blocked on 3).
 
 ## Profile (local, before the A1 job)
 
