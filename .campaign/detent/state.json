@@ -24304,18 +24304,19 @@
         "tests/detent_authority/**",
         "include/detent/**",
         "docs/**",
-        "website/src/content/docs/**"
+        "site/src/content/docs/**"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority v1 deletion: one-shot, v1 sessions, AuthorizedScope, old cursor (P5)",
-      "updated": "2026-11-20T04:57:36"
+      "updated": "2026-11-24T12:39:39"
     },
     "namespace-s6-cutover": {
       "accepted": {
