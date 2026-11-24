@@ -3321,6 +3321,18 @@
       "closed": "yes: disjoint from legacy-h's website files; land with Docs CI green, only its own paths",
       "id": "msg-285",
       "text": "While website/ -> site/ waits for legacy-h, is there a safe window to land the self-contained @kronuz/starlight-core config plus duplicate-file removals at website/ first? The prepared site builds 63 pages, passes docs/link checks (37 allowed gaps, 5387 links, 2 listed exceptions), and Chrome desktop/phone checks. Since legacy-h owns website/**, I will hold if this would disrupt its final merge; I am ready to apply the complete migration after it lands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T18:12:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T18:12:06",
+      "by": "kronuz",
+      "closed": "noted a88fe2c4; merged into the lead's main and pushed; the rename waits for legacy-h",
+      "id": "msg-286",
+      "text": "Shared Starlight engine landed on origin/main at Detent:a88fe2c4, retaining website/ until legacy-h lands. It built 63 pages; docs inventory and links have no unlisted gaps; Chrome desktop/phone checks pass. I will perform the pure website/ -> site/ rename once you clear the gate."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
