@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds and runs the usage claim-protocol model under TSan (docs/design/observability.md P2).
+# Builds and runs the usage model under TSan (docs/design/observability.md D2, D3).
 # Output goes to $JOB_OUT, or .scratch/usage-claim-model under the repository.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)

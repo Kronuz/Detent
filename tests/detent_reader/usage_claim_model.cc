@@ -1,29 +1,31 @@
-// Executable model of the usage claim protocol (docs/design/observability.md P2), run under TSan
-// by usage_claim_model.sh. Each scenario forces one interleaving the design review found
-// (observability-core-design.md F1-F3) or one the protocol adds; the program exits 0 when every
-// outcome matches the design.
+// Executable model of the usage design (docs/design/observability.md D2, D3), run under TSan by
+// usage_claim_model.sh: segment-bitmap marks with the fold across publishes, the row claim on the
+// sampled path, and the sampling countdown. Each scenario forces one interleaving or checks one
+// claim of the design; the program exits 0 when every outcome matches.
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <bit>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <memory>
+#include <mutex>
+#include <set>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
-constexpr std::uint32_t unstored = UINT32_MAX, overflow = UINT32_MAX - 1;
+constexpr std::uint32_t none = UINT32_MAX, overflow = UINT32_MAX - 1;
 constexpr std::size_t cells = 9, spare_cells = 64;
 enum Cell { Published, Missing = 7 };
 
-// Windows a test parks a thread at (testing::Window in the core).
-enum class Window { RowWritten, NamePublished, AddressClaimed };
+enum class Window { SawEmpty, RowWritten, NamePublished, Marked };
 std::function<void(Window)> hook;
 void window(Window at) {
 	if (hook)
@@ -40,8 +42,7 @@ std::size_t power_of_two(std::size_t n) {
 	return p;
 }
 
-// A row is written privately, then published once by the name set's compare-and-swap; it never
-// changes name after.
+// ---- Rows: sampled counts by name (D3, Rows) ----
 struct Row {
 	std::uint64_t hash = 0;
 	std::uint8_t size = 0;
@@ -54,16 +55,11 @@ struct Table {
 	std::unique_ptr<Row[]> rows;
 	std::vector<std::atomic<std::uint32_t>> names; // 0 empty, else row + 1; insert-only
 	std::atomic<std::uint64_t> next{0};
-	std::array<std::atomic<std::uint32_t>, spare_cells> spares{}; // 0 empty, else row + 1
+	std::array<std::atomic<std::uint32_t>, spare_cells> spares{};
 	std::atomic<bool> overflowed{false};
 	std::array<std::atomic<std::uint64_t>, cells> overflow_samples{};
-	std::atomic<std::uint64_t> missing_total{0}; // the handle's exact status counter
 	explicit Table(std::uint32_t n) : slots(n), rows(new Row[n]), names(power_of_two(2 * std::size_t(n))) {}
 
-	void set_overflowed() {
-		if (!overflowed.load(std::memory_order_relaxed))
-			overflowed.store(true, std::memory_order_release);
-	}
 	std::uint32_t allocate() {
 		for (auto &spare : spares)
 			if (spare.load(std::memory_order_relaxed))
@@ -81,132 +77,196 @@ struct Table {
 				return;
 		}
 	}
-	// Finds the published row by name; claims one when `claim` and none exists. Never waits.
-	std::uint32_t find(std::string_view name, bool claim) {
+	// Finds the published row by name, or claims one. Never waits on another thread.
+	std::uint32_t find(std::string_view name) {
 		const auto h = hash_of(name);
 		const auto mask = names.size() - 1;
-		std::uint32_t mine = unstored;
+		std::uint32_t mine = none;
 		for (std::size_t i = h & mask;; i = (i + 1) & mask) {
 			auto v = names[i].load(std::memory_order_acquire);
 			if (!v) {
-				if (!claim)
-					return unstored;
-				if (mine == unstored) {
+				window(Window::SawEmpty);
+				if (mine == none) {
 					mine = allocate();
 					if (mine == overflow) {
-						set_overflowed();
-						return overflow;
+						// Full: the slot may have been published since it was seen empty (R5).
+						v = names[i].load(std::memory_order_acquire);
+						if (!v) {
+							if (!overflowed.load(std::memory_order_relaxed))
+								overflowed.store(true, std::memory_order_release);
+							return overflow;
+						}
+						mine = none;
+					} else {
+						auto &row = rows[mine];
+						row.hash = h;
+						row.size = std::uint8_t(name.size());
+						std::memcpy(row.name, name.data(), name.size());
+						window(Window::RowWritten);
 					}
-					auto &row = rows[mine];
-					row.hash = h;
-					row.size = std::uint8_t(name.size());
-					std::memcpy(row.name, name.data(), name.size());
-					window(Window::RowWritten);
 				}
-				if (names[i].compare_exchange_strong(v, mine + 1, std::memory_order_release, std::memory_order_acquire)) {
+				if (!v && names[i].compare_exchange_strong(v, mine + 1, std::memory_order_release,
+				                                           std::memory_order_acquire)) {
 					window(Window::NamePublished);
 					return mine;
 				}
 			}
 			const auto &row = rows[v - 1];
 			if (row.hash == h && row.text() == name) {
-				if (mine != unstored)
+				if (mine != none)
 					release(mine);
 				return v - 1;
 			}
 		}
 	}
-	struct Report {
-		std::vector<std::string> names;
-		bool overflowed;
-	};
-	Report usage() const {
-		Report out{{}, overflowed.load(std::memory_order_acquire)};
-		for (const auto &slot : names)
-			if (const auto v = slot.load(std::memory_order_acquire))
-				out.names.emplace_back(rows[v - 1].text());
-		return out;
+	void sample(std::string_view name, Cell cell) {
+		const auto row = find(name);
+		(row == overflow ? overflow_samples[cell] : rows[row].samples[cell]).fetch_add(1, std::memory_order_relaxed);
 	}
 	std::size_t rows_for(std::string_view name) const {
-		const auto report = usage();
-		return std::size_t(std::count(report.names.begin(), report.names.end(), name));
+		std::size_t n = 0;
+		for (const auto &slot : names)
+			if (const auto v = slot.load(std::memory_order_acquire))
+				n += rows[v - 1].text() == name;
+		return n;
+	}
+	std::size_t published() const {
+		std::size_t n = 0;
+		for (const auto &slot : names)
+			n += slot.load(std::memory_order_acquire) != 0;
+		return n;
 	}
 };
 
-// One generation's claim index, keyed by the definition body's address.
-struct Index {
-	struct Slot {
-		std::atomic<std::uintptr_t> address{0};
-		std::atomic<std::uint32_t> row{unstored};
-	};
-	std::vector<Slot> slots;
-	std::atomic<std::uint32_t> used{0};
-	std::atomic<std::uint64_t> probes{0}; // model-only: slots examined by hits
-	explicit Index(std::size_t n) : slots(power_of_two(2 * n)) {}
+// ---- Marks: one bit per 8 bytes of a generation's segments (D3, Marks) ----
+struct Generation {
+	std::map<std::string, std::size_t, std::less<>> bodies; // key -> body offset (the trie)
+	std::vector<std::atomic<std::uint64_t>> bits;
+	std::atomic<int> pins{0};
+	std::size_t folded = 0; // keys walked by the fold so far; the freer's
+	explicit Generation(const std::vector<std::string> &keys, std::size_t stride = 16)
+	    : bits(keys.size() * stride / 512 + 1) {
+		std::size_t offset = 0;
+		for (const auto &key : keys)
+			bodies[key] = (offset += stride);
+	}
+	const std::size_t *find(std::string_view key) const {
+		const auto at = bodies.find(key);
+		return at == bodies.end() ? nullptr : &at->second;
+	}
+	// A warm hit: one load; the generation's first read of the key: one fetch_or.
+	bool mark(std::size_t offset) {
+		auto &word = bits[offset / 8 / 64];
+		const auto bit = std::uint64_t(1) << (offset / 8 % 64);
+		if (word.load(std::memory_order_relaxed) & bit)
+			return false;
+		word.fetch_or(bit, std::memory_order_relaxed);
+		return true;
+	}
+	bool marked(std::size_t offset) const {
+		return bits[offset / 8 / 64].load(std::memory_order_relaxed) >> (offset / 8 % 64) & 1;
+	}
 };
 
-struct Lookup {
-	Table &table;
-	Index &index;
-	// An OK lookup's mark (P2): the row is published, or the overflow flag set, before the address.
-	void ok(std::uintptr_t body, std::string_view name, bool sampled) {
-		const auto mask = index.slots.size() - 1;
-		// Multiply-shift: the product's high bits, since aligned addresses share their low bits.
-		const auto bits = unsigned(std::countr_zero(index.slots.size()));
-		const auto start = bits ? std::size_t((std::uint64_t(body) * 0x9e3779b97f4a7c15ull) >> (64 - bits)) : 0;
-		for (std::size_t i = start;; i = (i + 1) & mask) {
-			auto &slot = index.slots[i];
-			auto a = slot.address.load(std::memory_order_acquire);
-			index.probes.fetch_add(1, std::memory_order_relaxed);
-			if (a == body)
-				return count(slot, name, sampled);
-			if (a)
+// The handle with one namespace: its installed generation, retired generations (still pinned or
+// not yet folded), at most one pending fold, and the names carried past their generation (D3, Fold).
+struct Handle {
+	std::mutex refreshing; // the core's `refreshing` flag; it also stands in for the pin's view load
+	std::shared_ptr<Generation> installed;
+	std::vector<std::shared_ptr<Generation>> retired;
+	std::vector<std::shared_ptr<Generation>> pending;
+	std::set<std::string, std::less<>> carried;
+	std::size_t budget = 4096;
+
+	// A lookup: pin the installed generation, answer, mark, unpin. True when the key was found.
+	bool read(const std::string &key) {
+		std::shared_ptr<Generation> g;
+		{
+			std::lock_guard lock(refreshing);
+			g = installed;
+			g->pins.fetch_add(1);
+		}
+		const auto *offset = g->find(key);
+		if (offset && g->mark(*offset))
+			window(Window::Marked);
+		g->pins.fetch_sub(1, std::memory_order_release);
+		return offset != nullptr;
+	}
+	// Folds `old` into the installed generation, at most `limit` marked keys; true when done.
+	bool fold(Generation &old, std::size_t limit) {
+		std::size_t done = 0, at = 0;
+		for (const auto &[key, offset] : old.bodies) {
+			if (at++ < old.folded)
 				continue;
-			if (index.used.load(std::memory_order_relaxed) >= index.slots.size() / 2)
-				return table.set_overflowed(), add(overflow, sampled);
-			const auto row = table.find(name, true);
-			if (slot.address.compare_exchange_strong(a, body, std::memory_order_acq_rel, std::memory_order_acquire)) {
-				index.used.fetch_add(1, std::memory_order_relaxed);
-				window(Window::AddressClaimed);
-				slot.row.store(row, std::memory_order_release);
-				return add(row, sampled);
+			if (done == limit)
+				return false;
+			++old.folded;
+			if (!old.marked(offset))
+				continue;
+			++done;
+			if (const auto *target = installed->find(key))
+				installed->mark(*target);
+			else
+				carried.emplace(key);
+		}
+		return true;
+	}
+	// The freer, on the refresh path: the pending fold first, then retired generations that no
+	// reader pins, within the budget.
+	void free_retired(std::size_t limit) {
+		for (auto it = pending.begin(); it != pending.end();)
+			if (fold(**it, limit))
+				it = pending.erase(it);
+			else
+				return;
+		for (auto it = retired.begin(); it != retired.end();) {
+			if ((*it)->pins.load(std::memory_order_acquire)) {
+				++it;
+				continue;
 			}
-			if (a == body)
-				return count(slot, name, sampled);
+			if (!fold(**it, limit))
+				pending.push_back(*it);
+			it = retired.erase(it);
 		}
 	}
-	void count(Index::Slot &slot, std::string_view name, bool sampled) {
-		if (!sampled)
-			return;
-		auto row = slot.row.load(std::memory_order_acquire);
-		if (row == unstored) // the claimer is between its address and its row store: the row exists
-			row = table.find(name, true);
-		add(row, sampled);
+	void publish(std::shared_ptr<Generation> next) {
+		std::lock_guard lock(refreshing);
+		// At most one pending fold: an older one finishes now, into the generation it was folding into.
+		for (auto &p : pending)
+			fold(*p, SIZE_MAX);
+		pending.clear();
+		retired.push_back(std::exchange(installed, std::move(next)));
+		free_retired(budget);
 	}
-	void add(std::uint32_t row, bool sampled) {
-		if (!sampled)
-			return;
-		auto &cell = row == overflow ? table.overflow_samples[Published] : table.rows[row].samples[Published];
-		cell.fetch_add(1, std::memory_order_relaxed);
-	}
-	// A missing lookup takes no row (F3): exact in the handle's counter, and when sampled in the
-	// name's row if one exists.
-	void missing(std::string_view name, bool sampled) {
-		table.missing_total.fetch_add(1, std::memory_order_relaxed);
-		if (!sampled)
-			return;
-		if (const auto row = table.find(name, false); row != unstored)
-			table.rows[row].samples[Missing].fetch_add(1, std::memory_order_relaxed);
+	// detent_usage under `refreshing`: finishes the pending fold, then names every mark.
+	std::set<std::string> usage() {
+		std::lock_guard lock(refreshing);
+		free_retired(SIZE_MAX);
+		std::set<std::string> names(carried.begin(), carried.end());
+		for (const auto &[key, offset] : installed->bodies)
+			if (installed->marked(offset))
+				names.insert(key);
+		for (const auto &g : retired) // still pinned: reported from their own marks, folded later
+			for (const auto &[key, offset] : g->bodies)
+				if (g->marked(offset))
+					names.insert(key);
+		return names;
 	}
 };
+
+std::vector<std::string> keys(int from, int to) {
+	std::vector<std::string> out;
+	for (int k = from; k != to; ++k)
+		out.push_back("ns:k" + std::to_string(k));
+	return out;
+}
 
 std::atomic<int> step{0};
 void wait_for(int s) {
 	while (step.load() < s)
 		std::this_thread::yield();
 }
-// Parks the first thread that reaches `at` until step 2.
-void park_at(Window at) {
+void park_first_at(Window at) {
 	auto parked = std::make_shared<std::atomic<bool>>(false);
 	hook = [at, parked](Window w) {
 		if (w == at && !parked->exchange(true)) {
@@ -220,35 +280,102 @@ bool check(bool ok, const char *what) {
 	return ok;
 }
 
-// F1: the winner parks between its address and its row store; another lookup returns, then usage.
-bool visibility(Window at) {
-	step = 0;
-	Table table(8);
-	Index index(8);
-	park_at(at);
-	std::thread winner([&] { Lookup{table, index}.ok(0x1000, "ns:k", false); });
-	wait_for(1);
-	Lookup{table, index}.ok(0x1000, "ns:k", true); // returns while the winner is parked
-	const auto report = table.usage();
-	step = 2;
-	winner.join();
-	hook = nullptr;
-	const bool visible = std::count(report.names.begin(), report.names.end(), "ns:k") == 1;
-	return visible && table.rows_for("ns:k") == 1;
+// A publish that reorders and deletes: every key read before it is still reported, the kept keys
+// through the new generation's marks and the deleted one carried by name.
+bool publish_reorder_delete() {
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 100));
+	for (const auto *key : {"ns:k3", "ns:k50", "ns:k99"})
+		h.read(key);
+	auto reordered = keys(0, 99); // k99 deleted
+	std::reverse(reordered.begin(), reordered.end());
+	h.publish(std::make_shared<Generation>(reordered, 24));
+	const auto names = h.usage();
+	return names == std::set<std::string>{"ns:k3", "ns:k50", "ns:k99"} && h.carried.count("ns:k99") == 1 &&
+	       h.installed->marked(*h.installed->find("ns:k3")) && h.retired.empty() && h.pending.empty();
 }
 
-// F2: two claimers of one name (two generations); the first parks mid-claim. The second must
-// finish while the first is parked, and the two must end with one row.
+// A reader pinned on the old generation marks a key after the publish: the fold waits for the
+// unpin, so the late mark is reported meanwhile and folded after.
+bool late_mark_on_retired() {
+	step = 0;
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 10));
+	park_first_at(Window::Marked);
+	std::thread reader([&] { h.read("ns:k7"); }); // marks k7, parks before its unpin
+	wait_for(1);
+	h.publish(std::make_shared<Generation>(keys(0, 10))); // the old one is pinned: not folded
+	const bool held = h.retired.size() == 1 && !h.installed->marked(*h.installed->find("ns:k7"));
+	const bool reported = h.usage().count("ns:k7") == 1;
+	step = 2;
+	reader.join();
+	hook = nullptr;
+	h.usage(); // unpinned now: folds
+	return held && reported && h.retired.empty() && h.installed->marked(*h.installed->find("ns:k7"));
+}
+
+// The budget: a fold larger than it stays pending and is reported; a second publish finishes the
+// older pending fold first; detent_usage finishes the rest.
+bool budget_and_pending() {
+	Handle h;
+	h.budget = 4;
+	h.installed = std::make_shared<Generation>(keys(0, 64));
+	for (int k = 0; k != 10; ++k)
+		h.read("ns:k" + std::to_string(k));
+	h.publish(std::make_shared<Generation>(keys(0, 64)));
+	const bool pending_after_first = h.pending.size() == 1;
+	h.publish(std::make_shared<Generation>(keys(5, 64))); // k0-k4 deleted
+	const auto names = h.usage();
+	bool all = names.size() == 10;
+	for (int k = 0; k != 10; ++k)
+		all &= names.count("ns:k" + std::to_string(k)) == 1;
+	return pending_after_first && all && h.pending.empty() && h.carried.size() == 5;
+}
+
+// Stress (TSan): 8 readers mark random keys while a publisher replaces the generation 50 times with
+// reordered sets that delete keys; at the end the report is exactly the keys read OK.
+bool stress() {
+	Handle h;
+	h.budget = 8;
+	h.installed = std::make_shared<Generation>(keys(0, 512));
+	std::atomic<bool> stop{false};
+	std::vector<std::set<std::string>> read(8);
+	std::vector<std::thread> pool;
+	for (int t = 0; t != 8; ++t)
+		pool.emplace_back([&, t] {
+			std::uint64_t x = 0x9e3779b97f4a7c15ull * std::uint64_t(t + 1);
+			while (!stop.load(std::memory_order_relaxed)) {
+				x ^= x << 13, x ^= x >> 7, x ^= x << 17;
+				const auto key = "ns:k" + std::to_string(x % 512);
+				if (h.read(key))
+					read[std::size_t(t)].insert(key);
+			}
+		});
+	for (int p = 1; p != 51; ++p) {
+		auto next = keys(p % 7, 512);
+		std::rotate(next.begin(), next.begin() + p, next.end());
+		h.publish(std::make_shared<Generation>(next, std::size_t(16 + 8 * (p % 3))));
+		std::this_thread::sleep_for(std::chrono::microseconds(200));
+	}
+	stop = true;
+	for (auto &thread : pool)
+		thread.join();
+	std::set<std::string> expected;
+	for (const auto &s : read)
+		expected.insert(s.begin(), s.end());
+	return h.usage() == expected && h.pending.empty();
+}
+
+// Rows: two claimers of one name, the first parked mid-claim: one row and no wait (F2).
 bool two_claimers(Window at) {
 	step = 0;
 	Table table(8);
-	Index first(8), second(8);
-	park_at(at);
-	std::thread one([&] { Lookup{table, first}.ok(0x1000, "ns:k", true); });
+	park_first_at(at);
+	std::thread one([&] { table.sample("ns:k", Published); });
 	wait_for(1);
 	std::atomic<bool> done{false};
 	std::thread two([&] {
-		Lookup{table, second}.ok(0x9000, "ns:k", true);
+		table.sample("ns:k", Published);
 		done = true;
 	});
 	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -259,118 +386,123 @@ bool two_claimers(Window at) {
 	one.join();
 	two.join();
 	hook = nullptr;
-	// The loser's private row returns as a spare: the next name takes it, not a new row.
-	Index third(8);
-	Lookup{table, third}.ok(0x2000, "ns:other", false);
-	const bool reused = at != Window::RowWritten || table.next.load() == 2;
-	return progressed && table.rows_for("ns:k") == 1 && reused &&
-	       table.rows[table.find("ns:k", false)].samples[Published].load() == 2;
+	table.sample("ns:other", Published); // takes the loser's spare, if any
+	return progressed && table.rows_for("ns:k") == 1 && table.next.load() == 2;
 }
 
-// F2: equal hashes never merge two names (the core's seam forces the hash).
 bool equal_hashes() {
 	force_equal_hashes = true;
 	Table table(8);
-	Index index(8);
-	Lookup{table, index}.ok(0x1000, "ns:a", true);
-	Lookup{table, index}.ok(0x2000, "ns:b", true);
-	Lookup{table, index}.ok(0x1000, "ns:a", true);
-	const auto a = table.find("ns:a", false), b = table.find("ns:b", false);
+	table.sample("ns:a", Published);
+	table.sample("ns:b", Published);
+	table.sample("ns:a", Published);
+	const bool ok = table.rows_for("ns:a") == 1 && table.rows_for("ns:b") == 1 && table.published() == 2;
 	force_equal_hashes = false;
-	return a != b && table.rows[a].samples[Published].load() == 2 && table.rows[b].samples[Published].load() == 1;
+	return ok;
 }
 
-// F3: sampled missing names take no row, so they cannot push a defined knob into overflow.
-bool spray() {
+// R5: the table's last row is taken while another claimer of the same name, which saw the slot
+// empty, finds the table full: it re-examines the slot, takes the row and sets no flag.
+bool boundary() {
+	step = 0;
+	Table table(1);
+	park_first_at(Window::SawEmpty);
+	std::thread second([&] { table.sample("ns:k", Published); }); // sees the empty slot, parks
+	wait_for(1);
+	table.sample("ns:k", Published); // takes the last row and publishes it
+	step = 2;
+	second.join();
+	hook = nullptr;
+	return table.rows_for("ns:k") == 1 && !table.overflowed.load() && table.rows[0].samples[Published].load() == 2;
+}
+
+// Past usage_slots the counts overflow, but every key read stays reported through the marks.
+bool overflow_counts() {
 	Table table(4);
-	Index index(4);
-	Lookup lookup{table, index};
-	for (int i = 0; i != 64; ++i)
-		lookup.missing("ns:undefined" + std::to_string(i), true);
-	lookup.ok(0x1000, "ns:defined", true);
-	lookup.missing("ns:defined", true); // deleted later: the missing sample lands in its row
-	const auto report = table.usage();
-	const auto row = table.find("ns:defined", false);
-	return report.names.size() == 1 && !report.overflowed && table.missing_total.load() == 65 &&
-	       table.rows[row].samples[Missing].load() == 1;
-}
-
-// A full table: the knob past the bound sets the flag, its index slot holds the overflow row,
-// and its later hits take one probe.
-bool full_table() {
-	Table table(2);
-	Index index(8);
-	Lookup lookup{table, index};
-	lookup.ok(0x1000, "ns:a", true);
-	lookup.ok(0x2000, "ns:b", true);
-	lookup.ok(0x3000, "ns:c", true);
-	const auto before = index.probes.load();
-	for (int i = 0; i != 100; ++i)
-		lookup.ok(0x3000, "ns:c", true);
-	const auto report = table.usage();
-	std::printf("      full_table: rows %zu overflowed %d overflow samples %llu probes %llu\n", report.names.size(),
-	            int(report.overflowed), (unsigned long long)table.overflow_samples[Published].load(),
-	            (unsigned long long)(index.probes.load() - before));
-	return report.names.size() == 2 && report.overflowed && table.overflow_samples[Published].load() == 101 &&
-	       index.probes.load() - before <= 100 + 100 / 4; // linear probing at load <= 1/2
-}
-
-// An index past half full records nothing new and says so.
-bool index_half_full() {
-	Table table(64);
-	Index index(2); // 4 slots: claims stop at 2
-	Lookup lookup{table, index};
-	lookup.ok(0x1000, "ns:a", false);
-	lookup.ok(0x2000, "ns:b", false);
-	const bool clean = !table.usage().overflowed;
-	lookup.ok(0x3000, "ns:c", false);
-	return clean && table.usage().overflowed && index.used.load() == 2;
-}
-
-// Stress (TSan): 16 threads, two generations of 64 knobs, every lookup sampled: one row per name
-// and exact sums.
-bool stress() {
-	Table table(256);
-	Index g1(64), g2(64);
-	constexpr int threads = 16, rounds = 200;
-	std::vector<std::thread> pool;
-	for (int t = 0; t != threads; ++t)
-		pool.emplace_back([&, t] {
-			for (int r = 0; r != rounds; ++r)
-				for (int k = 0; k != 64; ++k) {
-					auto &index = (r + t) % 2 ? g1 : g2;
-					const auto body = std::uintptr_t(((r + t) % 2 ? 0x100000 : 0x200000) + k * 64);
-					Lookup{table, index}.ok(body, "ns:k" + std::to_string(k), true);
-				}
-		});
-	for (auto &thread : pool)
-		thread.join();
-	const auto report = table.usage();
-	std::uint64_t total = 0;
-	bool unique = report.names.size() == 64;
-	for (int k = 0; k != 64; ++k) {
-		const auto name = "ns:k" + std::to_string(k);
-		unique &= table.rows_for(name) == 1;
-		total += table.rows[table.find(name, false)].samples[Published].load();
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 6));
+	for (int k = 0; k != 6; ++k) {
+		const auto key = "ns:k" + std::to_string(k);
+		h.read(key);
+		table.sample(key, Published);
 	}
-	return unique && !report.overflowed && total == std::uint64_t(threads) * rounds * 64 &&
-	       table.next.load() <= 64 + spare_cells;
+	return h.usage().size() == 6 && table.published() == 4 && table.overflowed.load() &&
+	       table.overflow_samples[Published].load() == 2;
+}
+
+// ---- Sampling (D2) ----
+struct Stripe {
+	std::uint64_t state, countdown;
+	explicit Stripe(std::uint64_t seed) : state(seed | 1), countdown(0) { countdown = 1 + next() % 127; }
+	std::uint64_t next() {
+		state ^= state << 13, state ^= state >> 7, state ^= state << 17;
+		return state;
+	}
+	bool tick(bool fixed) {
+		if (--countdown)
+			return false;
+		countdown = fixed ? 64 : 1 + next() % 127;
+		return true;
+	}
+};
+// R4: a 1,024-name cycle on one stripe: names sampled in the first 64 cycles, and the cycles until
+// every name is sampled (0: not within `limit`).
+std::pair<std::size_t, std::size_t> cycle(std::uint64_t seed, bool fixed, std::size_t limit) {
+	Stripe stripe(seed);
+	std::vector<bool> seen(1024);
+	std::size_t distinct = 0, at64 = 0;
+	for (std::size_t c = 0; c != limit; ++c) {
+		for (std::size_t n = 0; n != 1024; ++n)
+			if (stripe.tick(fixed) && !seen[n])
+				seen[n] = true, ++distinct;
+		if (c == 63)
+			at64 = distinct;
+		if (distinct == 1024)
+			return {c < 63 ? 1024 : at64, c + 1};
+	}
+	return {at64, 0};
+}
+bool cycle_coverage() {
+	std::size_t worst64 = 1024, worst_full = 0;
+	bool all_full = true;
+	for (std::uint64_t seed = 1; seed != 101; ++seed) {
+		const auto [at64, full] = cycle(seed * 0x2545f4914f6cdd1dull, false, 1000);
+		worst64 = std::min(worst64, at64);
+		all_full &= full != 0;
+		worst_full = std::max(worst_full, full);
+	}
+	const auto [fixed64, fixed_full] = cycle(12345, true, 1000);
+	std::printf("      cycle: over 100 seeds at least %zu of 1,024 names in 64 cycles, all within %zu cycles; "
+	            "fixed period 64: %zu names, %s\n",
+	            worst64, worst_full, fixed64, fixed_full ? "then all" : "never all");
+	return worst64 >= 512 && all_full && worst_full <= 1000 && fixed64 == 16 && fixed_full == 0;
+}
+// R6: the first lookup of 10,000 fresh handles, each seeded from its own address and the clock.
+bool fresh_handles() {
+	std::size_t sampled = 0;
+	const auto clock = std::uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
+	for (std::uint64_t h = 0; h != 10000; ++h) {
+		Stripe stripe((clock + h * 0x9e3779b97f4a7c15ull) * 0xbf58476d1ce4e5b9ull);
+		sampled += stripe.tick(false);
+	}
+	std::printf("      fresh: %zu of 10,000 first lookups sampled (expected 78.7)\n", sampled);
+	return sampled >= 30 && sampled <= 160;
 }
 } // namespace
 
 int main() {
-	std::printf("index slot: %zu bytes, row: %zu bytes\n", sizeof(Index::Slot), sizeof(Row));
 	bool ok = true;
-	ok &= check(visibility(Window::AddressClaimed), "F1 visibility: winner parked after its address, a returned read shows its row");
-	ok &= check(visibility(Window::RowWritten), "F1 visibility: winner parked before publishing its row, a returned read shows its row");
-	ok &= check(two_claimers(Window::RowWritten), "F2 two claimers, one parked with its row unpublished: one row, no wait, spare reused");
-	ok &= check(two_claimers(Window::NamePublished), "F2 two claimers, one parked after publishing: one row, no wait");
-	ok &= check(two_claimers(Window::AddressClaimed), "F2 two claimers, one parked before its row store: one row, no wait");
-	ok &= check(equal_hashes(), "F2 equal hashes: two names, two rows");
-	ok &= check(spray(), "F3 missing names take no row: the defined knob keeps its row, no overflow");
-	ok &= check(full_table(), "bound: the knob past the table sets the flag; its hits take one probe");
-	ok &= check(index_half_full(), "bound: an index past half full records nothing new and sets the flag");
-	ok &= check(stress(), "stress: 16 threads, two generations, one row per name, exact sums");
+	ok &= check(publish_reorder_delete(), "fold: a reordering, deleting publish keeps every key read (kept by mark, deleted by name)");
+	ok &= check(late_mark_on_retired(), "fold: a mark on a pinned, retired generation is reported, then folded after the unpin");
+	ok &= check(budget_and_pending(), "fold: past the budget the fold is pending and reported; the next publish finishes it first");
+	ok &= check(stress(), "fold stress: 8 readers, 50 reordering, deleting publishes: the report is exactly the keys read");
+	ok &= check(two_claimers(Window::RowWritten), "rows: two claimers, one parked with its row unpublished: one row, no wait, spare reused");
+	ok &= check(two_claimers(Window::NamePublished), "rows: two claimers, one parked after publishing: one row, no wait");
+	ok &= check(equal_hashes(), "rows: equal hashes, two names, two rows");
+	ok &= check(boundary(), "rows R5: the last row taken under a claimer that saw it empty: one row, no flag");
+	ok &= check(overflow_counts(), "rows: past usage_slots the counts overflow; every key read is still reported");
+	ok &= check(cycle_coverage(), "R4 cycle: the random reload covers 1,024 names; a fixed period of 64 samples 16");
+	ok &= check(fresh_handles(), "R6 fresh handles: the first lookup is sampled about 1 time in 127");
 	std::printf("%s\n", ok ? "all outcomes as designed" : "UNEXPECTED outcome");
 	return ok ? 0 : 1;
 }
