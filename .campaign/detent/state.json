@@ -26514,6 +26514,8 @@
       "after": [
         "reader-s6"
       ],
+      "base": "39b952173bbaa3b3fdf5eba059bfc9e8879ef2fa",
+      "branch": "quest/detent/observability-core",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -26572,9 +26574,10 @@
       "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T03:25:41"
+      "updated": "2026-11-24T10:08:33",
+      "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
       "accepted": {
