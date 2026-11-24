@@ -25,6 +25,7 @@ and the transport refuses the pairing at construction.
 - A2 The native-completion path is unchanged: groups_test and the driver tests pass.
 - A3 [artifact] `DRIVER.md` states where syncs run for each completion and what that means for
   links.
+- A5 consensus-fetch-alongside-flake's review F3: groups_test's fetch-alongside-consensus case moved its group off every link loop, dropping coverage of a Driver sharing a loop with fetch-serving links, which production does by default. Once syncs cannot stall links, the case (or a second case) puts the group back on a shared link loop and passes A3's 25 runs beside 4 burners: strict jobs.
 - A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
