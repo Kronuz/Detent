@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-132656-758884 261123-132700-4d14e4; ci:ci and ci:macos-arm64 at journal:f1ca348 (CI run 45269807268)
+State: waiting on jobs 261123-160740-42038e 261123-160744-836752 261123-160755-5fb5e6 261123-160755-a04ac3 261123-160756-3b5db8 261123-160756-ede889 261123-160757-1330f1; ci:ci at journal:8bf1d1d
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,34 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Durability review CHANGES at journal:f1ca348 (reviews/journal-turn-sector-checks-durability.md):
+- F1 (blocking) fixed, journal:b6176f6: while a turn is staged, `Sectors` serves the sector its write
+  rewrites (`offset_ / 504` of `segment_`) from `partial_`, the durable version's data, through
+  `TurnLog::held()` into `read_record`; a read past `partial_` there is Corruption. Only that sector
+  changes under an in-flight write (the review's invariant probe). Test `midwrite_reads` (2048 and
+  32768-byte blocks, 4 seeds x 100 turns, write half-copied into the shared sector, peek every group):
+  10854 checks, 0 failures locally. Jobs: fails without at f1ca348 261123-160740-42038e; at the fix
+  with the reviewer's `shared_sector_probe invariant` and `midwrite` (must print "Corruption in 0
+  of") 261123-160744-836752.
+- F2 (non-blocking) not fixed, documented in turn-log-damage.md Limits (journal:8bf1d1d). Fixing it
+  costs no bytes (a reader rule: damage past an unwritten header, or in a block 0 past an unwritten
+  block 0, reads as the end), but it reads damage as the end: it changes D4/rule 1 and the quest's
+  outcome ("reports damage instead of reading it as a tear"), and the review calls it the owner's.
+  The design's Limits line (turn-log-cut-header.md:229, outside my file set) says such a sector is
+  read only behind a torn write: the scan reads every block's first sector, spares included. For
+  the lead: correct that line, file the reader rule as a follow-up if wanted.
+- F3 (non-blocking) not fixed, documented in Limits: a tear inside a turn's first sector (outside
+  the crash model) loses every group, the turn before's included. The only fix keeps a write out of
+  the turn before's sector, i.e. each write ends at a sector boundary: the design's O2, measured at
+  +27.7 to +30.7% bytes per turn (turn-log-cut-header.md Cost). Not small.
+- F4: Ruling 10 reworded below. F5, F6: not taken (optional; F6 is the lead's ordering against
+  journal-drop-memory-io).
+- A4 latency at f1ca348, 261123-132700-4d14e4 (strict, 6 rounds, medians): 256 B p50 main 22.49,
+  fix 23.04, aa 23.61 ms; p99 54.0, 57.5, 52.2 ms; 4 KiB p50 25.19, 22.67, 22.99 ms; p99 46.8, 43.6,
+  44.7 ms. Fix within the main/aa spread. Rerun at 8bf1d1d: 261123-160757-1330f1.
+
+Earlier this session:
 
 Fresh contributor (previous context full). The A4 latency job 261123-104146-ca1f89 showed
 written/appended 1.414-1.422 at 256 B at the fix against 1.231 at main and aa (+15%), 1.0466 against
@@ -40,12 +68,11 @@ defect:
 
 ## Next
 
-1. Queued strict at journal:f1ca348: 261123-132656-758884 (A4 bytes), 261123-132700-4d14e4 (A4
-   latency rerun); CI run 45269807268 (`ci:ci`, `ci:macos-arm64` suite) for A6. Done at f1ca348,
-   exit 0, same numbers as before: 261123-132700-1f99e4 (A1: main newest SILENT 36, blocks 4807
-   reported; fix 0 SILENT, 6473 checks), 261123-132700-6bde99 (A2: 31268 T9 checks, 447 newest
-   damage reported, 0 failures), 261123-132701-1af7dc (A3: 5 checks, 0 failures). Then the
-   Evidence table from `campaign brief`, the Result, State "ready for review".
+1. Jobs at journal:8bf1d1d (pushed; CI running): F1 261123-160740-42038e (fails without),
+   261123-160744-836752 (fix + reviewer probe); reruns A1 261123-160755-5fb5e6, A2
+   261123-160755-a04ac3, A3 261123-160756-3b5db8, A4 bytes 261123-160756-ede889 and latency
+   261123-160757-1330f1 (strict); `ci:ci` for A6. Then the Evidence table, Result, "ready for
+   review".
 
 ## Blocked on
 
@@ -102,8 +129,12 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 9. lost_bound_test: a damaged byte costs its whole sector, so `layout.damaged` moves to X's second
    sector (X's header, and with it block 2's manifest, stays readable), and `middle()` avoids a
    block's header sector; group 6's first batch is 2,450 bytes so turn A still starts in X.
-10. host_test idle_damage: under RFTW0002 group 6's later records sit after the batch's end in a
-   block no damaged manifest names, so it keeps every record; the check says so instead of
-   "bounded at 2". The rule that an orphaned block's manifest bounds a later group is no longer
-   exercised there.
+10. host_test idle_damage: the test now damages the two blocks after the first 'Z' (blocks 1-2),
+   not after the first 900-'Z' run (blocks 3-4), so group 6 keeps every record under either format
+   (the review's F4: the change is the placement, not RFTW0002); the check says so instead of
+   "bounded at 2". The old placement on RFTW0002 lands in the newest block, whose manifest is not
+   written, and loses groups 1 and 6. A later group bounded by an orphaned block's manifest is no
+   longer exercised in host_test; lost_bound_test still bounds groups with later records kept.
 11. earlier_turn_damage runs on MemoryIO: same checks, no full flushes.
+12. F1's fix serves the shared sector from `partial_` only while a turn is staged; otherwise reads
+   go to the file, so a live read still checks every sector it uses when no write is in flight.
