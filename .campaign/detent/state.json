@@ -4319,6 +4319,21 @@
         ]
       },
       "text": "set consensus-fetch-oversize-abort: unlocks frees include/consensus/transport/admission.h, include/consensus/transport/admission_join.h, include/consensus/transport/codec.h, include/consensus/transport/connection.h, include/consensus/transport/deadline.h, include/consensus/transport/fetch.h, include/consensus/transport/hello.h, include/consensus/transport/host_transport.h, include/consensus/transport/links.h, include/consensus/transport/node_hello.h, include/consensus/transport/node_pins.h, include/consensus/transport/peers.h, include/consensus/transport/profile.h, include/consensus/transport/resolve.h, include/consensus/transport/rpc.h, include/consensus/transport/rpc_observation.h, include/consensus/transport/session.h, include/consensus/transport/snapshot_write.h, include/consensus/transport/tls.h, test/transport/rpc_host_test.cc, test/transport/rpc_hosts.h, docs/mechanisms/rpc*.md, docs/mechanisms/transport*.md for consensus-fetch-oversize-abort; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:18:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:18:14",
+      "by": "campaign",
+      "closed": "observability-core answered (msg to its journal); fetch-oversize-abort's ids are CI runs still running (msg-86 to campaign-v3)",
+      "id": "msg-352",
+      "settles": {
+        "todo": "479b93be"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; new): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 16 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
