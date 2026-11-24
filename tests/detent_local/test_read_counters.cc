@@ -33,12 +33,12 @@ int main() {
 		EXPECT(c::snapshot(), ({}));
 		return 0;
 	}
-	// The table, the image's leading bytes (its cursor), the lease, the image, the reader metadata: five
-	// records, one directory walk; the table's, the image's and the metadata's digests are checked.
+	// The table, the image (read once: attach checks the bytes the selection read), the lease, the reader
+	// metadata: four records, one directory walk; the table's, the image's and the metadata's digests are checked.
 	const auto selected = std::filesystem::file_size(fixture->path / "selected");
-	const std::uint64_t table = selected + 2 * l::paged::root_bytes + x::reader_metadata_bytes;
+	const std::uint64_t table = selected + l::paged::root_bytes + x::reader_metadata_bytes;
 	const std::uint64_t hashed = (selected - 32) + l::paged::root_bytes + 160;
-	EXPECT(opened, ({1, 5, table, 0, 0, hashed}));
+	EXPECT(opened, ({1, 4, table, 0, 0, hashed}));
 	// Dense packs this four-row tree into one root page in one pack: the first lookup opens that
 	// pack and verifies that page, hashing all of it but its 32-byte digest field.
 	const auto tree = fixture->root.tree;
@@ -60,6 +60,6 @@ int main() {
 	// Another open walks the directory and reads the records again.
 	const auto before = c::snapshot();
 	auto again = x::PreparedReader::open(fixture->path, ::getuid(), {});
-	EXPECT(c::snapshot() - before, ({1, 5, table, 0, 0, hashed}));
+	EXPECT(c::snapshot() - before, ({1, 4, table, 0, 0, hashed}));
 	return 0;
 }

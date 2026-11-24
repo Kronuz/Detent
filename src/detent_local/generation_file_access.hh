@@ -2,6 +2,7 @@
 #include "detent_local/read_counters.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/paged_layout.hh"
 #include "detent_local/store_table.hh"
 #include "generation_mapping.hh"
 #include <array>
@@ -68,6 +69,8 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 // when the image it names is gone, so the table moved on and the caller reads it again.
 struct Selected {
 	Descriptor descriptor;
+	// The image select_entry read, when its file's ACL is mode-only too: attach checks it, not reads it again.
+	std::optional<std::array<char, paged::root_bytes>> image;
 };
 // The table entry `name` (D8), or the table's only entry when `name` is empty.
 std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});

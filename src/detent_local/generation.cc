@@ -147,6 +147,8 @@ std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner,
 	read_record(image.fd, prefix);
 	DETENT_COUNT(record_opens, 1);
 	detail::Selected selected;
+	if (internal::mode_only_acl(image.fd))
+		selected.image = prefix;
 	auto &descriptor = selected.descriptor;
 	// A whole root of an older format: its digest is the entry's and its magic an older root's.
 	const auto digit = [&](std::size_t at) { return prefix[at] >= '0' && prefix[at] <= '9'; };

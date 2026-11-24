@@ -144,8 +144,9 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
 		require(descriptor.length == paged::root_bytes);
-		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
-		const auto image = record<paged::root_bytes>(directory, image_name.view(), publisher);
+		const auto image = table->image ? *table->image
+		                                : record<paged::root_bytes>(directory, GenerationName(descriptor.generation,
+		                                                                                      GenerationFile::Image).view(), publisher);
 		require(checksum(image) == descriptor.checksum);
 		const auto root = paged::decode_root(image, paged_format_limits());
 		require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);
