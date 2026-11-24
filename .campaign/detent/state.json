@@ -32676,15 +32676,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "moves test/**, which xapiand's journal-sync-mode is editing; moving code under an open edit makes both merges conflict, so it starts after that lands",
+      "reason": "xapiand:journal-sync-mode landed (journal:fc5c59b)",
       "repo": "../journal",
       "risk": "low",
-      "status": "blocked",
+      "status": "planned",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "until": [
-        "xapiand:journal-sync-mode"
-      ],
-      "updated": "2026-11-24T13:25:21"
+      "updated": "2026-11-24T15:44:59"
     },
     "stage-0-architecture": {
       "accepted": {},
