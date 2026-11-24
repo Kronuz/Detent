@@ -7330,6 +7330,39 @@
       "updated": "2026-11-21T21:07:58",
       "worktree": ""
     },
+    "consensus-next-deadline-removal": {
+      "accepted": {},
+      "after": [
+        "consensus-liveness-asan-timeout"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/core.h",
+        "src/core*",
+        "test/core_deadline_test.cc",
+        "docs/mechanisms/deadlines.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
+      "updated": "2026-11-24T05:33:01"
+    },
     "consensus-peers-attempts-bound": {
       "accepted": {},
       "after": [
