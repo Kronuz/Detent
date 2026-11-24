@@ -9,6 +9,16 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+Main merged at abae2b31 (274 files; src/detent_agent, reader, local changed). A1 rows rerun there
+(exclusive, one mode per job, as before): 261124-141813-b9846a, -141813-5de11a, -141814-202283,
+-141815-2ac21a, -141815-19936e, -141816-b1f146, -141816-f2247f, -141817-af06a9, -141818-3ca37e,
+-141818-0904a8, -141819-f892ee, -141820-725a5e, -141820-694a39, -141821-5f0af0 (reruns of
+261123-165617-0de0e5 .. -165703-83f18d, in that order). Merge-verify suite 261124-084506-9cfdb6 and
+probe 261124-084513-df11ea passed at 794fe37f (before this merge).
+When they end: table.py to rows-abae2b31.jsonl, rewrite docs/perf/warm-relay-agent-boot.md (per
+size agent cold bootstrap median/spread, bytes, relay and agent CPU, vs earlier numbers; state the
+5M row plainly), set State, update Evidence.
+
 Rows at dc0315b5 (261122-211123-e68717 100K, -211123-7d24e2 1M, -211124-af8242 5M) timed out from a
 hang, not their size: main (30c2d65b) serves the relay from its namespace mirror only, so it logs
 "the namespace mirror is ready" and never "durable bundles ready", and boot.py waited 1800 s for
@@ -58,7 +68,8 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Suite 261124-084506-9cfdb6 and harness probe 261124-084513-df11ea at the merged head 794fe37f
+0. State: waiting on jobs 261124-141813-b9846a ... 261124-141821-5f0af0 (the 14 reruns).
+1. (done at 794fe37f) Suite 261124-084506-9cfdb6 and harness probe 261124-084513-df11ea at the merged head 794fe37f
    (light; the probe checks boot.py still runs with main's ManagedCohort changes, not a row). When
    both pass: set "ready for review", push (Kronuz token).
 2. Deferred, the lead decides: nothing needs a rerun (src, include, cmake untouched by the merge).
