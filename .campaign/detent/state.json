@@ -4202,6 +4202,21 @@
       "id": "msg-343",
       "notice": "skill landed deeff8120ca3568c73345eac19a704101c91d772",
       "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:be73b75 review-sweeps: fix rounds sweep the class; failing probes stay blocking; agent-campaign:3222ea0 review-sweeps: a third fix round in the same mechanism runs; agent-campaign:deeff81 Prompts: fix rounds sweep a finding's class; lifecycle fixes get whole re-reviews"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:24:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:24:32",
+      "by": "campaign",
+      "closed": "answered: re-scoped; reproduce on CI and fix the stall",
+      "id": "msg-344",
+      "settles": {
+        "todo": "d7147859"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-fetch-oversize-abort (its journal waits on the lead: blocked on lead: the abort is not the oversize path; re-scope (options under Blocked on); it asks: Lead: the quest's premise (the oversize refusal costs the link) does not hold; the cause is a Bulk-connection stall on macos-x86_64 CI that a dead_after rule (5 s) then ends, the same stall as the heartbeat-gap failures. It does not reproduce on this host. Options: 1. Recommended: keep this quest o\u2026; new): `campaign status consensus-fetch-oversize-abort`, answer it (`campaign message consensus-fetch-oversize-abort TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
