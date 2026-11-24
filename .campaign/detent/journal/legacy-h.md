@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-204256-3ca620 261123-204300-e4fd2c 261123-204301-a7a0cc 261123-204301-46672f 261123-204301-53e01c 261123-204301-67a905 261123-204320-f48488 and CI at `Detent:dec0d978`
+State: waiting on jobs 261123-215328-7c1230 261123-215333-3427d0 261123-215204-e4d157 at `Detent:a9eb4f77` (Evidence and Result written; ready for review once they pass)
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -31,11 +31,15 @@ Local after the merge: reader, testing, bindings, CLI, installed tests pass (26 
 
 ## Next
 
-1. Read at `Detent:dec0d978`: native 261123-204256-3ca620; switch and store-crash alone
-   261123-204300-e4fd2c; bindings 261123-204301-a7a0cc; review probe 261123-204301-46672f; T2
-   261123-204301-53e01c; A13 (split build) 261123-204301-67a905; fails-without 261123-204320-f48488
-   (mutant `Detent:5ecf5b8c`, `refs/mutants/legacy-h/a21-one-entry-core`); CI (A9, A22, `ci:ci`).
-2. Evidence table from `campaign brief`; T2 numbers into Result and reader-core.md; ready for review.
+1. Read native 261123-215328-7c1230 (A1, A6-A8, A18, A19, A21) at `Detent:a9eb4f77`; on a pass, State
+   "ready for review". A10 grep 261123-215330-5b6a71 passed there.
+2. `test_authority_snapshot_catchup` (native 261123-204256-3ca620, failed once, 16.6 s, no detail; this
+   branch touches neither `src/detent_authority` nor `tests/detent_authority`): 10 runs alone at the
+   head 261123-215333-3427d0 and at main `Detent:5b40d3c8` 261123-215204-e4d157. If main fails too, it
+   is pre-existing (the lead files it); if only the head fails, find why.
+
+Done at `Detent:dec0d978`: bindings, probe, T2, A13, switch and store-crash alone passed;
+fails-without 261123-204320-f48488 failed as required; CI 45328288209 and Docs 45328287755 green.
 
 ## Blocked on
 
@@ -110,22 +114,39 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1, A2, A6-A8, A18, A19 | native 261123-141425-73c546 |
-| A2-A5 | 261123-115749-3be19d (`bindings/tests/run.sh`, repeat until-fail:3) |
-| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` at `Detent:5610152f` |
-| A10 | 261123-132715-96b85d (`bindings/tests/legacy_grep.sh`, passed at `Detent:62293129`) |
+| A1, A6-A8, A18, A19 | native 261123-215328-7c1230; A1's switch and store-crash alone 261123-204300-e4fd2c |
+| A2-A5 | 261123-204301-a7a0cc (`bindings/tests/run.sh`, repeat until-fail:3) |
+| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` (CI 45328288209 at `Detent:dec0d978`) |
+| A10 | 261123-215330-5b6a71 (`bindings/tests/legacy_grep.sh`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
-| A12 | plain 261123-145542-ea7b40; fails-without 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8 |
-| A13 | 261123-115830-16b083 |
+| A12 | 261123-204301-a7a0cc; fails without: 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8 |
+| A13 | 261123-204301-67a905 |
 | A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`: "share it; lookups are thread-safe on one reader."; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep) |
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
-| A20 | plain 261123-145542-ea7b40; fails-without F1 261123-145743-a3b9c5, F2 261123-145747-841eac, 261123-145751-a77953, F3 261123-145755-cd3bb8, 261123-145800-81ce67, F4 261123-145804-7bcb89, F7 261123-145808-ac5564; design doc updated |
+| A20 | 261123-204301-a7a0cc; fails without: F1 261123-145743-a3b9c5, F2 261123-145747-841eac, 261123-145751-a77953, F3 261123-145755-cd3bb8, 261123-145800-81ce67, F4 261123-145804-7bcb89, F7 261123-145808-ac5564 |
+| A21 | native 261123-215328-7c1230; probe 261123-204301-46672f; T2 261123-204301-53e01c; fails without: 261123-204320-f48488 |
+| A22 | `ci:ci` (CI 45328288209), Docs 45328287755 at `Detent:dec0d978` |
 
 ## Result
 
-Not yet.
+Step H removes the Client and its sources, in C++, Python and Rust. The bindings and `detent get`
+read through the reader core's C ABI (`detent_get`, `mapping_bytes`, `Status` taken from `reader.h`).
+Fix round 1 (correctness review F1-F11, F14):
+- The reader core reads the per-namespace table (D150, `Detent:407e4410`). It reads `selected` once
+  per refresh and attaches a namespace on its first lookup. Each namespace follows its own sequence.
+  A 64-namespace store opens with one table read and at most 4 views. `detent get`, Python and Rust
+  read the five-entry scenario store, and `get` matches main's on the website's agent-store pages
+  (probe). Lookup cost is measured in `docs/mechanisms/reader-core.md` (job
+  261123-204301-53e01c, strict, 20,000 knob pairs): hot p50 958 ns with 1 namespace and 1,017 ns
+  with 1,000 attached; scattered 1,503 and 1,280 ns; 0 allocations.
+- Docs gate (A22): `check_docs.py` 33 gaps, 33 listed, 0 stale; e2e has no MISSING block.
+- Tests: `test_reader_core` per_namespace; `test_reader_scenarios` runs `detent get` on 21 rows;
+  `test_reader_switch` parks is deterministic through `hold_retry` (without it the check fails 5 of
+  5); the testing writer's per-namespace layout; `benchmarks/reader_namespaces.sh`.
+- Docs written: `docs/mechanisms/reader-core.md`, `docs/design/client-local-source.md`, the
+  website's reference, update-path and how-it-works pages, `CHANGELOG.md`.
 
 ## Rulings I made
 
