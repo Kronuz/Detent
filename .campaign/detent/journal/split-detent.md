@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: waiting on jobs 261124-115837-303a96 261124-115843-c31888 261124-115848-86a98f, CI at aa55acdf
+State: blocked on lead: widen the file set for the outside-set citations below; waiting on jobs 261124-094de0 (restart_wake x20 at main) 261124-125737-1d97f0 (x20 at head)
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,7 +25,13 @@ using, 1 anonymous namespace), notes only for service_runtime.cc.
 
 ## Blocked on
 
-Nothing.
+Lead: widen the file set, then I edit (all are moves of a citation, no behavior):
+1. tests/docs/check_docs.py:164 reads service.cc for the `names[]` result table (CI check-docs fails on `assert names`): it lives in service_runtime.cc now.
+2. tests/detent_relay/mutants/{absence-trusted,history-not-gated,layouts-no-enable}.patch name src/detent_authority/service.cc: their hunks are in service_runtime.cc.
+3. tests/detent_authority/history_mutant.sh: `old-fetch-bound` patches service_options.cc now (`accept-low-fetch-bound` stays service.cc).
+4. tests/detent_authority/revert_followup_check.sh lines 18-24: `leader_alive`, `leader_known` are in service_runtime.cc.
+5. Left alone: tests/detent_authority/revert_ready_check.sh (one-off against an old BASE, already stale: src/detentd/main.cc).
+6. Docs citing service.cc/state.cc by line: docs/mechanisms/{format-refusal,authority-retained-state,authority-reply,authority-capacity-raise}.md, docs/design/{namespace-delivery,observability,http-coroutines}.md, docs/ONLINE_CAPACITY_ARCHITECTURE.md, docs/LIBRARY_ADOPTION_ARCHITECTURE.md, docs/dev/docs-site-audit.md (docs/status and docs/reviews are dated records; not edited).
 
 ## Evidence
 
