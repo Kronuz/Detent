@@ -8155,12 +8155,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "uses the shared test/transport/lag.h that rpc-host-stream-gap extracts; no local copy",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T04:18:54",
+      "updated": "2026-11-24T05:02:52",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
