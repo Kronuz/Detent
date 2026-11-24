@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261124-053626-81c403 (A4 bytes rerun at the merge 384ad20) and ci:ci at journal:384ad20; everything else ready for review
+State: waiting on jobs 261124-054252-579a83 (turn_log_test on faultfs, every target builds), 261124-054254-73e03d (A4 bytes at journal:1f98d2c) and ci:ci at journal:1f98d2c
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -91,9 +91,10 @@ defect:
 
 ## Next
 
-1. When 261124-053626-81c403 ends (bytes at the merge; must equal 577728: -4.87% sectors touched at
-   256 B, +0.95% at 4 KiB), set State to "ready for review". The lead pushes or re-accepts
-   durability (only bench/turn_bench.cc and test/turn_log_test.cc changed since 8bf1d1d).
+1. When 579a83 and 73e03d end (bytes must equal 577728: -4.87% sectors touched at 256 B, +0.95% at
+   4 KiB) and ci:ci is green at journal:1f98d2c, set State to "ready for review". Durability
+   re-acceptance is the lead's (changed since 8bf1d1d: bench/turn_bench.cc, test/turn_log_test.cc,
+   CMakeLists.txt's one-word faultfs_tests entry).
 
 ## Blocked on
 
@@ -117,9 +118,9 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A1 | 261123-180640-75fc0c (at bd6cad6; supersedes 261123-104119-1fb4f2): main e58f977 with b335b69's probe: newest tail SILENT 36 of 201, earlier turns 4807 reported, 0 silent. Fix, its port (`turn_log_power_test probe 24 40`): 0 SILENT in the newest crossing, every changed sector, earlier turns and the clean newest turn. Counts differ with the layout (Ruling 6) |
 | A2 | 261123-180641-82725c, 261123-180639-e460e3 (F1 at the fix); fails without: 261123-104123-1ecb5a (newest_turn_damage at main: 41 SILENT), 261123-160740-42038e, 261123-180645-514406 (midwrite_reads at f1ca348: 898 failures, exit 1) |
 | A3 | 261123-180641-0b7099; fails without: 261123-104128-58508b |
-| A4 | bytes 261123-180642-577728 (strict, bd6cad6; rerun at the merge 384ad20: 261124-053626-81c403); latency (exclusive, A/A rotated, 24 rounds) 261123-180604-09a8dc, 261123-180608-7b9211; earlier, not cited: 261123-104143-3708f8, 261123-104146-ca1f89, 261123-132700-4d14e4, 261123-160757-1330f1 (strict beside light holds: did not decide) |
+| A4 | bytes 261123-180642-577728 (strict, bd6cad6; at the merge's port journal:1f98d2c: 261124-054254-73e03d; 261124-053626-81c403 failed at 384ad20: turn_log_test.cc still included the deleted memory_io.h); latency (exclusive, A/A rotated, 24 rounds) 261123-180604-09a8dc, 261123-180608-7b9211; earlier, not cited: 261123-104143-3708f8, 261123-104146-ca1f89, 261123-132700-4d14e4, 261123-160757-1330f1 (strict beside light holds: did not decide) |
 | A5 | `docs/mechanisms/turn-log-damage.md`: "A sector more than 2^32 segments older than the file's segment reads as damage, not as stale" (F6); "An all-zero sector is never written, not damage, and this is not \"verifies under neither\"" (F7); "A fragment never verifies on its own, so bytes inside a torn write's payload that once formed a valid fragment cannot forge a record" ... "reports every group lost" (journal-earlier-turn-loss F1) |
-| A6 | fixtures regenerated (journal:2e17407; journal_crc_fixture_test 87 checks); suite `ci:macos-arm64` and `ci:ci` at the merge 384ad20, gate jobs queued by `campaign verify` |
+| A6 | fixtures regenerated (journal:2e17407; journal_crc_fixture_test 87 checks); every target builds and journal_turn_log_test passes at journal:1f98d2c: 261124-054252-579a83; suite `ci:macos-arm64` and `ci:ci` at journal:1f98d2c, gate jobs queued by `campaign verify` |
 
 ## Result
 
@@ -161,7 +162,7 @@ ede889):
 - The earlier strict job beside light holds (261123-160757-1330f1) did not decide (3 slow rounds in
   the fix, a host fsync regime); the exclusive jobs replace it. The merge of main (384ad20) touches
   no code turn_bench or the log runs: CMakeLists's faultlab pin and group_io_bench, memory_io.h
-  removal; the latency jobs are cited at bd6cad6, the bytes job is rerun at the merge.
+  removal; the latency jobs are cited at bd6cad6, the bytes job is rerun at 1f98d2c.
 
 Suite: F1 (a read in flight sees the durable shared sector) fails at f1ca348 with 898 failures
 (261123-180645-514406) and passes at the fix (261123-180639-e460e3). Open (documented in Limits):
@@ -200,3 +201,8 @@ loses the turn before's groups too; the fix is the design's O2, +27.7 to +30.7% 
 11. earlier_turn_damage runs on MemoryIO: same checks, no full flushes.
 12. F1's fix serves the shared sector from `partial_` only while a turn is staged; otherwise reads
    go to the file, so a live read still checks every sector it uses when no write is in flight.
+13. The merge with main deleted journal/memory_io.h (journal-drop-memory-io); turn_log_test.cc's
+   MemoryIO disks are `fl::filesystem`/`fl::io` now, copies by `snapshot()` (journal:1f98d2c, cases
+   unchanged). CMakeLists.txt, outside the file set, gains `turn_log` in `faultfs_tests` so the test
+   links faultlab: the one change the port needs. The A4 job patches the same word into main's
+   archived CMakeLists to build the new test there. `grep memory_io` over the tree: none left.
