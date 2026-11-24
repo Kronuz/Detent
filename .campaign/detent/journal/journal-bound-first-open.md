@@ -1,6 +1,6 @@
 # journal-bound-first-open: journal
 
-State: waiting on jobs 261123-110049-af725e 261123-111045-7f9830 and CI at journal:0951710
+State: waiting on jobs 261124-063445-61ecfe 261124-063446-3123df 261124-063448-c99934 and the suite/CI checks at journal:529565e
 Quest: .campaign/detent/quests/journal-bound-first-open.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,18 +9,29 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on jobs: A2 261123-110049-af725e (--fails-without at journal:900a11a), open-cost A/B
-261123-111045-7f9830 (strict, main e58f977 vs fix journal:870382d), CI on the pushed branch
-(journal:0951710; suite `macos-arm64` and `ci`). Both jobs still queued after a 600 s wait
-(2026-11-23 11:2x, 72 jobs queued). Local runs: 66 of 138 checks fail at main's host.h, 0 of
-251 with the fix. Durability review not yet launched (the lead's).
+Merged journal main (journal:4eb8165, RFTW0002) at journal:179e1c6, clean: main's diff touched
+none of host.h or lost_bound_test.cc's `gap()`/`first_open`, only `spans()`, `populate`,
+`find`/`end_of` (now data positions) and `damage` (now a data position). journal:a7e86dd: host.h:30
+names RFTW0002; `spans()` now calls `gap(true)` (one layout, no copy), and `gap()` checks its
+positions against the bytes the log wrote (W and W+1 headers with their block index, group 2's
+batch 2 a First fragment filling W, its Last fragment opening W+1's data, group 1's batch 3 a
+Full fragment right after). journal:529565e prints each first_open layout's cuts and uncut
+verdict. Pushed journal:529565e; `campaign verify --for A1` queued the suite and CI.
+
+Jobs: A1 261124-063445-61ecfe (every case at head), A2 261124-063446-3123df (`--fails-without`,
+first_open at mutant journal:b050603 = head with origin/main's host.h; ref
+refs/mutants/journal-bound-first-open/no-fix), open-cost A/B 261124-063448-c99934 (exclusive,
+main 4eb8165 vs head, 192 MiB, 7 runs: the review's F1 asked for exclusive).
+
+Mechanism: unchanged by the merge. host.h's fix (`settle_damage` reads each log with
+`TurnLog::read` and commits the verdict before the drivers' open records) is byte-identical to
+the reviewed journal:0951710 apart from the comment; the test's layout moved to RFTW0002
+positions (review F4) and gained value checks. Re-review is the lead's call.
 
 ## Next
 
-1. Paste `campaign brief`'s Evidence table; open-cost numbers into Result.
-2. After journal-turn-sector-checks lands: merge main, update host.h comments naming RFTW0001
-   (its journal lists them), re-sync `gap()` in lost_bound_test.cc if its offsets changed (it
-   copies `spans()`'s layout), rerun the suite.
+1. When the jobs finish: Evidence table from `campaign brief`, cut counts from 61ecfe's log, the
+   exclusive open-cost numbers into Result; State "ready for review" only if all pass.
 
 ## Blocked on
 
