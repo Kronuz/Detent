@@ -28,12 +28,13 @@ attach -> view -> free
 ```
 
 1. **Publish.** The agent writes a new immutable generation, then atomically
-   replaces the `selected` descriptor, then moves the entry's sequence in the
-   `change` file. The store has one entry, the selected generation, serving
-   every namespace.
-2. **Notice.** Each lookup loads that sequence from the mapped `change` file.
-3. **Attach.** One thread wins `refreshing`, re-reads `selected`, attaches the
-   generation if its id changed and publishes a new view. Everyone else keeps
+   replaces the `selected` table, then moves the namespace's sequence in the
+   `change` file. The table has an entry per namespace, each with its own
+   sequence.
+2. **Notice.** Each lookup loads its namespace's sequence from the mapped
+   `change` file, so a publish in another namespace moves nothing it reads.
+3. **Attach.** One thread wins `refreshing`, re-reads `selected`, attaches each
+   namespace whose entry names a new generation and publishes a new view. Everyone else keeps
    reading the installed view.
 4. **Retire.** A handle keeps at most four views. An old view is freed only
    once its counters sum to zero, so no reader ever reads freed memory.

@@ -136,7 +136,7 @@ void report(const std::string &label, std::size_t threads, std::vector<std::vect
 	std::cout << "],\"allocations\":" << allocated << "}\n";
 }
 int generate(const Options &o) {
-	detent::testing::GenerationWriter writer(o.store);
+	detent::testing::GenerationWriter writer(o.store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::string json = R"({"schema_version":1,"knobs":{)";
 	std::ofstream keys(o.store + ".keys");
 	for (std::size_t i = 0; i != o.generate; ++i) {
@@ -166,7 +166,9 @@ int main(int argc, char **argv) {
 	                                  std::uint32_t(o.publisher)};
 	if (detent_open(&options, &core) != DETENT_OK)
 		throw std::runtime_error("detent_open failed");
-	auto pinned = x::PreparedReader::open(o.store, o.publisher, detent::local::ViewLimits::prepared());
+	// The pinned baseline reads the hot key's namespace entry.
+	auto pinned = x::PreparedReader::open(o.store, o.publisher, detent::local::ViewLimits::prepared(), std::nullopt,
+	                                      std::string_view(hot.front()).substr(0, hot.front().find(':')));
 	auto core_call = [&](const std::string &name) {
 		std::int64_t out;
 		detent_get(core, {name.data(), name.size()}, hashed ? detent_str{hash.data(), hash.size()} : detent_str{},

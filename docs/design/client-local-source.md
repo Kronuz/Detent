@@ -133,7 +133,7 @@ C++ Client tests under H (Q1 (a)):
 1. **Silent:** a misspelled knob returns the fallback in every language unless the caller reads `lookup`'s status (reader.md Limit 4, made universal here by reader Q2 (a)).
 2. Python lookups are serialized by the GIL on GIL builds. Only free-threaded builds get the core's parallel lookups.
 3. Rust and Python processes load the C++ runtime through `libdetent_reader` (reader.md Limit 8). Wheels and crates.io packaging are out of scope.
-4. Until namespace delivery's table lands, the store has one table entry, slot 0 in `change` (`docs/status/reader-s5-s6.md`, "Design vs code"), so T1 cannot see per-namespace revisions differ.
+4. The store has an entry per namespace (namespace-delivery D8), and the test writer's C face and `Store` write it the same way, but they publish every namespace at each revision, so the scenario table's revisions agree across namespaces; `test_reader_core` moves one namespace alone with a delta.
 
 ## Owner questions (ruled)
 

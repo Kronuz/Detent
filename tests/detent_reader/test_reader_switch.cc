@@ -214,7 +214,7 @@ void switching(const std::filesystem::path &root) {
 	CHECK(publisher >= 0);
 	if (publisher == 0) {
 		{
-			detent::testing::GenerationWriter writer(store);
+			detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 			shared->ceiling = 1;
 			if (writer.publish_json(knobs(1)) != 1)
 				std::_Exit(4);
@@ -328,7 +328,7 @@ void switching(const std::filesystem::path &root) {
 // publishes the pinned slot refuses are counted.
 void parks(const std::filesystem::path &root) {
 	const auto store = root / "parks";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::int64_t rev = 1;
 	CHECK(writer.publish_json(knobs(rev)) == 1);
 	Opened r(store);
@@ -466,7 +466,7 @@ std::size_t ten(detent::testing::GenerationWriter &writer, std::int64_t &rev, Ch
 }
 void forks(const std::filesystem::path &root) {
 	const auto store = root / "fork";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::int64_t rev = 1;
 	CHECK(writer.publish_json(knobs(rev)) == 1);
 	Opened r(store);
@@ -577,7 +577,7 @@ void cold_forks(const std::filesystem::path &root) {
 	for (const auto mode : {ColdMode::InFlight, ColdMode::Starting, ColdMode::Counted}) {
 		::alarm(60);
 		const auto store = root / ("cold-" + std::to_string(int(mode)));
-		detent::testing::GenerationWriter writer(store);
+		detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 		CHECK(writer.publish_json(knobs(1)) == 1);
 		const auto baseline = mappings(store), fds = descriptors();
 		Opened first(store), second(store);
@@ -700,7 +700,7 @@ void cold_forks(const std::filesystem::path &root) {
 // whole; the mapping cap has main's client default (reader-core.md, Bounds) and follows the live views.
 void capacity(const std::filesystem::path &root) {
 	const auto store = root / "capacity";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	const auto change = store / "change";
 	const auto baseline = mappings(store), fds = descriptors();
@@ -722,7 +722,7 @@ void capacity(const std::filesystem::path &root) {
 	// The mapping cap's charge follows the live views, not the publishes: equal after 10 and after 40.
 	// A fresh store, since the writer's census counts `change`, now at its 1 GiB disk limit.
 	const auto ledgers = root / "capacity-ledgers";
-	detent::testing::GenerationWriter ledger_writer(ledgers);
+	detent::testing::GenerationWriter ledger_writer(ledgers, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(ledger_writer.publish_json(knobs(1)) == 1);
 	Opened r(ledgers);
 	std::uint64_t mapped = 0;

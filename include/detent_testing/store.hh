@@ -9,6 +9,7 @@
 #include <utility>
 
 namespace detent::testing {
+// One thread publishes at a time; readers in any thread or process see each publish once it returns.
 class Store {
   public:
 	// Opens the store directory, creating it (mode 0700) when absent. Throws std::runtime_error.
@@ -29,7 +30,10 @@ class Store {
 	~Store() { detent_testing_close(writer_); }
 	// Publishes the next revision holding exactly these knobs, given as the defaults-file JSON
 	// ({"schema_version":1,"knobs":{"ns:name":{"default":1},...}}), and returns that revision.
+	// Publishes an entry per namespace, as the agent writes the store (namespace-delivery D8).
 	std::uint64_t publish(std::string_view json) {
+		if (!writer_)
+			throw std::logic_error("detent::testing::Store::publish: moved from");
 		std::uint64_t revision = 0;
 		if (detent_testing_publish(writer_, json.data(), json.size(), &revision) != 0)
 			throw std::runtime_error(std::string("detent_testing_publish: ") + detent_testing_error(writer_));

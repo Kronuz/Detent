@@ -66,7 +66,7 @@ std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, 
 }
 void replaced_selected(const std::filesystem::path &root) {
 	const auto store = root / "replaced-selected";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	x::RecordTesting::install([](std::string_view name, void *context) {
 		if (name != "selected")
@@ -88,7 +88,7 @@ void replaced_selected(const std::filesystem::path &root) {
 // word holds (D4), and once per switch, which attaches from that read.
 void selected_reads(const std::filesystem::path &root) {
 	const auto store = root / "selected-reads";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	unsigned reads = 0;
 	x::RecordTesting::install([](std::string_view name, void *context) {
@@ -110,11 +110,62 @@ void selected_reads(const std::filesystem::path &root) {
 	reads = 0;
 	CHECK(get(late.handle, "t:rev", DETENT_OK) == 3 && reads == 1);
 }
+// The agent's table: an entry per namespace (reader.md D2, A1-A2). A lookup attaches its namespace's
+// entry alone, follows that entry's sequence, and a publish of another namespace refreshes nothing.
+void per_namespace(const std::filesystem::path &root) {
+	const auto store = root / "per-namespace";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":1},"u:all":{"default":1}}})") == 1);
+	CHECK(detent::local::read_generation_selections(store).size() == 2); // entries t and u
+	Opened all(store), only_u(store, {S("u")});
+	CHECK(all.status == DETENT_OK && only_u.status == DETENT_OK);
+	CHECK(get(all.handle, "t:rev", DETENT_OK) == 1 && t::stats(all.handle).attached == 1);
+	CHECK(get(all.handle, "u:all", DETENT_OK) == 1 && t::stats(all.handle).attached == 2);
+	CHECK(get(only_u.handle, "u:all", DETENT_OK) == 1 && get(only_u.handle, "t:rev", DETENT_NOT_OPENED) == -7);
+	// A namespace the table does not list has no generation yet; its first publish attaches it.
+	CHECK(get(all.handle, "v:x", DETENT_UNAVAILABLE) == -7);
+	// A delta to `u` moves u's entry alone: t answers without a refresh, at its own revision.
+	CHECK(writer.publish_delta({"t", "u"}, "u", {{"u:all", 5}}, {}) == 2);
+	const auto before = t::stats(all.handle).publishes;
+	CHECK(get(all.handle, "t:rev", DETENT_OK) == 1 && t::stats(all.handle).publishes == before);
+	CHECK(get(all.handle, "u:all", DETENT_OK) == 5 && t::stats(all.handle).publishes == before + 1);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(all.handle, S("t"), &revision) == DETENT_OK && revision == 1);
+	CHECK(detent_revision(all.handle, S("u"), &revision) == DETENT_OK && revision == 2);
+	CHECK(get(only_u.handle, "u:all", DETENT_OK) == 5);
+	CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:rev":{"default":3},"v:x":{"default":4}}})") == 3);
+	CHECK(get(all.handle, "v:x", DETENT_OK) == 4 && get(all.handle, "t:rev", DETENT_OK) == 3);
+	// A namespace that left the table keeps answering from its last generation; a new handle has none.
+	CHECK(get(all.handle, "u:all", DETENT_OK) == 5);
+	Opened later(store);
+	CHECK(get(later.handle, "u:all", DETENT_UNAVAILABLE) == -7 && get(later.handle, "v:x", DETENT_OK) == 4);
+	// Many namespaces: the open reads `selected` once, and the first lookup attaches one entry from it.
+	const auto wide = root / "per-namespace-wide";
+	detent::testing::GenerationWriter many(wide, detent::testing::GenerationWriter::Layout::PerNamespace);
+	std::string json = R"({"schema_version":1,"knobs":{)";
+	for (int n = 0; n != 64; ++n)
+		json += (n ? "," : "") + std::string("\"n") + std::to_string(n) + R"(:k":{"default":)" + std::to_string(n) + "}";
+	CHECK(many.publish_json(json + "}}") == 1);
+	unsigned reads = 0;
+	x::RecordTesting::install([](std::string_view name, void *context) {
+		if (name == "selected")
+			++*static_cast<unsigned *>(context);
+	}, &reads);
+	struct Reset {
+		~Reset() { x::RecordTesting::install(nullptr, nullptr); }
+	} reset;
+	Opened r(wide);
+	CHECK(r.status == DETENT_OK && get(r.handle, "n37:k", DETENT_OK) == 37);
+	CHECK(reads == 1 && t::stats(r.handle).attached == 1);
+	for (int n = 0; n != 64; ++n)
+		CHECK(get(r.handle, "n" + std::to_string(n) + ":k", DETENT_OK) == n);
+	CHECK(reads == 1 && t::stats(r.handle).attached == 64 && t::stats(r.handle).live_views <= 4);
+}
 // A switch that cannot read the table, as when a publish storm outruns `selected`'s retries, keeps
 // the attached generation answering, stale (D4), until a read succeeds.
 void unreadable_table(const std::filesystem::path &root) {
 	const auto store = root / "unreadable-table";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	Opened r(store);
 	CHECK(r.status == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 1);
@@ -131,11 +182,11 @@ void unreadable_table(const std::filesystem::path &root) {
 // detent_refresh that does not fail (D4), then the next lookup attaches.
 void refresh_memo(const std::filesystem::path &root) {
 	const auto store = root / "refresh-memo";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	Opened r(store);
 	CHECK(r.status == DETENT_OK);
-	const auto selected = x::PreparedReader::selection(store, ::getuid()).descriptor.generation;
+	const auto selected = x::PreparedReader::selection(store, ::getuid(), "t").descriptor.generation;
 	const auto metadata = store / (detent::local::generation_name(selected) + ".read");
 	std::filesystem::rename(metadata, root / "memo-hidden.read");
 	CHECK(get(r.handle, "t:rev", DETENT_UNAVAILABLE) == -7);
@@ -156,7 +207,7 @@ std::string wide_json(int rev) {
 }
 std::filesystem::path wide_store(const std::filesystem::path &root) {
 	const auto store = root / "wide";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(wide_json(1)) == 1);
 	return store;
 }
@@ -242,7 +293,7 @@ void capped(const std::filesystem::path &store) {
 // or not, and returns its mapping charge: with room for one generation, the new one reads whole.
 void retained(const std::filesystem::path &root) {
 	const auto store = root / "retained";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(wide_json(1)) == 1);
 	std::uint64_t whole = 0;
 	{
@@ -286,7 +337,7 @@ void retained(const std::filesystem::path &root) {
 // A refused fork-handler registration fails the open; the next open registers them.
 void atfork_refused(const std::filesystem::path &root) {
 	const auto store = root / "atfork";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	t::refuse_atfork(true);
 	{
@@ -301,7 +352,7 @@ void atfork_refused(const std::filesystem::path &root) {
 // inside detent_open opens its own handle instead of waiting on a lock no thread of it holds.
 void fork_mid_open(const std::filesystem::path &root) {
 	const auto store = root / "fork-open";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	static std::atomic<int> state{0}; // 1 parked, 2 released
 	static thread_local bool armed = false;
@@ -344,7 +395,7 @@ void fork_mid_open(const std::filesystem::path &root) {
 void replaced_change(const std::filesystem::path &root) {
 	const auto store = root / "replaced-change";
 	{
-		detent::testing::GenerationWriter writer(store);
+		detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 		CHECK(writer.publish_json(knobs(1)) == 1);
 	}
 	struct Race {
@@ -371,7 +422,7 @@ void replaced_change(const std::filesystem::path &root) {
 	t::install(nullptr, nullptr);
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1);
 	// The next publisher writes inode B; a reader still mapped to A cannot see its sequence move.
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(2)) == 2);
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
 	std::uint64_t revision = 0;
@@ -379,7 +430,7 @@ void replaced_change(const std::filesystem::path &root) {
 }
 void values(const std::filesystem::path &root) {
 	const auto store = root / "values";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	Opened r(store);
 	CHECK(r.status == DETENT_OK);
@@ -389,7 +440,7 @@ void values(const std::filesystem::path &root) {
 	CHECK(t::stats(r.handle).attached == 1 && t::stats(r.handle).generations == 1);
 	CHECK(get(r.handle, "t:min", DETENT_OK) == INT64_MIN && get(r.handle, "t:max", DETENT_OK) == INT64_MAX);
 	CHECK(get(r.handle, "t:absent", DETENT_MISSING) == -7);
-	CHECK(get(r.handle, "zz:absent", DETENT_MISSING) == -7);
+	CHECK(get(r.handle, "zz:absent", DETENT_UNAVAILABLE) == -7); // a namespace with no entry has no generation
 	CHECK(get(r.handle, "t:flag", DETENT_OK) == 0);
 	for (const auto bad : {"t", "t:", ":rev", "t:rev:x", "t rev", "t:r*v"})
 		CHECK(get(r.handle, bad, DETENT_INVALID_NAME) == -7);
@@ -409,7 +460,8 @@ void values(const std::filesystem::path &root) {
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 1);
 	CHECK(detent_revision(r.handle, S("t:x"), &revision) == DETENT_INVALID_NAME && revision == 0);
 	// Oracle: every knob across hashes and switches matches the prepared reader's view.
-	auto oracle = x::PreparedReader::open(store, ::getuid(), {});
+	auto t_oracle = x::PreparedReader::open(store, ::getuid(), {}, std::nullopt, "t");
+	auto u_oracle = x::PreparedReader::open(store, ::getuid(), {}, std::nullopt, "u");
 	std::size_t compared = 0;
 	for (const auto name : {"t:flag", "t:on", "t:size", "t:rev", "u:ramp", "u:all"})
 		for (int h = -1; h != 200; ++h)
@@ -417,6 +469,7 @@ void values(const std::filesystem::path &root) {
 				const std::string hash = "user" + std::to_string(h);
 				const std::string_view qualified(name);
 				const auto colon = qualified.find(':');
+				const auto &oracle = qualified.starts_with("t:") ? t_oracle : u_oracle;
 				const auto expected =
 				    oracle.view.get(qualified.substr(0, colon), qualified.substr(colon + 1),
 				                    h < 0 ? std::nullopt : std::optional<std::string_view>(hash),
@@ -430,7 +483,7 @@ void values(const std::filesystem::path &root) {
 	CHECK(writer.publish_json(knobs(2)) == 2);
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
-	CHECK(t::stats(r.handle).generations == 1 && t::stats(r.handle).live_views <= 4);
+	CHECK(t::stats(r.handle).generations == 2 && t::stats(r.handle).live_views <= 4); // t and u
 	// detent_refresh pays the switch from the caller's thread; lookups then answer without switching.
 	CHECK(writer.publish_json(knobs(3)) == 3);
 	const auto before = t::stats(r.handle).publishes;
@@ -446,7 +499,7 @@ void values(const std::filesystem::path &root) {
 	CHECK(detent_revision(listed.handle, S("t"), &revision) == DETENT_NOT_OPENED);
 	// A failed switch keeps the installed view (D4): hide the new generation's reader metadata.
 	CHECK(writer.publish_json(knobs(4)) == 4);
-	const auto selected = x::PreparedReader::selection(store, ::getuid()).descriptor.generation;
+	const auto selected = x::PreparedReader::selection(store, ::getuid(), "t").descriptor.generation;
 	const auto metadata = store / (detent::local::generation_name(selected) + ".read");
 	std::filesystem::rename(metadata, root / "hidden.read");
 	CHECK(get(r.handle, "t:rev", DETENT_OK) == 3);
@@ -465,7 +518,7 @@ void values(const std::filesystem::path &root) {
 		int fired = 0;
 	} race{writer, store, root / "raced.read"};
 	auto selected_metadata = [](const std::filesystem::path &at) {
-		const auto generation = x::PreparedReader::selection(at, ::getuid()).descriptor.generation;
+		const auto generation = x::PreparedReader::selection(at, ::getuid(), "t").descriptor.generation;
 		return at / (detent::local::generation_name(generation) + ".read");
 	};
 	CHECK(writer.publish_json(knobs(5)) == 5);
@@ -485,7 +538,7 @@ void values(const std::filesystem::path &root) {
 		    try {
 			    if (race.writer.publish_json(knobs(6)) != 6)
 				    std::abort();
-			    const auto generation = x::PreparedReader::selection(race.store, ::getuid()).descriptor.generation;
+			    const auto generation = x::PreparedReader::selection(race.store, ::getuid(), "t").descriptor.generation;
 			    race.metadata = race.store / (detent::local::generation_name(generation) + ".read");
 			    std::filesystem::rename(race.metadata, race.hidden);
 		    } catch (...) {
@@ -493,14 +546,15 @@ void values(const std::filesystem::path &root) {
 		    }
 	    },
 	    &race);
-	CHECK(get(r.handle, "t:rev", DETENT_OK) == 6 && race.fired == 2);
+	// Attaches: t's failed attempt, t's retry, then u's, whose entry moved with the same publish.
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 6 && race.fired == 3);
 	t::install(nullptr, nullptr);
 	std::filesystem::remove(root / "fifth.read");
-	CHECK(t::stats(r.handle).generations == 1);
+	CHECK(t::stats(r.handle).generations == 2);
 }
 void wrapper(const std::filesystem::path &root) {
 	const auto store = root / "wrapper";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(5)) == 1);
 	detent::Reader reader(store.string(), ::getuid());
 	CHECK(reader.get("t:rev", 0) == 5 && reader.get("t:absent", 9) == 9 && reader.get("bad", 8) == 8);
@@ -554,7 +608,7 @@ void opens(const std::filesystem::path &root) {
 		{
 			// A complete store renamed into place just after a failed try waits for the next one.
 			Opened moved(root / "moved");
-			detent::testing::GenerationWriter staged(root / "staged");
+			detent::testing::GenerationWriter staged(root / "staged", detent::testing::GenerationWriter::Layout::PerNamespace);
 			CHECK(moved.status == DETENT_OK && staged.publish_json(knobs(8)) == 1);
 			std::this_thread::sleep_for(std::chrono::milliseconds(250));
 			CHECK(get(moved.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // tries: no directory
@@ -564,7 +618,7 @@ void opens(const std::filesystem::path &root) {
 			CHECK(get(moved.handle, "t:rev", DETENT_OK) == 8);
 		}
 		{
-			detent::testing::GenerationWriter writer(root / "later");
+			detent::testing::GenerationWriter writer(root / "later", detent::testing::GenerationWriter::Layout::PerNamespace);
 			CHECK(get(empty.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // within 200 ms of the last try
 			std::this_thread::sleep_for(std::chrono::milliseconds(250));
 			CHECK(get(empty.handle, "t:rev", DETENT_UNAVAILABLE) == -7); // change, no generation yet
@@ -586,7 +640,7 @@ void opens(const std::filesystem::path &root) {
 		// D4 rule 5: `selected` without a valid `change` is refused at open.
 		const auto store = root / "nochange";
 		{
-			detent::testing::GenerationWriter writer(store);
+			detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 			writer.publish_json(knobs(1));
 		}
 		::chmod((store / "change").c_str(), 0666);
@@ -608,6 +662,7 @@ int main() {
 	fork_mid_open(root);
 	replaced_selected(root);
 	selected_reads(root);
+	per_namespace(root);
 	unreadable_table(root);
 	refresh_memo(root);
 	replaced_change(root);

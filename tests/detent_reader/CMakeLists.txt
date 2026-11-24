@@ -19,7 +19,13 @@ if(TARGET detent::testing_store)
   # bindings/tests/scenarios.json, the table Python and Rust also run (client-local-source.md D4).
   add_executable(test_reader_scenarios test_reader_scenarios.cc)
   target_link_libraries(test_reader_scenarios PRIVATE detent::reader detent::testing_store)
-  add_test(NAME test_reader_scenarios COMMAND test_reader_scenarios ${PROJECT_SOURCE_DIR}/bindings/tests/scenarios.json)
+  # With the `detent` binary, its `get` reads the same multi-namespace store by value (D148).
+  if(TARGET detent-reader)
+    add_test(NAME test_reader_scenarios COMMAND test_reader_scenarios ${PROJECT_SOURCE_DIR}/bindings/tests/scenarios.json
+             $<TARGET_FILE:detent-reader>)
+  else()
+    add_test(NAME test_reader_scenarios COMMAND test_reader_scenarios ${PROJECT_SOURCE_DIR}/bindings/tests/scenarios.json)
+  endif()
   set_tests_properties(test_reader_scenarios PROPERTIES TIMEOUT 60)
 
   # T1's syscall and allocation checks, on the release library rather than the hooked one.

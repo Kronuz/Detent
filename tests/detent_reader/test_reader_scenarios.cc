@@ -1,10 +1,12 @@
 // The C++ runner of bindings/tests/scenarios.json, the table the Python and Rust tests also run
-// (docs/design/client-local-source.md D4). Usage: test_reader_scenarios scenarios.json
+// (docs/design/client-local-source.md D4). Usage: test_reader_scenarios scenarios.json [DETENT]: with the
+// `detent` binary, its `get` prints each integer row's value over the same store (D148).
 #include "detent/reader.hh"
 #include "detent_testing/generation_writer.hh"
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -12,7 +14,9 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 namespace {
 [[noreturn]] void fail(const std::string &what) { throw std::runtime_error(what); }
@@ -75,11 +79,62 @@ void run(const rapidjson::Value &c, const detent::Reader &reader) {
 		fail("unknown op " + op);
 	}
 }
+// `detent get` of a `get` or `lookup` row, run as a user read of the store with the row's fallback as
+// --default: it prints the row's value, or the fallback for any status but ok.
+bool run_cli(const rapidjson::Value &c, const std::string &detent, const std::filesystem::path &root,
+             const std::vector<std::string> &opened) {
+	const std::string op = c["op"].GetString();
+	if (op != "get" && op != "lookup")
+		return false;
+	const std::string name = c["name"].GetString();
+	// `detent get` opens the name's own namespace, so a row outside the table's list has no CLI twin.
+	const auto colon = name.find(':');
+	if (colon != name.npos && std::find(opened.begin(), opened.end(), name.substr(0, colon)) == opened.end())
+		return false;
+	const auto fallback = std::to_string(c["fallback"].GetInt64());
+	const bool ok = op == "get" || std::string_view(c["status"].GetString()) == "ok";
+	const auto expected = (ok ? std::to_string(c["value"].GetInt64()) : fallback) + "\n";
+	std::vector<std::string> args{detent, "get", name, "--default", fallback, "--config", (root / "agent.json").string(),
+	                              "--generation-dir", (root / "store").string(), "--publisher-user",
+	                              std::to_string(::getuid())};
+	for (const char *flag : {"hash", "switch"})
+		if (const auto value = text(c, flag)) {
+			args.push_back(std::string("--") + flag);
+			args.emplace_back(*value);
+		}
+	int out[2];
+	if (::pipe(out) != 0)
+		fail("pipe");
+	const auto child = ::fork();
+	if (child == 0) {
+		::dup2(out[1], 1);
+		::close(out[0]);
+		::close(out[1]);
+		std::vector<char *> argv;
+		for (auto &arg : args)
+			argv.push_back(arg.data());
+		argv.push_back(nullptr);
+		::execv(argv[0], argv.data());
+		::_exit(127);
+	}
+	::close(out[1]);
+	std::string printed;
+	char buffer[256];
+	for (ssize_t n; (n = ::read(out[0], buffer, sizeof buffer)) > 0;)
+		printed.append(buffer, std::size_t(n));
+	::close(out[0]);
+	int status = 0;
+	::waitpid(child, &status, 0);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0 || printed != expected)
+		fail("detent get " + dump(c) + ": exit " + std::to_string(WIFEXITED(status) ? WEXITSTATUS(status) : -1) +
+		     ", printed '" + printed + "'");
+	return true;
+}
 } // namespace
 
 int main(int argc, char **argv) {
-	if (argc != 2)
-		fail("usage: test_reader_scenarios scenarios.json");
+	if (argc != 2 && argc != 3)
+		fail("usage: test_reader_scenarios scenarios.json [DETENT]");
 	std::ifstream in(argv[1]);
 	std::stringstream contents;
 	contents << in.rdbuf();
@@ -101,8 +156,10 @@ int main(int argc, char **argv) {
 		names.emplace_back(ns.GetString());
 	const std::vector<std::string_view> namespaces(names.begin(), names.end());
 
-	detent::testing::GenerationWriter writer(root / "store");
-	std::size_t checked = 0;
+	// The agent's layout: an entry per namespace (namespace-delivery D8).
+	detent::testing::GenerationWriter writer(root / "store", detent::testing::GenerationWriter::Layout::PerNamespace);
+	std::ofstream(root / "agent.json") << "{}\n";
+	std::size_t checked = 0, cli = 0;
 	std::optional<detent::Reader> reader;
 	for (rapidjson::SizeType publish = 0; publish < doc["publishes"].Size(); ++publish) {
 		writer.publish_json(dump(doc["publishes"][publish]));
@@ -113,10 +170,13 @@ int main(int argc, char **argv) {
 				continue;
 			run(c, *reader);
 			++checked;
+			if (argc == 3 && run_cli(c, argv[2], root, names))
+				++cli;
 		}
 	}
 	if (checked != doc["cases"].Size())
 		fail("a case names a publish that does not exist");
-	std::cout << "ok: " << checked << " scenarios\n";
+	std::cout << "ok: " << checked << " scenarios" << (argc == 3 ? ", detent get on " + std::to_string(cli) : "")
+	          << "\n";
 	return 0;
 }

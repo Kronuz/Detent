@@ -135,6 +135,11 @@
   OK), the staleness alert (`refresh_alert_after`), `on_update`, `max_knobs` and
   enumeration (`read_view()`, `current_snapshot()`); `revision(namespace)` and
   `lookup`'s status are the diagnostics.
+- The reader core reads the agent's table, an entry per namespace: a lookup attaches
+  its namespace's entry on first use and follows that entry's `change` sequence, so a
+  publish in another namespace refreshes nothing. `detent get`, C++, Python and Rust
+  read a store whose agent follows several namespaces. `detent::testing::Store` and
+  the test writer's C face publish an entry per namespace, as the agent does.
 - The Python module is a C extension over `libdetent_reader`, and the Rust crate
   calls the same C ABI; pybind11, `cxx` and `cxx-build` are gone. Both expose
   `Reader(store, publisher_uid, namespaces, mapping_bytes)` with `get`, `get_bool`,
@@ -146,8 +151,8 @@
   only their `detent_*` C symbols (`test_reader_exports`, `test_testing_exports`).
   Static dependencies build position-independent.
 - `detent get` reads through `detent::Reader`, the applications' reader core. It no
-  longer takes `--defaults` (`defaults_path` in `agent.json` and
-  `DETENT_DEFAULTS_PATH` are rejected; use `--default VALUE` for a per-read
+  longer takes `--defaults` (`defaults_path` in `agent.json` is rejected and
+  `DETENT_DEFAULTS_PATH` ignored; use `--default VALUE` for a per-read
   fallback), takes `--reader-mapping-bytes` and refuses the other `--reader-*`
   capacity flags and `--reader-validation full`, which stay `detent-agent --status`'s.
   It reads prepared generations only, and its errors print the reader's status
