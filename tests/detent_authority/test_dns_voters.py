@@ -23,15 +23,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from test_multivoter import (
-    CONTEXT,
-    TOKEN,
-    StartupBindCollision,
-    bind_collisions,
-    request,
-    settled,
-    with_fresh_ports,
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
+
+from test_multivoter import CONTEXT, TOKEN, request, settled
 
 NAMES = ["one", "two", "three"]
 
@@ -39,10 +34,7 @@ NAMES = ["one", "two", "three"]
 def configure(
     certificates: Path, directory: Path, hosts: list[str]
 ) -> tuple[list[int], list[Path]]:
-    reservations = [socket.socket() for _ in range(6)]
-    for reservation in reservations:
-        reservation.bind(("127.0.0.1", 0))
-    ports = [reservation.getsockname()[1] for reservation in reservations]
+    ports = lease_ports(6)
     voters = []
     for index, name in enumerate(NAMES):
         der = ssl.PEM_cert_to_DER_cert((certificates / f"{name}.pem").read_text())
@@ -79,8 +71,6 @@ def configure(
         path.write_text(json.dumps(configuration))
         path.chmod(0o600)
         configurations.append(path)
-    for reservation in reservations:
-        reservation.close()
     return ports, configurations
 
 
@@ -149,10 +139,6 @@ def run(
 
         def health(index: int) -> dict[str, Any] | None:
             if children[index].poll() is not None:
-                if collisions := bind_collisions(dict(enumerate(children)), directory):
-                    raise StartupBindCollision(
-                        f"reserved ports were taken before startup: nodes {collisions}"
-                    )
                 raise AssertionError(f"node {index} exited at startup")
             try:
                 return request(ports[index + 3], context, "/v1/health")[1]
@@ -229,14 +215,12 @@ def main() -> None:
         "names": ["localhost"] * 3,
         "unresolvable": ["localhost", "localhost", "voter-3.invalid"],
     }[scenario]
-    with_fresh_ports(
-        lambda: run(
-            binary,
-            certificates,
-            Path.cwd() / ".scratch" / f"dns-voters-{scenario}-{os.getpid()}",
-            hosts,
-            scenario,
-        )
+    run(
+        binary,
+        certificates,
+        Path.cwd() / ".scratch" / f"dns-voters-{scenario}-{os.getpid()}",
+        hosts,
+        scenario,
     )
     print(f"dns voters {scenario}: passed")
 

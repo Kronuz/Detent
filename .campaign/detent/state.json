@@ -3379,6 +3379,96 @@
       "id": "msg-290",
       "notice": "skill installed f038c7c0e0476ed2e79afe9769e1b360cf1992f8",
       "text": "campaign skill: agent-campaign:f038c7c installed here, 2 commits: agent-campaign:81daa1f reuse: a docs script's folder is code for its command; agent-campaign:f038c7c reuse: only prose is documentation"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T20:14:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T20:14:44",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: evidence-holes landed, awaiting install",
+      "id": "msg-291",
+      "notice": "skill landed fff3dc76a0361c8c4742a1ff64eeadcca06d9ed7",
+      "text": "campaign skill: 3 commits landed on agent-campaign's main, not installed here yet: agent-campaign:1dd2d49 Close two evidence holes: inputs follow named_code, empty runs fail; agent-campaign:277491e Count .mdx and .rst as prose in any folder, .txt also under site/; agent-campaign:fff3dc7 source-layout: fix the test line counts"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T20:14:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T20:14:58",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install noted (agent-campaign:fff3dc7)",
+      "id": "msg-292",
+      "notice": "skill installed fff3dc76a0361c8c4742a1ff64eeadcca06d9ed7",
+      "text": "campaign skill: agent-campaign:fff3dc7 installed here, 3 commits: agent-campaign:1dd2d49 Close two evidence holes: inputs follow named_code, empty runs fail; agent-campaign:277491e Count .mdx and .rst as prose in any folder, .txt also under site/; agent-campaign:fff3dc7 source-layout: fix the test line counts"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T21:17:33",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T21:17:32",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted ci-owns-sanitizers; Detent has no local sanitizer gate",
+      "id": "msg-293",
+      "notice": "skill landed 47778ac9f8ff5e01dabebdef3f4e9a5581ee70dc",
+      "text": "campaign skill: 5 commits landed on agent-campaign's main, not installed here yet: agent-campaign:12494a0 Flag a local sanitizer gate check that CI already builds; agent-campaign:ea5c549 Refuse a CI-owned local sanitizer check in new and set --check; agent-campaign:062aba0 Merge branch 'main' into quest/campaign-v3/ci-owns-sanitizers; agent-campaign:6c13700 Keep the gate paragraph's edit to its sanitizer sentence; agent-campaign:47778ac Prove a ci: check unflagged by adding one, not changing one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T21:45:24",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T21:45:24",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install noted (agent-campaign:47778ac)",
+      "id": "msg-294",
+      "notice": "skill installed 47778ac9f8ff5e01dabebdef3f4e9a5581ee70dc",
+      "text": "campaign skill: agent-campaign:47778ac installed here, 5 commits: agent-campaign:12494a0 Flag a local sanitizer gate check that CI already builds; agent-campaign:ea5c549 Refuse a CI-owned local sanitizer check in new and set --check; agent-campaign:062aba0 Merge branch 'main' into quest/campaign-v3/ci-owns-sanitizers; agent-campaign:6c13700 Keep the gate paragraph's edit to its sanitizer sentence; agent-campaign:47778ac Prove a ci: check unflagged by adding one, not changing one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T22:20:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T22:20:55",
+      "by": "xapiand-lead",
+      "closed": "cancelled the stale duplicate native run bd9af8; legacy-h's next round gives its thread-heavy tests ctest PROCESSORS so -j4 counts them",
+      "id": "msg-295",
+      "text": "From xapiand's lead: host load hit 188 (1-min) at 22:20; the top consumers are your legacy-h light jobs, job 261123-215222-bd9af8's tests/detent_reader/test_reader_switch at 559% CPU and bindings/rust integration at 285% (campaign status: 7.0 cores, 3.5x a light slot, charged 3), with a second legacy-h check native (261123-215328-7c1230) beside it. Light jobs run 4 at once at nice 19 on this host; a test that spawns that many busy threads crowds every other campaign's jobs. Could legacy-h's native check cap its test parallelism (ctest -j / RUST_TEST_THREADS) to its slot?"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T23:57:47",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T23:57:47",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted slow-once landed; awaiting install",
+      "id": "msg-296",
+      "notice": "skill landed 6d5fe2f79829291e4b08ceaf0f7d911bcdd170bd",
+      "text": "campaign skill: 4 commits landed on agent-campaign's main, not installed here yet: agent-campaign:ab80bcf Hold a passed slow gate check while the quest iterates; agent-campaign:fe9d6ef Let reuse win over the slow hold; tests mark the round's end; agent-campaign:a60ef51 Merge branch 'main' into quest/campaign-v3/slow-once; agent-campaign:6d5fe2f source-layout: checks.py line count after the merge from main"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T23:58:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T23:58:06",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "install noted (agent-campaign:6d5fe2f, slow-once)",
+      "id": "msg-297",
+      "notice": "skill installed 6d5fe2f79829291e4b08ceaf0f7d911bcdd170bd",
+      "text": "campaign skill: agent-campaign:6d5fe2f installed here, 4 commits: agent-campaign:ab80bcf Hold a passed slow gate check while the quest iterates; agent-campaign:fe9d6ef Let reuse win over the slow hold; tests mark the round's end; agent-campaign:a60ef51 Merge branch 'main' into quest/campaign-v3/slow-once; agent-campaign:6d5fe2f source-layout: checks.py line count after the merge from main"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5774,7 +5864,26 @@
       "worktree": ""
     },
     "consensus-fetch-alongside-flake": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T23:37:16",
+          "base": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+          "blobs": {
+            "test/transport/groups_test.cc": "100644:880709589cd7a75d18c592b34edd9e16c6f138e3"
+          },
+          "by": "review",
+          "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+          "criteria": "e1acc57e09941f11",
+          "diffs": {
+            "test/transport/groups_test.cc": "205ed6f240b81560"
+          },
+          "findings": {},
+          "note": "",
+          "review": "d9b18e42d9f64f5b6817cdc51e006d5631b242e8",
+          "reviewed": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
       "branch": "quest/detent/consensus-fetch-alongside-flake",
@@ -5799,7 +5908,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "messages": [
         {
           "announced": {
@@ -5819,9 +5930,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T15:14:53",
+      "updated": "2026-11-23T23:37:16",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
@@ -6317,6 +6428,38 @@
       "updated": "2026-11-20T04:10:24",
       "worktree": ""
     },
+    "consensus-inline-sync-loop": {
+      "accepted": {},
+      "after": [
+        "consensus-fetch-alongside-flake",
+        "consensus-rpc-host-stream-gap"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "DRIVER.md",
+        "docs/mechanisms/**",
+        "test/transport/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
+      "updated": "2026-11-23T19:57:28"
+    },
     "consensus-install-test-faultfs": {
       "accepted": {},
       "after": [],
@@ -6700,6 +6843,35 @@
       "title": "A leader proposes a leaving member's removal only from an event that reserved its append",
       "updated": "2026-11-21T11:04:12",
       "worktree": ""
+    },
+    "consensus-liveness-asan-timeout": {
+      "accepted": {},
+      "after": [
+        "consensus-simulation-asan-timeout"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/liveness_test.cc",
+        "docs/mechanisms/liveness*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus_liveness stays well inside its timeout under ASan",
+      "updated": "2026-11-23T20:00:52"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -7595,7 +7767,30 @@
       "worktree": ""
     },
     "consensus-simulation-asan-timeout": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T23:29:26",
+          "base": "c177c88d086f4000c1ad0c053faed38b97c769d1",
+          "blobs": {
+            "docs/mechanisms/simulation.md": "100644:3a36844bd1e8739b127625a3d6c3039118f8623d",
+            "test/driver_simulation.cc": "100644:7b7f322d32b32d2299601a2cabbaf1fdea5fb185",
+            "test/simulation_test.cc": "100644:8128d9254606b9ca9cf1532bfbc1d3f0f98098b0"
+          },
+          "by": "review",
+          "commit": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "criteria": "2364cf33e9c2dd42",
+          "diffs": {
+            "docs/mechanisms/simulation.md": "5ec08671b1c413e6",
+            "test/driver_simulation.cc": "1ed0751bdc7197eb",
+            "test/simulation_test.cc": "c4ef58d1634d53fb"
+          },
+          "findings": {},
+          "note": "",
+          "review": "029f164f296890d08784e7953bf0957037112659",
+          "reviewed": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
       "branch": "quest/detent/consensus-simulation-asan-timeout",
@@ -7621,15 +7816,17 @@
       ],
       "journal": "../Detent-wt/detent/consensus-simulation-asan-timeout",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "consensus_simulation stays well inside its timeout under ASan",
-      "updated": "2026-11-23T11:03:23",
+      "updated": "2026-11-23T23:29:26",
       "worktree": "../consensus-wt/detent/consensus-simulation-asan-timeout"
     },
     "consensus-transport": {
@@ -18178,7 +18375,9 @@
         "src/detent_local/generation.cc",
         "src/detent_local/generation_file_access.hh",
         "tests/detent_testing/test_generation_writer.cc",
-        "tests/docs/**"
+        "tests/docs/**",
+        "src/detent_local/agent_store.cc",
+        "tests/detent_local/test_agent_store*.cc"
       ],
       "history": [
         {
@@ -18284,11 +18483,12 @@
         "detent-rust",
         "detent-get-cli"
       ],
+      "reason": "correctness review round 2 F1: the agent names a new slot in selected before growing change; the cause is in agent_store.cc",
       "repo": ".",
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T18:12:52",
+      "updated": "2026-11-24T00:26:58",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
@@ -28123,6 +28323,38 @@
       "title": "detent-relay's mirror waits for upstream change instead of polling",
       "updated": "2026-11-23T16:53:54"
     },
+    "relay-service-refused-sync-flake": {
+      "accepted": {},
+      "after": [
+        "system-failover-port-reuse",
+        "relay-mirror-idle-wake"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_relay/test_relay_service.py",
+        "src/detent_relay/mirror_service.cc",
+        "src/detent_authority/history*.cc",
+        "docs/mechanisms/relay-mirror*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "test_relay_service: relay C never counts a sync failure on a source that refused",
+      "updated": "2026-11-23T23:48:01"
+    },
     "relay-snapshot-lifecycle": {
       "accepted": {},
       "after": [],
@@ -30226,17 +30458,52 @@
         "tests/support/**",
         "tests/detent_system/managed.py"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T23:59:12",
+          "ci": {
+            "carried": true,
+            "commit": "3983c4bc3af2aabcdb4f29fd6be5d2eef24d5d3a",
+            "runs": [
+              45335508357
+            ]
+          },
+          "commit": "870c232e8dac3a67b78f7347209bf92cf17f706f",
+          "criteria": {
+            "A1": "261123-235048-cba065, 261123-235049-42ec34, 261123-235049-a3868b, 261123-235050-0d76ad, 261123-235050-f12474, 261123-235051-1b5a43, 261123-235051-a451fc; fails without: 261122-215002-2b7198, 261123-110507-e20eab",
+            "A2": "261123-214459-12724c (passed at 7118c8c36d0b; only 1 merge from main since, none touching its files)",
+            "A3": "261123-214456-71425f (passed at 7118c8c36d0b; only 1 merge from main since, none touching its files); fails without: 261123-100834-000cbb"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "31b34432238a1587923ea14ceb8c713756b46bd1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-214459-12724c",
+              "level": "light",
+              "seconds": 712.3,
+              "state": "done",
+              "what": "system-failover-port-reuse check suite at 31b34432238a"
+            }
+          ],
+          "final": true,
+          "from": "b9cdafdf1d78ca1de5e98247e58c463d64faba92",
+          "reason": "",
+          "tested": "b382266984a0b2c5f3a402180fc7ac6de7624a72"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-23T10:15:54",
-      "worktree": "../Detent-wt/detent/system-failover-port-reuse"
+      "updated": "2026-11-23T23:59:20",
+      "worktree": ""
     },
     "task-cancellation": {
       "accepted": {},

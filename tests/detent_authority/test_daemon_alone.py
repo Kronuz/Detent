@@ -12,12 +12,14 @@ import os
 import re
 import shutil
 import signal
-import socket
 import ssl
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
 
 
 def main() -> None:
@@ -25,10 +27,7 @@ def main() -> None:
     certificates = Path(sys.argv[2]).resolve()
     directory = Path.cwd() / ".scratch" / f"authority-alone-{os.getpid()}"
     directory.mkdir(parents=True)
-    reservations = [socket.socket() for _ in range(4)]
-    for reservation in reservations:
-        reservation.bind(("127.0.0.1", 0))
-    ports = [reservation.getsockname()[1] for reservation in reservations]
+    ports = lease_ports(4)
     voters = []
     for index, name in enumerate(["one", "two", "three"]):
         der = ssl.PEM_cert_to_DER_cert((certificates / f"{name}.pem").read_text())
@@ -65,8 +64,6 @@ def main() -> None:
     path = directory / "node.json"
     path.write_text(json.dumps(configuration))
     path.chmod(0o600)
-    for reservation in reservations:
-        reservation.close()
     common = [
         str(binary),
         "--authority",

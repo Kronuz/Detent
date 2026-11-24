@@ -27,8 +27,10 @@ from types import SimpleNamespace
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
 
 from authority import Authority
+from ports import lease_ports
 
 HEALTH = {"sessions": 0}
 
@@ -82,10 +84,10 @@ def has_ipv6() -> bool:
     return True
 
 
-def serve(certificates: Path) -> http.server.ThreadingHTTPServer:
+def serve(certificates: Path, port: int = 0) -> http.server.ThreadingHTTPServer:
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     tls.load_cert_chain(str(certificates / "one.pem"), str(certificates / "one.key"))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.socket = tls.wrap_socket(server.socket, server_side=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
@@ -102,8 +104,10 @@ def exchange(certificates: Path, port: int) -> tuple[int, dict[str, Any]]:
 
 
 def squatted(certificates: Path) -> None:
-    server = serve(certificates)
-    port = int(server.server_address[1])
+    [port] = lease_ports(
+        1, "::"
+    )  # free on both families: the echo takes [::1] beside the server
+    server = serve(certificates, port)
     echo = Echo(port)
     try:
         for _ in range(20):
