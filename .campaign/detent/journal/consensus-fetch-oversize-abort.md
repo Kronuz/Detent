@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: waiting on jobs 261124-123054-1bea5f 261124-123059-eda87c 261124-123104-84309d 261124-123112-1fc948, CI 45481678940, suite probe 45481730112
+State: ready for review (waiting on suite 261124-134701-6d9c49 and suite probe 45481730112)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -128,20 +128,25 @@ as the heartbeat-gap failures. It does not reproduce on this host. Options:
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | Cause: suite probe run 45453078372 (macos-15-intel shard 2, job 138655125896): host 2's connection loop 5,221 ms in U inside __sendto, links ended dead 2 / failed 2 (Doing). Test: 261124-123059-eda87c (fetch-dead x20 at ea48bc8); fails without: 261124-123054-1bea5f (mutant 536024a, fetch not asked again) |
+| A2 | 261124-123104-84309d (fetch x200 beside 4 burners, light, at ea48bc8) |
+| A3 | [artifact] docs/mechanisms/rpc-lane.md, fetch bullet (the oversize refusal is a Cancel of that call alone, other calls go on; a fetch whose connection ends is asked again) and the `fetch` row (fetch-dead) at consensus:22dcba4 |
+| A4 | CI 45481678940 green at ea48bc8 (macos-x86_64 included); suite 261124-134701-6d9c49 pending (261124-123112-1fc948 hit its 30 min deadline under load 60: invalid, rerun by the lead) |
+
+Other runs examined: pairing probe 45449779597 (100 rounds, 0 failures); suite probe 45481730112
+at 1427d38 (fix + probe) pending.
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+A fetch whose connection ends under it is asked once more on the next connection
+(consensus:22dcba4, ea48bc8; d659f76 counts link ends dead/stuck/failed). Cause and evidence in
+Doing; docs/mechanisms/rpc-lane.md. Open: the macOS kernel's 5 s uninterruptible sendto itself
+(groups-upload-loop-stall's class); capping TLS records below 16 KB is an unmeasured option.
+Cleanup after landing: the probe branch probe/detent/fetch-stall and its worktree
+~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the local branch
+mutant/fetch-not-asked-again.
 
 ## Rulings I made
 
