@@ -4672,6 +4672,21 @@
         "todo": "3693eb89"
       },
       "text": "to do, critical path first:\ntodo: start split-journal (launchable; new): `campaign start split-journal`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:30:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:30:32",
+      "by": "campaign",
+      "closed": "review launches once the contributor drops the holdable() guard (in progress), so it sees final code",
+      "id": "msg-374",
+      "settles": {
+        "todo": "12459201"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-next-deadline-removal (its journal says ready for review; then launch its correctness review; new): `campaign set consensus-next-deadline-removal status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
