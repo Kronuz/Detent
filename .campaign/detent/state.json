@@ -30313,7 +30313,7 @@
     "relay-mirror-idle-wake": {
       "accepted": {},
       "after": [
-        "loop-idle-waits"
+        "split-detent"
       ],
       "base": "b3bfc1c7655da0c40315033800eddc7a53c83318",
       "branch": "quest/detent/relay-mirror-idle-wake",
@@ -30347,12 +30347,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "the relay's parked next makes the authority's service.cc:3337 loop turn every 1 ms (authority idle CPU 1.5% -> 5.2% of a core): this quest's regression, fixed here",
+      "reason": "both write src/detent_authority/service.cc (relay-mirror's widening overlapped split-detent's src/detent_authority/**); the split lands first, relay-mirror merges and edits the split file",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T10:29:42",
+      "updated": "2026-11-24T10:44:34",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
