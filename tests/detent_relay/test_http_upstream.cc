@@ -10,6 +10,8 @@
 // chain: relay B mirrors relay A over HTTPS, reading A's base several ranges long in ranges, byte for
 // byte; A answers a range from its offset, fewer bytes at the file's end. A's mirror answers late
 // (each sync pauses), so a range not lost to a timeout proves the answer woke A's owner.
+// idle: relay B waits on A for a change instead of polling: no sync between deadlines at rest, a
+// change wakes it, and A's stop and return go through the backoff (relay-mirror-idle-wake A3).
 //
 //    test_http_upstream CERTIFICATES
 #include "detent/owner_loop.hh"
@@ -423,10 +425,32 @@ void backoff(const std::filesystem::path &root) {
 			  << std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started).count()
 			  << " ms (bound " << bound_calls << "), error \"" << status.error << "\"\n";
 }
-// A voter's history for the chain: one namespace, a base of `keys` real records.
+// A voter's history for the chain: one namespace, a base of `keys` real records; publish() seals a
+// base one record longer, the change a mirror reading it adopts.
 class Voter final : public r::Upstream {
   public:
-	explicit Voter(std::size_t keys) {
+	explicit Voter(std::size_t keys) { rebase(keys); }
+	r::MirrorTable layouts(std::span<const std::string>) override {
+		std::this_thread::sleep_for(std::chrono::milliseconds(sync_ms.load()));
+		std::lock_guard lock(mutex_);
+		return {0, seal_, {{"ns", identity('i'), seal_, seal_, current_.last, "policy-1", {current_}}}};
+	}
+	std::string fetch(std::string_view, const r::MirrorFile &) override {
+		std::lock_guard lock(mutex_);
+		return held_;
+	}
+	std::string frames(std::span<const r::Position>) override { return d::encode_session_frames(std::nullopt, {}); }
+	void publish() {
+		std::lock_guard lock(mutex_);
+		rebase(current_.last + 1);
+		++seal_;
+	}
+	std::string bytes; // the first base's
+	r::MirrorFile file;
+	std::atomic<std::chrono::milliseconds::rep> sync_ms{0}; // each sync's pause on the mirror thread
+
+  private:
+	void rebase(std::size_t keys) {
 		namespace h = detent::authority::history;
 		h::Block base{"ns", identity('i'), 0, keys, {}};
 		for (std::size_t i = 0; i < keys; ++i) {
@@ -435,18 +459,17 @@ class Voter final : public r::Upstream {
 			const detent::KnobDef definition{std::int64_t(i)};
 			base.changes.push_back({key, i + 1, detent::authority::encode_definition(definition)});
 		}
-		bytes = h::encode_base(base);
-		file = {r::MirrorFile::Kind::Base, "base-ns-" + std::to_string(keys), 0, keys, bytes.size(), sha(bytes)};
+		held_ = h::encode_base(base);
+		current_ = {r::MirrorFile::Kind::Base, "base-ns-" + std::to_string(keys), 0, keys, held_.size(), sha(held_)};
+		if (bytes.empty()) {
+			bytes = held_;
+			file = current_;
+		}
 	}
-	r::MirrorTable layouts(std::span<const std::string>) override {
-		std::this_thread::sleep_for(std::chrono::milliseconds(sync_ms.load()));
-		return {0, 2, {{"ns", identity('i'), 2, 2, file.last, "policy-1", {file}}}};
-	}
-	std::string fetch(std::string_view, const r::MirrorFile &) override { return bytes; }
-	std::string frames(std::span<const r::Position>) override { return d::encode_session_frames(std::nullopt, {}); }
-	std::string bytes;
-	r::MirrorFile file;
-	std::atomic<std::chrono::milliseconds::rep> sync_ms{0}; // each sync's pause on the mirror thread
+	std::mutex mutex_;
+	std::uint64_t seal_ = 2;
+	std::string held_;
+	r::MirrorFile current_;
 };
 
 // Relay A as the relay host runs it: its mirror of the voter behind ServiceRuntime and the HTTPS
@@ -455,7 +478,8 @@ class Voter final : public r::Upstream {
 // Slow syncs hold each answer on the mirror thread past the owner's round, so only its wake ends it.
 class RelayA {
   public:
-	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys) : voter_(new Voter(keys)) {
+	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys, std::uint16_t port = 0)
+		: voter_(new Voter(keys)) {
 		bytes = voter_->bytes;
 		file = voter_->file;
 		prepare(root);
@@ -487,7 +511,7 @@ class RelayA {
 		http::AsioBindOptions bind;
 		bind.address = "127.0.0.1";
 		listener_->set_bind_options(bind);
-		listener_->start(0);
+		listener_->start(port);
 		turn_ = [this] {
 			if (owner_.wake().begin_turn() || round_)
 				runtime_->rescan();
@@ -534,6 +558,7 @@ class RelayA {
 	std::uint16_t port() const { return listener_->port(); }
 	r::MirrorStatus status() const { return mirror_->status(); }
 	void slow_syncs(std::chrono::milliseconds pause) { voter_->sync_ms.store(pause.count()); }
+	void publish() { voter_->publish(); }
 	static constexpr std::string_view token = "0123456789abcdef0123456789abcdef";
 	std::string bytes;
 	r::MirrorFile file;
@@ -599,6 +624,71 @@ void chain(Fixture &f, const std::filesystem::path &root) {
 	check(slurp(root / "b" / r::mirror_file_name(a.file.name)) == a.bytes);
 	std::cout << "chain: B mirrored A's " << a.file.size << "-byte base in ranges of " << range << "\n";
 }
+// idle: relay B waits on A's parked next and syncs only when something changed or its wait's
+// deadline passed. Idle, it makes no sync between deadlines, where polling every 10 ms makes ~150;
+// A's change wakes it at once; with A gone it fails with the backoff, and syncs again when A returns.
+void idle(Fixture &f, const std::filesystem::path &root) {
+	constexpr auto deadline = 4000ms;
+	auto a = std::make_unique<RelayA>(f, root / "a", 200);
+	until([&] { return a->status().ready; }, "relay A's first sync");
+	const auto port = a->port();
+	r::HttpUpstreamOptions upstream;
+	upstream.endpoints.emplace_back(asio::ip::address_v4::loopback(), port);
+	upstream.hostname = "localhost";
+	upstream.token = std::string(RelayA::token);
+	upstream.tls = f.client;
+	upstream.timeout = 2000ms;
+	prepare(root / "b");
+	r::MirrorServiceOptions options;
+	options.directory = root / "b";
+	options.cluster = identity('c');
+	options.namespaces = {"ns"};
+	options.interval = 10ms;
+	options.reconnect_maximum = 400ms;
+	options.maximum_wait_ms = deadline.count();
+	r::MirrorService b(options, std::make_unique<r::HttpUpstream>(upstream),
+					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+	until([&] { return b.status().ready; }, "relay B's first sync");
+	// Idle: between deadlines B syncs nothing (one allowed, should its first deadline fall inside).
+	const auto rested = b.status().syncs;
+	std::this_thread::sleep_for(1500ms);
+	const auto idle_syncs = b.status().syncs - rested;
+	std::cout << "idle: B synced " << idle_syncs << " times in 1.5 s at rest (interval 10 ms, deadline 4 s)\n";
+	check(idle_syncs <= 1);
+	// A change wakes B well before its deadline: it fetches A's new base.
+	const auto fetched = b.status().fetched_files;
+	const auto changed = Clock::now();
+	a->publish();
+	until([&] { return b.status().fetched_files > fetched; }, "relay B adopting A's change");
+	const auto woke = Clock::now() - changed;
+	std::cout << "idle: A's change reached B in " << std::chrono::duration_cast<std::chrono::milliseconds>(woke).count()
+			  << " ms\n";
+	check(woke < 1500ms);
+	// With nothing changing, B's next sync is its deadline's.
+	const auto settled = b.status().syncs;
+	const auto quiet = Clock::now();
+	until([&] { return b.status().syncs > settled; }, "relay B's deadline sync");
+	const auto waited = Clock::now() - quiet;
+	std::cout << "idle: the next sync came after " << std::chrono::duration_cast<std::chrono::milliseconds>(waited).count()
+			  << " ms\n";
+	check(waited >= deadline - 1500ms && waited < deadline + 2000ms);
+	// A stops: B's wait fails, and B's syncs fail with the backoff (10 ms doubling to 400 ms) rather than
+	// every interval; A returns on its port and B syncs from it again.
+	const auto failures = b.status().sync_failures;
+	const auto stopped = Clock::now();
+	a.reset();
+	std::this_thread::sleep_for(1500ms);
+	const auto down = b.status();
+	const auto gone = Clock::now() - stopped;
+	const auto failed = down.sync_failures - failures;
+	std::cout << "idle: A down " << std::chrono::duration_cast<std::chrono::milliseconds>(gone).count() << " ms, B failed "
+			  << failed << " syncs: \"" << down.error << "\"\n";
+	// 20 + 40 + ... + 320 ms, then one per 400 ms.
+	check(failed >= 2 && failed <= std::uint64_t(gone / 400ms) + 6);
+	a = std::make_unique<RelayA>(f, root / "a", 200, port);
+	const auto back = b.status().syncs;
+	until([&] { return b.status().syncs > back && b.status().error.empty(); }, "relay B syncing from A again");
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -611,6 +701,7 @@ int main(int argc, char **argv) {
 		resume(f);
 		backoff(scratch / "backoff");
 		chain(f, scratch / "chain");
+		idle(f, scratch / "idle");
 		if (f.server->failure)
 			std::rethrow_exception(f.server->failure);
 		std::filesystem::remove_all(scratch);
