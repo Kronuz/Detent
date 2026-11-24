@@ -58,10 +58,11 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Rows at 3f0a5b59, exclusive, forced (campaign reuse bug, lead's msg), one mode per job:
-   261123-165617-0de0e5, -165620-51800c, -165624-e3b117, -165628-f15efc, -165631-3bc1e4, -165634-7ba37a, -165638-b3fd52, -165643-4f1b40, -165646-b31273, -165649-7c0f14, -165653-3ebe6a, -165656-0c6a5e (100K/1M, after adf267), -165700-7beee0, -165703-83f18d (5M warm, cold, after 3cde33). 5M gated by light probe 261123-165613-3cde33 (old fixture, fixed code).
-2. When the rows finish: tabulate, commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
-   for the mirror relay with the bundle-relay rows at 3a57661b as the before, then ready for review.
+1. Suite 261124-084506-9cfdb6 and harness probe 261124-084513-df11ea at the merged head 794fe37f
+   (light; the probe checks boot.py still runs with main's ManagedCohort changes, not a row). When
+   both pass: set "ready for review", push (Kronuz token).
+2. Deferred, the lead decides: nothing needs a rerun (src, include, cmake untouched by the merge).
+   Optional new row: two agents against one warm relay (does the relay keep its page builds?).
 
 ## Blocked on
 
@@ -75,18 +76,22 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261123-165617-0de0e5, -165620-51800c, -165624-e3b117, -165628-f15efc, -165631-3bc1e4, -165634-7ba37a, -165638-b3fd52, -165643-4f1b40, -165646-b31273, -165649-7c0f14, -165653-3ebe6a, -165656-0c6a5e (100K/1M, after adf267), -165700-7beee0, -165703-83f18d (5M warm, cold, after 3cde33) (exclusive at 3f0a5b59, forced) |
-| A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
-| Suite | 261120-144425-4edf28 (exit 0 at 131bde6); CI run 44831410902 at 131bde6, all jobs green incl. macos-arm64 (D57); later commits are docs-only, paths-ignored by CI |
+| A1 | 261123-165617-0de0e5, 261123-165620-51800c, 261123-165624-e3b117, 261123-165628-f15efc, 261123-165631-3bc1e4, 261123-165634-7ba37a, 261123-165638-b3fd52, 261123-165643-4f1b40, 261123-165646-b31273, 261123-165649-7c0f14, 261123-165653-3ebe6a, 261123-165656-0c6a5e, 261123-165700-7beee0, 261123-165703-83f18d (exclusive at 3f0a5b59, no "ran beside"); probe 261123-165613-3cde33, 261123-164928-adf267 |
+| A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-3f0a5b59.jsonl (before: rows-3a57661b.jsonl) |
+| Suite | 261124-084506-9cfdb6 at the merged head 794fe37f (pending) |
 
 ## Result
 
-docs/perf/warm-relay-agent-boot.md. Warm-relay agent bootstrap, medians: 0.57 s (100K, 3 rounds),
-3.92 s (1M, 3), 19.22 s (5M, 1 per D85); relay-plus-agent cold total 3.93 / 33.51 / 162.78 s, so
-the agent is 15% / 12% / 12% of it (cold-bootstrap-5m.md estimated 32-38%). Cold total minus relay
-ready equals the warm agent time at every size. Agent CPU 0.31 / 2.88 / 14.40 s (about 2.9 us per
-record, same in both arms); 11 / 53 / 243 files, 4 device flushes; 0.22 / 2.0 / 10.0 MB in.
-Open: fetch vs decode vs build are one span (the agent logs no mark between them).
+docs/perf/warm-relay-agent-boot.md (mirror relay at 3f0a5b59; before = bundle relay at 3a57661b).
+Warm agent medians 0.58 s (100K, 3 rounds), 3.12 s (1M, 3), 15.43 s (5M, 1 per D85); relay-plus-
+agent cold totals 1.93 / 5.30 / 30.46 s, so the agent is 30% / 59% / 51% of it (14% / 12% / 11% on
+the bundle relay). Against the before: cold total -49% / -84% / -81% (ranges disjoint at 100K, far
+apart at 1M and 5M); warm agent +9% at 100K (inside the noise, the before had a 0.83 s run), -16%
+at 1M, -13% at 5M (one round each, about 15%, not precise). Agent CPU halves (0.16 / 1.29 / 6.69 s)
+because it no longer builds. The cost moved to the relay: CPU during the warm agent 0.39 / 3.26 /
+16.11 s (was 0.01 / 0.07 / 0.40), peak RSS 46 / 315 / 1,067 MiB (was 26 / 181 / 878); at 5M the
+agent waits 9.5 s after its first publication for the relay's serial page builds (read from logs,
+not profiled). Open: second-agent cost on one relay (unmeasured).
 
 ## Rulings I made
 
