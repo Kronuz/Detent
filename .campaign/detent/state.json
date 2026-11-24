@@ -5838,7 +5838,26 @@
       "worktree": ""
     },
     "consensus-fetch-alongside-flake": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-23T23:37:16",
+          "base": "3aa135546ddf527f0e9274636b75d0f70cf10348",
+          "blobs": {
+            "test/transport/groups_test.cc": "100644:880709589cd7a75d18c592b34edd9e16c6f138e3"
+          },
+          "by": "review",
+          "commit": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+          "criteria": "e1acc57e09941f11",
+          "diffs": {
+            "test/transport/groups_test.cc": "205ed6f240b81560"
+          },
+          "findings": {},
+          "note": "",
+          "review": "d9b18e42d9f64f5b6817cdc51e006d5631b242e8",
+          "reviewed": "4dbaee01388321e91e845ca9927477cf71f11a8d",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "531b655cf337a49e328b470aaa5c5955b3a07262",
       "branch": "quest/detent/consensus-fetch-alongside-flake",
@@ -5863,7 +5882,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-alongside-flake",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "messages": [
         {
           "announced": {
@@ -5885,7 +5906,7 @@
       "risk": "normal",
       "status": "review",
       "title": "fetch-alongside-consensus passes on slow macOS runners, or names the defect",
-      "updated": "2026-11-23T19:57:36",
+      "updated": "2026-11-23T23:37:16",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-flake"
     },
     "consensus-fetch-lane": {
