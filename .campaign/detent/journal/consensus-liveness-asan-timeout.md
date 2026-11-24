@@ -54,7 +54,7 @@ Nothing.
 | A1 | 261124-123229-68cd34 (passed at e0fd383: old instrumented run over the alarm at 400 s, recorded as a result; supersedes 261124-114019-068816, which failed on the harness regex bug and printed the table: FreeBSD 13.45x, Linux 5.04x, arm64 7.38x the default events); table: 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; FreeBSD 14.2x the default's events; main's test file is unchanged) |
 | A2 | 261124-113944-9df262 (exclusive A/B at e0fd383); earlier 261124-072638-7efa59 (c4c70f8: ASan 129.7 -> 64.8 s); CI linux-asan-ubsan 40.79 s (0.284 of consensus_shared_worker; main 0.590-0.728); --fails-without at main 261124-051846-6e6be3 (plain ASan 132.5 s > 90 s) |
 | A3 | 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 (at e0fd383; earlier at c4c70f8: 261124-072640-a63185, 072642-7d4f31, 072644-b5fbdb, 072646-006a62) |
-| A4 | ci:ci green on every job, run 45472511590 at e0fd383 |
+| A4 | `ci:ci` (run 45472511590 at e0fd383, green on every job) |
 
 Jobs examined and set aside: 261124-040934-6f74ca (hit its own alarm), 261124-040939-f3dbf8 and
 261124-040943-062bfb/-6ef39b/040951-86f5e6 (scaled windows, withdrawn: they showed the lost
