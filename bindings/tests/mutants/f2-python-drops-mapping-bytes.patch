@@ -1,0 +1,13 @@
+diff --git a/bindings/python/detent_python.cc b/bindings/python/detent_python.cc
+index b9bb488b..1fac0218 100644
+--- a/bindings/python/detent_python.cc
++++ b/bindings/python/detent_python.cc
+@@ -192,7 +192,7 @@ PyObject *reader_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
+                                 names.data(),
+                                 names.size(),
+                                 static_cast<std::uint32_t>(uid),
+-                                mapping_bytes};
++                                0};
+     detent_reader *handle = nullptr;
+     detent_status status;
+     Py_BEGIN_ALLOW_THREADS

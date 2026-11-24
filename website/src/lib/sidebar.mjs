@@ -25,7 +25,6 @@ export const sidebar = [
 			overview('/guides'),
 			...pages(
 				'guides/cpp-application',
-				'guides/live-updates',
 				'guides/shell-and-agent',
 				'guides/kill-switches',
 				'guides/testing',
@@ -43,7 +42,7 @@ export const sidebar = [
 			...pages('reference/knobs', 'reference/snapshot-format', 'reference/evaluation', 'reference/errors'),
 			group('C++ API', [
 				overview('/reference/cpp-api'),
-				...pages('reference/cpp-api/client', 'reference/cpp-api/sources', 'reference/cpp-api/global-and-testing'),
+				...pages('reference/cpp-api/reader'),
 			]),
 			group('Bindings', [overview('/reference/bindings'), ...pages('reference/bindings/python', 'reference/bindings/rust')]),
 			group('Command Line', [
