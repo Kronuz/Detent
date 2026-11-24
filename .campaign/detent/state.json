@@ -30337,7 +30337,8 @@
         "tests/detent_relay/**",
         "bench/idle-wakeups/**",
         "docs/mechanisms/relay-mirror*.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "src/detent_authority/service.cc"
       ],
       "landed": [],
       "lenses": [
@@ -30346,12 +30347,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
+      "reason": "the relay's parked next makes the authority's service.cc:3337 loop turn every 1 ms (authority idle CPU 1.5% -> 5.2% of a core): this quest's regression, fixed here",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T03:50:56",
+      "updated": "2026-11-24T10:29:42",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
