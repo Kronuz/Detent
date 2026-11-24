@@ -35,7 +35,7 @@ jobs:
         working-directory: website
       - name: Install D2 (build-time diagram renderer)
         # ```d2 fences render to SVG at build time by shelling out to the d2 CLI
-        # (see website/src/lib/renderD2.mjs); without it those pages build empty.
+        # through starlight-core; without it those pages build empty.
         run: |
           mkdir -p .scratch/d2
           curl --fail --location --retry 3 --output .scratch/d2/release.tar.gz \
