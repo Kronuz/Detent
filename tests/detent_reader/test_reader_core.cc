@@ -361,6 +361,38 @@ void unreadable_table(const std::filesystem::path &root) {
 	std::filesystem::rename(store / "held-selected", store / "selected");
 	CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle, "t:rev", DETENT_OK) == 2);
 }
+// A damaged page of `selected` fails the namespaces it holds; those on other pages keep reading.
+void damaged_page(const std::filesystem::path &root) {
+	const auto store = root / "damaged-page";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	std::vector<std::pair<std::string, std::int64_t>> all;
+	const auto name = [](int i) { return "n" + std::string(i < 10 ? "00" : "0") + std::to_string(i); };
+	for (int i = 0; i != 100; ++i)
+		all.emplace_back(name(i) + ":k", i);
+	CHECK(writer.publish_json(knob_json(all)) == 1);
+	std::ifstream in(store / "selected", std::ios::binary);
+	std::string bytes{std::istreambuf_iterator<char>(in), {}};
+	in.close();
+	// The last byte of n060's `.read` digest: its page (the third) still decodes.
+	const auto at = bytes.rfind(name(60)) - 1;
+	CHECK(bytes[at] == 4);
+	bytes[at + detent::local::table_entry_bytes(4) - 1] ^= 1;
+	struct stat info{};
+	CHECK(::stat((store / "selected").c_str(), &info) == 0);
+	const auto temp = store / ".tmp-test-table";
+	const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	CHECK(fd >= 0 && ::write(fd, bytes.data(), bytes.size()) == ssize_t(bytes.size()) &&
+	      ::fchmod(fd, info.st_mode & 07777) == 0);
+	::close(fd);
+	std::filesystem::rename(temp, store / "selected");
+	Opened r(store);
+	CHECK(r.status == DETENT_OK);
+	CHECK(get(r.handle, "n001:k", DETENT_OK) == 1 && get(r.handle, "n099:k", DETENT_OK) == 99);
+	CHECK(get(r.handle, "n030:k", DETENT_OK) == 30);
+	// The first attach that fails is remembered for the store word (D4); attached namespaces keep answering.
+	CHECK(get(r.handle, "n060:k", DETENT_SOURCE_FAILURE) == -7 && get(r.handle, "n059:k", DETENT_SOURCE_FAILURE) == -7);
+	CHECK(get(r.handle, "n001:k", DETENT_OK) == 1 && get(r.handle, "n030:k", DETENT_OK) == 30);
+}
 // A failure remembered by a namespace's first attach lasts until the store word moves or a
 // detent_refresh that does not fail (D4), then the next lookup attaches.
 void refresh_memo(const std::filesystem::path &root) {
@@ -852,6 +884,7 @@ int main() {
 	slot_reused(root);
 	readd_same_generation(root);
 	unreadable_table(root);
+	damaged_page(root);
 	refresh_memo(root);
 	replaced_change(root);
 	const auto wide = wide_store(root);

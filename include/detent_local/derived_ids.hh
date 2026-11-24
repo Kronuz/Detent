@@ -10,7 +10,7 @@
 // Every generation and segment id (docs/design/namespace-delivery.md D8.1, D8.2), derived from what
 // was built and from no storage identity, so two builds of one input on any host name the same files.
 namespace detent::local {
-inline constexpr std::uint32_t agent_store_layout = 2;
+inline constexpr std::uint32_t agent_store_layout = 3;
 // SHA-256 over a domain, the layout, the profile, the cursor (cluster, incarnation, position), the base
 // generation (zero for a build from a full copy) and the build ordinal, truncated to 16 bytes.
 GenerationId derive_generation(const distribution::Profile &, const distribution::NamespaceCursor &at,

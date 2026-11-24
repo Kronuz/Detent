@@ -103,7 +103,8 @@ void detail::record_opened(std::string_view name) noexcept {
 }
 namespace {
 // nullopt when a publish renamed the next table over `selected` since its open: read it again.
-std::optional<StoreTable> read_table(int directory, uid_t owner, std::uint64_t bound) {
+std::optional<PagedTable> read_table(int directory, uid_t owner, std::uint64_t bound,
+                                     std::shared_ptr<distribution::StorageLedger> account = {}) {
 	// Non-blocking, so a FIFO reaches the regular-file refusal without waiting for a writer.
 	File table_file(::openat(directory, "selected", O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 	if (table_file.fd < 0 && errno == ENOENT)
@@ -117,9 +118,8 @@ std::optional<StoreTable> read_table(int directory, uid_t owner, std::uint64_t b
 	std::vector<char> bytes(std::size_t(info.st_size));
 	read_record(table_file.fd, bytes);
 	DETENT_COUNT(record_opens, 1);
-	DETENT_COUNT(bytes_hashed, bytes.size() - 32);
 	try {
-		return decode_table(bytes);
+		return PagedTable(std::move(bytes), std::move(account));
 	} catch (const LayoutRefused &) {
 		throw;
 	} catch (const TableRefused &) {
@@ -132,8 +132,8 @@ using detail::GenerationFile;
 using detail::GenerationName;
 using detail::validate_paged_root_prefix;
 } // namespace
-std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner, const StoreTable &table,
-													 const TableEntry &entry) {
+std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner, const distribution::Profile &profile,
+                                                     const TableEntry &entry) {
 	require(entry.root_length == paged::root_bytes);
 	const GenerationName image_name(entry.generation, GenerationFile::Image);
 	std::array<char, 65> terminated{};
@@ -166,29 +166,35 @@ std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner,
 		root = validate_paged_root_prefix(prefix);
 	} catch (const std::invalid_argument &) {
 	}
-	require(root.has_value() && root->second == table.profile);
+	require(root.has_value() && root->second == profile);
 	descriptor.cursor = root->first;
 	require(descriptor.cursor == entry.cursor);
 	descriptor.generation = entry.generation;
 	descriptor.length = entry.root_length;
 	descriptor.checksum = entry.root;
-	descriptor.profile = table.profile;
+	descriptor.profile = profile;
 	descriptor.ordinal = entry.ordinal;
 	return selected;
 }
-std::optional<StoreTable> detail::read_store_table(int directory, uid_t owner) {
-	return read_table(directory, owner, table_bytes(1u << 20));
+std::optional<PagedTable> detail::read_store_table(int directory, uid_t owner,
+                                                   std::shared_ptr<distribution::StorageLedger> account) {
+	return read_table(directory, owner, table_bytes(1u << 20), std::move(account));
 }
 std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner, std::string_view name) {
 	const auto read = read_table(directory, owner, table_bytes(name.empty() ? 1 : 1u << 20));
 	if (!read)
 		return std::nullopt;
-	const auto &table = *read;
-	const auto *found = name.empty() ? (table.entries.size() == 1 ? &table.entries.front() : nullptr) : table.find(name);
+	std::optional<TableEntry> found;
+	try {
+		found = !name.empty() ? read->find(name)
+		        : read->size() == 1 ? std::optional(read->decode().entries.front()) : std::nullopt;
+	} catch (const TableRefused &) {
+		require(false);
+	}
 	if (!found && !name.empty())
 		throw GenerationUnavailable("the store has no entry for the namespace");
-	require(found != nullptr);
-	return select_entry(directory, owner, table, *found);
+	require(found.has_value());
+	return select_entry(directory, owner, read->profile(), *found);
 }
 std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const std::filesystem::path &directory) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
@@ -196,11 +202,16 @@ std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const
 	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
 	const auto read = read_table(dir.fd, info.st_uid, table_bytes(1u << 20));
 	require(read.has_value());
-	const auto &table = *read;
+	StoreTable table;
+	try {
+		table = read->decode();
+	} catch (const TableRefused &) {
+		require(false);
+	}
 	std::vector<std::pair<std::string, Descriptor>> out;
 	out.reserve(table.entries.size());
 	for (const auto &entry : table.entries) {
-		const auto selected = detail::select_entry(dir.fd, info.st_uid, table, entry);
+		const auto selected = detail::select_entry(dir.fd, info.st_uid, table.profile, entry);
 		require(selected.has_value());
 		out.emplace_back(entry.name, selected->descriptor);
 	}

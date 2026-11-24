@@ -3,6 +3,8 @@
 #include "detent_local/generation.hh"
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -11,7 +13,13 @@
 
 // `selected`, the agent store's namespace table (docs/status/namespace-s7.md): a pure codec that
 // readers and the store share.
+namespace detent::distribution {
+class StorageLedger;
+}
 namespace detent::local {
+namespace detail {
+class VerifiedPages;
+}
 using distribution::NamespaceCursor;
 using distribution::DirectoryCursor;
 struct TableEntry {
@@ -24,7 +32,8 @@ struct TableEntry {
 	std::array<char, 32> root{}, read{}; // SHA-256 of `.image` and `.read`
 	bool operator==(const TableEntry &) const = default;
 };
-// `selected`: replaced atomically, read whole. Entries are sorted by name.
+// `selected`: replaced atomically. Entries are sorted by name, in pages of whole entries
+// (docs/LOCAL_IMAGE_FORMAT.md).
 struct StoreTable {
 	std::uint64_t sequence = 0;
 	DirectoryCursor directory;
@@ -43,6 +52,55 @@ class TableRefused : public std::runtime_error {
 class LayoutRefused : public TableRefused {
   public:
 	using TableRefused::TableRefused;
+};
+inline constexpr std::size_t table_page_bytes = 4096;
+// An entry's encoding: its name's length byte and bytes, then 136 bytes of fields.
+constexpr std::size_t table_entry_bytes(std::size_t name) noexcept { return 137 + name; }
+// The longest entry fits a page, so the writer never splits an entry across two.
+static_assert(table_entry_bytes(255) < table_page_bytes);
+
+// A read of `selected` that verifies only what it reads: the header, the index and the table digest
+// over them at construction, and each page when a lookup first reaches it, as the trie's first touch
+// verifies a page. With an account, a verified page is marked (VerifiedPages) and not hashed again.
+class PagedTable {
+  public:
+	// Throws TableRefused, LayoutRefused for a whole table of an older layout.
+	explicit PagedTable(std::vector<char> bytes, std::shared_ptr<distribution::StorageLedger> account = {});
+	PagedTable(PagedTable &&) noexcept;
+	PagedTable &operator=(PagedTable &&) noexcept;
+	~PagedTable();
+	std::uint64_t sequence() const noexcept { return sequence_; }
+	const DirectoryCursor &directory() const noexcept { return directory_; }
+	const distribution::Profile &profile() const noexcept { return profile_; }
+	std::uint64_t size() const noexcept { return count_; }
+	// The highest slot an entry names, plus one.
+	std::uint32_t slots() const noexcept { return slots_; }
+	// The entry `name`, or nullopt when the table does not list it. Throws TableRefused when its page is damaged.
+	std::optional<TableEntry> find(std::string_view name) const;
+	// Every entry, every page verified, with the checks that span pages.
+	StoreTable decode() const;
+	// Pages hashed so far: a marked page is not hashed again.
+	std::size_t page_verifications() const noexcept;
+	// The table digest commits to the header and every page.
+	bool operator==(const PagedTable &other) const noexcept { return digest_ == other.digest_; }
+
+  private:
+	struct Page {
+		std::size_t offset, size, index; // the page's bytes; its index record (digest, last name)
+		std::string_view last;
+	};
+	struct State;
+	std::optional<TableEntry> walk(std::size_t page, std::string_view name, std::vector<TableEntry> *all) const;
+
+	std::vector<char> bytes_;
+	std::uint64_t sequence_ = 0, count_ = 0;
+	DirectoryCursor directory_;
+	distribution::Profile profile_;
+	std::uint32_t slots_ = 0;
+	std::size_t pages_begin_ = 0;
+	std::array<char, 32> digest_{};
+	std::vector<Page> pages_;
+	std::unique_ptr<State> state_;
 };
 std::string encode_table(const StoreTable &);
 // Throws TableRefused for anything but a whole, current table.

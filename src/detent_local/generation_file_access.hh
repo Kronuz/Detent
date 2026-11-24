@@ -74,10 +74,13 @@ struct Selected {
 };
 // The table entry `name` (D8), or the table's only entry when `name` is empty.
 std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});
-// The whole table, checked as a record; nullopt when a publish renamed the next one over it since the open.
-std::optional<StoreTable> read_store_table(int directory, uid_t owner);
-// One entry of a table read by read_store_table: nullopt when the image it names is gone.
-std::optional<Selected> select_entry(int directory, uid_t owner, const StoreTable &, const TableEntry &);
+// The table, its header and index checked; nullopt when a publish renamed the next one over it since the
+// open. With an account, its verified pages are marked (PagedTable).
+std::optional<PagedTable> read_store_table(int directory, uid_t owner,
+                                           std::shared_ptr<distribution::StorageLedger> account = {});
+// One entry of a table of `profile` read by read_store_table: nullopt when the image it names is gone.
+std::optional<Selected> select_entry(int directory, uid_t owner, const distribution::Profile &profile,
+                                     const TableEntry &);
 // The walk's descriptors are only stat'ed, ACL-checked and walked from, so macOS opens them for search:
 // a read open of a directory costs about 6 times as much there (docs/perf/first-read-1ms.md).
 #ifdef __APPLE__

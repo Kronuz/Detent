@@ -127,9 +127,9 @@ struct Change {
 	std::size_t views = 0;
 };
 // One read of `selected`, an entry per namespace (reader.md D2), with every sequence of `change` loaded
-// before it (D4 rule 1); a member of every view built over it.
+// before it (D4 rule 1); a member of every view built over it. Its pages verify on first reach.
 struct Table {
-	l::StoreTable store;
+	l::PagedTable store;
 	std::vector<std::uint64_t> sequences; // by slot, through the highest slot the table names
 	std::size_t views = 0;
 };
@@ -153,7 +153,14 @@ struct View {
 		                                 [](const Entry &entry, std::string_view key) { return entry.name < key; });
 		return at != entries.end() && at->name == ns ? &*at : nullptr;
 	}
-	bool listed(std::string_view ns) const noexcept { return table && table->store.find(ns); }
+	// A damaged page counts as listed: the refresh that reaches it reports its failure.
+	bool listed(std::string_view ns) const noexcept {
+		try {
+			return table && table->store.find(ns);
+		} catch (...) {
+			return true;
+		}
+	}
 };
 struct alignas(64) Stripe {
 	std::atomic<std::uint64_t> count{0};
@@ -420,21 +427,17 @@ std::unique_ptr<Table> read_table(detent_reader &handle, Change *&change, Change
 	bool uncovered = false;
 	for (unsigned attempt = 0; attempt != 4; ++attempt) {
 		store_word = change->mapping.store().load(std::memory_order_acquire);
-		auto table = std::make_unique<Table>();
 		const auto loaded = std::min(handle.slots, change->mapping.slots());
-		table->sequences.resize(loaded);
+		std::vector<std::uint64_t> sequences(loaded);
 		for (std::size_t k = 0; k != loaded; ++k)
-			table->sequences[k] = change->mapping.sequence(k)->load(std::memory_order_acquire);
-		auto read = x::read_store_table(handle.directory, handle.publisher);
+			sequences[k] = change->mapping.sequence(k)->load(std::memory_order_acquire);
+		auto read = x::read_store_table(handle.directory, handle.publisher, handle.mappings);
 		if (!read)
 			continue; // renamed over since its open: load and read again
-		table->store = std::move(*read);
-		std::size_t named = 0;
-		for (const auto &entry : table->store.entries)
-			named = std::max<std::size_t>(named, std::size_t(entry.slot) + 1);
+		const std::size_t named = read->slots();
 		uncovered = named > loaded;
 		if (!uncovered)
-			return table;
+			return std::unique_ptr<Table>(new Table{std::move(*read), std::move(sequences)});
 		handle.slots = std::max(handle.slots, named);
 		if (named <= change->mapping.slots())
 			continue;
@@ -523,7 +526,7 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 			if (previous && previous->attached.descriptor.generation == entry.generation && previous->slot == entry.slot)
 				return previous;
 			DETENT_WINDOW(Attaching);
-			const auto selected = x::select_entry(handle.directory, handle.publisher, table->store, entry);
+			const auto selected = x::select_entry(handle.directory, handle.publisher, table->store.profile(), entry);
 			auto attached = x::PreparedReader::attach(handle.directory, handle.publisher, l::ViewLimits::prepared(), {},
 			                                          selected ? &*selected : nullptr, entry.name);
 			if (previous) {
@@ -557,7 +560,16 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 			// Every attached namespace follows its entry; one that left the table keeps its generation.
 			if (installed)
 				for (const auto &had : installed->entries) {
-					const auto *listed = table->store.find(had.name);
+					std::optional<l::TableEntry> listed;
+					try {
+						listed = table->store.find(had.name);
+					} catch (...) {
+						// A damaged page fails this namespace alone: it keeps its generation and watches the
+						// store word, so the next publish reads it again.
+						failed_attach();
+						built->entries.push_back({had.name, had.generation, &change->mapping.store(), store_word});
+						continue;
+					}
 					if (!listed) {
 						// Its slot is no longer its own: it watches the store word, so the publish that
 						// re-adds it, at whatever slot, makes its next lookup attach the new entry.
@@ -573,14 +585,13 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 					add(generation, listed->slot);
 				}
 			if (first)
-				if (const auto *listed = table->store.find(want)) {
-					try {
+				try {
+					if (const auto listed = table->store.find(want))
 						add(attach(*listed, nullptr), listed->slot);
-					} catch (...) {
-						// Remembered at this store word, as a whole failed refresh is.
-						handle.failed_status.store(failed_attach(), std::memory_order_relaxed);
-						want_failed = true;
-					}
+				} catch (...) {
+					// Remembered at this store word, as a whole failed refresh is.
+					handle.failed_status.store(failed_attach(), std::memory_order_relaxed);
+					want_failed = true;
 				}
 			std::sort(built->entries.begin(), built->entries.end(),
 			          [](const Entry &a, const Entry &b) { return a.name < b.name; });

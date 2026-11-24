@@ -1,15 +1,20 @@
 #include "detent_local/store_table.hh"
 #include "detent_local/derived_ids.hh"
 #include "detent_local/layout.hh"
+#include "detent_local/read_counters.hh"
+#include "verified_pages.hh"
 #include <algorithm>
+#include <atomic>
 #include <sha256.h>
 
 namespace detent::local {
 namespace {
 using Sha = std::array<char, 32>;
 constexpr std::string_view table_magic = "DTTABLE1";
-constexpr std::size_t table_header = 64, entry_fixed = 137, maximum_entries = 1u << 20;
-Sha digest(std::string_view bytes) {
+// The header; an index record's digest and name length; the longest entry.
+constexpr std::size_t table_header = 72, index_fixed = 33, entry_max = table_entry_bytes(255),
+					  maximum_entries = 1u << 20;
+Sha digest(std::span<const char> bytes) {
 	SHA256 hash;
 	hash.add(bytes.data(), bytes.size());
 	Sha out{};
@@ -43,9 +48,45 @@ std::uint64_t take(std::span<const char> in, std::size_t &at, unsigned width) {
 	at += width;
 	return value;
 }
+// An entry of a page; `end` bounds it.
+TableEntry take_entry(std::span<const char> in, std::size_t &at, std::size_t end) {
+	const auto length = static_cast<std::size_t>(take(in, at, 1));
+	refuse(length && end - at >= table_entry_bytes(length) - 1, "truncated entry");
+	TableEntry entry;
+	entry.name.assign(in.data() + at, length);
+	at += length;
+	take(in, at, entry.cursor.cluster);
+	take(in, at, entry.cursor.incarnation);
+	entry.cursor.position = take(in, at, 8);
+	entry.slot = static_cast<std::uint32_t>(take(in, at, 4));
+	take(in, at, entry.generation);
+	entry.ordinal = static_cast<std::uint32_t>(take(in, at, 4));
+	entry.root_length = take(in, at, 8);
+	take(in, at, entry.root);
+	take(in, at, entry.read);
+	refuse(valid_name(entry.name) && nonzero(entry.generation), "entry");
+	return entry;
+}
+void put_entry(std::string &out, std::size_t &at, const TableEntry &entry) {
+	put(out, at, entry.name.size(), 1);
+	std::copy(entry.name.begin(), entry.name.end(), out.begin() + at);
+	at += entry.name.size();
+	put(out, at, entry.cursor.cluster);
+	put(out, at, entry.cursor.incarnation);
+	put(out, at, entry.cursor.position, 8);
+	put(out, at, entry.slot, 4);
+	put(out, at, entry.generation);
+	put(out, at, entry.ordinal, 4);
+	put(out, at, entry.root_length, 8);
+	put(out, at, entry.root);
+	put(out, at, entry.read);
+}
 } // namespace
 
-std::uint64_t table_bytes(std::uint64_t entries) noexcept { return table_header + 32 + entries * (entry_fixed + 255); }
+// Each page carries an index record of at most 288 bytes and pads less than one entry.
+std::uint64_t table_bytes(std::uint64_t entries) noexcept {
+	return table_header + 32 + entries * (2 * entry_max + index_fixed + 255);
+}
 const TableEntry *StoreTable::find(std::string_view name) const noexcept {
 	auto at = std::lower_bound(entries.begin(), entries.end(), name,
 							   [](const TableEntry &entry, std::string_view key) { return entry.name < key; });
@@ -55,14 +96,31 @@ const TableEntry *StoreTable::find(std::string_view name) const noexcept {
 std::string encode_table(const StoreTable &table) {
 	if (table.entries.size() > maximum_entries)
 		throw std::length_error("agent store table entries");
-	std::size_t size = table_header + 32;
+	// Pages of whole entries: a page closes before the entry that would overflow it.
+	std::vector<std::pair<std::size_t, std::size_t>> pages; // [first, last] entry
+	std::size_t used = table_page_bytes, index = 0, body = 0, slots = 0;
 	for (std::size_t i = 0; i < table.entries.size(); ++i) {
 		const auto &entry = table.entries[i];
 		if (!valid_name(entry.name) || (i && !(table.entries[i - 1].name < entry.name)) || !nonzero(entry.generation))
 			throw std::invalid_argument("agent store table entry");
-		size += entry_fixed + entry.name.size();
+		const auto bytes = table_entry_bytes(entry.name.size());
+		if (used + bytes > table_page_bytes) {
+			if (!pages.empty()) {
+				index += index_fixed + table.entries[pages.back().second].name.size();
+				body += table_page_bytes;
+			}
+			pages.push_back({i, i});
+			used = 0;
+		}
+		pages.back().second = i;
+		used += bytes;
+		slots = std::max<std::size_t>(slots, std::size_t(entry.slot) + 1);
 	}
-	std::string out(size, '\0');
+	if (!pages.empty()) {
+		index += index_fixed + table.entries[pages.back().second].name.size();
+		body += used;
+	}
+	std::string out(table_header + index + 32 + body, '\0');
 	std::size_t at = 0;
 	std::copy(table_magic.begin(), table_magic.end(), out.begin());
 	at = table_magic.size();
@@ -73,73 +131,147 @@ std::string encode_table(const StoreTable &table) {
 	put(out, at, table.directory.position, 8);
 	put(out, at, table.profile.semantic_id, 4);
 	put(out, at, table.profile.required_capabilities, 8);
+	put(out, at, pages.size(), 4);
+	put(out, at, slots, 4);
 	at = table_header;
-	for (const auto &entry : table.entries) {
-		put(out, at, entry.name.size(), 1);
-		std::copy(entry.name.begin(), entry.name.end(), out.begin() + at);
-		at += entry.name.size();
-		put(out, at, entry.cursor.cluster);
-		put(out, at, entry.cursor.incarnation);
-		put(out, at, entry.cursor.position, 8);
-		put(out, at, entry.slot, 4);
-		put(out, at, entry.generation);
-		put(out, at, entry.ordinal, 4);
-		put(out, at, entry.root_length, 8);
-		put(out, at, entry.root);
-		put(out, at, entry.read);
+	std::size_t page_at = table_header + index + 32;
+	for (const auto &[first, last] : pages) {
+		std::size_t end = page_at;
+		for (auto i = first; i <= last; ++i)
+			put_entry(out, end, table.entries[i]);
+		const auto page_size = last == pages.back().second ? end - page_at : table_page_bytes;
+		put(out, at, digest({out.data() + page_at, page_size}));
+		const auto &name = table.entries[last].name;
+		put(out, at, name.size(), 1);
+		std::copy(name.begin(), name.end(), out.begin() + at);
+		at += name.size();
+		page_at += page_size;
 	}
-	put(out, at, digest(std::string_view(out).substr(0, at)));
+	put(out, at, digest({out.data(), at}));
 	return out;
 }
 
-StoreTable decode_table(std::span<const char> in) {
+struct PagedTable::State {
+	std::unique_ptr<detail::VerifiedPages> marks; // absent without an account: every reach hashes
+	std::atomic<std::size_t> verified{0};
+};
+
+PagedTable::PagedTable(std::vector<char> bytes, std::shared_ptr<distribution::StorageLedger> account)
+	: bytes_(std::move(bytes)), state_(std::make_unique<State>()) {
+	const std::span<const char> in(bytes_);
 	refuse(in.size() >= table_header + 32 && std::string_view(in.data(), 8) == table_magic, "header");
-	const auto sum = digest({in.data(), in.size() - 32});
-	refuse(std::equal(sum.begin(), sum.end(), in.end() - 32), "digest");
 	std::size_t at = 8;
 	const auto layout = take(in, at, 4);
-	if (layout < agent_store_layout)
+	if (layout < agent_store_layout) {
+		// An older layout's whole table carries one trailing digest.
+		const auto sum = digest(in.first(in.size() - 32));
+		refuse(std::equal(sum.begin(), sum.end(), in.end() - 32), "digest");
 		throw LayoutRefused("agent store table: layout");
-	refuse(layout == agent_store_layout, "layout");
-	const auto count = take(in, at, 4);
-	refuse(count <= maximum_entries, "entry count");
-	StoreTable table;
-	table.sequence = take(in, at, 8);
-	take(in, at, table.directory.cluster);
-	table.directory.position = take(in, at, 8);
-	table.profile.semantic_id = static_cast<std::uint32_t>(take(in, at, 4));
-	table.profile.required_capabilities = take(in, at, 8);
-	refuse(std::all_of(in.begin() + at, in.begin() + table_header, [](char byte) { return byte == 0; }), "padding");
-	at = table_header;
-	const auto end = in.size() - 32;
-	std::vector<std::uint32_t> slots;
-	slots.reserve(count);
-	table.entries.reserve(count);
-	for (std::uint64_t i = 0; i < count; ++i) {
-		refuse(at < end, "truncated entry");
-		const auto length = static_cast<std::size_t>(take(in, at, 1));
-		refuse(length && end - at >= length + entry_fixed - 1, "truncated entry");
-		TableEntry entry;
-		entry.name.assign(in.data() + at, length);
-		at += length;
-		take(in, at, entry.cursor.cluster);
-		take(in, at, entry.cursor.incarnation);
-		entry.cursor.position = take(in, at, 8);
-		entry.slot = static_cast<std::uint32_t>(take(in, at, 4));
-		take(in, at, entry.generation);
-		entry.ordinal = static_cast<std::uint32_t>(take(in, at, 4));
-		entry.root_length = take(in, at, 8);
-		take(in, at, entry.root);
-		take(in, at, entry.read);
-		refuse(valid_name(entry.name) && nonzero(entry.generation), "entry");
-		refuse(table.entries.empty() || table.entries.back().name < entry.name, "entry order");
-		slots.push_back(entry.slot);
-		table.entries.push_back(std::move(entry));
 	}
-	refuse(at == end, "trailing bytes");
+	refuse(layout == agent_store_layout, "layout");
+	count_ = take(in, at, 4);
+	sequence_ = take(in, at, 8);
+	take(in, at, directory_.cluster);
+	directory_.position = take(in, at, 8);
+	profile_.semantic_id = static_cast<std::uint32_t>(take(in, at, 4));
+	profile_.required_capabilities = take(in, at, 8);
+	const auto pages = take(in, at, 4);
+	slots_ = static_cast<std::uint32_t>(take(in, at, 4));
+	refuse(std::all_of(in.begin() + at, in.begin() + table_header, [](char byte) { return byte == 0; }), "padding");
+	refuse(count_ <= maximum_entries && pages <= count_ && (pages == 0) == (count_ == 0), "entry count");
+	at = table_header;
+	pages_.reserve(pages);
+	for (std::uint64_t k = 0; k < pages; ++k) {
+		refuse(in.size() - at >= index_fixed + 32, "truncated index");
+		const auto index = at;
+		at += 32;
+		const auto length = static_cast<std::size_t>(take(in, at, 1));
+		refuse(length && in.size() - at >= length + 32, "truncated index");
+		const std::string_view last(in.data() + at, length);
+		at += length;
+		refuse(valid_name(last) && (pages_.empty() || pages_.back().last < last), "index order");
+		pages_.push_back({0, 0, index, last});
+	}
+	DETENT_COUNT(bytes_hashed, at);
+	const auto sum = digest(in.first(at));
+	refuse(std::equal(sum.begin(), sum.end(), in.begin() + at), "digest");
+	std::copy_n(in.begin() + at, 32, digest_.begin());
+	pages_begin_ = at + 32;
+	const auto body = in.size() - pages_begin_;
+	refuse(pages ? body > (pages - 1) * table_page_bytes && body <= pages * table_page_bytes : body == 0, "page bytes");
+	for (std::size_t k = 0; k < pages_.size(); ++k) {
+		pages_[k].offset = pages_begin_ + k * table_page_bytes;
+		pages_[k].size = std::min(table_page_bytes, in.size() - pages_[k].offset);
+	}
+	if (account && body)
+		state_->marks = std::make_unique<detail::VerifiedPages>(body, account);
+}
+PagedTable::PagedTable(PagedTable &&) noexcept = default;
+PagedTable &PagedTable::operator=(PagedTable &&) noexcept = default;
+PagedTable::~PagedTable() = default;
+
+std::size_t PagedTable::page_verifications() const noexcept { return state_->verified.load(std::memory_order_relaxed); }
+
+std::optional<TableEntry> PagedTable::walk(std::size_t k, std::string_view name, std::vector<TableEntry> *all) const {
+	const auto &page = pages_[k];
+	const std::span<const char> in(bytes_.data() + page.offset, page.size);
+	const auto &marks = state_->marks;
+	const bool marked = marks && marks->test(page.offset - pages_begin_);
+	if (!marked) {
+		DETENT_COUNT(bytes_hashed, in.size());
+		const auto sum = digest(in);
+		refuse(std::equal(sum.begin(), sum.end(), bytes_.begin() + page.index), "page digest");
+		state_->verified.fetch_add(1, std::memory_order_relaxed);
+	}
+	// Bounded and checked on every reach: entries in order after the previous page's last name, each
+	// slot below `slots`, the index's last name last, then zero padding.
+	std::optional<TableEntry> found;
+	std::string_view previous = k ? pages_[k - 1].last : std::string_view();
+	std::size_t at = 0;
+	while (at < in.size() && in[at] != 0) {
+		const auto start = at;
+		auto entry = take_entry(in, at, in.size());
+		refuse(previous < entry.name && entry.slot < slots_, "entry order");
+		previous = std::string_view(in.data() + start + 1, entry.name.size());
+		if (all)
+			all->push_back(entry);
+		if (entry.name == name)
+			found = std::move(entry);
+	}
+	refuse(at && previous == page.last, "page end");
+	refuse(std::all_of(in.begin() + at, in.end(), [](char byte) { return byte == 0; }), "page padding");
+	if (marks && !marked)
+		marks->set(page.offset - pages_begin_);
+	return found;
+}
+
+std::optional<TableEntry> PagedTable::find(std::string_view name) const {
+	const auto at = std::lower_bound(pages_.begin(), pages_.end(), name,
+	                                 [](const Page &page, std::string_view key) { return page.last < key; });
+	if (at == pages_.end())
+		return std::nullopt;
+	return walk(std::size_t(at - pages_.begin()), name, nullptr);
+}
+
+StoreTable PagedTable::decode() const {
+	StoreTable table;
+	table.sequence = sequence_;
+	table.directory = directory_;
+	table.profile = profile_;
+	table.entries.reserve(count_);
+	for (std::size_t k = 0; k < pages_.size(); ++k)
+		walk(k, {}, &table.entries);
+	refuse(table.entries.size() == count_, "entry count");
+	std::vector<std::uint32_t> slots;
+	slots.reserve(count_);
+	for (const auto &entry : table.entries)
+		slots.push_back(entry.slot);
 	std::sort(slots.begin(), slots.end());
 	refuse(std::adjacent_find(slots.begin(), slots.end()) == slots.end(), "duplicate slot");
+	refuse(slots_ == (slots.empty() ? 0 : slots.back() + 1), "slots");
 	return table;
 }
+
+StoreTable decode_table(std::span<const char> in) { return PagedTable({in.begin(), in.end()}).decode(); }
 
 } // namespace detent::local
