@@ -3994,6 +3994,21 @@
         "todo": "94a61dfe"
       },
       "text": "to do, critical path first:\ntodo: review legacy-h (its journal says ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native); then launch its correctness and design review; new): `campaign set legacy-h status=review`\ntodo: finish consensus-rpc-host-stream-gap (nothing moved it for 2 h: ready for review; review accepted at consensus:e416bb0; lands after xapiand:consensus-join-v2; to land: criteria without evidence at c363ad4492a2: A1-A3 (`campaign status consensus-rpc-host-stream-gap` lists them); new): `campaign status consensus-rpc-host-stream-gap`\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 2 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: criteria without evidence at 03015302a970: A1-A3 (`campaign status consensus-driver-pipelined-sim` lists them); listed 32 min): `campaign status consensus-driver-pipelined-sim`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:32:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:32:45",
+      "by": "campaign",
+      "closed": "legacy-h: round 3 in progress, journal not yet updated; pipelined-sim merged main (CI at 0301530 carried); seeds-rate: contributor swapping to lag.h",
+      "id": "msg-330",
+      "settles": {
+        "todo": "9cdc5bf9"
+      },
+      "text": "to do, critical path first:\ntodo: review legacy-h (its journal says ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native); then launch its correctness and design review; listed 5 min): `campaign set legacy-h status=review`\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 2 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 4 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. docs/mechanisms/rpc-lane.md): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); listed 37 min): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: finish consensus-seeds-rate-flake (nothing moved it for 3 h: ready for review; to land: criteria without evidence at 803c37e23231: A1-A4 (`campaign status consensus-seeds-rate-flake` lists them); new): `campaign status consensus-seeds-rate-flake`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
