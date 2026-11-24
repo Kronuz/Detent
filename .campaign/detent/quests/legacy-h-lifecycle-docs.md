@@ -1,36 +1,41 @@
 # legacy-h-lifecycle-docs: D7 lists every per-namespace transition, slot-reuse pages and D155 pages say what the code does
 
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status legacy-h-lifecycle-docs`.
+Risk: low (docs). The lead writes this quest; contributors read it and never edit it. Its machine state is
+in `state.json`: `campaign status legacy-h-lifecycle-docs`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+legacy-h's round-3 review (`.campaign/detent/reviews/legacy-h-correctness.md`, Detent:ff409c69)
+approved the code and left three documentation findings: F6, D7's table in
+`docs/design/client-local-source.md` misses four transitions (re-add at the old slot, agent restart,
+a re-add A4 refuses, drop or re-add while an attach fails) and states two rules wrongly; F7, three
+pages say slots are never reused, but the agent reuses them; F8, D155's pages leave out that
+`refresh()` returns OK while another refresh runs or a pinned view refuses it. Fix the text to match
+the code; the review's probes and local logs
+(`.scratch/detent/review-legacy-h-correctness/local/`) show the behaviour.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] `docs/design/client-local-source.md` D7 has a row for each of F6's four transitions
+  and the two corrected rules, each row naming the test that checks it.
+- A2 [artifact] No page says slots are never reused (F7): a grep job over docs and website.
+- A3 [artifact] D155's pages state refresh()'s OK-while-busy and pinned-view cases (F8).
+- A4 The docs build passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-24: split from legacy-h so its accepted code lands at once. legacy-h review N2 (F3's
+slot check no longer guards anything) is left as it is: harmless, and removing it touches the
+reviewed mechanism.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Not applicable.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
