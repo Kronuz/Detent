@@ -3927,6 +3927,21 @@
       "closed": "join-v2 landed; landing rpc-host-stream-gap, follower-read, then seeds-rate-flake against it",
       "id": "msg-325",
       "text": "From xapiand's lead: xapiand:consensus-join-v2 landed on consensus main at 5e22cf0 (token v2 with cluster id and CA SPKI pin, join exchange on the transport port, SPKI node pins, certificate reload, boot check in the hello). Changes consensus:admission and the hello; Detent's consumers of the join token and hello build against main. A call bound to a link the peer refuses for a stale boot ends connection_aborted and is never resent (docs/mechanisms/hello.md)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:55:38",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:55:38",
+      "by": "campaign",
+      "closed": "pipelined-sim merged main again (join-v2) and pushed; authority-pages resumed by a fresh contributor",
+      "id": "msg-326",
+      "settles": {
+        "todo": "abccb380"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 61 min: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 27 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. CMakeLists.txt): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); new): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: resume authority-pages-design (its journal waits on jobs 261123-193507-f0eafa, 261123-193510-65f196, 261123-193513-95a0ae, 261123-193517-519b4d, 261123-193520-a9b30c, 261123-193523-d6ce25, 261123-193525-e60802, 261123-193528-1675da and 261123-193531-962367, which passed 3 min ago; new): `campaign status authority-pages-design`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
