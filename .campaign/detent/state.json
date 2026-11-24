@@ -3663,6 +3663,66 @@
       "closed": "todo-mail behavior noted",
       "id": "msg-307",
       "text": "campaign skill: agent-campaign:709523e installed (todo-mail). What changes for you:\n1. Your to-do now arrives as mail from the worker: one message per campaign, critical path first, each line with its evidence, age and exact command, ending 'or park it with a reason'.\n2. It repeats every 30 minutes (CAMPAIGN_TODO_REPEAT) while an item is undone; each new mail replaces the last. Closing the mail declines nothing: park the quest with a reason, or answer it.\n3. An item undone 2 hours after its first mail is escalated to the owner once (a notify, plus a '\ud83d\udea8 N to do, oldest 2h' pill in your workspace that clears when the list empties).\n4. To-do lines in status, brief and wait now start with 'todo: ' instead of '- ': if your output filter dropped '- ' lines, it no longer hides them.\nMail goes only to a live recorded lead."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:32:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:32:31",
+      "by": "relay-mirror-idle-wake",
+      "closed": "file set fixed",
+      "id": "msg-310",
+      "text": "relay-mirror-idle-wake design + file-set request. Design: no new endpoint or parameter; the relay's watch uses W5 next's existing wait_ms (the authority parks it and re-plans at every applied entry, answering on change or 204 at its deadline). New Upstream::wait(positions, limit, std::stop_token) -> bool; default returns true at once (a poller: the mirror syncs every interval, today's behavior for in-process fakes). HttpUpstream::wait parks a next on its own W5 session (a second channel, following the endpoint of the last sync) so the mirror thread keeps serving and fetching; stop_token closes the socket on shutdown. MirrorService gains a watcher thread: after each good sync it waits on the ring heads; a change, the deadline (maximum_wait_ms, clamped by the upstream's session wait) or a failure wakes a sync, no sooner than interval after the last (interval becomes the floor between syncs and the backoff base; failed syncs keep the existing backoff and arm no watch). Files outside my set that this needs: include/detent_relay/mirror_service.hh (the set lists src/detent_relay/mirror_service.hh, which does not exist), include/detent_relay/namespace_relay.hh (Upstream::wait), include/detent_relay/http_upstream.hh, src/detent_relay/http_upstream.cc. Please add them; I do in-set work (baseline A1 measurement, counting test, doc) meanwhile."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:55:51",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:55:51",
+      "by": "campaign",
+      "closed": "stalled contributor stopped; fresh contributor resumed from the worktree",
+      "id": "msg-311",
+      "settles": {
+        "todo": "85301ebd"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (nothing moved it for 2 h: working; listed 31 min): `campaign status consensus-liveness-asan-timeout`, or park it with a reason"
+    },
+    {
+      "at": "2026-11-24T03:24:34",
+      "by": "campaign",
+      "closed": "a newer to-do replaced it",
+      "id": "msg-308"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T04:11:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T04:11:44",
+      "by": "campaign",
+      "closed": "rpc-host-stream-gap resumed on its CI failure; seeds-rate-flake started",
+      "id": "msg-312",
+      "settles": {
+        "todo": "61fa7340"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-rpc-host-stream-gap (its journal waits on jobs 261124-033248-45a895, 261124-033251-9931b1, 261124-033255-d1fab5, 261124-033258-c0b16a and 261124-033301-bd7ae6, which passed 28 min ago; new): `campaign status consensus-rpc-host-stream-gap`, read them, or park it with a reason\ntodo: start consensus-seeds-rate-flake (launchable; new): `campaign start consensus-seeds-rate-flake`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T04:13:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T04:13:12",
+      "by": "xapiand-lead",
+      "closed": "relayed to rpc-host-stream-gap's investigation; likely consensus-fetch-alongside-loop-stall's transport cause",
+      "id": "msg-313",
+      "text": "From xapiand's lead: consensus_transport_rpc_host_fetch failed on macos-x86_64 in CI 45384169136 (Kronuz/consensus, quest/xapiand/consensus-join-v2 at b92b6c8, which includes your consensus:512e3ef fetch-alongside fix and touches no rpc_host file): 'fetch: 16 MiB arrived exact NO (Software caused connection abort) in 5995 ms beside 126 MiB of group uploads on Bulk; links 3+3, dropped 797, overrun 0; heartbeats longest gap 194 ms'. Looks like the fetch-alongside case recurring under runner load; yours to file or fold into consensus-rpc-host-stream-gap."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -5756,9 +5816,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T01:34:07",
+      "updated": "2026-11-24T04:07:11",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
@@ -6411,7 +6471,8 @@
         "include/consensus/transport/codec.h",
         "include/consensus/admission.h",
         "fuzz/seed.cc",
-        "test/follower_read_mutants.py"
+        "test/follower_read_mutants.py",
+        "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/consensus-follower-read",
       "landed": [],
@@ -6421,11 +6482,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review N5: ARCHITECTURE.md still describes leader-only reads",
       "repo": "../consensus",
       "risk": "high",
       "status": "review",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T03:35:42",
+      "updated": "2026-11-24T03:48:40",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
@@ -8048,6 +8110,40 @@
       "title": "Consensus sanitizer CI fits its timeouts: mutants and owe-order",
       "updated": "2026-11-23T07:22:17",
       "worktree": ""
+    },
+    "consensus-seeds-rate-flake": {
+      "accepted": {},
+      "after": [
+        "xapiand:consensus-join-v2"
+      ],
+      "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+      "branch": "quest/detent/consensus-seeds-rate-flake",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/seeds_test.cc",
+        "src/transport/seed*",
+        "include/consensus/transport/seed*"
+      ],
+      "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "active",
+      "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
+      "updated": "2026-11-24T04:12:39",
+      "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
       "accepted": {
@@ -28638,7 +28734,10 @@
       "consumes": [],
       "files": [
         "src/detent_relay/mirror_service.cc",
-        "src/detent_relay/mirror_service.hh",
+        "include/detent_relay/mirror_service.hh",
+        "include/detent_relay/namespace_relay.hh",
+        "include/detent_relay/http_upstream.hh",
+        "src/detent_relay/http_upstream.cc",
         "src/detent_relay/configuration.cc",
         "test/relay*",
         "tests/detent_relay/**",
@@ -28653,11 +28752,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T03:25:58",
+      "updated": "2026-11-24T03:50:56",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
