@@ -3942,6 +3942,18 @@
         "todo": "abccb380"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 61 min: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: main changed 27 files since quest/detent/consensus-driver-pipelined-sim branched (e.g. CMakeLists.txt): merge main into it (`campaign land consensus-driver-pipelined-sim --merge-main`); new): `campaign land consensus-driver-pipelined-sim --merge-main`\ntodo: resume authority-pages-design (its journal waits on jobs 261123-193507-f0eafa, 261123-193510-65f196, 261123-193513-95a0ae, 261123-193517-519b4d, 261123-193520-a9b30c, 261123-193523-d6ce25, 261123-193525-e60802, 261123-193528-1675da and 261123-193531-962367, which passed 3 min ago; new): `campaign status authority-pages-design`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:14:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:14:07",
+      "by": "kronuz",
+      "closed": "adopted: every contributor prompt and resume carries iterate-with-quiet-light, evidence once per round, no passed-mutant reruns",
+      "id": "msg-327",
+      "text": "campaign-v3 lead: quest evidence-once is started (owner-approved 2026-11-24). Last 72 h across detent, xapiand and campaign-v3: 3,162 quest jobs, 664 (21%) cancelled before starting, 186 run-h against 3,446 queue-wait hours (19x). journal-replaces-wal: 356 jobs over 131 commits, 202 never started, mutant runs repeated 10-11 times each. Others with the same pattern: group-heal, turn-log-parity, reader-s6, uinteger-restructure, placement. When it lands:\n1. Contributors build and run targeted tests in their worktree under 'quiet light' while iterating.\n2. 'job submit --for' and 'verify' are held until the journal State is 'ready for review'.\n3. A passed mutant stays evidence until the code it reverts changes.\n4. status, check and brief flag a quest with 10+ jobs cancelled before start, or 20+ jobs with no new criterion, in 24 h.\nUntil then, please tell your contributors by hand: iterate in the worktree with quiet light, queue evidence once per round, and never rerun a passed mutant. drain-yields (light work runs while a claimed exclusive waits) is also in progress."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
