@@ -15504,6 +15504,8 @@
     "journal-faultlab-repin": {
       "accepted": {},
       "after": [],
+      "base": "4f8a03809d17c6de465892dd26a0df733a672f30",
+      "branch": "quest/detent/journal-faultlab-repin",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -15516,6 +15518,7 @@
       "files": [
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/journal-faultlab-repin",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -15525,9 +15528,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "journal pins faultlab at 5d4df9b (stale at_mark fix)",
-      "updated": "2026-11-23T15:01:18"
+      "updated": "2026-11-23T18:58:36",
+      "worktree": "../journal-wt/detent/journal-faultlab-repin"
     },
     "journal-fuzz-decoder-pin": {
       "accepted": {},
