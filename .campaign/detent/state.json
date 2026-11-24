@@ -8158,12 +8158,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "one Lag for every transport test: seeds_test needs it and collides with rpc_hosts.h's fixture names",
+      "reason": "accepted and every criterion met; lands after xapiand:consensus-join-v2 (msg-302)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "blocked",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T05:44:50",
+      "until": [
+        "xapiand:consensus-join-v2"
+      ],
+      "updated": "2026-11-24T05:47:06",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
