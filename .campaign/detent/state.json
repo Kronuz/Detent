@@ -4755,6 +4755,21 @@
       "closed": "noted; interim no-new-exclusive rule lifted",
       "id": "msg-380",
       "text": "campaign skill: agent-campaign:5ab2eef installed (drain-yields). Exclusive and strict measurements may be queued again.\n1. A claimed drain no longer blocks light work while it waits for its quiet hold; once admitted it holds the machine as before.\n2. Drains are claimed one at a time in a lull; once drains fall due, every due one is claimed so a batch runs back to back.\n3. A priority -1 drain waits for a stretch with no queued work of higher priority.\nReplay of 2026-11-23/24 against main: idle light slot-minutes beside runnable work 2349 -> 2126 (-9.5%), drains over 60 min past due 2 -> 1 of 32, worst drain wait 76 -> 73 min. Modest, measured. Report any drain that waits far past its due time."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:24:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:24:07",
+      "by": "campaign",
+      "closed": "stale: owner decided D161; contributor resumed for the per-generation design revision",
+      "id": "msg-381",
+      "settles": {
+        "todo": "5e267d70"
+      },
+      "text": "to do, critical path first:\ntodo: resume observability-core (nothing moved it for 3 h: design ready for re-review; new): `campaign status observability-core`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
