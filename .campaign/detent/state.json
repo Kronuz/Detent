@@ -4588,6 +4588,34 @@
         ]
       },
       "text": "legacy-h landed: unlocks first-read-1ms; observability-core; split-detent; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:44:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:44:09",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-369",
+      "items": {
+        "consensus-next-deadline-removal": "consensus-next-deadline-removal (until consensus-follower-read, consensus-liveness-asan-timeout met: `campaign set consensus-next-deadline-removal status=planned`)",
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "consensus-next-deadline-removal",
+          "first-read-1ms",
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "consensus-liveness-asan-timeout landed: unlocks consensus-next-deadline-removal (until consensus-follower-read, consensus-liveness-asan-timeout met: `campaign set consensus-next-deadline-removal status=planned`); first-read-1ms; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -14865,16 +14893,14 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [
-        "observability-core"
-      ],
+      "needs": [],
       "provides": [],
-      "reason": "shares files with observability-core; starts once it lands",
+      "reason": "its need on observability-core was a file overlap only; observability-core is parked for the owner and narrowed to its doc and model",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T10:09:02"
+      "updated": "2026-11-24T13:02:22"
     },
     "fixture-500k": {
       "accepted": {},
