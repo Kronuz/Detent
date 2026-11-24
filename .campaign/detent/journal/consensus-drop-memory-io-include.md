@@ -1,6 +1,6 @@
 # consensus-drop-memory-io-include: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/consensus-drop-memory-io-include.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Nothing: consensus:5b1ffb6 drops the include; A1's job and CI remain.
 
 ## Next
 
-1. <step>
+1. Land on green CI (the lead).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -39,3 +39,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
+| A1 | job 261123-164556-dd9522 (`git grep memory_io` empty at consensus:5b1ffb6); `ci:ci` |
