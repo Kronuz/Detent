@@ -126,10 +126,48 @@ struct NodeView {
 	std::size_t end = 0;
 	std::uint16_t slot(std::size_t index) const;
 };
+[[noreturn]] void refuse_page(); // throws std::invalid_argument, as every paged decoder does
 // Bounds each visited node against the current header and table boundaries.
 NodeView decode_node(std::span<const char>, std::size_t offset, Limits);
-// As above, given nodes_end of the header already decoded from these bytes.
-NodeView decode_node(std::span<const char>, std::size_t offset, std::size_t nodes_end, Limits);
+// As above, given nodes_end of the header already decoded from these bytes. Inline with NodeView::slot:
+// every lookup decodes each node it visits.
+inline NodeView decode_node(std::span<const char> bytes, std::size_t offset, std::size_t end, Limits limits) {
+	const auto require = [](bool condition) {
+		if (!condition) [[unlikely]]
+			refuse_page();
+	};
+	require(end <= bytes.size() && offset >= page_header_bytes && offset <= end && end - offset >= 3);
+	const auto kind = static_cast<PageKind>(bytes[offset]);
+	const auto prefix = static_cast<unsigned char>(bytes[offset + 1]);
+	require(prefix <= 202 && prefix <= limits.prefix_bytes);
+	if (kind == PageKind::Branch) {
+		const std::size_t count = static_cast<unsigned char>(bytes[offset + 2]) + 1;
+		require(count >= 2 && prefix <= end - offset - 3 && count <= (end - offset - 3 - prefix) / 3);
+		const auto labels = bytes.subspan(offset + 3 + prefix, count);
+		int previous = -1;
+		for (auto label : labels) {
+			require(static_cast<unsigned char>(label) > previous);
+			previous = static_cast<unsigned char>(label);
+		}
+		return {kind,
+		        {bytes.data() + offset + 3, prefix},
+		        {},
+		        labels,
+		        bytes.subspan(offset + 3 + prefix + count, 2 * count),
+		        offset + 3 + prefix + 3 * count};
+	}
+	require((kind == PageKind::Definition || kind == PageKind::Namespace) && end - offset >= 4);
+	const auto body = read_integer(bytes, offset + 2, 2);
+	require(body && (kind != PageKind::Namespace || body == 8) && body <= maximum_leaf_body_bytes - prefix &&
+	        prefix <= end - offset - 4 && body <= end - offset - 4 - prefix);
+	return {kind, {bytes.data() + offset + 4, prefix}, bytes.subspan(offset + 4 + prefix, body), {}, {},
+	        offset + 4 + prefix + body};
+}
+inline std::uint16_t NodeView::slot(std::size_t index) const {
+	if (index >= labels.size()) [[unlikely]]
+		refuse_page();
+	return static_cast<std::uint16_t>(read_integer(slots, 2 * index, 2));
+}
 // Verifies digest, reference summaries and exact preorder structure without
 // allocation.
 void verify_page_structure(std::span<const char>, const Reference &, Limits);

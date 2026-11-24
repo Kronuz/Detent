@@ -8,14 +8,7 @@ void require(bool value, const char *message) {
 		throw std::invalid_argument(message);
 }
 } // namespace
-std::uint64_t read_integer(std::span<const char> bytes, std::size_t offset, unsigned width) {
-	require(width && width <= 8 && offset <= bytes.size() && width <= bytes.size() - offset,
-			"local image integer bounds");
-	std::uint64_t value = 0;
-	for (unsigned i = 0; i < width; ++i)
-		value = (value << 8) | static_cast<unsigned char>(bytes[offset + i]);
-	return value;
-}
+void refuse_integer_bounds() { throw std::invalid_argument("local image integer bounds"); }
 void write_integer(std::span<char> bytes, std::size_t offset, std::uint64_t value, unsigned width) {
 	require(width && width <= 8 && offset <= bytes.size() && width <= bytes.size() - offset,
 			"local image integer bounds");

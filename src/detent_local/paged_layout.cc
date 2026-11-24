@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 namespace detent::local::paged {
+void refuse_page() { throw std::invalid_argument("invalid paged local image"); }
 namespace {
 void require(bool condition) {
 	if (!condition)
@@ -233,42 +234,8 @@ PageHeader decode_page_header(std::span<const char> bytes, Limits limits) {
 	require(bytes.size() == h.length);
 	return h;
 }
-std::uint16_t NodeView::slot(std::size_t index) const {
-	require(index < labels.size());
-	return read_integer(slots, 2 * index, 2);
-}
 NodeView decode_node(std::span<const char> bytes, std::size_t offset, Limits limits) {
 	return decode_node(bytes, offset, nodes_end(decode_page_header(bytes, limits)), limits);
-}
-NodeView decode_node(std::span<const char> bytes, std::size_t offset, std::size_t end, Limits limits) {
-	require(end <= bytes.size() && offset >= page_header_bytes && offset <= end && end - offset >= 3);
-	const auto kind = static_cast<PageKind>(bytes[offset]);
-	const auto prefix = static_cast<unsigned char>(bytes[offset + 1]);
-	require(prefix <= 202 && prefix <= limits.prefix_bytes);
-	if (kind == PageKind::Branch) {
-		const std::size_t count = static_cast<unsigned char>(bytes[offset + 2]) + 1;
-		require(count >= 2 && prefix <= end - offset - 3 &&
-				count <= (end - offset - 3 - prefix) / 3);
-		const auto labels = bytes.subspan(offset + 3 + prefix, count);
-		int previous = -1;
-		for (auto label : labels) {
-			require(static_cast<unsigned char>(label) > previous);
-			previous = static_cast<unsigned char>(label);
-		}
-		return {kind,
-				{bytes.data() + offset + 3, prefix},
-				{},
-				labels,
-				bytes.subspan(offset + 3 + prefix + count, 2 * count),
-				offset + 3 + prefix + 3 * count};
-	}
-	require((kind == PageKind::Definition || kind == PageKind::Namespace) && end - offset >= 4);
-	const auto body = read_integer(bytes, offset + 2, 2);
-	require(body && (kind != PageKind::Namespace || body == 8) &&
-			body <= maximum_leaf_body_bytes - prefix && prefix <= end - offset - 4 &&
-			body <= end - offset - 4 - prefix);
-	return {kind, {bytes.data() + offset + 4, prefix}, bytes.subspan(offset + 4 + prefix, body), {},
-			{},	  offset + 4 + prefix + body};
 }
 void verify_page_structure(std::span<const char> bytes, const Reference &reference, Limits limits) {
 	validate(reference);
