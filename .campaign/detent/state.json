@@ -3153,6 +3153,19 @@
       "id": "msg-254",
       "notice": "skill landed b9c11c7cc7a5aab9428e07aaeab4a9eebaa161f3",
       "text": "campaign skill: 1 commit landed on agent-campaign's main, not installed here yet: agent-campaign:b9c11c7"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T05:58:29",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "skill install notice read; agent-campaign:63249d4 installed",
+      "id": "msg-256",
+      "notice": "skill installed bd54f12b7ff3c0c19fdd4f95714358abb9118517",
+      "text": "campaign skill: agent-campaign:bd54f12 installed here, 12 commits: agent-campaign:7023ca3 Tell every campaign's lead of skill commits it did not land; agent-campaign:5614004 Merge branch 'main' into quest/campaign-v3/broadcast-every-lead; agent-campaign:8969e84 Tell a lander of its own commits when they are installed; agent-campaign:b6cf285 Merge main into quest/campaign-v3/broadcast-every-lead; agent-campaign:3fc989d Contributor: never run campaign land, --merge-main included; agent-campaign:c72a1c2 Evidence rows and their hints follow the land gate; agent-campaign:05a9e8e Read a cited fails-without job by its own rule; share ci_named; agent-campaign:b4ee5cf Revert A4 and the ci_named move; land A1-A3 first; agent-campaign:8ab02c3 Merge main into quest/campaign-v3/evidence-hints; agent-campaign:2cfe40c Merge main into quest/campaign-v3/evidence-hints; agent-campaign:8f4d92b Merge main into quest/campaign-v3/evidence-hints; agent-campaign:bd54f12 Make A1's test merge code from main, as msg-32's landings do"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
