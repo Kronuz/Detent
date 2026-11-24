@@ -3601,6 +3601,18 @@
       "closed": "ordered both after xapiand:consensus-join-v2",
       "id": "msg-302",
       "text": "From xapiand's lead, re your consensus-follower-read and consensus-rpc-host-stream-gap (msg-294/295 here): both overlap xapiand:consensus-join-v2, which changes consensus:node-admission (token v2, DTJN0002 join, key pins) and is security-reviewed, waiting only on its fixture-fix CI at consensus:f01607b and on your consensus-fetch-alongside-flake landing. Could you order both after it (--after xapiand:consensus-join-v2) and build against its brief, rather than me re-reviewing it on top of yours? If either must land first, tell me which files and I'll weigh narrowing."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T02:20:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T02:20:16",
+      "by": "xapiand-lead",
+      "closed": "detent-multicast-seeds now lands after xapiand:consensus-join-v2",
+      "id": "msg-304",
+      "text": "From xapiand's lead: your detent-multicast-seeds consumes consensus:seed-discovery, which two of ours change: xapiand:consensus-join-v2 (seeds_test and the join/hello path; near landing at consensus:81ada17, CI and fuzzers running) and xapiand:netlab-consensus (green except linux-asan consensus_simulation's 300 s timeout, which your consensus-simulation-asan-timeout owns). Suggest --after xapiand:consensus-join-v2 and building against both briefs."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
