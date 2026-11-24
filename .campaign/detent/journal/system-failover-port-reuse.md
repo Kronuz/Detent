@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-175619-13aea1 (test_relay_service x48 at 8 parallel, main 11b8d2a3) 261123-175626-e51c59 (same, at 756d2c3c, the quest's lease) 261123-181753-4707aa 261123-181754-1e1ca2 261123-181755-9df8e6 261123-181755-ccd2db 261123-181756-29fcce 261123-181757-a6dd85 261123-181757-95980a 261123-181758-f68e8e (A3 at 509d3ef8) 261123-181759-ca3c2e (A2 suite at 509d3ef8); A1 passed: 261123-181552-9c6cf3
+State: waiting on jobs 261123-214439-4186e2 (relay A/B at main) 261123-214441-dbd78a (relay A/B at the quest) 261123-214456-71425f 261123-214456-0a6354 261123-214457-1bdfdf 261123-214457-795dc3 261123-214458-c5db97 261123-214458-ed6203 261123-214458-bc803e 261123-214459-82d6a4 (A3 grep and shards at 31b34432) 261123-214459-12724c (A2 suite at 31b34432); A1 passed: 261123-181552-9c6cf3
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -83,6 +83,21 @@ exception group; a load flake of the old reserve-and-release harness, not read f
   named by a layout is absent at its latest seal. A/B on the same loop (48 runs, 8 parallel): 13aea1 at
   main, e51c59 at the quest head (pre-fix probe commit; test_relay_service.py is identical at 509d3ef8).
   If main fails at a similar rate it is the lead's to file; if main passes, read the lease change.
+
+- Lead's message after 509d3ef8:
+  1. The relay A/B (13aea1, e51c59) failed 48 of 48 in both arms: the script's binary paths were
+     wrong (build/src/detent-authority, build/src/detent-relay; I used build/). Fixed, resubmitted
+     as 4186e2 (main) and dbd78a (quest), and the script prints one failed log's tail.
+  2. Suite ca3c2e at 509d3ef8: test_reader_switch timed out, 1 of 221. legacy-h owns it; not this
+     quest's. Suite rerun at 31b34432: 12724c.
+  3. A3 shard 4 (29fcce) was a real bind error: test_localhost_dial.py took its port from a
+     127.0.0.1 port-0 listener and bound [::1] on the same number (`Errno 48` at line 55, Echo),
+     taken on ::1 by another process. Fix 31b34432: the port is leased by lease_ports(1, "::"),
+     probed on both families, the server binds it on 127.0.0.1. Its other failures in that shard
+     (multivoter, dns_voters_names, relay C, managed no-quorum / relay_ipv6, unreconciled producer
+     15 after thirty seconds) are load timeouts and the relay C case, not bind errors. No
+     deterministic test fails without this fix (a collision needs another process on ::1 and the
+     number); evidence is the 7 shards x 3 rounds, which must show no bind error.
 
 ## Next
 
