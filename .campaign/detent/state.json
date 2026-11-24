@@ -22333,17 +22333,16 @@
         "security"
       ],
       "milestone": "M2 Integration (RC-1)",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
-      "reason": "Snapshot-encoding cost gate unresolved and msgpack:f8975e3 not on msgpack main (EXTRACTION_CHECKLIST EX-3); M2 work after the handoff landing",
+      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-22T22:05:31"
+      "updated": "2026-11-24T14:21:40"
     },
     "multi-voter-idle-wake": {
       "accepted": {},
