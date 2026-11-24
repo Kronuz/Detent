@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-014655-15443a 261124-014707-1319b1 261124-014657-c7b211
+State: waiting on jobs 261124-015310-731798 and CI of 93df08c25545 (A4)
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,12 +16,12 @@ heartbeat's own posting thread frozen (post gap = delivery gap), post->send 0 ms
 time: jobs 261124-013928-c5f6e7, 261124-014534-123e12). CI's failure fits: 1,170 ms of a 1,593 ms
 stream, the rest at 76 MB/s against 55 MB/s unloaded. Fix: consensus:303455c/93df08c give the stream
 case the fetch and group-full cases' allowance, 1,000 ms plus the Lag sampler's worst.
-Jobs for A2 (stopped run at fix 261124-014655-15443a, at main 261124-014707-1319b1 fails-without) and
+A1 job 261124-015310-731798 (a1.sh at the probe 97d862d: passes when the gap equals the lag and the stages are under 5 ms); fails-without runs at main: 261124-014707-1319b1, 261124-015141-a3fef6. Jobs for A2 (stopped run at fix 261124-014655-15443a, at main 261124-014707-1319b1 fails-without) and
 A3 (261124-014657-c7b211).
 
 ## Next
 
-1. Paste `campaign brief`'s table; Result; push; State ready for review.
+1. When 731798 and CI finish: paste `campaign brief`'s table; write Result (rpc-lane.md's stream row still says 1,000 ms flat: outside my file set, lead to edit); State ready for review.
 
 ## Blocked on
 
