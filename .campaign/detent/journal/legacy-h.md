@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-215328-7c1230 261123-215333-3427d0 261123-215204-e4d157 at `Detent:a9eb4f77` (Evidence and Result written; ready for review once they pass)
+State: ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native)
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,37 +9,31 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1, second pass, at `Detent:109f51ae` (main merged `Detent:57cbd641`, pushed).
-Results at `Detent:8d61d548` (the lead's msg): review probe 261123-175725-7fad98 passed, T2
-261123-175759-67f119 passed, fails-without 261123-175727-3d4b80 failed as required, A10 grep
-261123-175722-13a7f9 passed, Docs 45308791259 green. Failures and fixes:
-- bindings 261123-175722-b26bcf and CI `bindings-*`: `detent get` exit 127; `test_reader_scenarios`
-  now depends on `detent-reader` (`Detent:109f51ae`). `detent_python_test` timed out at 120 s at
-  load ~32 (22 s at light load); bound 300 s.
-- CI `ci / macos-x86_64`: `test_reader_switch` parks (`seen == pinned_rev`): when the refusals'
-  backoff ran out before the released reader resumed, its stale lookup refreshed first and never read
-  its pinned view. `Detent:dec0d978` (lead's correction of `Detent:109f51ae`'s either-value check):
-  testing knob `hold_retry` closes the retry clock until the next publish; the case sleeps 250 ms
-  before release and checks `seen == pinned_rev` exactly. Without the knob 5 of 5 fail there; with it
-  30 of 30 alone and 90 of 90 six-way parallel pass. `test_authority_frames_service` (409
-  session_busy) is not this quest's.
-- native 261123-175720-145715: `test_reader_switch`, `test_agent_store_crash` timed out at load
-  ~32; rerun alone 261123-200502-4fbd30. `test_relay_service` is the lead's (port-reuse A/B).
-- A13 261123-175723-de3cb2 hit 30 min building: split, build under `--build`, 261123-200500-f13c52.
-Local after the merge: reader, testing, bindings, CLI, installed tests pass (26 of 26);
-`check_docs.py` 0 unlisted, 0 stale; `run_e2e.py --list` no MISSING.
+Fix round 2 (correctness review round 2, CHANGES at `Detent:a9eb4f77`) at `Detent:1417f2ad`,
+origin/main merged (`Detent:c4f30e5c`), pushed:
+- F1 (`Detent:df6a2dc1`): the agent grows `change` (`reserve`, `resize_change`) before it writes and
+  renames `selected`, so the file covers a slot before the table names it.
+- F2 (`Detent:1417f2ad`): a failed attach fails its namespace alone; it keeps its generation and the
+  sequence it failed at; `detent_refresh` returns its status; the others publish. A failed first
+  attach is remembered at the store word, as before.
+- F3 (same commit): a kept generation must sit at the entry's slot.
+- F4: follow-up, not taken (a dropped namespace's generation is held for the handle's life; main's
+  client did the same). Release it at a later refresh, or say in reader-core.md what holds it.
+Tests in `test_reader_core`: `adding_namespace` (the review's `window`: open, refresh, first lookup
+at the `rename table` primitive, by value) and `entry_failure` (`couple`: `t` reads 3, 4 on the
+handle whose `u` cannot attach). Locally each fails at a9eb4f77's file (lines 147, 166) and passes at
+the head; 30 of 30 agent-store, reader, testing, bindings tests pass (store crash 591 s).
+`values`' race now counts 4 attaches (u's fifth publishes alone).
 
 ## Next
 
-1. Read native 261123-215328-7c1230 (A1, A6-A8, A18, A19, A21) at `Detent:a9eb4f77`; on a pass, State
-   "ready for review". A10 grep 261123-215330-5b6a71 passed there.
-2. `test_authority_snapshot_catchup` (native 261123-204256-3ca620, failed once, 16.6 s, no detail; this
-   branch touches neither `src/detent_authority` nor `tests/detent_authority`): 10 runs alone at the
-   head 261123-215333-3427d0 and at main `Detent:5b40d3c8` 261123-215204-e4d157. If main fails too, it
-   is pre-existing (the lead files it); if only the head fails, find why.
+1. Read: fails-without F1 261124-004900-19d2cc (mutant `Detent:57d60a13`,
+   `refs/mutants/legacy-h/r2-f1-change-after-table`), F2 261124-004904-f88615 (`Detent:44457a66`,
+   `r2-f2-all-or-nothing`); targeted run 261124-004922-fda728 (core, scenarios, switch, agent store,
+   store crash); bindings 261124-004912-db1945; review probe rerun 261124-004932-574229.
+2. CI at `Detent:1417f2ad`.
 
-Done at `Detent:dec0d978`: bindings, probe, T2, A13, switch and store-crash alone passed;
-fails-without 261123-204320-f48488 failed as required; CI 45328288209 and Docs 45328287755 green.
+Done at `Detent:a9eb4f77`: native 261123-215328-7c1230 218 of 218; A10 261123-215330-5b6a71.
 
 ## Blocked on
 
@@ -184,8 +178,8 @@ Fix round 1 (correctness review F1-F11, F14):
     namespace with its own cursor scope, deltas moving one entry, at most 16 plans per cycle; compact
     is OneEntry-only). The C face and `detent::testing::Store` use `PerNamespace`, as an agent does.
 12. Reader-core semantics for D150: a namespace that leaves the table keeps answering from its last
-    generation (as main's per-namespace Client did); a refresh failure on one entry fails the whole
-    refresh and keeps the installed view (D4); `initial_slots` = 4,096 sequences loaded per refresh,
+    generation (as main's per-namespace Client did); a failed attach fails its namespace alone (fix
+    round 2), a table or store failure the whole refresh (D4); `initial_slots` = 4,096 sequences loaded per refresh,
     raised when the table names a higher slot.
 13. Writer builders live until their publication settles (`Detent:ae68d8f7`): splitting the plan
     out of publish had freed them first and let the old generation's segments go, which
