@@ -15218,7 +15218,8 @@
         "docs/LOCAL_IMAGE_FORMAT.md",
         "tests/detent_local/CMakeLists.txt",
         "tests/detent_reader/test_reader_core.cc",
-        "tests/detent_local/test_table_pages.cc"
+        "tests/detent_local/test_table_pages.cc",
+        "tests/detent_agent/test_agent_store.cc"
       ],
       "history": [
         {
@@ -15273,12 +15274,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "the table-pages format (layout 3): the reader core's Table holds the paged table, the format doc describes it, and a new table-pages test registers; no active quest holds them",
+      "reason": "its pinned generation name and codec re-signing check depend on the table layout, which layout 3 changes; no active quest holds it",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T15:01:32",
+      "updated": "2026-11-24T15:52:48",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
