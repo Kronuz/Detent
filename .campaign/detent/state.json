@@ -14847,6 +14847,8 @@
       "after": [
         "reader-s6"
       ],
+      "base": "294217293769b04e7ff82cb965f96af8a1d72e72",
+      "branch": "quest/detent/first-read-1ms",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -14898,9 +14900,10 @@
       "reason": "its need on observability-core was a file overlap only; observability-core is parked for the owner and narrowed to its doc and model",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T13:02:22"
+      "updated": "2026-11-24T13:03:14",
+      "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
       "accepted": {},
