@@ -27112,15 +27112,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "design round 3 CHANGES (T1-T11, Detent:780c353f): the cross-publish fold for exact ever_read since open fails a third round; owner decides Q7's scope. Files narrowed to what its branch changes, so first-read-1ms can run; the set is widened again when it resumes",
+      "reason": "owner D161: ever_read exact per generation, no fold; design revision (doc and model only), then the design review; code waits for first-read-1ms, which holds the hot path",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-24T13:02:16",
+      "updated": "2026-11-24T14:22:24",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
