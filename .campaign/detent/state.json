@@ -31922,7 +31922,9 @@
         "tests/detent_delivery/**",
         "docs/design/*.py",
         "src/CMakeLists.txt",
-        "tests/detent_delivery/CMakeLists.txt"
+        "tests/detent_delivery/CMakeLists.txt",
+        "docs/dev/splits.md",
+        "tests/detent_authority/test_state.cc"
       ],
       "history": [
         {
@@ -31959,12 +31961,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
+      "reason": "A1's artifact docs/dev/splits.md, and test_state.cc (1,084 lines) needs a verdict",
       "repo": ".",
       "risk": "low",
       "status": "active",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T10:08:38",
+      "updated": "2026-11-24T10:44:29",
       "worktree": "../Detent-wt/detent/split-detent"
     },
     "split-journal": {
