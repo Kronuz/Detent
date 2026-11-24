@@ -6421,12 +6421,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "msg-303: the set named a codec.h that does not exist; the read-index frames live in transport/codec.h, admission.h, fuzz/seed.cc; no other quest holds them",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T02:38:52",
+      "updated": "2026-11-24T03:35:42",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
