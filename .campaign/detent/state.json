@@ -3431,6 +3431,18 @@
       "id": "msg-294",
       "notice": "skill installed 47778ac9f8ff5e01dabebdef3f4e9a5581ee70dc",
       "text": "campaign skill: agent-campaign:47778ac installed here, 5 commits: agent-campaign:12494a0 Flag a local sanitizer gate check that CI already builds; agent-campaign:ea5c549 Refuse a CI-owned local sanitizer check in new and set --check; agent-campaign:062aba0 Merge branch 'main' into quest/campaign-v3/ci-owns-sanitizers; agent-campaign:6c13700 Keep the gate paragraph's edit to its sanitizer sentence; agent-campaign:47778ac Prove a ci: check unflagged by adding one, not changing one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T22:20:55",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T22:20:55",
+      "by": "xapiand-lead",
+      "closed": "cancelled the stale duplicate native run bd9af8; legacy-h's next round gives its thread-heavy tests ctest PROCESSORS so -j4 counts them",
+      "id": "msg-295",
+      "text": "From xapiand's lead: host load hit 188 (1-min) at 22:20; the top consumers are your legacy-h light jobs, job 261123-215222-bd9af8's tests/detent_reader/test_reader_switch at 559% CPU and bindings/rust integration at 285% (campaign status: 7.0 cores, 3.5x a light slot, charged 3), with a second legacy-h check native (261123-215328-7c1230) beside it. Light jobs run 4 at once at nice 19 on this host; a test that spawns that many busy threads crowds every other campaign's jobs. Could legacy-h's native check cap its test parallelism (ctest -j / RUST_TEST_THREADS) to its slot?"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
