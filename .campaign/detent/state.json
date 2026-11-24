@@ -8101,7 +8101,32 @@
       "worktree": ""
     },
     "consensus-rpc-host-stream-gap": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T05:44:50",
+          "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "blobs": {
+            "docs/mechanisms/rpc-lane.md": "100644:33daca2b1a03137d1836f3241bd0a7e5b11f0e78",
+            "test/transport/lag.h": "100644:5814fadf2e93cf5471ab1d941509a009357116cb",
+            "test/transport/rpc_host_test.cc": "100644:d0eb420399e78a20ba31c05c524e9b52de2a7159",
+            "test/transport/rpc_hosts.h": "100644:c51c3fa3369fc245653241552713473969aa4749"
+          },
+          "by": "review",
+          "commit": "e416bb002c0b7aaef8f726c732af778c95a01cab",
+          "criteria": "f1f417b8f75a0bd4",
+          "diffs": {
+            "docs/mechanisms/rpc-lane.md": "4b573f4be6324e26",
+            "test/transport/lag.h": "5d325cf02af1b80f",
+            "test/transport/rpc_host_test.cc": "1b37789e26076b7c",
+            "test/transport/rpc_hosts.h": "8e0065f24058fa9e"
+          },
+          "findings": {},
+          "note": "",
+          "review": "10d12972a0464931f3eb9c7b6b2120730146b2f3",
+          "reviewed": "e416bb002c0b7aaef8f726c732af778c95a01cab",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-fetch-alongside-flake",
         "xapiand:consensus-join-v2"
@@ -8127,7 +8152,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -8136,7 +8163,7 @@
       "risk": "normal",
       "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T04:18:49",
+      "updated": "2026-11-24T05:44:50",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
