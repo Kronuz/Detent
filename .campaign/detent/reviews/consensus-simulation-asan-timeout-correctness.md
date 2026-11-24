@@ -1,6 +1,6 @@
 # consensus-simulation-asan-timeout review: correctness
 
-Commit: consensus:2db1a9d1cc1e
+Commit: consensus:54c6599 (first reviewed at consensus:2db1a9d1cc1e)
 Verdict: APPROVE
 Date: 2026-11-23
 
@@ -17,6 +17,18 @@ REJECT: the approach is wrong; the quest is re-planned.
   linux-asan-ubsan was green with consensus_simulation at 58.26 s. Its one failure is
   macos-x86_64 consensus_transport_groups_fetch-alongside-consensus "Subprocess aborted" after
   7.13 s, the flake that quest consensus-fetch-alongside-flake owns, outside this diff.
+- Re-review at consensus:54c6599. `git diff 2db1a9d eb9153f` changes one bound: the heal loop's
+  `round < 4000` becomes `round < 2000` at test/simulation_test.cc:240, with its comment and one
+  sentence in docs/mechanisms/simulation.md. The merge 54c6599 adds only main's CMakeLists.txt and
+  test/driver_install_request_test.cc. `git diff eb9153f 54c6599` is empty for the three quest
+  files, and `git diff c177c88 54c6599` is exactly the quest's three files. The bound restores
+  the old per-proposal budget: old proposed from round 2,000 with a deadline at round 4,000, and
+  new proposes from round 0 with a deadline at round 2,000, so both give 2,000 rounds after the
+  first proposal. It is tighter than old in one way: settling now counts against the same 2,000
+  rounds, where old gave 2,000 settling rounds on top. The default seeds still fit. Their
+  rounds before the stop match the 4,000-round run up to the majority, at most 713 rounds
+  (median 130; job 261123-211702-747c2a), a 2.8x margin. Confirming jobs at the fix are
+  261123-231348-ff18c4 and 261123-231353-be4231 (the lead's; I did not wait for them).
 
 ## What I checked myself
 
@@ -76,7 +88,7 @@ times in the mutant jobs.
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | no | gap | The heal liveness oracle's budget changed, and the journal's "it now has to hold sooner" is not accurate. Old required a majority within 2,000 rounds of the first proposal (observed: median 13, max 264 rounds after round 2,000). New allows 4,000 rounds from the heal with proposals from round 0 (observed: median 130, max 713). A proposal-to-commit stall of 2,000-4,000 rounds failed old and passes new. A stall at the heal's start is now caught sooner. No mutant here exercises either case. | job 261123-211702-747c2a heal-{old,new}.txt; test/simulation_test.cc:240 | Owner's call. One option is to bound the loop at 2,000 rounds (2.8x the observed 713), which keeps the old per-proposal budget and the faster stop. The other is to keep 4,000 and correct the journal's sentence. |
+| F1 | no | gap | The heal liveness oracle's budget changed, and the journal's "it now has to hold sooner" is not accurate. Old required a majority within 2,000 rounds of the first proposal (observed: median 13, max 264 rounds after round 2,000). New allows 4,000 rounds from the heal with proposals from round 0 (observed: median 130, max 713). A proposal-to-commit stall of 2,000-4,000 rounds failed old and passes new. A stall at the heal's start is now caught sooner. No mutant here exercises either case. | job 261123-211702-747c2a heal-{old,new}.txt; test/simulation_test.cc:240 | Fixed in consensus:eb9153f (D152): the loop is bounded at 2,000 rounds, the old per-proposal budget, with a 2.8x margin over the observed 713. Confirming jobs: 261123-231348-ff18c4, 261123-231353-be4231. |
 | F2 | no | gap | Q3: "the same checks on less state" is real, but small and never asserted. Under old, after the majority applied, 102 lagging nodes in 109 of 200 seeds applied 155 more commands. That is 1.3% of the 12,041 applied at the heal's end, with 0 installs. It came with 1.71 M of the run's 6.16 M act() oracle passes, almost all heartbeats on a quiet network. New checks none of that. Neither version asserts that a minority converges: 270 nodes were still behind after old's 4,000 rounds. | job 261123-211702-747c2a (HEAL lines); mutant jobs above | None needed for this quest. Asserting that every up voter applies "healed" would be a new oracle outside this quest. |
 | F3 | no | nit | The `fail(`/`expect(` counts cannot show that no oracle changed, since a check can stay in the source and run on less state (F2). They do not match my count either: git grep finds 22 `fail(` and 62 `expect(` lines in simulation_test.cc and 31 `fail(` lines in driver_simulation.cc at both 3aa1355 and 2db1a9d, not "82 / 31". The proof is the diff, which touches no check, plus the heal and mutant probes. | `git -C consensus grep -c -F 'fail(' 3aa1355 2db1a9d -- test/` | Cite the diff and the probes in the journal instead of the counts. |
 | F4 | no | nit | Seed 15 loses its one image refusal and two activations at 1,000 ms. The refusal path is still reached twice in the default 20 seeds. | heal job, drv-{old,new}-15.txt | None. |
