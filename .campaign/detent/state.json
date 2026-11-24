@@ -24889,13 +24889,16 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-20T18:25:38"
+      "updated": "2026-11-24T03:25:41"
     },
     "observability-design": {
       "accepted": {
