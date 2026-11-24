@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-041209-359b5d (fetch probe), 261124-033258-c0b16a, 261124-033301-bd7ae6 and CI of consensus:0d5f362 (A4: red on rpc_host_fetch and seeds_rate)
+State: waiting on jobs 261124-050027-dd85d6 261124-050028-760936 261124-050028-665c4f 261124-050014-f52514 261124-050018-ff695c and CI of consensus:e416bb0 (A4); then ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -31,10 +31,10 @@ Nothing
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-032555-cf6897 (gap over 1,000 ms equals the host's lag); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main: 6 of 7 stops fail at 1,521-1,573 ms); earlier head 261124-015744-1b1ee9; unstalled gaps 103-222 ms under 16-24 burners: 261124-013928-c5f6e7, 261124-014534-123e12 |
-| A2 | 261124-032548-9e4ff0 (7 stops at the fix); fails without: 261124-014707-1319b1 (main, stopped process), 261124-032545-3c3ebf (the review's Control-delay mutant at the fix: 1,500 ms gap 1,501 of 1,005 allowed and 2,000 ms gap 1,999 of 1,003 both fail; 1,000 ms passes at 999) |
-| A3 | 261124-032552-5023a3 (50 runs beside 4 burners, 0 failed, longest gap 109 ms at run 50) |
-| A4 | CI of consensus:0e000db (running; `campaign verify consensus-rpc-host-stream-gap --for A4` submitted) |
+| A1 | 261124-050028-665c4f (e416bb0: gap over 1,000 ms equals the host's lag; was 261124-033301-bd7ae6 at 0d5f362); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main: 6 of 7 stops fail at 1,521-1,573 ms) |
+| A2 | 261124-050027-dd85d6 (7 stops at e416bb0); fails without: 261124-014707-1319b1 (main, stopped process), 261124-050014-f52514 (Control frames dropped: LOST), 261124-050018-ff695c (Control held 1,500 and 2,000 ms; 1,000 ms passes at 999) |
+| A3 | 261124-050028-760936 (50 runs beside 4 burners at e416bb0) |
+| A4 | CI of consensus:e416bb0 (pushed; `campaign verify --for A4` submitted); rpc_host_fetch: see Rulings |
 
 ## Result
 
@@ -57,3 +57,4 @@ stream row. Review F1-F3 folded in (consensus:0e000db): the stream waits for its
 - F4 (Detent:5a71c17e), consensus:0d5f362: the stream case requires the tail wait to succeed (`arrived` joins `ok`). Mutant drop.sh (patch.py MUTANT_MODE=drop: Control frames dropped after the call starts) fails at the fix: job 261124-033248-45a895. Jobs at 0d5f362: A1 261124-033301-bd7ae6; A2 261124-033255-d1fab5, fails without 261124-033248-45a895 (drop) and 261124-033251-9931b1 (delay 1,500/2,000 ms); A3 261124-033258-c0b16a; A4 CI at 0d5f362.
 - CI 45385145255 at 0d5f362, rpc_host_fetch on macos-x86_64: gap 2125 ms of 1024 (lag 24 ms), fetch 4131 ms (the passing macos run took 3.35 s: Bulk did not stop for 2.1 s). My F1-F4 edits do not touch the fetch case (F2 reads lag at the same point, after the same work), and xapiand's b92b6c8 (without them) fails fetch too (aborted connection), so it predates the quest. Probe: fetchprobe.py/fbuild.sh/frun.sh in ~/.scratch/detent/consensus-rpc-host-stream-gap/ time each heartbeat's post, loop send and delivery; job 261124-041209-359b5d runs 16 runs 8 at once beside 16 burners. Hypothesis to confirm: busy loop threads wait while the 1 ms sleeper (Lag) keeps waking, so Lag under-reports starvation of loop threads; a transport loop held under Bulk belongs to consensus-fetch-alongside-loop-stall.
 - Lag moved to test/transport/lag.h (self-contained, included by rpc_hosts.h) for consensus-seeds-rate-flake: consensus:e416bb0, local only, pushed with the next push (a push restarts CI; the fetch probe 261124-041209-359b5d is still queued). A1 261124-033301-bd7ae6 and A3 261124-033258-c0b16a are done at 0d5f362.
+- rpc_host_fetch (CI 45385145255 at 0d5f362, macos-x86_64: gap 2125 ms of 1024, lag 24 ms; xapiand b92b6c8 fails it too with an aborted connection, without my edits): pre-existing, not changed by this quest (F1-F4 touch the stream and call-full cases; F2 reads the fetch case's lag at the same point). Probe job 261124-041209-359b5d, 16 runs 8 at once beside 16 burners: 16 of 16 pass, gaps 179-336 ms, lag 1-12 ms: not reproduced on this host. It belongs to consensus-fetch-alongside-loop-stall (loops held under Bulk on macOS). If it fails at e416bb0 again, its run and stage split go here.
