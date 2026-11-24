@@ -119,7 +119,7 @@ and does a slow sync then stall heartbeats the same way?
   On macOS, reads and writes go to AIO and syncs to the queue's fallback worker thread
   (bsd_completion.h:105-133). On FreeBSD, aio_fsync is used. Linux uses io_uring or its fallback
   worker (linux_completion.h:72). In those cases a slow sync delays that group's own turn, not its
-  loop. Consensus builds no queue itself (docs/GOAL5-AUDIT.md:34), so the embedder chooses.
+  loop. Consensus builds no queue itself (docs/GOAL5-AUDIT.md:33-34), so the embedder chooses.
 - Open, outside this quest: an embedder that pairs InlineCompletion with HostTransport on a slow
   disk gets this same failure. That hazard belongs in the transport's or host's docs, the lead's
   call.
