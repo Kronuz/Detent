@@ -9,7 +9,7 @@ if git -C "$root" grep -nE "$pattern" -- src include tests bindings benchmarks e
 	':!docs/reviews' ':!docs/measurements' ':!docs/perf' ':!docs/status' ':!docs/design' ':!docs/handoffs' ':!CHANGELOG.md' \
 	':!docs/dev/docs-site-audit.md' ':!docs/DELIVERY_INTEGRATION_ARCHITECTURE.md' ':!docs/READER_CAPACITY_ARCHITECTURE.md' \
 	':!docs/CONTAINER_SELECTION_*.md' ':!docs/DOCUMENTATION_FINDINGS.md' ':!benchmarks/*.json' ':!benchmarks/container-alternative' \
-	':!tests/detent/one_knob_record.cc' ':!tests/detent_agent/test_agent_cli.cmake' ':!tests/docs/mutants.py' \
+	':!tests/detent/one_knob_record.cc' ':!tests/detent_agent/test_agent_cli.cmake' \
 	':!bindings/tests/legacy_grep.sh'; then
 	echo "legacy references remain" >&2
 	exit 1

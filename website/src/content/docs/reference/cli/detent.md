@@ -47,10 +47,12 @@ evaluates locally; it doesn't send a request to the agent. With neither
    starts one.
 4. If no generation arrives, `get` prints `--default` when it's given, and
    otherwise fails.
-5. `get` reads prepared generations only. The other `--reader-*` capacity
-   flags and `--reader-validation full` are `detent-agent --status`'s; `get`
-   refuses them, and ignores those settings in `agent.json` and the
-   environment.
+5. `get` reads prepared generations only. The other reader capacity flags
+   (`--reader-records` and the rest) and `--reader-validation full` are
+   `detent-agent --status`'s; `get` refuses them, and ignores those settings in
+   `agent.json` and the environment.
+6. `get` opens the name's own namespace: it reads that namespace's entry of the
+   store, whichever namespaces the agent follows.
 
 ---
 
@@ -80,3 +82,4 @@ detent get checkout:nope --default 0
 
 `DETENT_MANAGED_CONFIG`, `DETENT_GENERATION_DIR` and `DETENT_RUNTIME_DIR`
 configure a newly started agent; see [`detent-agent`](/Detent/reference/cli/detent-agent/#environment).
+`DETENT_READER_MAPPING_BYTES` sets `--reader-mapping-bytes`; the flag wins.
