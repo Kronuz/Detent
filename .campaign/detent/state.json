@@ -4444,6 +4444,21 @@
         "todo": "8ae47450"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 75 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:22:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:22:00",
+      "by": "campaign",
+      "closed": "bound-first-open not parked: lead widened it to turn_log.h to remove the +78% (no owner question); contributor resumed. fetch-oversize-abort: known msg-86, suite probe still running",
+      "id": "msg-361",
+      "settles": {
+        "todo": "804ae192"
+      },
+      "text": "to do, critical path first:\ntodo: park journal-bound-first-open (its journal waits on the owner: blocked on owner: the fix costs +78% open time (733/743 to 1,332/1,292 ms), inherent to a host.h-only fix; new): `campaign set journal-bound-first-open status=blocked until=owner reason=owner`\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 80 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
