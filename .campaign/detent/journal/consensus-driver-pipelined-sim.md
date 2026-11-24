@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: waiting on jobs 261124-052350-82cc5b 261124-052352-53da0a 261124-052354-fb8731 261124-052356-4538ad 261124-052358-086ed2 261124-052359-a0add1 and debug 261124-052456-811156 (fixing F1 of the correctness review)
+State: waiting on jobs 261124-054533-5b8358 261124-054535-246acf 261124-054538-eaf00b 261124-054541-b8f48a 261124-054544-8ae5fe 261124-054547-32f2aa (fix round 1, consensus:8f21d10)
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,25 +9,25 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 (review CHANGES at 551a5e6), consensus branch at 19c0727 (pushed):
-- F1: the counter counts an append only when it extends an outstanding flight (previous == a
-  flight's last entry), keeps the leader's matched mark, clears on rejection and on an installed
-  image, and fails a seed whose chain exceeds its pipeline. At fe889c0/8500a7b the oracle fired:
-  depth 1 seed 4 ("2 appends in flight ... at pipeline 1", job 261124-051721-39b95f / -052350-82cc5b),
-  depth 4 seed 19 ("5 ... at pipeline 4", 261124-051724-a70d9e): the tracker still counts a flight the
-  leader dropped. 19c0727 adds matched high-water and installs; seed 4 still fails
-  (261124-052350-82cc5b). Debug job 261124-052456-811156 (`.scratch/pipelined/dbg.sh 4`) prints that
-  group's sends and answers; read its log to find which Core path drops the flight. If the tracker
-  cannot be made exact, count extension only on `previous == through` AND no answer/timeout seen
-  and drop the failing oracle, saying so.
-- ack-tip added to `.scratch/pipelined/mutant.sh` (jobs 261124-052358-086ed2 fails-without default,
-  -052359-a0add1 at depth 1); docs updated.
-- Still to do: A1 jobs above must pass; forced depth 1 job must print 0 extending appends; merge
-  main; CI at the new head for A3; Evidence table; cite review notes F2-F6 in the Result.
+Fix round 1 at consensus:8f21d10 (pushed). The depth-1 "2 in flight" is NOT a Driver defect.
+Traced (jobs 261124-054210-f7768f seed 4, -054212-5397a0 seed 1, -054420-bffb4a with Core prints
+`.scratch/pipelined/dbg.sh`): every Core send had `flights_before 0` at depth 1. The pair on the wire
+is a timeout resend (rpc 57, prev 0, n 7) followed by an append that extends it (rpc 59, prev 7):
+the acks for rpc 50 and 54 (matched 7) were delivered to the leader's Driver at sim 3071 and 3117,
+but its Worker handled the resend's timer first, then the queued acks (Core: "send ... flights_before
+0 now 3363", "ack rpc 50 matched 7 flights 1", "ack rpc 54 flights 0", "send ... flights_before 0
+matched 7"), so the resend left the Sink after the answer that covers it, and the next append then
+extends it. Core's depth bound holds; the cost is one redundant resend per such race. The sim's
+tracker sees deliveries, not the Worker's handling order, so it now ignores a send whose last entry
+an already-delivered answer covers (8f21d10). Seed 19 at depth 4 ("5 in flight") is the same family;
+the jobs below show whether it holds.
 
 ## Next
 
-1. Read 261124-052456-811156, fix the tracker, resubmit the A1/A2 jobs, push, wait for CI.
+1. Read the six jobs: depth 1 must print 0 extending appends; default, d4, d16 must pass; ack-tip
+   fails-without must fail at the default cycle. If the chain-depth oracle still fires on another
+   race, drop that oracle (keep the counter) and say so. Then merge main, push, CI at the new head,
+   Evidence table, cite review F2-F6 in the Result.
 
 ## Blocked on
 
