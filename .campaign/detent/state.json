@@ -3783,6 +3783,21 @@
         "todo": "aedad724"
       },
       "text": "to do, critical path first:\ntodo: resume journal-turn-sector-checks (its journal waits on jobs 261124-053626-81c403, which ended (failed) 0 min ago; listed 5 min): `campaign status journal-turn-sector-checks`, read them, or park it with a reason\ntodo: resume consensus-follower-read (its journal waits on jobs 261124-043342-61c0c9, which passed 33 min ago; new): `campaign status consensus-follower-read`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T05:46:47",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T05:46:47",
+      "by": "campaign",
+      "closed": "rpc-host-stream-gap parked until join-v2; follower-read waits on its 16 D152 mutant jobs",
+      "id": "msg-318",
+      "settles": {
+        "todo": "ba985814"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-rpc-host-stream-gap (its journal waits on jobs 261124-050027-dd85d6, 261124-050028-760936, 261124-050028-665c4f, 261124-050014-f52514 and 261124-050018-ff695c, which passed 41 min ago; new): `campaign status consensus-rpc-host-stream-gap`, read them, or park it with a reason\ntodo: resume consensus-follower-read (its journal waits on jobs 261124-043342-61c0c9, which passed 38 min ago; listed 5 min): `campaign status consensus-follower-read`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
