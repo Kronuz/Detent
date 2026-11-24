@@ -1,14 +1,139 @@
 # authority-pages-design review: design
 
-Commit: Detent:28ca4c31de0cbdcccf40ac98405c75ff7530be3c
+Commit: Detent:12608a08
 Verdict: CHANGES
-Date: 2026-11-24 (re-review; round 1 at Detent:65576604 below)
+Date: 2026-11-24 (round 2; the re-review at Detent:28ca4c31 and round 1 at Detent:65576604 below)
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
 
-## Re-review at Detent:28ca4c31
+## Round 2 at Detent:12608a08
+
+R1-R4 and R6 are fixed, and the strip mutant fails for R1's reason. R5 is fixed in intent, but rule
+3's clock measures the wrong thing. The model shows it misfiring on every idle namespace, and the
+doc's wording allows a second reading under which R5 stays open (T1). One cost the fix round added,
+a separate root-entry proposal four times a second, is neither specified as free nor measured (T2).
+The doc still has three unfilled slots for pass4, the decided pool beside the journal (T3).
+`261124-111623-b18370` is still queued, so I did not read it. All three blocking findings are text
+or one queued job. Option 2's shape is sound.
+
+### Evidence I relied on
+
+- The doc and journal at `12608a08` (the doc's last change is `67b76b6c`), and `root_model.py` and
+  `test_root_model.py` there.
+- The jobs the journal names at `67b76b6c` were all queued when I read them: the R1 strip mutant
+  `261124-111650-5bc59c`, the tests `-111638-e08fc4`, pass4 `-111623-b18370` and the suite
+  `-111629-fea86a`. So I ran the model's tests myself (below) and relied on no result of theirs.
+
+### What I checked myself
+
+Under `quiet light`, from `.scratch/detent/review-authority-pages-design-design/r2/` (`run_all.sh`
+runs everything; the model files are copies from `12608a08`):
+
+- **The tests pass, and the strip mutant fails for R1's reason.** The five cases pass. With
+  `ROOT_MODEL_RULES=strip`, three fail. The two divergence cases fail because the agent publishes
+  the relay's wrong records (`take` returns true), which is R1. The rootless case fails because the
+  agent publishes a rootless answer. The mutant changes two rules at once, so I split it in two.
+  Relay-only strip (`relay_only/`) fails two cases, but only on the failure counter, (0, 0) for
+  (0, 1): the agent's rule 2 alone keeps the wrong state unpublished. Agent-only rootless
+  (`agent_only/`) fails the rootless case. Each half is killed, and safety needs either rule, not
+  both.
+- **Rule 3's clock** (`probe_clock.py`):
+  - P1: a namespace verified at t = 1 s and idle until t = 12 s is reported `unverified` with
+    nothing unverified published. Its first write after the idle gap (t = 21 s) publishes nothing
+    until the next root arrives.
+  - P2: a builder stall publishes tails until 11 s after the last check, then holds the position
+    (14) with `unverified`. When roots resume, it catches up to the head (17) in one answer.
+  - P3: the clock is the last check, not the age of the oldest unverified change.
+  - P4: a new namespace (or a new incarnation) publishes nothing before its first root.
+
+### R1-R6
+
+| ID | Fixed | Where, and what shows it |
+|---|---|---|
+| R1 | yes | Agent and relay rules 1-2 and the relay row of the root path table: a relay never strips a root, and an agent publishes nothing on a missing, stale or failing root. The strip mutant fails for this reason, and each half of it is killed (above). |
+| R2 | yes, with T2 | "The builder and the service loop" covers input (pending lists, a `persistent_map` snapshot), encode on the pool, an output queue drained once per turn, memory and scheduling. The cost of its one proposal per round is T2. |
+| R3 | yes | "Step-down": a cancel flag, the queue and the result in hand dropped, heads freed, at most one cold build at a time. The step-down tests are named for authority-builder-pool. |
+| R4 | yes | Rule 4: the agent keeps what it published, counts the failure, takes a full copy from another source and checks it first, and reports the namespace unverified. The model's wrong-tail case covers it, and Limit 1's row now reads "detection, not retraction". |
+| R5 | partly: T1 | Rule 3 exists and the model's lost-roots case trips it, but its clock misfires on idle namespaces (P1), and the doc's text admits a reading under which a relay that keeps sending its last root never trips it. |
+| R6 | yes | "The root entry": no position, kept beside the head, carried by a snapshot and a cut, rides D1's header field, stale entries ignored. |
+| N1-N4 | N1 waits on T3; N2-N4 yes | pass4 in the paced harness; the scheduling sentence; relays build at rooted positions; "1.7-1.9 times". |
+
+### What a user sees under rule 3 (for the owner)
+
+Rule 3 makes option 2 fail closed: delivery of a namespace now depends on roots arriving, where
+before it depended only on records. Per failure, with the clock as T1 fixes it:
+
+| Failure | Who | What a user sees |
+|---|---|---|
+| Builder stall on the leader (pool stuck, starved or crashed; commits continue) | every agent of every namespace with writes, fleet-wide | values keep updating for 10 s (unverified), then freeze, with health showing the namespace unverified, while the authority keeps accepting writes. Asking another source cannot help: no source has a root. When roots resume, everything catches up in one answer (P2). Today, and under rule 2 alone, values keep updating unverified. |
+| A relay loses root entries (mirror bug) | agents below that relay | the same freeze after 10 s, for that relay's namespaces only. Another relay with roots restores them at once, provided it is reachable. |
+| Authority partition, leader in the minority | everyone | no commits, so no new values under any rule. Under the clock as written, every idle namespace is also flagged unverified and asks another source after 10 s (P1): a fleet-wide false alarm and a request burst. |
+| Authority partition, new leader in the majority | everyone with writes during the gap | values keep updating unverified until the first root, if that comes within 10 s; otherwise a freeze until the new leader's first root. |
+
+**Is 10 s derived?** No. It is "the window's 2.1-6.2 s with margin", but the time between two checks
+across an election is a sum of several parts:
+1. The last root's age when the leader fails (root lag p99 0.33 s plus its commit, p99 0.31 s).
+2. The election timeout, 1-2 s (`consensus/types.h:114-115`).
+3. The window, 2.1-6.2 s at 5M on this host, which grows with the store and shrinks with the pool.
+4. The new root's commit, up to 0.31 s.
+5. Two relay tiers' mirror delay and the agent's poll interval, neither measured.
+
+Parts 1-4 come to 4.4-9.2 s, so in the strict four-thread case 10 s leaves 0.8 s for part 5. A
+larger store, or a pool starved on a small host (one thread took 11.6-15.1 s), freezes visibility
+at every election. The owner's options, with the numbers above:
+1. Keep 10 s, stated as tuned to 5M on this host.
+2. Derive the bound from those parts at the deployment's store size, as configuration.
+3. Tie it to the measured root-lag metric (a multiple of its p99 and of the last window).
+4. Drop rule 3 and keep rule 2's unbounded unverified tail, which leaves R5 open (a relay that
+   loses roots goes unnoticed).
+
+None of these is blocking; the choice is the owner's.
+
+### Sweep: the lifecycle's states and rule 3's clock
+
+- **Reachable and tested.** The agent and relay rules are modeled and tested: five cases, plus my
+  four probes. The authority's states F, LC, LS and LB are reached by the harness's lag mode
+  (`cold` is LC to LS; `warm` is LS, and LB when a round outruns its interval, as with one thread).
+  Step-down from LC or LS, a root entry lost at a term change, a stale incarnation, and a snapshot
+  install carrying the latest root are reached by nothing in this quest. They are text, with tests
+  named for authority-builder-pool and authority-root-entries. For a design that is acceptable; the
+  implementation quests must carry those tests (U4).
+- **Transitions that skip or misuse the clock.**
+  1. Idle time runs the clock with nothing unverified (P1, T1).
+  2. Re-checking the same root resets the clock under one reading of the doc (T1).
+  3. An agent restart: the doc does not say whether v, the tail past it and the clock persist. A
+     restart that resumes with its published state as v skips the clock for the tail, although the
+     next root still detects a wrong record, since it covers the whole state (U2).
+  4. A repair resets the clock at a checked root, which is right.
+  5. A switch to another source whose newest root is older than v publishes nothing, which is right.
+  6. A new incarnation has no root until its first pass (P4). That is a visibility cost, not a skip
+     (U3).
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| T1 | yes | defect | Rule 3's clock runs from "its last passing check". In the model that is the last check of a newer root. An idle namespace therefore trips the bound with nothing unverified: health reports it unverified and the agent asks another source every 10 s of idleness, on every idle namespace of every agent. The first write after 10 s idle also publishes nothing until its root arrives (P1), so rule 2's "no visibility cost" fails for low-write namespaces, which pay the root lag plus its commit (p99 about 0.64 s against the 1 s target through two tiers). The doc's text also admits the other reading, where re-checking the held root counts as a passing check. Under that reading a relay that loses root entries keeps sending its last root, and the clock never expires, which is R5 again. | `probe_clock.py` P1, P3; `root_model.py` `take` (`verified_at_s` set only when r > v); doc line 117 | The clock is the age of the oldest change the agent published past its last verified root. It starts at the first unverified publish, stops when a root covers that change, and is never reset by re-checking the held root. Test (agent-root-check, and the model now): P1's idle case publishes its first write at once and stays verified, and the lost-roots case still trips the bound. |
+| T2 | yes | gap | Root-entry proposals have no stated cost. The handoff makes one root-entry proposal per round, four a second ("The builder and the service loop" item 3). "Why roots go through the log" says they are "carried by group commits already in flight", and Limits 6 estimates their cost by size. The loop admits one prepared proposal at a time (`service.cc:3290`, the `preparing` slot), and on this host the journal pays per durable sync (133 ms p50), not per byte. If each root entry is its own entry with its own sync, four a second take about 0.5 s of sync time a second from the group commits. Neither the paced rows nor pass4 propose root entries. | doc lines 124, 128, Limits 6; `service.cc:3255-3297` | Say which it is. Root entries ride in the next transaction group's entry (a field of the batch, no extra sync), or they are separate entries, measured in a paced row with root proposals beside the journal. Test (authority-root-entries): that row inside the A/A band, or a batch carrying a root entry decoded and applied. |
+| T3 | yes | gap | ⟨PASS4-DELTA⟩, ⟨PASS4-JOB⟩ and ⟨SEAL-LAG⟩ are unfilled in the Recommendation, the Decision's facts and option 2, and in Limits 7. These are the numbers for the decided pool beside the journal (N1, C2). `261124-111623-b18370` is still queued. | doc lines 96, 203, 242, 248, 253 | Fill them from `b18370` (`check.py pairs`) and read pass4's delta against its A/A band. If it falls outside the band, Decision option 2's line changes before the owner reads it. |
+| U1 | no | gap | Rule 3's "asks another source" has no jitter or rate, and in a builder stall or a partition every agent below every relay asks at once while no source has a root. That works against SCALE_TARGETS' storm control. | doc line 117; `docs/SCALE_TARGETS.md` storm control | Jittered and rate-limited; a records answer, not a full copy, unless a check failed. |
+| U2 | no | gap | Rule 2 keeps the state at v and the records since. The doc neither prices that on agents (a second generation sharing pages, plus a records log) nor says what persists across an agent restart. A restart that resumes with the published state as v resets rule 3's clock for the tail. | doc line 116 | Persist v, the tail and the clock's start, or treat the tail as unverified from the restart; one line pricing the second generation. |
+| U3 | no | gap | A new namespace or incarnation is invisible until its first root (P4), so its first values pay the root lag (p99 0.33 s plus commit). Rule 2's "no visibility cost" should except it. | `probe_clock.py` P4 | One sentence. |
+| U4 | no | gap | Step-down, a root entry lost at a term change, stale incarnations and a snapshot install are reached by no model or harness here. Their tests are named for the implementation quests, which must carry them. | doc lines 165-174, 229-232 | Keep them as acceptance criteria when the lead writes those quests. |
+| U5 | no | gap | The pending lists grow without bound during a builder stall (2,000 records/s against "times the root lag"). | doc line 125 | A bound, past which the namespace is cold-built again. |
+| U6 | no | nit | Rule 3 says "elections faster than the window"; it means elections whose window runs longer than the bound. D133's row still cites `namespace_relay.cc:413` and `coordinator.cc:685-692`, which are 414/426 and 683-692 at this head. | doc lines 117, 224 | Reword; update the line numbers. |
+
+### Not run
+
+- `b18370` (pass4), the strip mutant job, the tests and the suite at `67b76b6c` were still queued;
+  the model results above are my own runs of the same files.
+- No strict or exclusive probe. Root-entry proposals (T2) were not measured.
+- Reviewer ran as a subagent of the lead, not a session titled `detent · reviewer
+  authority-pages-design design`.
+
+## Re-review at Detent:28ca4c31 (CHANGES)
 
 Every round-1 finding is fixed, and the numbers the doc cites match their jobs. What blocks now is
 the mechanism the fix round added: the root entry, the split answer and the window rule have no
