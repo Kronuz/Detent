@@ -7366,15 +7366,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "not the owner: waits on CI suite probe run 45453078372 (still running); until= takes no CI id (campaign-v3 msg-86); the lead's waiter resumes it",
+      "reason": "suite probe 45453078372 ended: shard 2 failed, shard 1 green; contributor resumed",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "blocked",
+      "status": "active",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-24T11:59:43",
+      "updated": "2026-11-24T12:21:48",
       "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
