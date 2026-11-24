@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-22) how an authority group's limits rise at a coordinated restart (D141), read from `src/detent_authority/state.cc` and `node.cc`.
+> Status: CURRENT (2026-11-22) how an authority group's limits rise at a coordinated restart (D141), read from `src/detent_authority/state*.cc`, `state_internal.hh` and `node.cc`.
 
 # Raising authority capacity at a restart
 
@@ -20,7 +20,7 @@ authority application_limits.keys 3 is below the recorded 4; limits only rise
 authority application_limits.results 1 differs from the recorded 256; only keys, state_bytes and image_bytes rise at a restart
 ```
 
-One table, `limit_fields` in `state.cc`, lists the ten limits in their encoded order and marks
+One table, `limit_fields` in `state_internal.hh`, lists the ten limits in their encoded order and marks
 the three that rise. `write_limits`, `read_limits` and `admit_limits` all walk it, so the encoded
 order, the decoded order and the admission order cannot drift apart.
 
@@ -86,7 +86,7 @@ this process (an allocation, an encoding, a decode), so it uses the configured l
 | `namespace_history.cc` `out->limits_` | change decoding bounds (fixed fields) | local |
 | `layout_export.cc`, `service.cc` `exporter.file(…, sealed()->limits())` | history file decoding bounds | local |
 
-`service.cc` reads only the configured limits (`o.node.application`): credential and namespace
+The service (`service.cc`, `service_options.cc`, `service_runtime.cc`) reads only the configured limits (`o.node.application`): credential and namespace
 counts, request and mutation bounds, the history fetch lane (`fetch_bytes`), and the profile it
 validates at startup. All of them are local.
 

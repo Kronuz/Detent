@@ -1,7 +1,7 @@
-diff --git a/src/detent_authority/service.cc b/src/detent_authority/service.cc
+diff --git a/src/detent_authority/service_runtime.cc b/src/detent_authority/service_runtime.cc
 index 5b714de0..8acfc29f 100644
---- a/src/detent_authority/service.cc
-+++ b/src/detent_authority/service.cc
+--- a/src/detent_authority/service_runtime.cc
++++ b/src/detent_authority/service_runtime.cc
 @@ -2968,7 +2968,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
  					// leader may be cut off from the quorum: it refuses, and the relay reads another.
  					history_wanted = history_wanted ||

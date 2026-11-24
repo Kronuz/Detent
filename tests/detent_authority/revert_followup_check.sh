@@ -15,14 +15,14 @@ build=.scratch/revert-followup-build
 case $mode in
     lost-quorum)
         test_name=test_authority_lost_quorum pattern='^FAIL: a node without a leader'
-        sed -i.orig 's/node\.worker()\.ready() && leader_alive()/node.worker().ready() \&\& leader_known/' src/detent_authority/service.cc || exit 125
-        cmp -s src/detent_authority/service.cc src/detent_authority/service.cc.orig && { echo "mutation did not apply"; exit 125; }
-        rm -f src/detent_authority/service.cc.orig ;;
+        sed -i.orig 's/node\.worker()\.ready() && leader_alive()/node.worker().ready() \&\& leader_known/' src/detent_authority/service_runtime.cc || exit 125
+        cmp -s src/detent_authority/service_runtime.cc src/detent_authority/service_runtime.cc.orig && { echo "mutation did not apply"; exit 125; }
+        rm -f src/detent_authority/service_runtime.cc.orig ;;
     no-leader)
         test_name=test_authority_daemon_ready pattern='^READINESS: ready:true without a leader'
-        sed -i.orig 's/return leader_known &&$/return true \&\&/' src/detent_authority/service.cc || exit 125
-        cmp -s src/detent_authority/service.cc src/detent_authority/service.cc.orig && { echo "mutation did not apply"; exit 125; }
-        rm -f src/detent_authority/service.cc.orig ;;
+        sed -i.orig 's/return leader_known &&$/return true \&\&/' src/detent_authority/service_runtime.cc || exit 125
+        cmp -s src/detent_authority/service_runtime.cc src/detent_authority/service_runtime.cc.orig && { echo "mutation did not apply"; exit 125; }
+        rm -f src/detent_authority/service_runtime.cc.orig ;;
     stop)
         test_name=test_authority_daemon_stop pattern='^STARTUP:'
         git checkout "$base" -- src/detentd/main.cc || exit 125 ;;
