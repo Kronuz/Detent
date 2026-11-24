@@ -79,16 +79,94 @@ class Rules(unittest.TestCase):
         auth = m.Authority()
         auth.commit(*keys(1, 4))
         auth.pass_root()
-        relay = m.Relay(auth, roots_until=4)
+        relay = m.Relay(
+            auth, roots_until=4
+        )  # keeps sending root 4: re-checking it resets nothing
         agent = m.Agent()
         self.assertTrue(agent.take(relay.answer(0), 1.0))
-        for second in range(2, 14):
+        for second in range(2, 20):
             auth.commit(*keys(len(auth.changes) + 1, len(auth.changes) + 2))
             auth.pass_root()
             published = agent.take(relay.answer(agent.position), float(second))
-            self.assertEqual(published, second - 1.0 <= m.BOUND_S)
+            # The clock starts at the first unverified publish, at second 2.
+            self.assertEqual(published, second - 2.0 <= m.BOUND_S)
         self.assertTrue(agent.unverified)
         self.assertEqual(agent.verified, 4)
+
+
+class Clock(unittest.TestCase):
+    def test_an_idle_namespace_publishes_its_first_write_at_once(self) -> None:
+        auth = m.Authority()
+        auth.commit(*keys(1, 4))
+        auth.pass_root()
+        relay = m.Relay(auth)
+        agent = m.Agent()
+        self.assertTrue(agent.take(relay.answer(0), 1.0))
+        self.assertFalse(agent.take(relay.answer(4), 30.0))  # idle: nothing unverified
+        self.assertFalse(agent.unverified)
+        auth.commit(*keys(5, 6))  # the first write after idling, before its root
+        self.assertTrue(agent.take(relay.answer(4), 40.0))
+        self.assertEqual((agent.position, agent.unverified), (6, False))
+
+    def test_a_stalled_builder_with_writes_trips_at_the_bound(self) -> None:
+        auth = m.Authority()
+        auth.commit(*keys(1, 4))
+        auth.pass_root()
+        relay = m.Relay(auth)
+        agent = m.Agent()
+        self.assertTrue(agent.take(relay.answer(0), 1.0))
+        for second in range(5, 25):  # writes continue, roots stop
+            auth.commit(f"k{second % 3}")
+            published = agent.take(relay.answer(agent.position), float(second))
+            self.assertEqual(published, second - 5.0 <= m.BOUND_S)
+        self.assertTrue(agent.unverified)
+        auth.pass_root()  # roots resume: it catches up in one answer
+        self.assertTrue(agent.take(relay.answer(agent.position), 25.0))
+        self.assertEqual((agent.position, agent.unverified), (len(auth.changes), False))
+
+    def test_a_new_incarnation_is_invisible_until_its_first_root(self) -> None:
+        auth = m.Authority()
+        auth.commit(*keys(1, 4))
+        auth.pass_root()
+        relay = m.Relay(auth)
+        agent = m.Agent()
+        self.assertTrue(agent.take(relay.answer(0), 1.0))
+        auth.recreate()
+        auth.commit(*keys(1, 2))
+        self.assertFalse(agent.take(relay.answer(0), 2.0))
+        auth.pass_root()
+        self.assertTrue(agent.take(relay.answer(0), 3.0))
+        self.assertEqual((agent.incarnation, agent.position), (2, 2))
+
+    def test_a_root_of_an_older_incarnation_is_ignored(self) -> None:
+        auth = m.Authority()
+        auth.commit(*keys(1, 4))
+        auth.pass_root()
+        stale = m.Relay(auth).answer(0)
+        auth.recreate()
+        auth.commit(*keys(1, 3))
+        auth.pass_root()
+        agent = m.Agent()
+        self.assertTrue(agent.take(m.Relay(auth).answer(0), 1.0))
+        self.assertFalse(agent.take(stale, 2.0))
+        self.assertTrue(agent.unverified)
+
+
+class Leader(unittest.TestCase):
+    def test_the_pass_interval_is_a_minimum(self) -> None:
+        self.assertEqual(m.pass_due_s(None, 5.0, 0.25), 5.0)
+        self.assertEqual(m.pass_due_s(1.0, 9.0, 0.25), 9.0)  # idle: passes on arrival
+        self.assertEqual(m.pass_due_s(1.0, 1.1, 0.25), 1.25)  # busy: waits the interval
+
+    def test_a_result_of_an_old_term_is_never_proposed(self) -> None:
+        leader = m.Leader()
+        self.assertTrue(leader.offer(1, 10))
+        leader.step_down()
+        self.assertFalse(leader.offer(1, 20))  # finished after the step-down
+        leader.elected()
+        self.assertFalse(leader.offer(1, 30))  # built in the old term
+        self.assertTrue(leader.offer(2, 40))
+        self.assertEqual(leader.proposed, [(1, 10), (2, 40)])
 
 
 if __name__ == "__main__":
