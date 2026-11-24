@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: ready for review
+State: waiting on jobs 261124-111619-945876 261124-111619-8a04c5 261124-111620-0bbbdb 261124-111620-a9701c 261124-111621-1c41a2 261124-111622-6718ae 261124-111623-31f7f5 261124-111623-b18370 261124-111624-56374f 261124-111629-fea86a 261124-111638-e08fc4 261124-111704-bdd5fe 261124-111650-5bc59c
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,52 +9,51 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 after the design review (CHANGES at 65576604, F1-F11) is done in the doc: every ⟨…⟩ marker filled
-from the fix-round rows (18937291). The owner decided A4 = option 2 (PLAN D156) and Q1 = no signing now (D157);
-the doc's Decision section records both (7fbc96b2). main merged twice (a6bc98d7: tests only; then again at the
-final head, with src changes in detent_local, detent_reader, detent_testing), so the measurement jobs the evidence
-cites are rerun once at the final head b5ce810d, as `campaign brief` lists them: 261124-104556-e167d6
-(100K seals, exclusive), -104557-d95ac0 (5M seals, exclusive), -104557-c49edb, -104558-1a841c, -104559-60f158
-(commit rows), -104559-41e88a (strict seals), -104600-50c662 (paced 5M, exclusive), -104600-0c7e60 (lag steady).
-fc6f20 was superseded by e167d6. CI 45420166422 at 382822d5: every job green except macos-arm64, "not acquired
-by Runner of type hosted" (infrastructure). Suite
-261124-065709-635779 passed at a6bc98d7; the seven reruns there were cancelled by the lead. The reviewer's probes (261123-145400-63b0f2 and its sat probe) are cited by the
-doc, are the reviewer's harness, and are not rerun.
+Fix round 2: correctness review CHANGES (C1-C8) and design re-review CHANGES (R1-R6, N1-N4), both at 28ca4c31.
+The eight reruns at b5ce810d were cancelled before they ran (the harness changes again here). Fix round 1
+(F1-F11), D156 and D157 are recorded below and in the doc.
 
-Fix-round rows (at 7a4d6f83; the merge since touched tests only), summarized:
-- Paced commit, `check.py pairs` (arm p50 minus adjacent none, ms; mean [95% CI]): 5M exclusive PE
-  261123-193517-519b4d: thread -2.0 [-2.8,-1.1], pool -0.2 [-1.2,0.7], write +37.1 [34.8,39.4], aa -0.2
-  [-1.1,0.7]; none p50 133.4 ms. Strict P1 f0eafa / P2 65f196: A/A intervals 63 and 119 ms wide, write medians
-  +39.9 / +40.2, others inside. 100K strict P3 95a0ae: A/A excludes zero (-157,-5): resolves nothing. Builder at
-  0.91 seals/s median per block (0.82-0.98); thread 605.8 ms/seal exclusive (= seal row's 604.8).
-- L1 a9b30c steady 2,000/s (strict): T1/i1000 p99 3,315 ms 0.93 core; T10/i1000 1,152 ms 1.29; T4/i250 328 ms
-  1.34; T10/i250 396 ms 2.11. LE 962367 (exclusive) T10/i250 295 ms 1.47.
-- L2 d6ce25 burst 10,000/s for 10 s: T1 3,200 ms; T4/i250 564 ms 1.75 cores; T10/i250 550 ms 2.55. LE 407 ms 2.03.
-- L3 e60802 / L4 1675da failover window (first root past the cold build): T1 15.1 / 11.6 s; T4 6.2 / 3.3 s;
-  T10/i250 4.3 / 3.2 / 2.3 s; T10/i1000 4.0 s. LE 2.7 / 2.1 s (T10, exclusive). Peak RSS 0.55-0.69 / 1.0-1.2 /
-  1.9-2.0 GB for 1 / 4 / 10 threads.
+| Finding | Fix | Shown by |
+|---|---|---|
+| C1 interval was z over 4 pairs | check.py `stats` uses Student's t (table to df 30, Cornish-Fisher past it); every interval and the A/A band in the doc recomputed from the same logs: 519b4d pool [-1.8, 1.3], aa [-1.7, 1.3], thread [-3.3, -0.6], write [33.3, 40.8]; strict rows widened, none resolves | test_check.py (t(3) = 3.182; four pairs [0.4, 4.6]); fails without: the z mutant |
+| C2 recommended pool never beside the journal | harness `paced` gains arm pass4 (option 2's PassPool, four threads, 250 ms passes, arrivals at 0.98 x 2,048/s), rotating with thread, pool, write and aa; the doc's claims about it wait on ⟨PASS4-DELTA⟩ / ⟨PASS4-JOB⟩ | the exclusive paced job at the final head (the rerun of 261123-193517-519b4d) |
+| C3 "builder lag" was the longest build | Builder stamps each post and reports lag (post to build end) p50/p99/max and build_ms_max apart; doc row relabelled "longest build of one seal", backlog at block end from drain_ms (write 3,168-3,463 ms, thread 49-648); ⟨SEAL-LAG⟩ waits on the paced job | the exclusive paced job; doc "Commit latency and elections" |
+| C4 detection delay omitted the root entry's commit | rule 2 adds the group commit (133 / 309 ms) | doc, After a leader change |
+| C5 lag CPU was process CPU | `build_cores` printed; doc CPU column recomputed as builder CPU (recommended 1.30 / 1.72 cores, was 1.34 / 1.75) | doc LAG table; lag rerun |
+| C6 digest timed wall | `digest_cpu_ms` on thread CPU; doc labels old rows "wall on one thread" | seals reruns |
+| C7 commit mode gap not reset | `reset_gap()` | commit reruns |
+| C8 posting rate unchecked | check_paced fails outside 0.7-1.1 x RATE; posting rounds to the nearest seal (was down) | test_check.py slow-rate case |
+| R1 relay strips root on divergence | relay forwards the root always; agent publishes nothing on a missing, stale or failing root; doc "Agent and relay rules" 1-2, root path table | test_root_model.py (5 cases); fails without: ROOT_MODEL_RULES=strip (3 fail) |
+| R2 pool and loop handoff | doc "The builder and the service loop": input (pending lists, persistent_map snapshot), encode on the pool, output queue drained once per turn, memory, scheduling (N2) | text; authority-builder-pool's TSan test named |
+| R3 step-down | lifecycle table and "Step-down": cancel flag, drop results and queue, free heads, one cold build at a time | text; authority-builder-pool's test named |
+| R4 after a failed check | agent rule 4: keep published state, count, full copy from another source checked first, health unverified | test_root_model.py wrong-tail case |
+| R5 time without a root | agent rule 3: 10 s bound, then stop publishing the namespace and ask another source | test_root_model.py bound case |
+| R6 root entry contract | "The root entry": entry, history (no position, survives snapshot and cut), wire, staleness | text; authority-root-entries' test named |
+| N1 | = C2 | |
+| N2 | scheduling sentence in R2's paragraph, probe 776fa1 cited | text |
+| N3 | relays build at rooted positions, not at head | root path paragraph, D7 row |
+| N4 | "1.7-1.9 times the peak RSS" | text |
 
-Design review findings, each with the job or section that fixes it (sections of docs/design/authority-pages.md;
-"suite" = the suite job at the final head, for text-only fixes):
+Jobs at the final head 67b76b6c: the eight cancelled reruns, 261124-111619-945876 (100K seals, exclusive),
+-111619-8a04c5 (5M seals, exclusive), -111620-0bbbdb, -111620-a9701c, -111621-1c41a2 (commit rows),
+-111622-6718ae (strict seals), -111623-b18370 (paced 5M exclusive, with pass4: C2's A/B against none and the
+A/A), -111624-56374f (lag steady); smoke -111623-31f7f5; suite -111629-fea86a; tests -111638-e08fc4; fails
+without: C1 z mutant -111704-bdd5fe, R1 strip mutant -111650-5bc59c. Not queued, though `campaign brief`
+lists them because the harness changed: the strict commit rows 1457d9, ac3113, 4d9157, 02c215, the strict
+paced 65f196 / 95a0ae, the lag rows d6ce25, e60802, 1675da, 962367 (exclusive) and 885bdd. The lead's
+instruction named the eight plus C2; those 11 are the lead's call (A1 cites them at 7a4d6f83 / 392deab8).
 
-| Finding | Blocking | Fixed in | Confirming job |
-|---|---|---|---|
-| F1 commit rows not at rc3 load, noise above floor | yes | "Commit latency and elections": paced rows at 0.98 seal/s with an A/A arm; old rows' rate stated, not used for deltas; 24d1dd cited | 261123-193517-519b4d (exclusive: pool -0.2 ms inside A/A ±1 ms, write +37.1); strict 261123-193507-f0eafa, -193510-65f196, -193513-95a0ae |
-| F2 root lag after a leader change | yes | "After a leader change": WINDOW table measured end to end; agent rules, DELAY; Limit 1 row | 261123-193531-962367 (exclusive), 261123-193525-e60802, -193528-1675da |
-| F3 root per serving path | yes | "Where the root comes from": per-path table, root entries in the log, split answers, threat model (D157) | suite (text) |
-| F4 pass-through and Q4 contradiction | yes | "What it buys": pass-through specified, priced, deferred; authority page serving priced, not recommended; (b) as an added cost | 261123-193520-a9b30c, -193523-d6ce25 (1.34-1.75 cores) |
-| F5 decision rows | yes | "What it changes": Limit 1, D1, D4, D6, D7, Q4, D34, D133 with landed code, D145 | suite (text) |
-| F6 coalescing | no | LAG table, coalescing paragraph, pool bound (four threads) | 261123-193520-a9b30c, -193523-d6ce25 |
-| F7 inline range | no | quoted as 971-2,650 ms over four jobs | 261123-143704-14eaf8 and the 5M commit rows |
-| F8 one exclusive job per CPU number | no | strict range stated; exclusive reruns at the final head | 261124-104556-e167d6, 261124-104557-d95ac0 |
-| F9 encode in build CPU | no | "Cost on the authority", stated as conservative | text |
-| F10 SHA-NI / XOF | no | alternative (d) and Decision option 5 | text |
-| F11 builder reads its own corpus | no | Limits 4 | text |
+For the owner (flag, the decision rests on option 2's line): agent rule 3 makes option 2 fail closed. An agent
+that goes 10 s without a checked root stops publishing that namespace, so a builder stall, a relay that loses
+root entries, or elections faster than the window now stall visibility after 10 s. Before, those cases published
+unverified with no limit. Steady and post-election numbers are unchanged: the window is 2.1-6.2 s, under the bound.
+C3 does not change option 2's numbers: lag mode measured arrival to pass end throughout.
 
 ## Next
 
-1. Design re-review of the CHANGES findings (table under Doing). When the final-head reruns pass, compare them
-   with the doc's numbers; a moved number gets updated in the doc with its new job.
+1. When the final-head jobs pass: fill ⟨PASS4-DELTA⟩, ⟨PASS4-JOB⟩ and ⟨SEAL-LAG⟩ from the exclusive paced job
+   (`check.py pairs` on its log; pooled lag lines), compare the reruns with the doc, then set State "ready
+   for review" (round 3 goes to the owner).
 
 ## Blocked on
 
