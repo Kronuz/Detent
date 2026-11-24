@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: ready for review (A3: the suite verify and CI of 551a5e6 were still running when written)
+State: waiting on jobs 261124-052350-82cc5b 261124-052352-53da0a 261124-052354-fb8731 261124-052356-4538ad 261124-052358-086ed2 261124-052359-a0add1 and debug 261124-052456-811156 (fixing F1 of the correctness review)
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,25 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing; waiting for A3 (suite verify, CI) to finish at consensus:551a5e6.
+Fix round 1 (review CHANGES at 551a5e6), consensus branch at 19c0727 (pushed):
+- F1: the counter counts an append only when it extends an outstanding flight (previous == a
+  flight's last entry), keeps the leader's matched mark, clears on rejection and on an installed
+  image, and fails a seed whose chain exceeds its pipeline. At fe889c0/8500a7b the oracle fired:
+  depth 1 seed 4 ("2 appends in flight ... at pipeline 1", job 261124-051721-39b95f / -052350-82cc5b),
+  depth 4 seed 19 ("5 ... at pipeline 4", 261124-051724-a70d9e): the tracker still counts a flight the
+  leader dropped. 19c0727 adds matched high-water and installs; seed 4 still fails
+  (261124-052350-82cc5b). Debug job 261124-052456-811156 (`.scratch/pipelined/dbg.sh 4`) prints that
+  group's sends and answers; read its log to find which Core path drops the flight. If the tracker
+  cannot be made exact, count extension only on `previous == through` AND no answer/timeout seen
+  and drop the failing oracle, saying so.
+- ack-tip added to `.scratch/pipelined/mutant.sh` (jobs 261124-052358-086ed2 fails-without default,
+  -052359-a0add1 at depth 1); docs updated.
+- Still to do: A1 jobs above must pass; forced depth 1 job must print 0 extending appends; merge
+  main; CI at the new head for A3; Evidence table; cite review notes F2-F6 in the Result.
 
 ## Next
 
-1. Lead reviews; A3 goes green or fails on the suite/CI.
+1. Read 261124-052456-811156, fix the tracker, resubmit the A1/A2 jobs, push, wait for CI.
 
 ## Blocked on
 
