@@ -108,7 +108,9 @@ async def rounds(certificates: Path, scratch: Path) -> None:
             hold = random.uniform(0, 1)
             threading.Timer(hold, squat.close).start()
             progress(f"restarting member {index}, port squatted for {hold:.2f} s")
+            began = time.monotonic()
             await authority.restart_member(index)
+            progress(f"member {index} answering {time.monotonic() - began:.2f} s after restart")
             status, _ = await authority.request(index, "/v1/health")
             assert status == 200, f"member {index} answered {status}"
     print("3 kills with the port squatted: every member rebound")
