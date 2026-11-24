@@ -13,12 +13,27 @@ if(Python3_FOUND)
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} TIMEOUT 30)
 endif()
 
+if(Python3_FOUND)
+  add_test(NAME test_support_ports
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/support/test_ports.py)
+  set_tests_properties(test_support_ports PROPERTIES TIMEOUT 30)
+endif()
+
 if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
   add_test(NAME test_system_localhost_dial
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_localhost_dial.py
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
   set_tests_properties(test_system_localhost_dial PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 60 SKIP_RETURN_CODE 77)
+endif()
+
+if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
+  add_test(NAME test_system_restart_rebind
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_restart_rebind.py
+      ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture
+      ${PROJECT_BINARY_DIR}/tests/detent_system/restart-rebind)
+  set_tests_properties(test_system_restart_rebind PROPERTIES
+    FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
 
 if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)

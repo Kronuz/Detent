@@ -15,13 +15,15 @@ import http.client
 import json
 import os
 import shutil
-import socket
 import ssl
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "support"))
+from ports import lease_ports  # noqa: E402
 
 TOKEN = "0123456789abcdef0123456789abcdef"
 CONTEXT = {
@@ -52,10 +54,7 @@ class Cluster:
     def __init__(self, binary: Path, certificates: Path, directory: Path) -> None:
         self.directory = directory
         directory.mkdir(parents=True)
-        reservations = [socket.socket() for _ in range(6)]
-        for reservation in reservations:
-            reservation.bind(("127.0.0.1", 0))
-        self.ports = [reservation.getsockname()[1] for reservation in reservations]
+        self.ports = lease_ports(6)
         names = ["one", "two", "three"]
         voters = []
         for index, name in enumerate(names):
@@ -91,8 +90,6 @@ class Cluster:
             path = directory / f"node-{index}.json"
             path.write_text(json.dumps(configuration))
             path.chmod(0o600)
-        for reservation in reservations:
-            reservation.close()
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
         self.children: dict[int, subprocess.Popen[bytes]] = {}
         for index in range(3):
