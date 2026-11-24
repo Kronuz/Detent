@@ -83,11 +83,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   stay as the review left them: nits, no measured disagreement; the printed uncut verdicts give
   F2's values once A1 runs.
 
-- Fix in host.h only, no turn_log.h change: `settle_damage` reads each log with the existing
-  `TurnLog::read` and stores the verdict before the drivers' open records. Cost: one more read of
-  each log per open (numbers in Result). The alternative, a hook between `TurnLog::recover` and
-  the open record (turn_log.h, turn_driver.h; outside my file set), would read once; it is the
-  lead's call if the measured cost matters.
+- Round 3: the hook is a `TurnLogGroups::settle` callback, not a TurnLog constructor parameter,
+  so turn_driver.h (outside my set) passes it through unchanged; `TurnLog::read` calls no hook
+  (it writes no open record). Superseded: the round-1 two-read fix in host.h alone.
 - The drivers recover against the table as it was before `settle_damage` (the same
   `TurnLogGroups`), so `TurnDriver::recovered()` reports the same bounds and losses as before the
   fix and the open's existing store/keep pass is unchanged (its commits become no-ops). Recovering
