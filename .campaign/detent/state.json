@@ -28294,6 +28294,38 @@
       "title": "detent-relay's mirror waits for upstream change instead of polling",
       "updated": "2026-11-23T16:53:54"
     },
+    "relay-service-refused-sync-flake": {
+      "accepted": {},
+      "after": [
+        "system-failover-port-reuse",
+        "relay-mirror-idle-wake"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_relay/test_relay_service.py",
+        "src/detent_relay/mirror_service.cc",
+        "src/detent_authority/history*.cc",
+        "docs/mechanisms/relay-mirror*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "test_relay_service: relay C never counts a sync failure on a source that refused",
+      "updated": "2026-11-23T23:48:01"
+    },
     "relay-snapshot-lifecycle": {
       "accepted": {},
       "after": [],
