@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-24), revised after the design review's CHANGES at `Detent:6557660` (F1-F11, `.campaign/detent/reviews/authority-pages-design-design.md`). A measured design record for an owner decision (A4, open). Every number cites the campaign job that produced it.
+> Status: DECIDED (2026-11-24), revised after the design review's CHANGES at `Detent:6557660` (F1-F11, `.campaign/detent/reviews/authority-pages-design-design.md`). A measured design record; the owner decided A4 as option 2 (PLAN D156) and Q1 as no signing now (D157). Every number cites the campaign job that produced it.
 
 # Authority pages
 
@@ -173,7 +173,7 @@ Against the alternatives:
 4. **Inline in the service loop**: ruled out; it stalled the loop for up to 2,650 ms at 5M.
 5. **Persisted pages on the authority**: ruled out. Writing and syncing pages beside the journal adds 37.1 ms to group commit p50 at 5M (95% CI 34.8-39.4, against an A/A band of -1.1 to 0.7; 28% of none's 133.4 ms; `261123-193517-519b4d`, exclusive), both strict jobs agree (medians +39.9 and +40.2, `261123-193507-f0eafa`, `261123-193510-65f196`), and its builder trails by up to 1.9 s against 0.8 s in memory. Pages in memory are simpler, and a restarted leader cold-builds anyway.
 
-## What it changes, if accepted
+## What it changes
 
 | Row | What it says now | What it becomes |
 | --- | --- | --- |
@@ -204,7 +204,7 @@ Quests it adds (none dropped):
 6. **Root entries are not measured.** Their commit cost is estimated from their size.
 7. **The recommended pool did not run beside the commit path.** The paced pool arm builds once per seal on ten threads (0.72-0.76 of a core); four threads passing every 250 ms spend about twice that and were run only in the root-lag rows, which have no journal. The reviewer's saturating probe (`261123-145405-24d1dd`) bounds the effect from above.
 
-## Decision request (A4, the owner's)
+## Decision (A4 and Q1, decided by the owner on 2026-11-24)
 
 **The decision.** Should the leader build pages to put the authority's root in every answer, and what do agents do while no root exists?
 
@@ -218,8 +218,7 @@ Quests it adds (none dropped):
 4. (c) every voter builds: no window, three times the CPU.
 5. (d) a records commitment: 9.4% of a core per voter and no check for cold agents taking pages, unless a faster hash (SHA extensions or an XOF, unmeasured) makes hashing every record affordable.
 
-**Recommendation.** Option 2, with (d) the fallback if the build is ruled too costly for the authority.
+**Decided (PLAN D156).** Option 2: the leader builds for the root on a pool of four builder threads off the service loop, one pass per namespace every 250 ms, pages in memory, not persisted; agents publish and verify at the next root. (d) is the fallback if the build proves too costly for the authority.
 
-**Q1 (the owner's).** Should roots be signed, so Limit 1 closes against a relay that lies rather than one that errs? (a) No: the threat is faulty relays. (b) The leader signs each root entry and agents hold the authority's key. Recommendation (a) now, and (b) as its own design when relays run outside the operator's trust.
+**Q1, decided (PLAN D157).** Should roots be signed, so Limit 1 closes against a relay that lies rather than one that errs? No, not now: the threat is faulty relays. Signing (the leader signs each root entry, agents hold the authority's key) is its own design when relays run outside the operator's trust.
 
-**What deferring costs.** Nothing on the machines: (a) is today's state. It keeps Limit 1 open, so a relay that mis-applies records serves a consistent wrong state to every agent below it.
