@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: ready for review (fix round 3, the last (D154), at `Detent:5cc302f8`; jobs 261124-075318-9b7397 261124-075309-3e8f55 261124-075314-c9ce1c 261124-075331-f4ad0a and CI queued)
+State: waiting on jobs 261124-091549-10bfff 261124-091550-0e8703 261124-091550-ca58ab 261124-091551-8c7559 261124-091552-916f34 (reruns at `Detent:dceeb890`; round 3 APPROVE, correctness and design accepted)
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -40,11 +40,10 @@ syscalls, switch, generation writer, agent store, Python, Rust). Locally `regrow
 
 ## Next
 
-1. Read: native 261124-075318-9b7397; fails-without F5 261124-075309-3e8f55 (mutant `Detent:6ea8a1f2`,
-   `refs/mutants/legacy-h/r3-f5-dropped-watches-old-slot`), F3 261124-075314-c9ce1c (`Detent:84c40203`,
-   `r3-f3-kept-watches-old-slot`); bindings 261124-075331-f4ad0a; CI at `Detent:5cc302f8`.
-   Round 2's mutants (F1 261124-004900-19d2cc, F2 261124-004904-f88615) are not rerun: their code is
-   unchanged.
+1. When 261124-091549-10bfff, 091550-0e8703, 091550-ca58ab, 091551-8c7559, 091552-916f34 pass: State
+   "ready for review" (all criteria cited above). Native 261124-075318-9b7397, bindings
+   261124-075331-f4ad0a, fails-without 075309-3e8f55 and 075314-c9ce1c, CI 45430641919 and Docs
+   45430641589 passed at `Detent:5cc302f8`.
 
 ## Blocked on
 
@@ -119,20 +118,20 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1, A6-A8, A18, A19 | native 261123-215328-7c1230; A1's switch and store-crash alone 261123-204300-e4fd2c |
-| A2-A5 | 261123-204301-a7a0cc (`bindings/tests/run.sh`, repeat until-fail:3) |
-| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` (CI 45328288209 at `Detent:dec0d978`) |
-| A10 | 261123-215330-5b6a71 (`bindings/tests/legacy_grep.sh`) |
+| A1, A6-A8, A18, A19 | native 261124-075318-9b7397 |
+| A2-A5 | 261124-075331-f4ad0a (`bindings/tests/run.sh`, repeat until-fail:3) |
+| A9 | `ci:linux-asan-ubsan`, `ci:linux-tsan` (CI 45430641919 at `Detent:5cc302f8`) |
+| A10 | 261124-091551-8c7559 (`bindings/tests/legacy_grep.sh`) |
 | A11 | [artifact] `CHANGELOG.md`, "Legacy removal (wave 2, step H)" |
-| A12 | 261123-204301-a7a0cc; fails without: 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8 |
-| A13 | 261123-204301-67a905 |
+| A12 | 261124-075331-f4ad0a; fails without: 261123-145721-0d40d0, 261123-145724-5cb1a0, 261123-145728-9aba9a, 261123-145732-8cfaab, 261123-145735-aa6efc, 261123-145739-98e2a8 |
+| A13 | 261124-091550-ca58ab |
 | A14 | [artifact] `website/src/content/docs/reference/cpp-api/reader.md`: "share it; lookups are thread-safe on one reader."; client.md, sources.md, global-and-testing.md, guides/live-updates.md and diagram 06_adapters are deleted (A10's grep) |
 | A15 | [decision] D13 |
 | A16 | [decision] D14 |
 | A17 | [decision] D21 (PIC build-wide); its `get` half superseded by D148 (A18) |
-| A20 | 261123-204301-a7a0cc; fails without: F1 261123-145743-a3b9c5, F2 261123-145747-841eac, 261123-145751-a77953, F3 261123-145755-cd3bb8, 261123-145800-81ce67, F4 261123-145804-7bcb89, F7 261123-145808-ac5564 |
-| A21 | native 261123-215328-7c1230; probe 261123-204301-46672f; T2 261123-204301-53e01c; fails without: 261123-204320-f48488 |
-| A22 | `ci:ci` (CI 45328288209), Docs 45328287755 at `Detent:dec0d978` |
+| A20 | 261124-075331-f4ad0a; fails without: F1 261123-145743-a3b9c5, F2 261123-145747-841eac, 261123-145751-a77953, F3 261123-145755-cd3bb8, 261123-145800-81ce67, F4 261123-145804-7bcb89, F7 261123-145808-ac5564 |
+| A21 | native 261124-075318-9b7397; probe 261124-091549-10bfff; T2 261124-091550-0e8703; targeted 261124-091552-916f34; fails without: 261123-204320-f48488, 261124-004900-19d2cc, 261124-004904-f88615, 261124-075309-3e8f55, 261124-075314-c9ce1c |
+| A22 | `ci:ci` (CI 45430641919), Docs 45430641589 at `Detent:5cc302f8` |
 
 ## Result
 
@@ -152,6 +151,14 @@ Fix round 1 (correctness review F1-F11, F14):
   5); the testing writer's per-namespace layout; `benchmarks/reader_namespaces.sh`.
 - Docs written: `docs/mechanisms/reader-core.md`, `docs/design/client-local-source.md`, the
   website's reference, update-path and how-it-works pages, `CHANGELOG.md`.
+- Fix rounds 2 and 3: the agent grows `change` before `selected` names a slot (F1); a failed attach
+  fails its namespace alone (F2, D155); a kept generation watches its entry's slot (F3); a dropped
+  namespace watches the store word (F5). D7 in `docs/design/client-local-source.md` tables the
+  entry lifecycle. Round 3 APPROVE (review `Detent:ff409c69`).
+- Follow-ups, the lead's docs quest: review round 3 F6 (D7's four missing transitions and two wrong
+  rules), F7 (pages outside this file set say slots are never reused), F8 (the D155 pages leave out
+  refresh()'s OK while another thread refreshes), N2; and F4 (a dropped namespace's generation held
+  for the handle's life).
 
 ## Rulings I made
 
