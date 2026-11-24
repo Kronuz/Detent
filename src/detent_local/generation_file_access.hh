@@ -75,12 +75,19 @@ std::optional<Selected> read_selected(int directory, uid_t owner, std::string_vi
 std::optional<StoreTable> read_store_table(int directory, uid_t owner);
 // One entry of a table read by read_store_table: nullopt when the image it names is gone.
 std::optional<Selected> select_entry(int directory, uid_t owner, const StoreTable &, const TableEntry &);
+// The walk's descriptors are only stat'ed, ACL-checked and walked from, so macOS opens them for search:
+// a read open of a directory costs about 6 times as much there (docs/perf/first-read-gate.md).
+#ifdef __APPLE__
+inline constexpr int directory_search = O_SEARCH | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+#else
+inline constexpr int directory_search = O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+#endif
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
 	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)
 		throw std::invalid_argument("invalid publisher directory path");
 	const auto absolute = path.is_absolute() ? path : std::filesystem::current_path() / path;
-	RecoveryFile current(::open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+	RecoveryFile current(::open("/", directory_search));
 	struct stat anchor{};
 	if (current.fd < 0 || ::fstat(current.fd, &anchor) != 0 || anchor.st_uid != 0 ||
 	    !S_ISDIR(anchor.st_mode) || (anchor.st_mode & 0022) ||
@@ -140,8 +147,7 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			prepend(resolved);
 			continue;
 		}
-		RecoveryFile next(
-		    ::openat(current.fd, part.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+		RecoveryFile next(::openat(current.fd, part.c_str(), directory_search));
 		if (next.fd < 0 && errno == ENOENT)
 			throw GenerationUnavailable("publisher directory is not available");
 		struct stat held{}, named{};
