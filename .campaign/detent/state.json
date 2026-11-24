@@ -13373,17 +13373,16 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
-      "provides": [],
-      "reason": "started by force: Overlaps dense-distribution-build only on tests/detent_authority/CMakeLists.txt and cmake/; a few-line merge, and faultlab's step 7 unblocks journal's step 8",
-      "repo": ".",
-      "risk": "normal",
-      "status": "blocked",
-      "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
-      "until": [
+      "needs": [
         "pin-wave"
       ],
-      "updated": "2026-11-20T23:14:18",
+      "provides": [],
+      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Detent's tests onto faultfs and the recorder (faultlab step 7)",
+      "updated": "2026-11-24T14:21:49",
       "worktree": "../Detent-wt/detent/detent-faultlab"
     },
     "detent-multicast-seeds": {
