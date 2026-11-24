@@ -9,15 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Reproducing locally: build/ in the consensus worktree (RelWithDebInfo, ninja), target
+consensus_transport_rpc_host_test, case `fetch`, in a stress loop under quiet light.
+Reading so far: the client (one) stops `huge` itself at 32 MiB (HostTransport::fetch body ->
+stop(message_size) -> Lane Cancel, outcome cancel, mapped to message_size). connection_aborted
+only comes from Lane::close() via close_rpc: the Bulk link ended (rpc ProtocolError -> malformed
++ abort, group overrun -> abort, or the Connection failing). CI's line shows overrun 0 and
+links 2+2 (no redial), malformed is not printed.
+Note for the lead: run 45366654906 on main failed on the heartbeat gap (1564 ms of 1013), and
+its 48 MiB fetch ended "Message too long" as expected; the abort is seen on run 45407143806.
 
 ## Next
 
-1. <step>
+1. Reproduce with diagnostics (malformed, ConnectionEnd, Lane ProtocolError text).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing
 
 ## Evidence
 
