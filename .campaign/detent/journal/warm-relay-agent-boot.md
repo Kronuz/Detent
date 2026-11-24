@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261123-151051-06b0df 261123-151055-68ee44
+State: waiting on jobs 261123-164944-8f37e3 261123-164928-adf267
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -34,6 +34,14 @@ idled (21 s CPU over the 120 s settle bound; the mirror syncs every 10 ms); the 
 then nothing, while the authority answered /v2/read version 784 for each of load0..load3. The 14
 rows were cancelled (12 skipped while queued, 2 cancelled).
 
+Cause (harness): fresh seed 261123-151051-06b0df (100000-mirror, at 15951a88) and probe
+261123-151055-68ee44 still timed out; its marks show the agent selected load0..3 at 205/206/207/208
+(D3 per-namespace positions) while boot.py waited for 784, /v2/read's group `version`. Fixed at
+b0e09b72: wait for `namespace_revision`. Same probe: the relay never settled under the 0.01 s
+rule (20.5 s CPU in 120 s, the mirror polls every 10 ms); now 0.1 s per half-second sample.
+Note: a resubmit at a new commit returned the failed 68ee44 (identity covers row.sh, not boot.py);
+--force gave 8f37e3.
+
 Earlier rounds (history):
 
 Harness in docs/measurements/warm-relay-agent-boot/ (boot.py one run warm|cold; row.sh in-job
@@ -46,11 +54,10 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Fresh 100K seed at main 261123-151051-06b0df (fixture 100000-mirror, light) then probe
-   261123-151055-68ee44 (light, warm+cold, at 15951a88: marks keep the agent's selected table).
-   Agent selects: the old fixtures are stale; reseed 1M (light) and 5M (--long "5M seed takes
-   ~4,700 s"), then resubmit the rows. Agent does not select: product regression, report to the
-   lead at once with the logs.
+1. Probes at b0e09b72: 261123-164944-8f37e3 (fresh 100000-mirror, warm+cold) and
+   261123-164928-adf267 (old 100000-main, warm). Both select: resubmit the 14 rows on the old
+   fixtures (no reseed). Only the fresh one: reseed 1M (light) and 5M (--long "5M seed takes
+   ~4,700 s") first.
 2. When the rows finish: tabulate, commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
    for the mirror relay with the bundle-relay rows at 3a57661b as the before, then ready for review.
 
@@ -80,6 +87,9 @@ record, same in both arms); 11 / 53 / 243 files, 4 device flushes; 0.22 / 2.0 / 
 Open: fetch vs decode vs build are one span (the agent logs no mark between them).
 
 ## Rulings I made
+
+- Relay settled = four half-second samples each adding at most 0.1 s CPU (was 0.01 s): the mirror's
+  10 ms poll is its resting cost; catch-up runs near a full core.
 
 - A1's "durable bundles ready" maps to the mirror relay's "the namespace mirror is ready" plus a
   ready /v1/health (main removed bundles in 30c2d65b); the relay health has no revision, so the
