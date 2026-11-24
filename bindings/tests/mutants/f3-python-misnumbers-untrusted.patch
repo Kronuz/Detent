@@ -1,0 +1,13 @@
+diff --git a/bindings/python/detent_python.cc b/bindings/python/detent_python.cc
+index b9bb488b..16249723 100644
+--- a/bindings/python/detent_python.cc
++++ b/bindings/python/detent_python.cc
+@@ -67,7 +67,7 @@ constexpr struct {
+                  {"NOT_OPENED", DETENT_NOT_OPENED},
+                  {"SOURCE_FAILURE", DETENT_SOURCE_FAILURE},
+                  {"UNAVAILABLE", DETENT_UNAVAILABLE},
+-                 {"UNTRUSTED", DETENT_UNTRUSTED},
++                 {"UNTRUSTED", detent_status(DETENT_UNTRUSTED + 1)},
+                  {"INVALID_ARGUMENT", DETENT_INVALID_ARGUMENT},
+                  {"NO_MEMORY", DETENT_NO_MEMORY},
+                  {"IO", DETENT_IO}};

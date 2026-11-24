@@ -131,8 +131,9 @@ std::optional<StoreTable> read_table(int directory, uid_t owner, std::uint64_t b
 using detail::GenerationFile;
 using detail::GenerationName;
 using detail::validate_paged_root_prefix;
-std::optional<detail::Selected> select_entry(int directory, uid_t owner, const StoreTable &table,
-											 const TableEntry &entry) {
+} // namespace
+std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner, const StoreTable &table,
+													 const TableEntry &entry) {
 	require(entry.root_length == paged::root_bytes);
 	const GenerationName image_name(entry.generation, GenerationFile::Image);
 	std::array<char, 65> terminated{};
@@ -173,7 +174,9 @@ std::optional<detail::Selected> select_entry(int directory, uid_t owner, const S
 	descriptor.ordinal = entry.ordinal;
 	return selected;
 }
-} // namespace
+std::optional<StoreTable> detail::read_store_table(int directory, uid_t owner) {
+	return read_table(directory, owner, table_bytes(1u << 20));
+}
 std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner, std::string_view name) {
 	const auto read = read_table(directory, owner, table_bytes(name.empty() ? 1 : 1u << 20));
 	if (!read)
@@ -195,7 +198,7 @@ std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const
 	std::vector<std::pair<std::string, Descriptor>> out;
 	out.reserve(table.entries.size());
 	for (const auto &entry : table.entries) {
-		const auto selected = select_entry(dir.fd, info.st_uid, table, entry);
+		const auto selected = detail::select_entry(dir.fd, info.st_uid, table, entry);
 		require(selected.has_value());
 		out.emplace_back(entry.name, selected->descriptor);
 	}

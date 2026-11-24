@@ -18,7 +18,8 @@
 namespace x = detent::local::detail;
 namespace t = detent::reader::testing;
 namespace {
-std::string name(std::size_t i) { return "n" + std::to_string(i % 64) + ":i" + std::to_string(i); }
+// One namespace, so the core and main's client path each read one generation under one cap.
+std::string name(std::size_t i) { return "n:i" + std::to_string(i); }
 struct Read {
 	std::map<std::string, std::size_t> statuses;
 	std::size_t ok = 0, wrong = 0;
@@ -71,7 +72,7 @@ int main(int argc, char **argv) {
 	const auto store = root / "store";
 	const auto start = std::chrono::steady_clock::now();
 	{
-		detent::testing::GenerationWriter writer(store);
+		detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 		std::string json = R"({"schema_version":1,"knobs":{)";
 		for (std::size_t i = 0; i != n; ++i)
 			json += (i ? ",\"" : "\"") + name(i) + R"(":{"default":)" + std::to_string(i) + "}";
@@ -90,7 +91,7 @@ int main(int argc, char **argv) {
 	std::cout << "reader core, default cap:\n";
 	const auto capped = read_all(path, n, 0);
 	std::cout << "prepared client view, default ViewLimits (main's client path):\n";
-	auto client = x::PreparedReader::open(store, ::getuid(), {});
+	auto client = x::PreparedReader::open(store, ::getuid(), {}, std::nullopt, "n");
 	std::size_t ok = 0, first = SIZE_MAX;
 	for (std::size_t i = 0; i != n; ++i) {
 		const auto key = name(i);

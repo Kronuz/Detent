@@ -20,6 +20,7 @@ deployment built from `main`.
 
 ## C++ ABI
 
-Detent is consumed from source. Public structs such as `InitOptions` and
-`HealthSnapshot` gain fields over time, so rebuild every consumer when you
+Detent is consumed from source. The C ABI in `detent/reader.h` carries
+`DETENT_ABI_VERSION`, and `detent::Reader` and both bindings refuse a library
+whose version differs from their header, so rebuild every consumer when you
 update Detent.

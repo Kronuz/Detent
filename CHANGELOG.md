@@ -131,6 +131,50 @@
 - `kLoopbackHost` moved from `detent_http/address.hh` to
   `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
 
+### Legacy removal (wave 2, step H)
+
+- Removed `detent::Client` and everything that existed to feed it: `InitOptions`
+  (`source_path`, `source_poll`, `SourcePayload`, `on_update`, `read_source`, CLI
+  overrides, baked defaults), `health()`, `ClientReadView`, `make_local_read_source`,
+  `make_managed_read_source`, `detent::global`, `TestKnobs`, `OverrideTable`,
+  `SnapshotRef`, the first evaluator (`detail::evaluate`) and the file and poll sources.
+  `detent::Reader` over the reader core is the one read API in C, C++, Python and Rust.
+  With the Client go its `Metrics` counters, `get_or_panic`, the `ConversionFailed`
+  error (`Reader::get_as<T>` answers a value outside `T` with the fallback and status
+  OK), the staleness alert (`refresh_alert_after`), `on_update`, `max_knobs` and
+  enumeration (`read_view()`, `current_snapshot()`); `revision(namespace)` and
+  `lookup`'s status are the diagnostics.
+- The reader core reads the agent's table, an entry per namespace: a lookup attaches
+  its namespace's entry on first use and follows that entry's `change` sequence, so a
+  publish in another namespace refreshes nothing. `detent get`, C++, Python and Rust
+  read a store whose agent follows several namespaces. `detent::testing::Store` and
+  the test writer's C face publish an entry per namespace, as the agent does.
+- The Python module is a C extension over `libdetent_reader`, and the Rust crate
+  calls the same C ABI; pybind11, `cxx` and `cxx-build` are gone. Both expose
+  `Reader(store, publisher_uid, namespaces, mapping_bytes)` with `get`, `get_bool`,
+  `lookup`, `refresh` and `revision`; every lookup takes the caller's fallback and
+  returns it on any error (`get_bool` also when the value is neither 0 nor 1), and only
+  opening raises. `bindings/tests/scenarios.json` is the one table the C++, Python
+  and Rust tests run.
+- `libdetent_reader` and `libdetent_testing` build as shared libraries that export
+  only their `detent_*` C symbols (`test_reader_exports`, `test_testing_exports`).
+  Static dependencies build position-independent.
+- `detent get` reads through `detent::Reader`, the applications' reader core. It no
+  longer takes `--defaults` (`defaults_path` in `agent.json` is rejected and
+  `DETENT_DEFAULTS_PATH` ignored; use `--default VALUE` for a per-read
+  fallback), takes `--reader-mapping-bytes` and refuses the other `--reader-*`
+  capacity flags and `--reader-validation full`, which stay `detent-agent --status`'s.
+  It reads prepared generations only, and its errors print the reader's status
+  name (`ERR missing: ns:key`).
+- `libdetent_testing` replaces `TestKnobs` and `TestGuard` for application tests:
+  `detent::testing::Store` (`detent_testing/store.hh`, target `detent::testing`)
+  publishes knobs into a test store that a `Reader` reads. With
+  `DETENT_INSTALL_TESTING=ON`, `cmake --install BUILD --component development`
+  installs it, `libdetent_reader`, their headers and the `Detent` CMake package.
+- `detent_read_bench` and `detent_model_lookup` are removed; `reader_bench` measures
+  reads. `detent_demo` opens a `Reader` over an agent's store.
+- CI has a `bindings` job that builds and tests both bindings on Linux and macOS.
+
 ### Legacy removal (wave 2, step G)
 
 - Removed the shared-memory agent and the unmanaged `detent-agent` path:

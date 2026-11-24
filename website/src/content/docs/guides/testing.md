@@ -2,99 +2,63 @@
 title: "Testing"
 ---
 
-Tests shouldn't depend on whatever a live source happens to say. Detent
-gives you three tools for deterministic knobs: in-memory test clients, CLI
-overrides, and defaults-only clients.
+A reader has no override path: tests see values the way production does, from
+a store. That leaves two deterministic setups.
 
 ---
 
-## In-Memory Test Knobs
+## Fallbacks Only
 
-`detent::testing::TestKnobs` builds a client from an in-memory snapshot, with
-no files, no sources and no background thread:
-
-```cpp
-#include "detent/testing.hh"
-
-detent::Snapshot snap;
-snap.knobs["checkout:killswitch_new_path"] = detent::KnobDef{.default_value = 1};
-snap.knobs["search:max_results"] = detent::KnobDef{.default_value = 3};
-
-auto guard = detent::testing::TestKnobs(snap).set_thread_local();
-
-// Within this thread, detent::global::* now reads the test snapshot.
-assert(detent::global::get_as<bool>("checkout:killswitch_new_path").value());
-assert(detent::global::get_or_panic("search:max_results") == 3);
-```
-
-The guard installs the test client as a **thread-local** override for the
-`detent::global` adapter. Destroying the guard restores whatever was active
-before, so guards nest and tests can't leak knobs into one another.
-
-Rollouts and group overrides work as they do in production:
+Open a reader over a store directory that doesn't exist. It opens, and every
+lookup returns the fallback you pass with `DETENT_UNAVAILABLE`, so the test
+exercises exactly the defaults written at each call:
 
 ```cpp
-detent::KnobDef def{.default_value = 0, .rollout_pct = 10, .rollout_value = 1};
-def.overrides["employees"] = std::int64_t{1};
-def.overrides["beta"] = detent::GroupRollout{.rollout_pct = 50};
-snap.knobs["payments:new_processor"] = def;
+detent::Reader reader((test_dir / "no-store").string(), getuid());
+assert(reader.get("search:max_results", 25) == 25);
+assert(reader.lookup("search:max_results", 25).status == DETENT_UNAVAILABLE);
 ```
-
-:::hint[Inject the client where you can]{.tip}
-Thread-local guards only affect code that reads through `detent::global`. Code
-that takes a `detent::Client&` can simply be handed a client constructed from
-an in-memory snapshot: `detent::Client client(snap);`.
-:::
 
 ---
 
-## CLI Overrides
+## Published Values
 
-CLI overrides pin a knob for one process, shadowing both baked defaults and
-every live snapshot:
+`detent::testing::Store` (`detent_testing/store.hh`, CMake target
+`detent::testing`) writes real generations into a store through the agent's own
+publication path, in `libdetent_testing`. Each `publish` replaces the whole knob
+set and returns the next revision:
 
 ```cpp
-opts.cli_overrides = {
-    "checkout:killswitch_new_path=true",
-    "search:max_results=999",
-};
+#include "detent_testing/store.hh"
+
+detent::testing::Store store((test_dir / "store").string());
+store.publish(R"({"schema_version":1,"knobs":{
+  "search:max_results":{"default":3},
+  "payments:new_processor":{"default":0,"rollout_pct":10,"rollout_value":1}}})");
+
+detent::Reader reader((test_dir / "store").string(), getuid());
+assert(reader.get("search:max_results", 25) == 3);
 ```
 
-They're ideal for debugging a single process locally, or for integration tests
-that run a real binary. The rules are strict on purpose:
+Publishing again moves every open reader to the new revision; their lookups
+notice it by themselves.
 
-1. Lowercase `true` and `false` parse as 1 and 0; anything else must be a
-   signed base-10 64-bit integer.
-2. A name given twice is a startup error. There's no "last one wins".
-3. An override is checked before the snapshot, so it answers even for a knob
-   no snapshot defines. Reading it with `get_as<bool>` takes only 0 and 1;
-   any other value is a `ConversionFailed` error.
-4. Overrides are fixed at startup and stay in effect across every update.
-
-Detent parses the `name=value` pairs; splitting your own command line is up to
-your application. A typical integration is a repeatable flag:
+`libdetent_testing` is a development component. A project that builds Detent
+in-tree links `detent::testing`. An installed Detent provides it on request:
+configure with `-DDETENT_INSTALL_TESTING=ON`, then
 
 ```sh
-my_app --knob checkout:killswitch_new_path=true --knob search:max_results=999
+cmake --install build --component development --prefix /opt/detent-dev
 ```
 
----
+installs `libdetent_testing`, `libdetent_reader` and their headers, and
+`find_package(Detent CONFIG)` gives the targets `detent::reader` and
+`detent::testing`. A plain `cmake --install` leaves them out. Never link it into
+a shipped binary. Its C face, `detent_testing/generation_writer.h`, is what the
+Python and Rust tests load.
 
-## Defaults-Only Clients
-
-A client with `defaults_path` and no source reads exactly what's in the file,
-forever. That's a good fit for integration tests that want the real loading
-path without a live source:
-
-```cpp
-detent::InitOptions opts;
-opts.defaults_path = "testdata/defaults.json";
-detent::Client client(std::move(opts));
-```
-
-:::hint[Environment switch to freeze knobs]{.unimplemented}
-The specification Detent grew from describes an opt-in environment variable,
-honored only when `InitOptions` allows it, that prevents the source worker from
-starting so a test binary always sees baked defaults. Detent doesn't implement
-it yet; use a defaults-only client or CLI overrides instead.
+:::hint[Where the store lives]{.caution}
+The reader refuses a store with a group- or world-writable ancestor, so a store
+under `/tmp` fails with `DETENT_UNTRUSTED`. Put test stores under your build
+tree; Detent's own tests use `${CMAKE_BINARY_DIR}/.scratch`.
 :::

@@ -214,7 +214,7 @@ void switching(const std::filesystem::path &root) {
 	CHECK(publisher >= 0);
 	if (publisher == 0) {
 		{
-			detent::testing::GenerationWriter writer(store);
+			detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 			shared->ceiling = 1;
 			if (writer.publish_json(knobs(1)) != 1)
 				std::_Exit(4);
@@ -233,7 +233,14 @@ void switching(const std::filesystem::path &root) {
 	     !std::filesystem::exists(store / "selected") || !std::filesystem::exists(store / "change");)
 		CHECK(std::chrono::steady_clock::now() < deadline);
 	std::this_thread::sleep_for(100ms);
-	std::thread([] {}).join(); // a sanitizer runtime starts its own thread on the first pthread_create
+	// A sanitizer runtime starts its own thread on the first pthread_create; the primer counts it.
+	// A joined thread stays listed until it exits, so wait for the count without the primer.
+	std::size_t primed = 0;
+	std::thread([&] { primed = threads() - 1; }).join();
+	if (!threads_settle(primed)) {
+		std::fprintf(stderr, "primer still listed after 5 s: threads %zu (expected %zu)\n", threads(), primed);
+		CHECK(false);
+	}
 	const auto fds = descriptors(), maps = mappings(store), before = threads();
 	const auto open_before = open_descriptors();
 	std::atomic<bool> stop{false};
@@ -321,7 +328,7 @@ void switching(const std::filesystem::path &root) {
 // publishes the pinned slot refuses are counted.
 void parks(const std::filesystem::path &root) {
 	const auto store = root / "parks";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::int64_t rev = 1;
 	CHECK(writer.publish_json(knobs(rev)) == 1);
 	Opened r(store);
@@ -371,10 +378,14 @@ void parks(const std::filesystem::path &root) {
 		const auto refused = t::stats(r.handle).refused;
 		for (int i = 0; i != 6; ++i)
 			publish();
+		// The retry clock stays closed past the park, so the released reader reads through its pinned view
+		// even when it resumes after the longest backoff (200 ms), as a slow runner's can.
+		t::hold_retry(r.handle);
 		const auto stats = t::stats(r.handle);
 		// The ring wraps to the pinned slot after three publishes; the rest are refused.
 		CHECK(stats.refused == refused + 3 && stats.live_views == 2);
 		CHECK(get(r.handle) == pinned_rev + 3); // the installed view still answers
+		std::this_thread::sleep_for(std::chrono::milliseconds(250));
 		release(park);
 		reader.join();
 		CHECK(seen == pinned_rev); // the pinned view stayed mapped
@@ -459,7 +470,7 @@ std::size_t ten(detent::testing::GenerationWriter &writer, std::int64_t &rev, Ch
 }
 void forks(const std::filesystem::path &root) {
 	const auto store = root / "fork";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::int64_t rev = 1;
 	CHECK(writer.publish_json(knobs(rev)) == 1);
 	Opened r(store);
@@ -570,7 +581,7 @@ void cold_forks(const std::filesystem::path &root) {
 	for (const auto mode : {ColdMode::InFlight, ColdMode::Starting, ColdMode::Counted}) {
 		::alarm(60);
 		const auto store = root / ("cold-" + std::to_string(int(mode)));
-		detent::testing::GenerationWriter writer(store);
+		detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 		CHECK(writer.publish_json(knobs(1)) == 1);
 		const auto baseline = mappings(store), fds = descriptors();
 		Opened first(store), second(store);
@@ -693,7 +704,7 @@ void cold_forks(const std::filesystem::path &root) {
 // whole; the mapping cap has main's client default (reader-core.md, Bounds) and follows the live views.
 void capacity(const std::filesystem::path &root) {
 	const auto store = root / "capacity";
-	detent::testing::GenerationWriter writer(store);
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(writer.publish_json(knobs(1)) == 1);
 	const auto change = store / "change";
 	const auto baseline = mappings(store), fds = descriptors();
@@ -715,7 +726,7 @@ void capacity(const std::filesystem::path &root) {
 	// The mapping cap's charge follows the live views, not the publishes: equal after 10 and after 40.
 	// A fresh store, since the writer's census counts `change`, now at its 1 GiB disk limit.
 	const auto ledgers = root / "capacity-ledgers";
-	detent::testing::GenerationWriter ledger_writer(ledgers);
+	detent::testing::GenerationWriter ledger_writer(ledgers, detent::testing::GenerationWriter::Layout::PerNamespace);
 	CHECK(ledger_writer.publish_json(knobs(1)) == 1);
 	Opened r(ledgers);
 	std::uint64_t mapped = 0;

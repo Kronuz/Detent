@@ -1,3 +1,4 @@
+#include "detent_local/generation.hh"
 #include "detent_local/reader.hh"
 #include "detent_testing/generation_writer.h"
 #include "detent_testing/generation_writer.hh"
@@ -66,7 +67,9 @@ int main() {
 		const auto bad = std::string("{not json");
 		CHECK(detent_testing_publish(writer, bad.data(), bad.size(), &revision) == -1);
 		CHECK(std::string(detent_testing_error(writer)).size() > 0 && revision == 1);
-		auto view = x::PreparedReader::open(path, ::getuid(), {});
+		// The C face writes the agent's layout: an entry per namespace.
+		CHECK(detent::local::read_generation_selections(path).size() == 2);
+		auto view = x::PreparedReader::open(path, ::getuid(), {}, std::nullopt, "t");
 		CHECK(view.view.get("t", "rev").value() == 9);
 		detent_testing_close(writer);
 	}

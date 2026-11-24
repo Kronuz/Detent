@@ -152,7 +152,7 @@ void phases(char **argv, bool walks) {
 		::close(x::open_publisher_directory(directory, uid));
 		marks.emplace_back("trust_warm", mark());
 	}
-	auto generation = x::PreparedReader::open(directory, uid, l::ViewLimits::prepared());
+	auto generation = x::PreparedReader::open(directory, uid, l::ViewLimits::prepared(), std::nullopt, name_space);
 	marks.emplace_back("attach", mark());
 	Worker worker;
 	worker.start();
@@ -180,13 +180,13 @@ void generate(char **argv) {
 		json += ",\"n" + std::to_string(i % namespaces) + ":k" + std::to_string(i) +
 				"\":{\"default\":" + std::to_string(3 * i + 1) + "}";
 	json += "}}";
-	detent::testing::GenerationWriter writer(argv[2]);
+	detent::testing::GenerationWriter writer(argv[2], detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::cout << "{\"revision\":" << writer.publish_json(json) << ",\"namespaces\":" << namespaces
 			  << ",\"knobs\":" << knobs << "}\n";
 }
 // A running publisher: a one-knob delta to `n0` every 20 ms, collected every 16, until killed.
 [[noreturn]] void publish(char **argv) {
-	detent::testing::GenerationWriter writer(argv[2]);
+	detent::testing::GenerationWriter writer(argv[2], detent::testing::GenerationWriter::Layout::PerNamespace);
 	const auto names = scope(integer<std::uint64_t>(argv[3]));
 	for (std::int64_t tick = 1;; ++tick) {
 		writer.publish_delta(names, "n0", {{"n0:tick", tick}}, {});
@@ -251,7 +251,7 @@ void micro(char **argv) {
 	row("thread_create_join", mean_ns(iterations, [] { std::jthread([] {}); }));
 	row("worker_start_stop", mean_ns(iterations, [] { Worker w; w.start(); }));
 	row("trust_walk", mean_ns(iterations, [&] { ::close(x::open_publisher_directory(directory, uid)); }));
-	row("attach", mean_ns(iterations, [&] { (void)x::PreparedReader::open(directory, uid, l::ViewLimits::prepared()); }));
+	row("attach", mean_ns(iterations, [&] { (void)x::PreparedReader::open(directory, uid, l::ViewLimits::prepared(), std::nullopt, "n0"); }));
 	std::cout << "}\n";
 }
 } // namespace

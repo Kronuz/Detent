@@ -3,7 +3,8 @@
 //
 //   reader_bench --store DIR [--publisher UID] --keys FILE [--hot NAME] [--calls N] [--repetitions N]
 //                [--threads N] [--seed N] [--operation int|hashed] [--reader core|pinned|both]
-//   reader_bench --store DIR --generate N   (writes N plain and N rollout knobs and a keys file, then exits)
+//   reader_bench --store DIR --generate N [--namespaces M]   (writes N plain and N rollout knobs over M
+//                namespaces, default 64, and a keys file, then exits)
 //
 // FILE holds one `ns:key` per line. Each case prints one JSON line: per-call p50/p99 in ns (each
 // call timed with steady_clock, so the clock's own cost is included), heap allocations inside the
@@ -47,7 +48,7 @@ using Clock = std::chrono::steady_clock;
 struct Options {
 	std::string store, keys, hot, operation = "int", reader = "both";
 	uid_t publisher = ::getuid();
-	std::size_t calls = 1'000'000, repetitions = 4, threads = 1, generate = 0;
+	std::size_t calls = 1'000'000, repetitions = 4, threads = 1, generate = 0, namespaces = 64;
 	std::uint64_t seed = 0x524541444552;
 };
 Options parse(int argc, char **argv) {
@@ -65,6 +66,7 @@ Options parse(int argc, char **argv) {
 		else if (flag == "--threads") o.threads = std::stoull(value);
 		else if (flag == "--seed") o.seed = std::stoull(value, nullptr, 0);
 		else if (flag == "--generate") o.generate = std::stoull(value);
+		else if (flag == "--namespaces") o.namespaces = std::stoull(value);
 		else throw std::invalid_argument("unknown flag " + flag);
 	}
 	if (o.store.empty())
@@ -136,15 +138,15 @@ void report(const std::string &label, std::size_t threads, std::vector<std::vect
 	std::cout << "],\"allocations\":" << allocated << "}\n";
 }
 int generate(const Options &o) {
-	detent::testing::GenerationWriter writer(o.store);
+	detent::testing::GenerationWriter writer(o.store, detent::testing::GenerationWriter::Layout::PerNamespace);
 	std::string json = R"({"schema_version":1,"knobs":{)";
 	std::ofstream keys(o.store + ".keys");
 	for (std::size_t i = 0; i != o.generate; ++i) {
 		const auto n = std::to_string(i);
-		json += (i ? "," : "") + std::string("\"n") + std::to_string(i % 64) + ":i" + n +
-		        R"(":{"default":)" + n + "},\"n" + std::to_string(i % 64) + ":b" + n +
+		const auto ns = "n" + std::to_string(i % o.namespaces);
+		json += (i ? "," : "") + std::string("\"") + ns + ":i" + n + R"(":{"default":)" + n + "},\"" + ns + ":b" + n +
 		        R"(":{"default":0,"rollout_pct":50,"rollout_value":1})";
-		keys << 'n' << i % 64 << ":i" << n << '\n';
+		keys << ns << ":i" << n << '\n';
 	}
 	json += "}}";
 	writer.publish_json(json);
@@ -166,7 +168,9 @@ int main(int argc, char **argv) {
 	                                  std::uint32_t(o.publisher)};
 	if (detent_open(&options, &core) != DETENT_OK)
 		throw std::runtime_error("detent_open failed");
-	auto pinned = x::PreparedReader::open(o.store, o.publisher, detent::local::ViewLimits::prepared());
+	// The pinned baseline reads the hot key's namespace entry.
+	auto pinned = x::PreparedReader::open(o.store, o.publisher, detent::local::ViewLimits::prepared(), std::nullopt,
+	                                      std::string_view(hot.front()).substr(0, hot.front().find(':')));
 	auto core_call = [&](const std::string &name) {
 		std::int64_t out;
 		detent_get(core, {name.data(), name.size()}, hashed ? detent_str{hash.data(), hash.size()} : detent_str{},
