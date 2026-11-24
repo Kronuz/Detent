@@ -3,39 +3,36 @@
 State: working
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fresh contributor (2026-11-24) resuming after the first stalled uncommitted. Its edit is
+committed as consensus:f63a75c (idle windows scaled by election_max; default profile unchanged,
+since window(default, ms) == ms). Probes live in the home's
+`.scratch/detent/consensus-liveness-asan-timeout/` (common.sh, phases.sh, mutants.sh,
+instrument.py); smoke-testing mutants.sh baseline before submitting jobs.
 
 ## Next
 
-1. <step>
+1. Submit A1 phases job at main (512e3ef), A2 phases job at the fix, A3 mutant shards.
+2. Write docs/mechanisms/liveness.md (windows, costs).
+3. Push; read CI times (liveness vs consensus_shared_worker, same runner).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- R1: idle windows (heal isolation, lone isolation and settle, witness settle, removed-voter
+  return) scale with election_max; deadlines (commit_one's 20 s/30 s, transfer's 10 s) and every
+  asserted bound stay in absolute ms, unchanged. The default profile's run is unchanged.
