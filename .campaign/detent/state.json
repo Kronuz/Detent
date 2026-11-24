@@ -7354,12 +7354,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "narrowed off seeds files held by consensus-seeds-rate-flake; transport is header-only",
+      "reason": "not the owner: waits on CI suite probe run 45453078372 (still running); until= takes no CI id (campaign-v3 msg-86); the lead's waiter resumes it",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "blocked",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T08:12:56",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T11:59:43",
       "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
