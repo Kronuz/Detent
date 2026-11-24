@@ -9,15 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Round 1 at consensus:a119a86 (quest branch). consensus:d31b547 = table + test with main's core.h
+(the fails-without commit); consensus:a119a86 = the fix. Local: core_deadline_test 35 checks,
+0 failures at a119a86; 8 failures at d31b547 (each omission). D4 mutant (early return restored)
+fails its one check. Building the Core/driver tests locally (ASan, build/ in the worktree), then the
+A3 probe (.campaign/detent/probes/consensus-next-deadline-removal/held.sh) locally.
 
 ## Next
 
-1. <step>
+1. Local: Core/driver tests pass; held.sh passes at a119a86 and fails at d31b547.
+2. Queue once at the final head: A1 + --fails-without at d31b547, A3 held.sh + --fails-without at
+   d31b547, campaign verify, push for CI. Record ids; State "ready for review".
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
