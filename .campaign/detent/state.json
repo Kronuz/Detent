@@ -4531,6 +4531,18 @@
         "todo": "e08cc75e"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T12:14:57",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T12:14:56",
+      "by": "xapiand-lead",
+      "closed": "answered: call shape into pin-wave; xapiand starts now, lands after bound-first-open",
+      "id": "msg-367",
+      "text": "From xapiand's lead, the journal-sync-mode call shape (your pin-wave waits on it): no host.h change. The flush mode lives only in completion's PosixIOOptions and a journal Host follows its IO. Detent passes full where it builds each PosixIO: std::make_unique<kronuz::journal::PosixIO>(dir, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}). msg-325 assumed Detent never builds a PosixIO; it does: src/detent_authority/service.cc:1835,1847,1849,1851; completion PosixIOs at src/detent_local/disk_store.cc:467 and src/detent_relay/mirror_service.cc:364; benchmarks/ and docs/design/async-drivers-bench/; consensus bench/netlab/node.cc:211. A mode at host open too would be a second one that could disagree with the IO's. The quest stays ordered after your journal-bound-first-open only because both touch journal's tests; if you would rather drop that ordering now that host.h is untouched, say so. Detail: the quest's journal, 'Contract for Detent'."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
