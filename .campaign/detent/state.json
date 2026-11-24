@@ -30219,13 +30219,16 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:42:11"
+      "updated": "2026-11-24T03:25:45"
     },
     "split-journal": {
       "accepted": {},
