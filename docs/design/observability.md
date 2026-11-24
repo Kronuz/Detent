@@ -1,60 +1,57 @@
-> Status: DRAFT (2026-11-10) Ready for design re-review: OD-1 to OD-9 (review `observability-design-design.md` at `Detent:6139e4c`) and OR1 to OR10 (the same file at `Detent:c30abc4`) folded in, A8 measured (D10), Q1-Q7 decided by the owner (PLAN.md D47), `ever_sampled` kept with its 1-thread miss (PLAN.md D48); its 64-thread row exceeds the ceiling in one of three runs, which the lead has put to the owner. Quest `observability-design` (campaign detent, D37). The owner accepted D6's application API shape (Q1, D47); its exact C declarations stay the owner's until OB1 freezes them (PLAN.md, Reserved decisions).
+> Status: DRAFT (2026-11-24) Ready for design re-review: F1-F8 and N1-N8 of `observability-core-design.md` (`Detent:549a81d8`) folded in; the claim protocol is checked by `tests/detent_reader/usage_claim_model.cc` under TSan. The owner accepted D6's ABI shape (PLAN.md D158: `usage_slots = 0` is the default, `DETENT_USAGE_OFF` is off, `switch_forced` takes `wrong_type`'s place in the nine cells) and decides D10's mechanism, claim index or segment bitmaps, from D10's comparison. Earlier rounds: OD-1 to OD-9 and OR1 to OR10 (`observability-design-design.md`), Q1-Q7 (PLAN.md D47), `ever_sampled` (D48, D61). Quests `observability-design` (D37) and `observability-core`.
 
 # Knob observability
 
-Which knobs each service reads, what they resolve to, when they fall back, and how fresh each process's view is, counted inside the reader core with an exact ever-read bit per definition and one lookup in 64 sampled, at +2.3 to +6.4 ns per warm lookup under 8 threads (on and off interleaved, three exclusive runs, D10).
+Which knobs each service reads, what they resolve to, when they fall back, and how fresh each process's view is, recorded inside the reader core: one row per knob read, claimed on its first read, and one lookup in 64 sampled into the row's arm counters.
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-09.
-- Base: `Detent:0bd2aba` (main). The reader core is not on main yet: core citations are at reader S6, `Detent:b1d281c` (`quest/detent/reader-s6`).
-- Depends on: reader.md R1 (the caller passes each lookup's default; no defaults file) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork); the `detent_*` C ABI (D1 there). It targets the Reader API only: `detent::Client`, defaults files and `parse_defaults` are decided for deletion (PLAN.md D13, D14; quest `legacy-h`), and nothing here reads from them. Benchmark: `docs/design/observability_bench.cc` with `observability-bench.sh`, `observability-summary.py` and `observability-paired.py`, removed from the tree at `Detent:7aed2593`; read them at `Detent:7aed2593^`.
+- Base: `Detent:805cd0c6` (main): the paged reader core, one knob type (PLAN.md D65). Measurements in D2 and D10 ran on the S6 core, `Detent:b1d281c`.
+- Depends on: reader.md R1 (the caller passes each lookup's default) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork), T4 (heap budget); client-local-source.md D7 (a namespace's entry); the `detent_*` C ABI. Benchmark for D2 and D10: `docs/design/observability_bench.cc` with `observability-bench.sh`, `observability-summary.py` and `observability-paired.py`, at `Detent:7aed2593^`.
 
 ## Abstract
 
 An operator today cannot tell which knobs a service reads, which arm of a ramp its callers land in, or whether a process is answering with its caller's default. The reader core counts nothing per lookup, and reader.md removed a shared per-lookup `fetch_add` for cost (`docs/design/reader.md:39`).
 
-The design counts in the core, after the answer, into a per-handle **usage table**: one slot per knob name, claimed on first sight, holding nine counters (the arm that answered, or why the caller's default was returned), plus per-namespace view records written only on the refresh path. One lookup in 64 per stripe is counted, so the name hash and the table probe run off the common path. Beside the table, one bit per definition records exactly that the handle read it (D10). Counts are cumulative and never reset, so any number of consumers take deltas. Three consumers read the one table: the application through `detent_usage` (a pull), an on-resolve hook for applications that want every event, and the managed agent, which reads a copy of the table that the reader keeps in a shared page and serves a host-wide usage document. Values never enter the hot path: an arm and the generation's revision determine the value, so the exporter reads it from the published definition.
+The design records in the core, after the answer, into a per-handle **usage table**: one row per knob name read OK, keyed by the full name, holding nine sampled counters (the arm that answered, or why the caller's default was returned). Each attached generation keeps a **claim index** keyed by the definition's address, so a knob's reads after its first cost one load, and one lookup in 64 per stripe adds to a counter. The rows say exactly which knobs the handle read, up to `usage_slots` knobs (default 4,096); past it a flag says the record is incomplete. Counts are cumulative and never reset, so any number of consumers take deltas. `detent_usage` reports the rows, exact per-status totals and one view record per attached namespace. The hook (D6) and the agent's shared page (D7) are later quests. Values never enter the hot path: the arm and the generation determine the value, except for a forced switch value (D4).
 
-Measured on the S6 core (Intel i9-9980HK, Apple clang, 100,000 knobs) with OB1's method, on and off interleaved per block of 64 lookups in one binary (D10; exclusive jobs `261109-224833-fa1352`, `261110-021130-06137b`, `261110-021130-445051`, one bench binary): the pick, `ever_sampled`, costs +2.3 to +6.4 ns per warm lookup at 8 threads, +6.1 to +10.4 at 64 and +1.5 to +7.7 at one thread, where bool scattered names exceed the 5 ns ceiling in every run (+7.0 to +7.7, PLAN.md D48). Both rows near a ceiling sit inside the bench's own error, about ±4 ns of placement and up to 29 ns of code shape (D10, the bench's error), so OB1 re-measures them in the core. Exact per-knob rows cost +18.8 to +47.8 ns at 8 threads, and no exact count passes scattered names at 64 threads (the cheapest, `pos_tls`, +44.9 to +46.2). Sampling costs accuracy for counts, not for "was it read": a knob read once per process shows its bit, but on a host of 10 such processes no sampled read with probability 0.85 (Q7).
+On the S6 core the shape measured +2.3 to +6.4 ns per warm lookup at 8 threads (D10). The in-core gate (D2) counts events exactly and times on against off as a ratio.
 
 ## What a lookup can tell today
 
 | Signal | Where it exists | Where it does not |
 | --- | --- | --- |
-| Knob read | The name passes `split` and `opened` (`core.cc:649-658`) | Nothing records it |
-| Resolved value | `evaluate` returns a bool (`src/detent_local/evaluation.hh:14-39`); `detent_get` returns the published integer (`core.cc:693`) | Not kept |
-| Arm | Implicit in `evaluate`'s branches: the definition's switch rule (forced bool or group rollout), then the global rollout, then the published value; no hash answers the published value (`evaluation.hh:30-38`) | Never returned; integers have no arms (`docs/design/knob-model.md`, "Int") |
-| Caller's default taken | Every status but `DETENT_OK` writes the caller's fallback (`core.cc:673,699`; R1) | Not counted |
-| View freshness | Each view entry keeps the sequence it was built from (`core.cc:116-120`); the handle counts publishes, refusals and attaches (`core.cc:356,478,485`) | Readable only through test hooks; no attach time; stale answers (`core.cc:532-535`) uncounted |
-| Agent | `detent-agent --status` prints the pid, durable revision and knob count (`src/detent_agent/main.cc:125-147`); the monitor logs coordinator status every 20 ms (`src/detent_agent/managed_host.cc:28-100`) | No endpoint, no per-process view |
-| Relay, authority | `/v1/health` JSON rebuilt every 100 ms (`src/detent_relay/host.cc:59-127,321-336`; `src/detent_relay/service.cc:405-413`); the authority's adds `kronuz::metrics` duration histograms (`src/detent_authority/service.cc:56-67`) | Nothing about readers |
+| Knob read | The name passes `split` and `opened` (`src/detent_reader/core.cc:794-798`) | Nothing records it |
+| Resolved value | `evaluate` returns the `int64` (`src/detent_local/evaluation.hh:14-36`); `detent_get` writes it (`core.cc:812`) | Not kept |
+| Arm | Implicit in `evaluate`'s branches: a matched override (forced or group rollout), then the rollout, then the default | Never returned |
+| Caller's default taken | Every status but `DETENT_OK` writes the caller's fallback (`core.cc:812`; R1) | Not counted |
+| View freshness | Each entry keeps the sequence it was attached at (`core.cc:139-144`); the handle counts publishes, refusals and attaches (`core.cc:194`) | Readable only through `testing::stats`; no attach time; stale answers (`core.cc:675`) uncounted |
 
 ## Decisions
 
 ### D1. What is observed, and its bounds
 
-| Signal | Kept as | Per process | Per host (agent) | Per fleet |
+| Signal | Kept as | Per process | Per host (agent, OB4) | Per fleet (OB6) |
 | --- | --- | --- | --- | --- |
-| Reads per knob, by arm | 9 sampled counters per name slot (D2, D3) | At most `K` slots per handle (default 4,096) plus one overflow slot | One row per distinct knob and revision read on the host | One row per knob in the store (at most the 5M qualified) |
-| Knob ever read | 1 bit per definition per attached generation, exact (D10) | One bitmap per attached namespace | The union over processes: one bitset per namespace and revision, outside the capped rows (D8) | The union over hosts (OB6) |
-| Caller's default taken | Cells `missing`, `wrong_type`, `fallback_other` per knob; every status per handle, exact | 11 statuses × 2 kinds per handle | Summed | Summed |
-| Generation each process reads | Per attached namespace: revision, sequence seen, attach time (D5) | One record per attached namespace | One per process × namespace | Revision lag per host |
-| Age and refresh lag | Derived by the reader of the record: now − attach time; agent: its selection time − process attach time | | | |
-| Refused publishes, stale answers, failed attaches | Per handle | 3 counters | Summed | |
+| Knob read | A row per knob name read OK, exact up to `usage_slots` knobs; past it the overflow flag (D3) | At most `usage_slots` rows | The union of names over processes | The union over hosts |
+| Reads per knob, by arm | 9 sampled counters per row (D2, D4) | Per row, and one overflow row | One row per knob and revision | One row per knob |
+| Caller's default taken | Exact totals per status; sampled `missing` and `fallback_other` cells in the knob's row when it has one | 10 status counters | Summed | Summed |
+| Generation each process reads | Per attached namespace: revision, sequence seen and current, attach time, state (D5) | One record per attached namespace | One per process and namespace | Revision lag per host |
+| Publishes, refused publishes, attaches | The handle's existing counters (`core.cc:194`) | 3 counters | Summed | |
 
-Nothing is keyed by `hash_val`, `switch_val`, the caller's fallback value or the switch rule that matched (A5, D8). No counter, hook field or value source reads a `Client`, a defaults file or an override layer: the value is what the generation published, and the fallback is the caller's argument to the lookup (R1, R2).
+Nothing is keyed by `hash_val`, `switch_val`, the caller's fallback value or the switch rule that matched (D8). The value is what the generation published; the fallback is the caller's argument (R1, R2).
 
 ### D2. Where it is counted, and what it costs
 
-The count runs inside `lookup`'s answer, once the status and arm are known (`core.cc:660-672` and its twins in `detent_get` and `detent_read`), and before the pin is released. A lookup that fails before `lookup` with a valid name (`DETENT_NOT_OPENED`, `core.cc:655-656`) counts on the same sampled path. A name that fails validation counts only in the handle's status counters, so a caller spraying invalid names cannot fill the table.
+The count runs inside `detent_get`'s answer, once the status and arm are known (`core.cc:801-811`), before the pin is released; the stripe is the lookup's own (`core.cc:663-664`). A status the entry point returns before `lookup` (`DETENT_INVALID_ARGUMENT`, `DETENT_INVALID_NAME`, `DETENT_NOT_OPENED`, `core.cc:792-798`) counts in the totals only. `detent_revision` shares `lookup` (`core.cc:825`) but reads no knob, and counts nothing.
 
-**The pick: sample one lookup in 64 per stripe.**
+**Sampling: one lookup in 64 per stripe.**
 
-1. **Where the countdown lives.** The handle holds its own array of 64 cache lines, one per stripe (the stripe is the lookup's existing `stripe_of`, `core.cc:142-144`), allocated at open. Each line holds the countdown word and a 64-bit xorshift state. It does not share D5's pin lines, which rotate with the ring; this is the layout the bench measures.
-2. **Per lookup.** A plain relaxed load and store decrements the countdown; a lost decrement between two threads on one stripe only moves a sample.
-3. **At zero.** The lookup hashes the name, finds its slot (D3) and adds 1 to the arm's cell; consumers multiply by the period. The countdown reloads from the stripe's xorshift with a value in [1, 127] (mean 64), so a caller that cycles through 64 × k names does not sample the same names forever, as a fixed reload of 63 would. The bench's scattered set, 1,024 names in order, samples only 16 of them at one thread with the fixed reload, by construction.
-4. **Seeding.** At open, each stripe's state is seeded from one `CLOCK_MONOTONIC` read mixed with the handle address and the stripe index, and its countdown starts at a random value in [1, 127], so a handle does not sample every stripe's first lookup (startup knobs). A fork child keeps its parent's states until its next refresh, which creates its page (D7 item 4) and reseeds there from `getpid()` and the clock.
+1. **Where the countdown lives.** The handle holds 64 cache lines, one per stripe, apart from D5's pin lines. Each holds the countdown word, a 64-bit xorshift state and the stripe's status totals.
+2. **Per lookup.** A relaxed load and store decrements the countdown; a lost decrement between two threads on one stripe only moves a sample.
+3. **At zero.** The lookup adds 1 to its row's arm cell (D3) and reloads the countdown from the stripe's xorshift with a value in [1, 127] (mean 64), so a caller that cycles through 64 × k names does not sample the same names forever, as a fixed reload of 63 would.
+4. **Seeding.** At open, each stripe's state is seeded from one `CLOCK_MONOTONIC` read mixed with the handle's address and the stripe index, and its countdown starts at a value in [1, 127], so a handle does not sample every stripe's first lookup. A fork child reseeds in the child handler from `getpid()` and the clock (D3, Fork).
 
-A one-run sequential screen: each arm runs its own pass, and the cost per warm lookup is the median over 7 repetitions of the arm's case p50 minus `none`'s case p50 in the same repetition (`observability-paired.py`), exclusive job `261109-120858-28cd50`, 262,144 calls per thread, the hot set one name and the scattered set 1,024 names. `none` is the S6 lookup with no counting; `none2` is the same arm run again. Three later runs of the method (`261109-131328-0ce3a4`, `261110-021130-d5103d`, `261110-021130-1bad17`) do not reproduce its small cells: their `none2` at 8 threads is −10.2 to +63.9 ns. The table separates only the large differences, +20 to +60 ns; D10's interleaved method resolves the pick.
+**Sequential screen on the S6 core.** Each arm runs its own pass, and the cost per warm lookup is the median over 7 repetitions of the arm's case p50 minus `none`'s case p50 in the same repetition (`observability-paired.py`), exclusive job `261109-120858-28cd50`, 262,144 calls per thread, the hot set one name and the scattered set 1,024 names. `none` is the S6 lookup with no counting; `none2` is the same arm run again. Three later runs (`261109-131328-0ce3a4`, `261110-021130-d5103d`, `261110-021130-1bad17`) do not reproduce its small cells: their `none2` at 8 threads is −10.2 to +63.9 ns. The table separates only the large differences, +20 to +60 ns; D10's interleaved method resolves the small ones.
 
 | Arm (8 threads) | What it keeps | int hot | int scattered | bool hot | bool scattered |
 | --- | --- | ---: | ---: | ---: | ---: |
@@ -75,125 +72,157 @@ A one-run sequential screen: each arm runs its own pass, and the cost per warm l
 | `hook_off` | Hook pointer loaded, null | +3.9 | −5.3 | +0.6 | +7.0 |
 | `hook_on` | A no-op hook called | +8.7 | −2.9 | +5.3 | +2.4 |
 
-1. **The sequential method does not resolve the pick.** In `28cd50` `knob_sampled` is −4.4 to +6.7 ns at 8 threads; in the three later runs it is −16.2 to +17.9 ns. D10's interleaved runs put `knob_sampled` at +0.4 to +5.0 ns and the pick, `ever_sampled`, at +2.3 to +6.4 ns at 8 threads, under 1% of the bench's 8-thread lookup (about 770 to 980 ns).
-2. **Exact per-knob counting costs tens of ns at 8 threads**: +23 to +64 ns in `28cd50`, and in the three later runs every median of `knob_rows8`, `knob_rows64` and `knob_shared` is above +12 ns (`knob_rows64` +12.7 to +490.1), though single `knob_rows64` repetitions fall to −548.7 ns, so only the medians separate it. D10's interleaved `knob_rows64` is +18.8 to +47.8 ns. Most of it is finding the slot: in `28cd50` hash and probe alone (`knob_probe`) cost +15 to +45 ns (+5.0 to +49.4 in the reruns), and keying by pointer (`knob_ptr_rows8`) still costs +16 to +28 ns. More rows help hot names (rows64 +23 to +26 against rows8 +42 to +49) and not scattered ones (+51 to +60), where each lookup touches a different line.
-3. **Exact per-handle counts are cheap** (`stripe_rmw` +2.5 to +13.6 ns, `tls` +0.4 to +14.6 ns, within this method's A/A spread), but they say nothing per knob. The core needs neither: the sampled table sums to the handle's estimate, and its exact status counters run only on failure paths.
-4. **One thread resolves nothing in this method.** `none` moves 221 to 287 ns between repetitions at one thread, and the paired medians of `knob_sampled` are +15.7, −4.6, +14.0 and −37.5 ns. One thread per process is the common shape under Python's GIL, so OB1's gate (below) measures one thread with the interleaved method, which resolves it to about ±4 ns (D10).
-5. **The mapped page costs what memory costs.** `knob_rows8_mapped` is within 21 ns of `knob_rows8` either way, less than `none`'s spread. The 60-second single-thread soak on the scattered integers: in memory p50 1,198.9 ns, worst 64-call batch 22,095 ns, 73 minor faults; mapped p50 1,192.0 ns, worst batch 4,921 ns, 73 minor faults. On macOS the shared page adds no faults; Linux is Limit 7.
-6. **Every exact arm counted every call**, and no timed loop allocated (the summary's checks; `counted / calls` 1.0000 for each exact arm in every case).
-7. **These deltas are measured at the S6 core's baseline, not D3's.** The bench's `none` at one thread is 889.2 ns for a hot integer and 945.3 ns for a hot bool, against D3's 268.5 and 475 ns measured on the pre-core pinned view at 5M knobs. At about 900 ns a lookup can overlap added work that a 268 ns lookup would expose, so OB1 re-establishes the cost in the core. The gap itself is the S6 core's, for its T1 gate.
-8. **No case here shares a countdown word between threads**: every 8-thread case ran on 8 distinct stripes. D10's 64-thread cases do (64 threads on 54 stripes), and OB1's gate keeps a 64-thread case.
+1. **Exact per-knob counting costs tens of ns at 8 threads**: +23 to +64 ns here, and every median of `knob_rows8`, `knob_rows64` and `knob_shared` in the three later runs is above +12 ns. Most of it is finding the slot: hash and probe alone (`knob_probe`) cost +15 to +45 ns, and keying by pointer (`knob_ptr_rows8`) still costs +16 to +28 ns.
+2. **Exact per-handle counts are cheap** (`stripe_rmw` +2.5 to +13.6 ns, `tls` +0.4 to +14.6 ns, within this method's A/A spread), but say nothing per knob. The core keeps per-handle totals only for statuses other than OK, which are off the answer's path.
+3. **The mapped page costs what memory costs.** `knob_rows8_mapped` is within 21 ns of `knob_rows8` either way. The 60-second single-thread soak on scattered integers: in memory p50 1,198.9 ns, worst 64-call batch 22,095 ns, 73 minor faults; mapped p50 1,192.0 ns, worst batch 4,921 ns, 73 minor faults (macOS; Linux is Limit 6).
+4. **One thread resolves nothing in this method** (`none` moves 221 to 287 ns between repetitions); D10's interleaved method resolves it to about ±4 ns.
 
-**OB1's cost gate.** One binary, two handles over one store, one with `usage_slots = 0` (no table, no countdown and no ever-read bits, Limit 8), alternated per block of 64 lookups on each thread, so on and off share the compiled path, the thread, the frequency state and the cache. The statistic is the median over blocks of the per-block difference, per repetition, then the median over at least 7 repetitions. Ceilings: at most **5 ns at 1 thread** and **10 ns at 8 threads**, and at most 10 ns at 64 threads (shared stripes), for hot and scattered integers and bools. It runs as an exclusive job; a ceiling exceeded fails it.
+**The gate.** Two parts. The first decides at any run level, the second at strict or light, so no gate waits on an exclusive run; one exclusive run of the finished feature is the measurement it publishes (PLAN.md D135).
 
-The counting code in the bench runs after the C ABI call, in `observability_bench.cc`, and recomputes the stripe; inside the core the stripe is already computed. The bench checks its knob set with `parse_defaults` (`detent/json_schema.hh`) and publishes it with the test writer's `publish_json`, which also parses with it (`src/detent_testing/generation_writer.cc:326` at S6); setup does not touch the timed loop, so the numbers stand. OB1 builds its test generations with the generation writer's `publish(Snapshot)` (`include/detent_testing/generation_writer.hh:23` at S6), the path the reader tests use, and needs no JSON.
+1. **Events (G1), exact.** `test_reader_usage` counts what a warm lookup does through `testing::Stats` (`claims`, `probes`, `samples`, `rmw`): after a warm-up that reads 1,024 knobs once, 1,048,576 further lookups make 0 claims, 0 allocations and 0 syscalls (reader.md T1's counters), at most 1.25 index probes per lookup, one read-modify-write per sample and none otherwise, and `samples` within 1% of lookups / 64. With `usage_slots` 256 against the 1,024 names, the knobs past the bound take the same counts plus no claims (their index slots hold the overflow row). It fails on any extra write or probe the hot path gains.
+2. **Time (G2), as a ratio.** `reader_bench --usage-gate` opens three handles over one store: one on and two with `DETENT_USAGE_OFF`. On each thread it alternates them per block of 64 lookups over the same names, rotating the order. Per repetition it takes the median over blocks of (on − off) / off and of (off' − off) / off, the A/A. Cases: 1, 8 and 64 threads; hot (one name) and scattered (1,024 names); plain and hashed lookups; and scattered with `usage_slots` 256. At least 7 repetitions. A run is valid when the median A/A is within ±0.5%; an invalid run decides nothing and is queued again. A valid run passes a case when the median on-ratio minus the median A/A is at most **1% at 1 thread and 2% at 8 and 64 threads**. On reader-lookup.md's 1-thread lookups (460 to 700 ns) 1% is 4.6 to 7 ns, D48's 5 ns. Load from other holds stretches on and off alike within a block, so the ratio holds where an absolute ceiling does not: strict screens `261109-141658-03e1a9` and `261110-021130-368d1b` failed absolute rows that exclusive runs passed.
 
-### D3. The usage table
+### D3. The usage table and the claim protocol
 
 ```
-handle ── usage table: K + 1 slots
-            slot i: name hash (8 B) | name (≤ 200 B, written once) | 9 sample counters
-            cells: published, no_hash, ramp_on, ramp_off, switch_on, switch_off,
-                   missing, wrong_type, fallback_other
+handle ── rows[usage_slots]: hash (8 B) | name length (1 B) | name (200 B) | 9 sample cells (72 B)   288 B
+       ── name set: 2^⌈log2(2·usage_slots)⌉ × u32 (0 empty, else row + 1), insert-only
+       ── next (bump), spares[64] (0 empty, else row + 1), overflowed flag, overflow row's 9 cells
+generation ── claim index: 2^⌈log2(2·min(usage_slots, root.records))⌉ × {address u64, row u32} (16 B, padded)
+           ── used (slots claimed)
 ```
 
-1. A slot is claimed by compare-and-swap on the name's 64-bit hash, linear probing at most 32 slots; the claim writes the name before publishing the hash (release). A full table counts into the overflow slot and its `overflow` counter: bounded memory, no allocation, no lock.
-2. A 64-bit hash collision between two names read by one handle merges their rows; with 4,096 names the chance is about 4.5 × 10⁻¹³. The snapshot reports the stored name, so a merge is visible as one name's counts being too large, never as a wrong name.
-3. Counters are relaxed atomic adds and only grow. Readers take deltas between snapshots; nothing resets them, so two consumers never race over a reset.
-4. `K` is fixed at `detent_open` (an option, Q1), so the table is allocated once and a warm lookup allocates nothing.
-5. One row per slot: with sampling, a slot takes one write per 64 lookups of its name, so the extra rows that exact counting needed (D2 item 2) buy nothing, and nine cells need not fit one cache line.
-6. `fallback_other` takes every fallback status but `missing` and `wrong_type` (`not_opened`, `unavailable`, `no_memory`, `source_failure`); the handle's exact status counters split it.
-7. Estimates: a knob read `n` times shows about `n / 64` samples, with a relative standard error near `√(63 / n)` (8% at 10,000 reads, 0.8% at 1M). What that costs each question is Q7.
+At the default 4,096: rows 1.18 MB, name set 32 KB, and up to 128 KB of index per attached generation. Rows, the name set and indexes are anonymous `mmap`s, so a fork child replaces them with one `mmap` each instead of clearing them (Fork, below). `usage_slots` is at most `DETENT_MAXIMUM_USAGE_SLOTS` (8,388,608, past the store's 5M knobs); larger values fail the open with `DETENT_INVALID_ARGUMENT`.
+
+**A row's life.** A row is written privately and published once; its name never changes after.
+
+1. **Find or claim by name** (`find`). Hash the name, probe the name set from `hash & mask`. A nonzero slot (acquire) names a published row: equal hash and equal name bytes is a match, anything else probes on. An empty slot ends a find that may not claim. To claim, take a private row (a spare first, else `next`, once per claim), write its hash, length and name, then compare-and-swap the empty slot from 0 to the row (release on success, acquire on failure). A failed compare-and-swap re-examines the same slot, which is now published: a match returns that row and gives the private row back to the spares; a different name probes on.
+2. **No duplicates.** A name set slot goes from empty to published once and never back, and a claimer examines every slot of its probe sequence in order until it matches or publishes. Two claimers of one name reach the same first empty slot; one publishes, the other re-examines that slot and matches. Equal hashes never merge two names, because the match compares the bytes.
+3. **No waiting.** Nothing is published before its name is complete, so no reader meets a half-written row, and no loop waits on another thread: each step either publishes, matches or moves to the next slot. A claimer parked anywhere delays only itself.
+4. **Spares.** A claimer that loses to its own name returns its private row with a compare-and-swap into the first empty one of 64 spare cells; the next claim takes it. More than 64 losers at once, with no claim between, lose a row each (Limit 9). The name set holds at most `usage_slots` rows in twice as many slots, so probing ends.
+5. **Full.** A claim with no spare and `next` at `usage_slots` sets the overflowed flag (release, set once: test before set) and returns the overflow row.
+
+**A knob's mark in a generation.** After `lookup` finds a definition, its body address keys the generation's claim index (the address is stable for the `Generation`'s life, since segments are unmapped only by `PageTable`'s destructor, `lazy_page_access.cc:110-126`; the index is never shared between `Generation` objects or keyed by namespace).
+
+1. **Hit.** Probe from the high bits of `address · φ` (multiply-shift; aligned addresses share their low bits): a slot whose address (acquire) equals the body's is this knob. An unsampled hit stops there. A sampled hit loads the slot's row (acquire); if the row is not stored yet, `find` it, since it was published before the address (item 3).
+2. **Miss.** At an empty slot, if `used` has reached half the slots, set the overflowed flag and count in the overflow row. Otherwise `find` or claim the row by name first, then compare-and-swap the slot's address from 0 (acquire-release), add 1 to `used`, and store the row (release). A failed compare-and-swap re-examines the slot: the same address is a hit, another probes on.
+3. **Visibility.** When a lookup returns OK, its knob's row is published or the flag is set: it either ran `find` itself, or loaded the address with acquire, which follows the claimer's release of the row (or the flag) before the address. So a `detent_usage` after the return sees the row or the flag. A knob claimed when the table was full stores the overflow row in its index slot, so its later hits take one load too.
+
+**Fallbacks take no row.** A `missing` or other fallback lookup adds to the stripe's exact status total; when sampled it `find`s the name without claiming and adds to the row's `missing` or `fallback_other` cell if the knob has a row, and otherwise to nothing per name. So only knobs read OK take rows: names built from input or knobs deleted before they were read cannot use up `usage_slots`, and a defined knob reaches overflow only past `usage_slots` knobs read OK. The cost is D1's per-name `missing` detail for names that never resolved: they appear only in the totals.
+
+**Across generations.** Rows live for the handle, keyed by name, so the record of "read since open" survives every publish: a new generation starts with an empty index, and each knob's first read there `find`s its existing row. A knob deleted from the store keeps its row.
+
+**Fork.** The child handler replaces the rows, name set and every attached generation's index with fresh anonymous mappings (`mmap` with `MAP_FIXED`, no file I/O and no copy of the parent's pages), zeroes `next`, the spares, the flag and the stripe totals, and reseeds each stripe from `getpid()` and the clock. The child's rows are its own reads.
+
+**Estimates.** A knob read `n` times shows about `n / 64` samples, with a relative standard error near `√(63 / n)` (8% at 10,000 reads, 0.8% at 1M).
 
 ### D4. The arm, and values derived from it
 
-`evaluate` returns `{bool value, arm}`; the arm is the branch it already takes (`evaluation.hh:30-38`), so the change adds a register write. Integers always answer `published`. The value a reader saw is a function of the knob, the arm and the generation revision:
+`evaluate` returns `{value, arm}` (`evaluation.hh`); the arm is the branch it already takes, and its callers that want the value take `.value`.
 
-| Arm | Value | Source |
+| Arm | Value | Derivable from the definition and revision |
 | --- | --- | --- |
-| `published` | The value the authority published for the knob | The definition (`default_bool()` and `default_int()` are its accessors, `evaluation.hh:16`, `core.cc:693`) |
-| `no_hash` | The published value, because the caller passed no hash on a ramped knob or a group rollout | The definition |
-| `ramp_on`, `ramp_off` | True, false: the global rollout's bucket | The bucket |
-| `switch_on`, `switch_off` | True, false: the definition's switch rule, forced or by its group rollout's bucket | The definition, or the bucket |
-| `missing`, `wrong_type`, `fallback_other` | The caller's fallback (R1) | Never recorded |
+| `published` | The default: no override matched and the knob has no rollout | Yes |
+| `no_hash` | The default, because the caller passed no hash to a rollout or a matched group rollout | Yes |
+| `ramp_in`, `ramp_out` | The rollout value, or the default: the rollout's bucket | Yes |
+| `switch_forced` | A matched override's forced value | No: overrides force different values per group, and the group is never recorded (D8); OB4 decides how to export it |
+| `switch_in`, `switch_out` | The rollout value or the default: a matched group rollout's bucket | Yes |
+| `missing`, `fallback_other` | The caller's fallback (R1) | Never recorded |
 
-The switch rules are part of the definition the authority publishes (`evaluation.hh:11-13`); R2 removes the reader's local override layer, not them. The exporter reads each value from the published definition, so no value, and no bucket, is recorded per lookup. `no_hash` is its own arm because a caller that passes no hash on a ramped knob silently gets the published value for every user.
-
-Counts are not keyed by revision: a revision field per lookup would put the view's revision on the sampled path and multiply the table's rows. The agent attributes a process's counts to the revision that process has installed when the agent reads its page, and keeps one row per knob and revision when processes on the host differ. A delta that straddles a publish which changed a knob's value is attributed wholly to the new revision; the error is bounded to the one scan interval that straddles the publish (Limit 5).
+`no_hash` is its own arm because a caller that passes no hash to a rollout silently gets the default for every user. Counts are not keyed by revision: the agent attributes a process's counts to the revision it has installed when the agent reads it (Limit 4). `Reader::get_as<bool>` returns its fallback for a value other than 0 or 1 (`reader.hh:70-71`); the core has already recorded that lookup as OK under its arm.
 
 ### D5. Freshness, off the hot path
 
-The holder of `refreshing` writes, per attached namespace, the revision, the sequence seen and the attach time (`CLOCK_MONOTONIC`, beside the refresh path's existing clock reads, `core.cc:359,375`), into the view it publishes. A snapshot also loads the namespace's current sequence from the mapped `change` file without refreshing (`detent_revision` refreshes, `core.cc:733-748`), so `current - seen` is the number of publishes a process has not yet looked up. On the same host `CLOCK_MONOTONIC` is one clock, so the agent compares a process's attach time with the time it renamed `selected`: that difference is the refresh lag, and it needs no change to the `change` file.
+The refresh winner reads `CLOCK_MONOTONIC` with `clock_gettime` when it attaches a generation (not `now_ns`, which is `mach_absolute_time` on macOS, `core.cc:71-84`), so on one host every process's attach time is on the agent's clock. Each entry also records its state. A view record is read from the installed view:
 
-### D6. The application's view: snapshot and hook (Q1)
+| Entry state | Set at | `revision` | `seen`, `current` |
+| --- | --- | --- | --- |
+| current | attach or publish | the answering generation's | the entry's slot: the sequence attached at, and the sequence now; `current − seen` is the publishes not yet looked up |
+| failed | a newer generation failed to attach (`core.cc:567-573`) | the old, answering generation's | the slot, with `seen` at the failed sequence, so `current − seen` is 0 though the answer is old; the state says so |
+| dropped | the table no longer lists it (`core.cc:564`) | the last generation's | the store word, which the entry then watches |
+
+### D6. The application's view (Q1)
+
+The owner accepted this shape (PLAN.md D158); `switch_forced` keeps the cell count at nine, in the order below.
 
 ```c
-typedef struct { size_t size; detent_str name; uint64_t samples[9]; } detent_knob_usage;
+typedef enum detent_arm {
+  DETENT_ARM_PUBLISHED, DETENT_ARM_NO_HASH, DETENT_ARM_RAMP_IN, DETENT_ARM_RAMP_OUT,
+  DETENT_ARM_SWITCH_FORCED, DETENT_ARM_SWITCH_IN, DETENT_ARM_SWITCH_OUT,
+  DETENT_ARM_MISSING, DETENT_ARM_FALLBACK_OTHER, DETENT_ARM_COUNT
+} detent_arm;
+typedef enum { DETENT_VIEW_CURRENT, DETENT_VIEW_FAILED, DETENT_VIEW_DROPPED } detent_view_state;
+typedef struct { size_t size; detent_str name;          /* data == NULL: the overflow row */
+                 uint64_t samples[DETENT_ARM_COUNT]; } detent_knob_usage;
 typedef struct { size_t size; detent_str name_space; uint64_t revision, seen, current;
-                 uint64_t attached_ns; } detent_view_usage;
-typedef struct { size_t size; detent_str name; detent_status status; uint32_t arm;
-                 detent_value value; uint64_t revision; } detent_resolution;
-typedef void (*detent_hook)(void *context, const detent_resolution *);
-
-detent_status detent_usage(detent_reader *, uint32_t *period,
+                 uint64_t attached_ns;                   /* CLOCK_MONOTONIC */
+                 uint32_t state; } detent_view_usage;
+typedef struct { size_t size; uint32_t period;          /* 64; 0 on an off handle */
+                 uint32_t overflowed;                    /* 1: absence from the rows proves nothing */
+                 uint64_t statuses[16];                  /* exact lookups by detent_status */
+                 uint64_t publishes, refused, attached; } detent_usage_totals;
+detent_status detent_usage(detent_reader *, detent_usage_totals *,
                            void (*knob)(void *, const detent_knob_usage *),
                            void (*view)(void *, const detent_view_usage *), void *context);
-/* detent_open_options grows (by its size field): usage_slots, hook, hook_context */
+/* detent_open_options grows: uint32_t usage_slots;  0: 4,096; DETENT_USAGE_OFF: no table */
+#define DETENT_USAGE_OFF UINT32_MAX
+#define DETENT_MAXIMUM_USAGE_SLOTS 8388608u
 ```
 
-1. `detent_usage` reports the sampling period (64) and walks the table and the installed view with relaxed loads; it takes no lock and runs beside lookups.
-2. The hook is fixed at open, so a lookup reads it from the handle with no atomic. Its unused cost is not resolved yet: `hook_off` at 8 threads is −5.3 to +7.0 ns in D2's sequential run and −16.9 to +22.2 ns in its three later runs, inside that method's A/A spread. OB3's interleaved gate is its first resolving measure. The hook runs on the caller's thread after the pin is released: a slow hook delays its caller, never a publish (reader.md Limit 3). It may look up knobs; it must not close the handle. Its `value` is what the lookup returned, the caller's fallback included; it stays in the caller's process.
-3. The hook sees every lookup, so an application that wires it can keep exact counts; that exactness reaches only applications that wire it. The built-in table samples whether a hook is set or not, and the hook cannot suppress it.
-4. C++, Python and Rust wrap both as they wrap lookups (client-local-source.md D1): `Reader::usage()` returning plain structs, a hook as a callable. A Python hook takes the GIL the lookup already holds.
+1. **Rows.** Each published row is a knob the handle read OK since open (or, in a fork child, since the fork); `samples` × `period` estimates its reads by arm. The overflow row is reported once the flag is set. A row's cells are independent relaxed counters, not a snapshot of one instant. A row says nothing about which revision answered, or whether the knob still exists.
+2. **Absence.** With `overflowed` 0, a defined knob with no row was never read OK. Once `overflowed` is 1 it stays 1 for the handle's life, and absence proves nothing.
+3. **Views.** One record per attached namespace, in name order (D5). For each record `detent_usage` pins the installed view, copies the record and the namespace name (at most 198 bytes) to its stack, and unpins before the callback, so no pin is held during a callback and a slow callback never refuses a publish. A namespace attached or dropped during the walk may be reported or not.
+4. **Callbacks.** They run on the calling thread, with no lock or pin held. They may look up knobs and call `detent_usage`; they must not call `detent_close`, and the strings they receive live only during the call. Either callback may be NULL.
+5. **Off.** A handle opened with `DETENT_USAGE_OFF` keeps no rows, countdown, index or totals: `period` and `overflowed` are 0, the totals are zero but for `publishes`, `refused` and `attached`, no knob is reported, and view records are reported.
+6. **ABI.** `usage_slots = 0` means the default, as `mapping_bytes = 0` does (`core.cc:745-746`), so a caller that zero-fills the grown struct, as `Reader` does (`reader.hh:43`), keeps the table; off is explicit. `DETENT_ABI_VERSION` stays 1: the change adds a function and grows size-tagged structs, and no library has shipped (`reader.hh:37` compares equality).
+7. **C++.** `Reader::usage()` returns the totals with vectors of plain structs. Python and Rust wrap it as they wrap lookups (client-local-source.md D1; OB5).
 
-### D7. Leaving the process and the host
+The hook (Q1) is fixed at open, runs after the pin is released, and is a later quest; the table records whether a hook is set or not.
+
+### D7. Leaving the process and the host (OB4)
 
 ```
 app process: usage table ─┬─ detent_usage ─→ app's own metrics stack
-                          └─ usage page (shared file, D3 layout) ─→ agent reads with pread
+                          └─ usage page (shared file, D3's rows) ─→ agent reads with pread
 agent: per-host usage document ─→ detent-agent --status --usage (JSON)
                                └─→ label-free totals, Prometheus text file (Q3, D9)
 fleet: agent summary ─→ relay ─→ authority (Q4, deferred)
 ```
 
-1. **The page.** When the agent's store has a `usage/` directory, `detent_open` creates `usage/<pid>-<handle>` (mode 0640, `O_EXCL | O_NOFOLLOW`) and maps it shared; the table's counters live in it. The directory is the agent's: owner `publisher_uid`, group the agent's group, mode 3733 (setgid and sticky). Others create files but cannot list, nobody deletes another's file, and setgid gives each file the agent's group on Linux, where a file otherwise takes its creator's group and the agent could not read it (macOS always takes the directory's group). If the create fails (the name exists, or the directory refuses it), the handle keeps a private table and counts the failure in its status counters. The page costs what an in-memory table costs (D2 item 5), and sampling sends it one write per 64 lookups; its creation is one file per handle, at open.
-2. **The agent reads untrusted pages with `pread`**, never `mmap`: a process that truncates its page would raise `SIGBUS` in a mapped reader. Every field is bounds-checked; names pass the reader's name validation. A process can lie about its own counts, which it could do anyway.
+1. **The page.** When the agent's store has a `usage/` directory, `detent_open` creates `usage/<pid>-<handle>` (mode 0640, `O_EXCL | O_NOFOLLOW`) and maps it shared; the rows, name set and totals live in it. The directory is the agent's: owner `publisher_uid`, group the agent's group, mode 3733 (setgid and sticky), so others create files but cannot list, nobody deletes another's file, and on Linux each file takes the agent's group. If the create fails, the handle keeps private memory and reports it in its totals.
+2. **The agent reads untrusted pages with `pread`**, never `mmap`: a process that truncates its page would raise `SIGBUS` in a mapped reader. Every field is bounds-checked; names pass the reader's name validation. A process can lie about its own counts (Limit 7).
 3. **Lifetime.** The agent scans every few seconds, keeps the last counts of a process whose pid is gone (checked with its start time against pid reuse), reports them once more, then deletes the page.
-4. **Fork.** A child must not count into its parent's page: the child handler replaces the page's range with private anonymous memory (one `mmap`, no file I/O, matching reader.md D10's handler rules), and the child's next refresh creates its own page, copies its names and reseeds its stripes (D2 item 4). The child's ever-read bitmaps start clear in that memory, so a child's set holds only its own reads; the parent's stay in the parent's page.
-5. **Formats.** Host: one JSON usage document in the shape of the relay's health snapshot (hand-built, `host.cc:59-127`): per knob and revision the estimated reads by arm (samples × period) and the derived value; per namespace and revision the ever-read set, a base64 bitset by definition position in that revision's generation, outside the capped rows (D8); per process the namespaces, revisions, lag and age. Label-free totals (reads by kind and status, refused publishes, stale answers, processes) are the `Metrics` counters (`include/detent/client.hh:32-48`), written as a Prometheus text file (D9).
-6. **Fleet.** The ever-read union across hosts answers "which knobs are dead" exactly (D10); sampled reads per knob answer "how often", and only at fleet scale for rare knobs: 1,000 processes reading a knob 10 times each yield about 156 samples, while one host may show none. Aggregated by knob, the authority-side state is bounded by the store's knob count, not by hosts. It needs an upstream message from agent to relay to authority, a wire change, so it is Q4.
+4. **Fork.** The child's handler maps fresh anonymous memory over the page's range (D3, Fork), and its next refresh creates its own page.
+5. **Formats.** Host: one JSON usage document in the shape of the relay's health snapshot (`src/detent_relay/host.cc:59-127`): per knob and revision the estimated reads by arm (samples × period) and the derived value (D4); the read set as the union of the processes' row names, outside the capped count rows (D8); per process its namespaces, revisions, lag, age and overflow flag. Label-free totals (lookups by status, refused publishes, processes) are written as a Prometheus text file (D9).
+6. **Fleet.** The union of read names across hosts answers "which knobs are dead" for every process whose flag is clear; sampled reads answer "how often", and only at fleet scale for rare knobs: 1,000 processes reading a knob 10 times each yield about 156 samples. It needs an upstream message from agent to relay to authority, a wire change (Q4).
 
 ### D8. Privacy and limits
 
 | Data | Exported as | Why |
 | --- | --- | --- |
-| `hash_val`, `switch_val` | Never stored | User or tenant identifiers (`include/detent/errors.hh:20`, `include/detent/client.hh:32-34`) |
-| Switch rule that matched | Never stored; only `switch_on` and `switch_off` | The rule's key equals a caller's switch value |
+| `hash_val`, `switch_val` | Never stored | User or tenant identifiers (`include/detent/errors.hh:20`) |
+| Switch rule that matched | Never stored; only the arm | The rule's key equals a caller's switch value |
 | Caller's fallback value | Never stored; only that it was returned | Caller-supplied, unbounded (R1) |
-| Knob name | In the usage document and the snapshot, never a metric label | `Metrics` takes no name label (`include/detent/client.hh:32-34`); a protected diagnostics endpoint may carry names |
-| Resolved value | Derived from the published definition, as the value (Q5) | Already on every agent's disk |
+| Knob name | In the usage document and `detent_usage`, never a metric label | Per-knob series across 250k agents do not fit a time-series store |
+| Resolved value | Derived from the published definition (Q5), except `switch_forced` (D4) | Already on every agent's disk |
 
-Unbounded sets are capped where they enter: `K` names per handle, then the overflow slot; names at most 200 bytes (`core.cc:265-278`); the host document at most 65,536 knob count rows, ordered by reads, with a `truncated` count; fleet rows at most the store's knobs.
-
-The ever-read set is not in those rows, because ordering by reads would truncate the rarely read knobs first, the ones the bit exists for. The document carries it as one bitset per namespace and revision held by the host's processes, by definition position in that generation: at most one bit per definition, 12.5 KB at 100,000 knobs and 625 KB at 5M (834 KB in base64) per revision, whatever the cap. A bitset is chosen over a list of positions because its bound is the smaller one, where a list of 32-bit positions reaches 20 MB per revision at 5M, and it has the page's shape, so the host and fleet unions are ORs.
+Unbounded sets are capped where they enter: `usage_slots` names per handle, then the overflow row; names at most 200 bytes (`core.cc:325-333`); the host document at most 65,536 count rows, ordered by reads, with a `truncated` count; fleet rows at most the store's knobs. The read set is not in those capped rows, because ordering by reads would drop the rarely read knobs first, the ones it exists for: it is the union of names, at most the store's knobs.
 
 ### D9. Kronuz/metrics
 
-The agent keeps host aggregates and its scan and attach durations in `kronuz::metrics::Counter` and `DurationHistogram` (single owner, `metrics.hh` at the pin `metrics:9db73de`), as the authority does. The read path uses neither `AtomicCounter` (+55 to +65 ns paired at 8 threads in D2's sequential run, +41.2 to +71.8 in its reruns) nor `ContendedCounter` (+50 to +55 ns, +37.5 to +60.2 in the reruns). The Prometheus text file needs a renderer for those types; it belongs in Kronuz/metrics, header-only beside the counters it renders, so the relay and authority can serve the same format later instead of each writing its own. It adds no dependency; it is a change to the metrics library under its own review (OB4's first step). The JSON writers stay where they are (`service.cc:56-67`, `host.cc:59-127`).
+The agent keeps host aggregates and its scan and attach durations in `kronuz::metrics::Counter` and `DurationHistogram` (single owner, `metrics.hh` at the pin `metrics:9db73de`), as the authority does. The read path uses neither `AtomicCounter` (+55 to +65 ns paired at 8 threads in D2) nor `ContendedCounter` (+50 to +55 ns). The Prometheus text file needs a renderer for those types; it belongs in Kronuz/metrics, header-only beside the counters it renders, so the relay and authority can serve the same format later. It is a change to the metrics library under its own review (OB4's first step).
 
-### D10. Exact counting (A8)
+### D10. Exact reads: the mechanism
 
-The owner asked for exact counts if they can be made cheap (Q7, D38). Five exact mechanisms beyond D2's rows were measured. Each indexes by the definition's position in the generation, which the core holds once `lookup` has found the definition (the bench carries it on each name), so none hashes a name or probes a table:
+The owner asked for exact counts if they can be made cheap (Q7, D38). Five exact mechanisms beyond D2's rows were measured on the S6 core, each indexed by a dense definition position that core held:
 
 1. `pos_shared`: one row of 64-bit counters, a relaxed `fetch_add` per lookup.
-2. `pos_stripe_rmw`: 64 rows of 32-bit counters, one per stripe, a relaxed `fetch_add` (a locked add on x86).
-3. `pos_tls`: one row of 32-bit counters per thread, a relaxed load and store; the row is allocated on the thread's first lookup and registered for a scan to sum.
-4. `dm_cache`: a per-thread cache line of 8 (position, count) pairs, direct-mapped by position; a lookup that evicts a pair adds its count to the shared row.
-5. `ever_bit`: one bit per definition, test-before-set: a relaxed load, and a `fetch_or` only on a knob's first read, so after it the word stays shared in every core's cache.
+2. `pos_stripe_rmw`: 64 rows of 32-bit counters, one per stripe, a relaxed `fetch_add`.
+3. `pos_tls`: one row of 32-bit counters per thread, a relaxed load and store.
+4. `dm_cache`: a per-thread cache line of 8 (position, count) pairs, direct-mapped by position; an eviction adds its count to the shared row.
+5. `ever_bit`: one bit per definition, test before set: a relaxed load, and a `fetch_or` only on a knob's first read.
 
-Beside them: `ever_sampled` (`ever_bit` and `knob_sampled` together, the shape recommended below), `knob_sampled` (D2's pick), `knob_rows64` (D2's best exact rows) and `none2` (A/A).
-
-The method is OB1's gate: the arm and `none` in one binary, alternated per block of 64 lookups on each thread over the same names, in both orders; a repetition's delta is the mean of its on-first and off-first block-pair medians, and the table gives the median over 7 repetitions (`observability-paired.py`). Exclusive job `261109-202834-bfb3cf` at `Detent:09f038e`, 262,144 calls per thread, 100,000 knobs, the hot set one name and the scattered set 1,024 names; 64 threads on 16 hardware threads share stripes. Each cell is the larger of the integer and the bool delta, hot / scattered, in ns:
+Beside them: `ever_sampled` (`ever_bit` and `knob_sampled` together), `knob_sampled` (D2's countdown), `knob_rows64` and `none2` (A/A). The method: the arm and `none` in one binary, alternated per block of 64 lookups on each thread over the same names, in both orders; a repetition's delta is the mean of its on-first and off-first block-pair medians, and the table gives the median over 7 repetitions. Exclusive job `261109-202834-bfb3cf` at `Detent:09f038e`, 262,144 calls per thread, 100,000 knobs, the hot set one name and the scattered set 1,024 names; 64 threads on 16 hardware threads share stripes. Each cell is the larger of the integer and the bool delta, hot / scattered, in ns; bold cells miss D48's ceilings (5 ns at 1 thread, 10 at 8 and 64):
 
 | Arm | 1 thread | 8 threads | 64 threads |
 | --- | ---: | ---: | ---: |
@@ -207,193 +236,122 @@ The method is OB1's gate: the arm and `none` in one binary, alternated per block
 | `dm_cache` | **+6.1 / +15.3** | +5.1 / **+17.1** | +5.7 / **+36.7** |
 | `knob_rows64` | **+21.9 / +47.1** | **+18.8 / +44.3** | **+53.6 / +95.3** |
 
-Bold cells miss the gate. Every cell, the A/A's included, is the larger of its two deltas by value, so the max hides negative per-op cells: the A/A's bool hot row at 64 threads is −5.0 behind the cell's −1.7.
+1. **Only a test-before-set mark passes in every row** (`ever_bit`, worst +4.6 ns). The cost of an exact count is the written line per distinct knob, which no count avoids: with the lookup removed (`--bare 1`, strict screen `261109-141658-03e1a9`) every mechanism costs at most +3.4 ns except the shared and striped atomics.
+2. **The pair.** At `Detent:71e7c76` (exclusive `261109-224833-fa1352`, `261110-021130-06137b`, `261110-021130-445051`) `ever_sampled` measured +2.5 to +3.4 / +7.0 to +7.7 at 1 thread, +2.7 to +3.3 / +6.2 to +6.4 at 8, and +6.6 to +7.2 / +9.2 to +10.4 at 64. The 1-thread excess is the countdown's (`knob_sampled` +4.6 to +6.9 in that row), and both rows near a ceiling sit inside the bench's error: about ±4 ns of placement (the A/A's worst cell, −3.9 ns at 1 thread) and up to 29 ns of code shape, since on and off were two compiled loops. The owner kept the pair (PLAN.md D48, D61); D2's gate re-measures it in the core, where on and off are one compiled path switched by `DETENT_USAGE_OFF`.
 
-1. **Only `ever_bit` passes OB1's gate in every row** (worst +4.6 ns, integer scattered at 64 threads). It answers "did this handle read this knob" exactly, at 1 bit per definition: 12.5 KB per handle at 100,000 knobs, 625 KB at 5M.
-2. **No exact count passes on scattered names.** Each lookup of a different knob writes a different line: a per-thread row touches 1,024 lines per thread (`pos_tls` +46.2 ns at 64 threads), shared and striped rows add coherence misses (`pos_shared`, `pos_stripe_rmw`), and `dm_cache` evicts on nearly every scattered lookup and pays the shared add anyway. On a hot name `pos_tls` and `pos_stripe_rmw` pass, because one line stays private. The instructions are not the cost: with the lookup removed (`--bare 1`, strict screen `261109-141658-03e1a9`) every one of them costs at most +3.4 ns except the shared and striped atomics. The cost is the written line per distinct knob, which an exact count cannot avoid.
-3. **The cheapest exact count is `pos_tls`**, and it misses the 10 ns ceiling by 36.2 ns at 64 threads on scattered names; it also allocates 400 KB per thread at 100,000 knobs (20 MB at 5M) and needs a thread registry (Alternatives, per-thread counters).
-4. **The A/A spread** (`none2`) is within ±1.7 ns in every per-op cell but one, bool hot at 64 threads (−5.0 ns): there two copies of the same loop at different addresses differ by 5 ns. The A/A bounds placement only; the bench's error, below the gate table, adds code shape.
+**The paged core has no position.** A definition is a leaf body in a lazily mapped trie, found by `PagedReadState::definition` (`src/detent_local/paged_read_state.cc:9-35`); nothing numbers definitions densely. Two marks fit it:
 
-The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131,072 calls) agrees that `ever_bit` passes every row and that every exact count fails scattered names at 64 threads; beside other work it also fails ten 1- and 8-thread rows that the exclusive confirm passes.
+- **(a) The claim index (D3).** Keyed by the body's address, one per attached generation; a hit is one load of a slot that stays shared after the first read, `ever_bit`'s shape, though its footprint is 16 bytes per slot against one bit. Exact up to `usage_slots` knobs, stated past it. Changes `core.cc` only; the rows carry the names; no fold.
+- **(b) Segment bitmaps.** One bit per 8 bytes of each mapped segment (bodies are at least 12 bytes apart), allocated beside `VerifiedPages` when `PageTable` maps the segment (`lazy_page_access.cc:63-71`): 16 KB per 1 MiB segment touched. `PagedReadState` returns the body's segment and offset. Exact for every definition. The rows (D3) stay for counts and names up to `usage_slots`; a bit with no row is named only by walking the generation's verified pages, and a retiring generation's bits must be folded into its successor by name, or lost.
 
-**The shape (Q7).** Every attached namespace generation in a view gets an ever-read bitmap, one bit per definition in that generation, allocated by the refresh winner when it attaches the generation (the refresh path already allocates and maps; a warm lookup does neither). A lookup that finds a definition tests its bit and sets it if clear, after the answer, beside the sampled countdown. A lookup that finds no definition has no position; `missing` counts it in the sampled table.
+Memory per handle with one namespace attached, at the store sizes below (63 bytes of segment per knob, from the 5M store's 315,759,038 bytes, `dense-pages.md:251`), reading R knobs scattered. (a) takes `usage_slots` = max(4,096, R) for exactness; (b) keeps the default rows and pays per segment touched:
 
-1. **Across generations.** When the D5 freer retires a view, no reader holds it, so its bitmaps are final. The freer ORs each set bit into the bitmap of the generation that replaced it, finding the knob by name there (one lookup per distinct knob read, off the hot path), with `fetch_or` beside lookups that set bits in the new one. A knob absent from the new generation (deleted) is marked in its usage-table slot's `seen` flag, claiming a slot if needed; past `K` it counts in `overflow` (Limit 4). So the current bitmap holds every knob the handle has read since open.
-2. **Leaving the process.** The page (D7 item 1) carries, per attached namespace, the revision and its bitmap; the refresh winner grows the page for a larger generation before it publishes the view. When the freer retires a generation, its bitmap's range returns to the page for the next attach, so the page holds one bitmap per generation that a live view holds, the bound on the views themselves. The agent resolves positions against the generation of that revision. A process on a revision the agent no longer holds is reported by its count of set bits until it refreshes, when the fold moves them (Limit 11).
-3. **Cost and size.** One relaxed load of a word that stays shared after a knob's first read, and one `fetch_or` per knob per handle per generation. 12.5 KB per handle per 100,000 definitions read from, 625 KB for a whole 5M store. A handle opened with `usage_slots = 0` allocates no bitmaps and runs neither the bit nor the countdown (Limit 8); it is OB1's off handle.
-4. **The gate.** At `Detent:09f038e` the pair (`ever_sampled`) misses OB1 at 64 threads (+11.9 / +14.4 above) though each part passes, while its counting code alone adds up (`--bare 1`, 64 threads: +1.3 for the bit, +2.0 for the countdown, +4.0 together). Three suspects were tested with the method above, strict pair-screen `261109-222819-1a0f6c` at `Detent:4ee258e` and exclusive pair-confirm `261109-224833-fa1352` at `Detent:f476cf7`, then rerun at `Detent:71e7c76` as exclusive `261110-021130-06137b` and `261110-021130-445051` and strict `261110-021130-368d1b` (one bench binary, digest `15b89164`):
-   1. *A shared countdown.* At 64 threads 64 stacks fall on 54 stripes, so ten threads share a countdown line, and the S6 pin's `lock xadd` drains the previous lookup's countdown store before it. A thread-local countdown (`knob_tls`, `es_tls`, `es_tls_one`) is worse at every thread count (`knob_tls` +10.7 / +15.0 at 64 threads, `es_tls_one` +8.6 hot at 1 thread, against the stripe line's +4.0 / +4.4 and +2.6), so sharing is not the cause and the stripe line stays.
-   2. *An unconditional bit store.* There is none: the bit is a load and a test, and a `fetch_or` only on a clear bit (disassembly of the bench at both commits; probe `261110-053432-d2ad94` records both binaries as a job).
-   3. *The compiled loop.* The same source, rebuilt beside the new arms, moved `ever_sampled`'s 64-thread cells down by 1.2 to 6.1 ns per op (`bfb3cf` to `fa1352`) and its integer scattered 1-thread cell up from −0.4 ns to between +2.4 and +4.4 across the three later runs. The bench cannot attribute this to code shape or placement; probe `261110-053432-d2ad94` records both binaries' loops. One branch for both tests with an out-of-line slow half (`es_one`) is no better: +12.2 and +12.7 at 64 threads.
+| Store | Segments | R = 1,000 or 4,096: (a) | (b) | R = every knob: (a) | (b) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100K | 7 | 1.34 MB | 1.33 MB | 34.0 MB | 1.33 MB |
+| 1M | 61 | 1.34 MB | 2.21 MB | 330 MB | 2.21 MB |
+| 5M | 302 | 1.34 MB | 6.0 to 6.2 MB | 1.78 GB | 6.2 MB |
 
-   | Arm (exclusive) | 1 thread | 8 threads | 64 threads |
-   | --- | ---: | ---: | ---: |
-   | `ever_sampled`, before (`09f038e`) | +3.7 / **+7.4** | +3.9 / +6.4 | **+11.9 / +14.4** |
-   | `ever_sampled`, after | +2.5 to +3.4 / **+7.0 to +7.7** | +2.7 to +3.3 / +6.2 to +6.4 | +6.6 to +7.2 / +9.2 to **+10.4** |
-   | `es_one` (two runs) | +2.2 to +2.7 / **+6.1 to +6.3** | +2.7 / +5.0 to +5.1 | +7.2 to +7.7 / **+12.2 to +12.7** |
-   | `knob_sampled` | +2.6 to +2.9 / +4.6 to **+6.9** | +2.8 to +3.2 / +4.7 to +5.0 | +4.2 to +4.6 / +4.0 to +5.9 |
-   | `ever_bit` | +2.5 to +2.9 / +2.3 to +2.5 | +2.3 to +2.5 / +1.9 to +2.4 | +2.7 to +3.4 / +6.3 to +6.8 |
-   | `none2` | −0.9 / −1.0 to −0.5 | −0.8 to −0.6 / −0.8 to −0.5 | −0.0 to +0.2 / +0.9 to +1.0 |
+(a)'s 1.34 MB is rows 1.18 MB, name set 32 KB and index 128 KB; (b)'s is the same rows and set plus 16 KB per segment touched (all 7 or 61; 291 of 302 at R = 1,000). Each further attached namespace adds its index or its bitmaps. reader.md T4's 1.5 MiB heap budget for the core (1.57 MB) holds (a) at the default with 0.23 MB to spare, and (b) only at 100K.
 
-   The after rows give the range over `fa1352`, `06137b` and `445051` (`es_one` is not in `06137b`); a bold value misses the gate in at least one run. Each cell is the larger of the integer and bool delta by value, which hides two per-op cells: `none2` bool hot at 1 thread is −3.9 in all three runs, and `knob_sampled` int scattered at 64 threads is −25.2, −29.3 and −25.5.
+At the shipped default the claim index is equal at 100K and 1.6 and 4.5 to 4.6 times smaller at 1M and 5M. Exactness for every knob read costs it 26, 149 and 288 times the bitmaps' memory; the crossover is near 6,500 knobs read at 1M and 19,000 at 5M. The bitmaps also cost CPU the index does not: `detent_usage` walks verified pages to name a bit without a row, and the fold runs when a generation retires.
 
-   At 8 threads the pair passes in every run (worst +6.4). At 64 threads bool scattered is +8.3 (`fa1352`), +10.4 (`06137b`) and +8.6 (`445051`), and integer scattered +9.2 to +9.5: one exclusive run of three exceeds the 10 ns ceiling, and the strict `368d1b` reaches +11.8 (integer scattered). At 1 thread bool scattered misses in every run, +7.0 to +7.7 against 5.0, where the countdown alone is +4.6 to +6.9 (+4.5 at `09f038e`, +7.8 in strict screen `261109-141658-03e1a9`). So the countdown, not the bit, carries the 1-thread excess, by an amount that moves by about 3 ns between builds and runs. The bit alone passes every row of every confirm.
+*Recommendation: (a)*, because at the default it costs the least everywhere, needs no walk or fold, and stays in `core.cc`; it narrows Q7 from "exact per definition" to "exact up to `usage_slots` knobs read, past it stated". If the owner holds Q7's every-definition exactness, (b) is the mechanism that meets it at a bounded cost, and the numbers above recommend it. The decision is the owner's (D47, D48, D61).
 
-   **The bench's error.** Two kinds bound what these tables resolve. Placement: the A/A compares two copies of one loop at different addresses, and its worst per-op cell is −3.9 ns at 1 thread (every run of the after binary) and −5.0 at 64 threads (`bfb3cf`). Code shape: on and off are two compiled loops (`block<arm>` and `block<none>`), which the A/A does not cover; `knob_sampled` adds work, yet on scattered integers at 64 threads it measures −25 to −29 ns against `none`. So the bench resolves about ±4 ns at 1 thread and leaves up to 29 ns of code shape at 64, and both rows D48 weighs, bool scattered at +7.0 to +7.7 against 5 at 1 thread and +8.3 to +10.4 against 10 at 64, sit inside that error in either direction. OB1's method removes the code-shape term: in the core, on and off are one compiled path, switched at run time by the off handle's `usage_slots = 0` (shape item 3). The core observability quest therefore re-measures OB1's gate that way, and its result decides both rows.
+## Lifecycle
 
-   **Decision (PLAN.md D48, 2026-11-10).** The owner keeps `ever_sampled`: the exact ever-read bit plus sampled counts and arm splits. It is the one row over the gate: bool scattered at 1 thread, +7.7 ns against 5.0 (exclusive `261109-224833-fa1352`, `Detent:f476cf7`), a miss that the countdown carries (`knob_sampled` +6.9 in the same row) and the compiled layout moves by about 3 ns. The pair passes the 8- and 64-thread rows (worst +9.3 against 10). OB1 re-measures the gate on the real hot path (stripe in a register, S6 lookup near 900 ns, Limit 7). The design proposes, beyond D48's terms: if the row still misses there, cutting the countdown's cost is OB1's work, and the bit stays.
+States per handle: **off** (`DETENT_USAGE_OFF`) or **on**. Per attached generation: its claim index, empty at attach. Per entry: current, failed or dropped (D5). The answer of a lookup never depends on usage. Each test is in `tests/detent_reader/test_reader_usage.cc` and fails without the property its row names; seams are in `src/detent_reader/testing.hh` (forced period, forced equal hashes, refused index, index capacity, claim windows, `Stats::claims`, `probes`, `samples`, `rmw`).
 
-   D48 was ruled on `fa1352` alone. In the two later exclusive runs the 64-thread row passes once and exceeds the ceiling once (+10.4), so "passes at 64 threads" holds in two runs of three; the lead has put that fact to the owner.
-
-## In the paged core (OB1-OB3, quest `observability-core`)
-
-D1-D10 were designed on the S6 core at `Detent:b1d281c`. The landed core (`Detent:805cd0c6`) differs in two ways that this section resolves before any code. It is a proposal for the lead's design check; the C declarations stay the owner's (PLAN.md, Reserved decisions).
-
-1. **One knob type (PLAN.md D65).** `evaluate` returns one `int64` (`src/detent_local/evaluation.hh:14-36`); there is no `wrong_type`, and a switch rule is a forced value or a group rollout.
-2. **No definition position.** A definition is a leaf body in a lazily mapped trie, found by `PagedReadState::definition` (`src/detent_local/paged_read_state.cc:9-35`). Nothing numbers definitions densely, so D10's "bit by definition position" has no index to use. What the core does hold is the body's address: it lies in a segment mapping that stays put for its `Generation`'s life (segments are unmapped only by `PageTable`'s destructor, `lazy_page_access.cc:110-113`), and two definitions never share one.
-
-### P1. Arms under one knob type
-
-Nine cells, the branch `evaluate` already takes: `published` (no rule applies), `no_hash` (a rollout or a matched group rollout with no hash: the default), `ramp_in`, `ramp_out` (the knob's rollout bucket), `switch_forced` (a matched forced override), `switch_in`, `switch_out` (a matched group rollout's bucket), `missing`, `fallback_other` (every other fallback status). `switch_forced` takes `wrong_type`'s cell. `evaluate` returns `{value, arm}`; its four callers take `.value`.
-
-### P2. The ever-read record: a claim index per generation
-
-Each attached `Generation` gets a **claim index**: an open-addressed array of `(body address, row)` pairs, a power of two at least twice `min(usage_slots, root.records)`, allocated when the refresh winner attaches the generation (the cold path, beside its `PageTable`). After a lookup finds a definition:
-
-1. **Hit.** Hash the body address (one multiply), load the slot, compare. A knob read before in this generation stops here: one load of a line that stays shared after the first read, the cost D10 measured for `ever_bit`.
-2. **First read in this generation.** An empty slot is claimed by compare-and-swap on the address; the winner finds or claims the knob's **row** in the usage table by full name (hash, probe, compare names, so no collision merges two knobs; Limit 1 goes) and stores the row index. A loser, or a reader that finds the row not yet stored, takes the slow path below if it is sampled.
-3. **Sampled.** The stripe's countdown (D2) reaching zero adds 1 to the row's arm cell. The row comes from the index, so a sampled warm lookup hashes no name. A lookup with no row in hand (`missing`, a fallback status, an unstored row) finds or claims its row by name.
-4. **Bounds.** The table holds `usage_slots` rows. A knob that finds the table full, or the index past half full, is not recorded: its reads count in the overflow row, and a flag set once (test before set) makes the overflow row appear. So a knob absent from `detent_usage`'s rows was not read unless the overflow row is present: the miss is stated, never silent.
-
-Rows are keyed by name and live for the handle, so "read since open" survives every publish without D10's fold: a new generation starts with an empty index, and each knob's first read there finds its existing row. A deleted knob keeps its row.
-
-**Against D10's bitmaps.** The bitmap is exact for every definition at 1 bit each (625 KB per generation at 5M), but needs a dense position the paged trie lacks: building one means returning the leaf's location from `PagedReadState`, a per-segment bitmap in `PageTable` (one bit per 8 bytes of segment, since bodies are at least 12 bytes apart: about 4.9 MB per generation for the 315 MB 5M store, `dense-pages.md:251`), and, to name what was read, a walk of every verified page, since a bit carries no name. The claim index costs memory in proportion to the knobs read, not the store: 12 bytes per index slot, at most 96 KB per generation and about 1.2 MB of rows at the default 4,096 (D3). Its exactness is bounded by `usage_slots` and its miss is stated; an application wanting every knob raises `usage_slots`. *Recommendation: the claim index.* It narrows Q7's "exact per definition" to "exact up to `usage_slots` knobs, overflow stated", which is the owner's (D47, D48, D61).
-
-### P3. The C ABI (D6's shape, OB1 freezes it)
-
-```c
-typedef enum detent_arm {
-  DETENT_ARM_PUBLISHED, DETENT_ARM_NO_HASH, DETENT_ARM_RAMP_IN, DETENT_ARM_RAMP_OUT,
-  DETENT_ARM_SWITCH_FORCED, DETENT_ARM_SWITCH_IN, DETENT_ARM_SWITCH_OUT,
-  DETENT_ARM_MISSING, DETENT_ARM_FALLBACK_OTHER, DETENT_ARM_COUNT
-} detent_arm;
-typedef struct { size_t size; detent_str name;   /* data == NULL: the overflow row */
-                 uint64_t samples[DETENT_ARM_COUNT]; } detent_knob_usage;
-typedef struct { size_t size; detent_str name_space; uint64_t revision, seen, current;
-                 uint64_t attached_ns; } detent_view_usage;
-detent_status detent_usage(detent_reader *, uint32_t *period,
-                           void (*knob)(void *, const detent_knob_usage *),
-                           void (*view)(void *, const detent_view_usage *), void *context);
-/* detent_open_options grows: uint32_t usage_slots;  0: 4,096; DETENT_USAGE_OFF: no table */
-#define DETENT_USAGE_OFF UINT32_MAX
-```
-
-Every row is a knob the handle read (A1's ever-read bit is the row's presence); `samples` times `period` estimates its reads by arm. `usage_slots = 0` means the default, as `mapping_bytes = 0` does, so a caller that zero-fills the grown struct keeps the table; off is explicit. The view records are D5's (OB2 of the build plan): `Entry` already keeps `seen` and the watched sequence, and the attach time is one clock read on the refresh path. The hook (D6 item 2) is not in this quest.
-
-### P4. Lifecycle
-
-States per handle: **off** (`DETENT_USAGE_OFF`: no table, countdown or index; every event below is a no-op) or **on**. Per generation: its index, empty at attach. The lookup's answer never changes with usage; the table is what changes.
-
-| Event | Table and index | `detent_usage` then reports | Test (`test_reader_usage`) |
+| Event (code) | Usage change | `detent_usage` then | Test |
 | --- | --- | --- | --- |
-| Open (on) | Table of `usage_slots` rows; stripe countdowns seeded in [1, 127] from the clock, the handle and the stripe | No rows; `period` 64 | `fresh_handle`: no rows; the first 64 lookups of one knob are not all sampled |
-| First read of a knob in a generation (OK) | Index slot claimed; row found or claimed by name | The knob's row | `ever_read`: every knob read has a row, none unread does |
-| Later read in that generation | Nothing (hit); a sampled one adds to its arm's cell | The row; its cell grows by one per sample | `arms`: period forced to 1, each arm's count exact |
-| Sampled countdown reload | Countdown from the stripe's xorshift in [1, 127] | | `cycle`: a 1,024-name cycle samples every name |
-| `missing` or a fallback status | Sampled only: row by name, cell `missing` or `fallback_other` | The row, when sampled | `fallbacks`: each status lands in its cell (period 1) |
-| `invalid_name`, `invalid_argument` | Nothing (a sprayed name cannot fill the table, D2) | Unchanged | `fallbacks` |
-| Generation published (new generation for a namespace) | The new generation's index starts empty; rows stay | The same rows; counts keep growing | `publish_reorder`: rows survive a publish that reorders and deletes definitions; a deleted knob keeps its row |
-| Attach failed, dropped, re-added with the same generation (D7) | The kept generation keeps its index | Unchanged | `kept_generation`: no second claim (period 1: counts equal lookups) |
-| Re-added at a new slot, slot reused (D7) | The new generation's index starts empty; rows by name | The same rows | `publish_reorder` |
-| Generation freed (no view holds it) | Its index is freed with it | Unchanged | `ever_read` under ASan |
-| Table full or index half full | The knob counts in the overflow row; the overflow flag is set | The overflow row (name absent) | `overflow`: `usage_slots` 4, six knobs |
-| `detent_usage` beside lookups | Relaxed loads of published rows (acquire on the row's name) | A consistent row per knob | `concurrent_usage` (TSan): 16 threads, period 1, exact sums |
-| Fork (child) | Rows, indexes and the overflow flag cleared; countdowns reseeded from `getpid()` and the clock | Only the child's reads | `fork_child`: the child's rows are its own; the parent's unchanged |
-| Close | Table and indexes freed | | ASan and leak checks |
+| Open, on (`core.cc:735-788`) | Rows, name set, spares, stripe lines mapped; countdowns seeded in [1, 127] | No rows; period 64; totals 0 | `fresh_handle`: over 1,000 fresh handles the first lookup is sampled between 1 and 60 times (a fixed start of 1 gives 1,000, of 64 gives 0) |
+| Open, off | Nothing mapped | Period 0, no rows; views reported | `off_handle`: lookups leave `claims`, `samples` and the totals at 0; views present |
+| Open, `usage_slots` past the maximum | Open fails `DETENT_INVALID_ARGUMENT` | | `open_bounds` (the maximum opens, one more fails) |
+| First attach of a namespace (`core.cc:575-584`) | The generation's index mapped; attach time read; state current | A view record: revision, `seen == current`, `attached_ns` between the test's clock reads | `view_records` |
+| Index refused at attach | The generation attaches without an index; its OK lookups set the flag | The same answers; `overflowed` 1 | `index_refused` (answers equal an off handle's) |
+| First OK read of a knob in a generation | Row found or claimed by name, then the index slot (D3) | The knob's row | `ever_read`: the rows equal the set of knobs read OK, over 1,000 knobs |
+| A claimer parked at each claim window | Others proceed and converge | The row, once, after any lookup that returned | `claim_windows`: park at `UsageRowWritten`, `UsageNamePublished`, `UsageAddressClaimed`; a second thread's lookup returns within 1 s and its `detent_usage` shows exactly one row |
+| Two names with one hash | Two rows | Both | `equal_hashes` (forced hash) |
+| Later OK read (hit) | Nothing; a sample adds one to the arm's cell | The cell grows | `arms`: period 1, every arm's cell equals its lookups (all nine, through a definition per arm and each fallback) |
+| Countdown at zero | Reload from the stripe's xorshift, [1, 127] | | `cycle`: a 1,024-name cycle at period 64 samples every name within 64 cycles (a fixed reload of 63 samples 16) |
+| `DETENT_MISSING` | Stripe total; sampled: the row's `missing` cell if the knob has a row | No new row | `fallbacks`: 64 missing names take no row and the defined knob keeps its row; a knob deleted after being read gains `missing` samples |
+| Other fallback inside `lookup` (unavailable, source failure, no memory, I/O) | Stripe total; sampled: `fallback_other` if the knob has a row | | `fallbacks` (each status exact in `statuses`) |
+| `NOT_OPENED`, `INVALID_NAME`, `INVALID_ARGUMENT` (`core.cc:792-798`) | Stripe total only | | `fallbacks` |
+| `detent_revision` (`core.cc:816-831`) | Nothing | Unchanged | `revision_uncounted` |
+| Publish, new generation (`core.cc:536-538`) | New empty index; rows stay | Same rows, counts growing; record's revision and `seen` move | `publish_reorder`: rows survive a publish that reorders and deletes definitions; `claims` grows by the knobs re-read |
+| Publish keeping the generation (same id and slot, `core.cc:523-524`) | The index stays | Unchanged | `kept_generation`: `claims` unchanged across it (a rebuilt index claims again) |
+| Re-added with the same generation id at a new slot | A new `Generation`, so a new index | Same rows; state current | `readd_same_generation_usage`: `claims` grows |
+| Slot reused by another name | New name: new generation; dropped name: state dropped | Records for both | `slot_reused_views` |
+| Attach failed (`core.cc:567-573`) | The old generation and its index stay | State failed, the old revision | `entry_failure_view` |
+| First attach failed (`core.cc:579-582`) | No generation, no index | No record; `statuses` counts each failed lookup | `first_attach_failure_usage` |
+| Dropped (`core.cc:564`) | The generation stays | State dropped; `seen`, `current` are store words | `dropped_view` |
+| Refused publish (`core.cc:464-470`) | `refused` + 1 | `refused` | `refused_counted` |
+| Stale answer (`core.cc:673-675`) | Counted as OK under its arm | `current − seen` > 0 | `stale_view` (`testing::hold_retry`) |
+| View freed (`core.cc:221-232`) | Its generations' indexes unmapped; rows stay | Unchanged | `usage_during_refresh` (ASan, TSan): `detent_usage` beside 1,000 publishes |
+| `detent_usage` beside lookups | Relaxed loads | Cells grow independently | `concurrent_usage` (TSan): 16 threads, period 1; after join the cells sum to the lookups |
+| Table full | The knob's index slot holds the overflow row; flag set | The overflow row; `overflowed` 1 | `overflow`: `usage_slots` 4, six knobs; the two past it probe at most 1.25 times per hit |
+| Index past half full | Flag set; no new claims in that generation | `overflowed` 1 | `index_half_full` (index capacity 4) |
+| Fork prepare, parent (`core.cc:251-272`) | Nothing | Unchanged | `fork_child` (parent half) |
+| Fork child (`core.cc:275-287`) | Rows, name set, indexes remapped empty; totals and flag cleared; stripes reseeded | Only the child's reads | `fork_child`: the child's rows are its own, the parent's unchanged, and the child's first 1,000 countdown reloads differ from the parent's |
+| Close (`core.cc:850-855`) | Everything unmapped | | The suite under ASan |
 
-The period is forced to 1 only through `src/detent_reader/testing.hh`; the release library has no seam.
-
-### P5. Cost gate (D48, D61)
-
-OB1's gate as specified above (D2, "OB1's cost gate"): one binary, two handles over one store, one opened with `DETENT_USAGE_OFF`, alternated per block of 64 lookups on each thread, median of per-block differences, at least 7 repetitions, 1, 8 and 64 threads, hot and scattered names, plain and hashed lookups; at most 5 ns at 1 thread and 10 ns at 8 and 64. It is a mode of `reader_bench` (`benchmarks/reader_bench.cc`), which also runs reader-lookup.md's base/head comparison against main.
-
-### P6. Files beyond the quest's set
-
-`src/detent_local/evaluation.hh` (P1, and its callers `src/detent_local/view.cc`, `tests/detent_local/test_evaluation.cc`, `tests/detent/test_one_knob_differential.cc`, which take `.value`) and `benchmarks/reader_bench.cc` (P5).
+The claim protocol's races are also checked apart from the core: `tests/detent_reader/usage_claim_model.cc` (run by `usage_claim_model.sh` under TSan) forces each window above and the review's spray.
 
 ## Checks
 
-Rerun with `campaign job rerun` on the four jobs at the commit under review (`observability-bench.sh build`, then `run smoke`, `run screen`, `run confirm`, on slot `obs-bench`, ref `s6=b1d281c`). Each run writes `<mode>.md` (the summary) and `<mode>-paired.md` (the paired deltas D2 quotes).
-
-| Criterion | Check |
+| Criterion (quest `observability-core`) | Check |
 | --- | --- |
-| A1 What is observed, bounds | D1 table; reviewer reads |
-| A2 Hot-path cost | D10's interleaved exclusive runs `261109-224833-fa1352`, `261110-021130-06137b`, `261110-021130-445051`; D2's sequential screen `261109-120858-28cd50` and its reruns `261109-131328-0ce3a4`, `261110-021130-d5103d`, `261110-021130-1bad17` (large separations only); OB1's gate |
-| A3 Export path | D7, D9; reviewer reads |
-| A4 Hook | D6; `hook_off` and `hook_on` rows of D2 (unresolved there); OB3's interleaved gate |
-| A5 Privacy and caps | D8 |
-| A6 Build plan | "Build plan" below |
-| A8 Exact counting | D10; exclusive exact-confirm `261109-202834-bfb3cf` (`09f038e`), strict pair-screen `261109-222819-1a0f6c` (`4ee258e`), exclusive pair-confirm `261109-224833-fa1352` (`f476cf7`); at `71e7c76`, exclusive `261110-021130-06137b` and `261110-021130-445051`, strict `261110-021130-368d1b`; PLAN.md D48 |
-| A7 Jobs | Build `261109-120856-787b87`, smoke `261109-120857-5b7ebc`, screen `261109-120857-3fb43d`, confirm `261109-120858-28cd50` (cited in D2) |
+| A1 `detent_usage` reports each knob's read record and counts | `test_reader_usage` (the lifecycle table) through the C ABI |
+| A2 Lookup cost | G1 in `test_reader_usage`; G2 (`reader_bench --usage-gate`) at the quest's head; reader-lookup.md's base/head `reader_bench` comparison against main |
+| A3 Suite, TSan, CI | `campaign verify`; the TSan CI job runs `concurrent_usage`, `claim_windows` and `usage_during_refresh` |
+
+The design-round evidence (D2, D10) is in jobs `261109-120856-787b87` (build), `261109-120857-5b7ebc` (smoke), `261109-120857-3fb43d` (screen), `261109-120858-28cd50` (confirm) and the D10 jobs cited there.
 
 ## Limits
 
-1. **Silent:** a 64-bit name-hash collision merges two knobs' counts (D3 item 2).
-2. **Silent:** the ever-read bit says a knob was read, not how often; a knob read once per process shows its bit and, with probability 0.98 in one process and 0.85 across 10, no sampled read. A host's union covers only processes alive since the agent's last scan of them (D7 item 3).
-3. **Silent:** a ramp's split carries the error of a sample count: a 50/50 split reads ±16 points at 640 reads, ±4 at 10,000 and ±1.3 at 100,000, and a 1% ramp shows about 1.5 samples per 10,000 reads.
-4. **Silent:** past `K` names a handle counts into one overflow slot; a process with more live knobs than `K` loses per-knob detail for the rest (it sees `overflow` grow).
-5. **Silent:** counts carry no revision; a scan interval that straddles a value-changing publish attributes its reads to the new value (D4).
-6. **Silent:** a process that never looks up never refreshes, so its view record is old but its `current − seen` says so only when someone reads it.
-7. Linux writeback of a dirty shared file page write-protects it again, so the first write after each writeback takes a minor fault on the lookup's thread; the page belongs on tmpfs (`/run`). D2's soak measures macOS only.
-8. The per-knob table and the ever-read bitmaps cost memory per handle; `usage_slots = 0` turns off the table, the countdown and the bitmaps, and a hook set alone still runs.
-9. The agent's view lags by its scan interval; the application's snapshot does not.
-10. A process can forge its page; host and fleet counts are as honest as the processes on the host.
-11. A process whose installed revision the agent no longer holds reports how many knobs it has read, not which, until its next refresh folds its bits into a newer generation (D10 item 2).
-12. The host document's ever-read bitsets are not capped by its 65,536 rows: they cost one bit per definition per namespace revision the host's processes hold, 625 KB per revision at 5M (D8).
+1. **Silent:** a row says a knob was read, not how often; a knob read once per process shows its row and, with probability 0.98 in one process and 0.85 across 10, no sample.
+2. **Silent:** a ramp's split carries a sample count's error: a 50/50 split reads ±16 points at 640 reads, ±4 at 10,000 and ±1.3 at 100,000.
+3. **Stated:** past `usage_slots` knobs read OK (or an index past half full, or an index refused at attach), the overflow flag is set for the handle's life. Rows are never evicted, so a long-lived handle reaches it through publish churn (renamed and deleted knobs), not only size.
+4. **Silent:** counts carry no revision; a scan interval that straddles a value-changing publish attributes its reads to the new value.
+5. **Silent:** a process that never looks up never refreshes, so its view record is old; `current − seen` says so only when someone reads it.
+6. Linux writeback of a dirty shared file page write-protects it again, so the first write after each writeback takes a minor fault on the lookup's thread; the page (OB4) belongs on tmpfs (`/run`). D2's soak measured macOS only.
+7. A process can forge its page; host and fleet counts are as honest as the processes on the host.
+8. **Silent:** one body address per knob rests on dense-pages' disjoint pages (no shared-page DAG, `dense-pages.md:167`), which the lazy reader does not check; a page aliased by a faulty trusted publisher merges two knobs' marks in one generation.
+9. More than 64 claimers losing to their own names at once, with no claim between, each lose a row from `usage_slots`.
+10. A name that never resolved has no per-name detail: its lookups are in the status totals only (D3).
 
 ## Alternatives considered
 
-**Exact per-knob counting** (`knob_rows8` and its variants, and D10's five mechanisms). Answers "was it read" and "how often" exactly, at +18.8 to +47.8 ns per lookup under 8 threads for `knob_rows64` (D10), and no exact count passes scattered names at 64 threads. Q7 (D47) takes the exact ever-read bit instead.
+**Exact per-knob counting** (D2's rows, D10's five mechanisms). Answers "how often" exactly at +18.8 to +47.8 ns per lookup under 8 threads for `knob_rows64`; no exact count passes scattered names at 64 threads.
 
-**A shared `fetch_add` per lookup.** +21.7 to +33.6 ns at 8 threads in D2's sequential run (+3.9 to +28.9 in its reruns) and no per-knob detail; reader.md removed it for cost.
+**A shared `fetch_add` per lookup.** +21.7 to +33.6 ns at 8 threads and no per-knob detail; reader.md removed it for cost.
 
-**Per-thread counters** (`tls`, +0.4 to +14.6 ns). No contention, but a thread registry per handle (threads come and go in Python and Rust pools), `thread_local` in a `dlopen`ed library allocates on first access (reader.md D5), and they carry no per-knob detail.
+**Per-thread counters** (`tls`, +0.4 to +14.6 ns). A thread registry per handle, and `thread_local` in a `dlopen`ed library allocates on first access (reader.md D5).
 
-**Count in the application only (no agent path).** Every service would have to wire `detent_usage` or the hook into its own metrics stack before an operator sees anything; the owner's direction is counting in the client, published through a metrics engine. Kept as one of D7's consumers, not the only one.
+**Rows keyed by a 64-bit hash, claimed in place** (D3 of the S6 design). A claimer writes the name after taking the slot, so another claimer either waits on it or skips it and makes a second row for the same name (`observability-core-design.md` F2).
+
+**Fallback lookups claiming rows.** Names built from input would use up `usage_slots` and push defined knobs into overflow (F3).
+
+**Count in the application only.** Every service would have to wire `detent_usage` before an operator sees anything; kept as one of D7's consumers.
 
 **Push to the agent over a socket.** A syscall per batch and a thread to send it; the core starts no thread (reader.md T6).
 
-**Record values instead of arms.** Integers would need an unbounded value histogram; arms are nine cells, and the value is recoverable from the definition.
-
-**Knob-name labels in Prometheus.** `Metrics` (`include/detent/client.hh:32-34`) takes no name label, and per-knob series across 250k agents do not fit a time-series store.
+**Record values instead of arms.** Integers would need an unbounded value histogram; arms are nine cells.
 
 ## Owner decisions (PLAN.md D47)
 
-The owner took each recommendation on 2026-11-09 (PLAN.md D47). The labels stay, because the sections above cite them.
+The owner took each recommendation on 2026-11-09. The labels stay, because the sections above cite them.
 
-**Q1. The application API: D6.** `detent_usage` plus a hook fixed at open, both behind `detent_open_options` growth. The table serves the agent with no application code; the hook serves applications that want every event. Not taken: a snapshot only, or a hook only with no table in the core.
-
-**Q2. Names per call, no prepared knob handles.** A sampled lookup hashes the name; hash and probe cost +15 to +45 ns (D2 item 2), but sampling runs them once per 64 lookups. Not taken: `detent_knob` handles resolved once, which change every binding to save under 1 ns on average.
-
-**Q3. Host export: a document and a text file, no listener.** `detent-agent --status --usage` prints the JSON document, and the agent writes label-free totals to a Prometheus text file in a configured directory (the node exporter's textfile collector reads it), rendered by Kronuz/metrics (D9). No listener, port or credential on every host. Not taken: an HTTP `/metrics` listener, OpenTelemetry.
-
-**Q4. Fleet aggregation upstream, after namespace delivery S4-S10.** Agents send per-knob summaries (reads by arm and the ever-read set, D10) upstream on their relay sessions; relays sum; the authority serves per-knob readers. It waits for S4-S10, which changes the same sessions (OB6).
-
-**Q5. Values, not digests, in the usage document.** Every agent already holds the definition.
-
-**Q6. The page is on whenever the agent's store has `usage/`** (an agent setting), so operators get host data without changing applications.
-
-**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). The host document carries the ever-read set as bitsets outside its capped count rows (D8), so the row cap never reports a read knob as unread. D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). D48 keeps it with the pair's one miss, bool scattered at 1 thread (+7.7 against 5.0, D10 item 4); OB1 re-measures it in the core, with one compiled path, which removes the bench's code-shape error. The 64-thread row exceeds its ceiling in one of three exclusive runs (+10.4), a fact the lead has put to the owner. Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +19.6 to +49.9 ns on scattered names at 64 threads (D10).
+**Q1.** `detent_usage` plus a hook fixed at open, both behind `detent_open_options` growth. **Q2.** Names per call, no prepared knob handles. **Q3.** `detent-agent --status --usage` prints the JSON document, and the agent writes label-free totals to a Prometheus text file rendered by Kronuz/metrics; no listener. **Q4.** Fleet aggregation upstream on relay sessions, after namespace delivery S4-S10. **Q5.** Values, not digests, in the usage document. **Q6.** The page is on whenever the agent's store has `usage/`. **Q7.** Exact read records, sampled counts (`ever_bit`, D10), unless an exact count meets the gate; none did. D48 and D61 keep `ever_sampled`, with D2's in-core gate deciding. D10's mechanism and the bound it implies are before the owner. D158 accepted D6's ABI shape.
 
 ## Build plan
 
 | Quest | Files | Criteria | Risk | Needs |
 | --- | --- | --- | --- | --- |
-| OB1 Usage table, sampling, ever-read bits and arms in the core | `src/detent_local/evaluation.hh`, `src/detent_reader/core.cc`, `include/detent/reader.h`, `reader.hh`, `tests/detent_reader/` | D2's cost gate with the ever-read bit and the countdown together (D10; paired, interleaved on and off; ≤ 5 ns at 1 thread, ≤ 10 ns at 8 and 64 threads; exclusive job); every knob looked up has its bit, across a publish that reorders and deletes definitions (the D5 fold); exact under 16 threads with the period forced to 1 (TSan); a 1,024-name cycle samples every name with the random reload; a fresh handle's first 64 lookups are not all sampled; zero allocation and syscall tests (reader.md T1) unchanged; fork child counts apart and reseeds; every fallback status lands in its cell; test generations from `publish(Snapshot)` | high (hot path) | reader S6 landed; Q1, Q7 |
-| OB2 View records and `detent_usage` | `core.cc`, `reader.h`, tests | Lag and age correct across publishes (T3's helper) | medium | OB1; reader S5 (landed) |
-| OB3 Hook | `core.cc`, `reader.h`, `reader.hh` | Hook after unpin (park-hook test: a stalled hook never refuses a publish); `hook_off` within OB1's gate, interleaved against a handle with no hook (exclusive) | medium | OB1, Q1 |
-| OB4 Usage page, agent collector and export | Kronuz/metrics (Prometheus text renderer), `core.cc`, `src/detent_agent/`, `docs/mechanisms/` | Hostile page fuzz (truncation, oversize, bad names) never crashes the agent; a pre-created `usage/<pid>-<handle>` makes the handle fall back to a private table; on Linux, a page created by another uid is readable by the agent (VM); dead-process retention; Linux tmpfs fault count 0 over 10 min (VM); the usage document matches a golden schema, caps at 65,536 rows with `truncated` set, and splits rows by revision; past the cap the ever-read bitsets still hold every knob a test process read; the ever-read union matches the knobs a multi-process test read, and a process on a dropped revision reports its count (Limit 11); the text file parses as Prometheus exposition format, carries no knob-name label, and is replaced by rename | medium | OB1, Q3, Q6 |
-| OB5 Bindings | `bindings/python`, `bindings/rust` | Usage and hook in both | low | reader S8, S9 (`reader-s7-s9`) |
-| OB6 Fleet aggregation | delivery protocol, relay, authority | Deferred; carries the ever-read union and sampled reads by arm (Q4) | high | Q4, Q7; namespace S4-S10 |
+| `observability-core` (OB1-OB3 here: arms, rows and claim index, `detent_usage` with view records) | `src/detent_local/evaluation.hh` and its callers, `src/detent_reader/`, `include/detent/reader.h`, `reader.hh`, `tests/detent_reader/`, `benchmarks/reader_bench.cc` | The lifecycle table's tests; G1 and G2 (D2); zero allocation and syscall tests (reader.md T1) unchanged | high (hot path) | D10's mechanism ruled (D6: D158) |
+| Hook | `core.cc`, `reader.h`, `reader.hh` | A stalled hook never refuses a publish; `hook_off` within G2 against a handle with no hook | medium | observability-core |
+| OB4 Usage page, agent collector and export | Kronuz/metrics (Prometheus text renderer), `core.cc`, `src/detent_agent/`, `docs/mechanisms/` | Hostile page fuzz never crashes the agent; a pre-created page makes the handle keep private memory; on Linux a page created by another uid is readable by the agent (VM); dead-process retention; tmpfs fault count 0 over 10 min (VM); the usage document matches a golden schema, caps at 65,536 count rows with `truncated` set, and keeps every read name past the cap; the text file parses as Prometheus exposition format with no knob-name label and is replaced by rename | medium | observability-core, Q3, Q6 |
+| OB5 Bindings | `bindings/python`, `bindings/rust` | Usage and hook in both | low | observability-core |
+| OB6 Fleet aggregation | delivery protocol, relay, authority | Deferred; carries the read names and sampled reads by arm (Q4) | high | Q4; namespace S4-S10 |
 
-reader S7 (`detent get` on the core) needs nothing from this design; `detent get` opens a handle with `usage_slots = 0`.
+`detent get` (reader S7) opens its handle with `DETENT_USAGE_OFF`.
