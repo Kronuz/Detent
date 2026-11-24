@@ -6733,6 +6733,35 @@
       "updated": "2026-11-21T11:04:12",
       "worktree": ""
     },
+    "consensus-liveness-asan-timeout": {
+      "accepted": {},
+      "after": [
+        "consensus-simulation-asan-timeout"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/liveness_test.cc",
+        "docs/mechanisms/liveness*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus_liveness stays well inside its timeout under ASan",
+      "updated": "2026-11-23T20:00:52"
+    },
     "consensus-mutants-per-test": {
       "accepted": {},
       "after": [
