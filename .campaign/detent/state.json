@@ -6242,6 +6242,8 @@
         "consensus-peers-wake",
         "xapiand:consensus-request-install"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-follower-read",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6262,6 +6264,7 @@
         "fuzz/corpus/decoders/**",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-follower-read",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6271,9 +6274,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-21T22:27:20"
+      "updated": "2026-11-24T01:33:30",
+      "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
       "accepted": {
