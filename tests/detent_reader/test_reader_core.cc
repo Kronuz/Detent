@@ -1,5 +1,6 @@
 // The reader core's C ABI and C++ header (reader.md D1, D2, D4, D7; docs/mechanisms/reader-core.md).
 #include "detent/reader.hh"
+#include "detent_local/agent_store.hh"
 #include "detent_testing/generation_writer.hh"
 #include "generation_file_access.hh"
 #include "prepared_reader.hh"
@@ -112,6 +113,66 @@ void selected_reads(const std::filesystem::path &root) {
 }
 // The agent's table: an entry per namespace (reader.md D2, A1-A2). A lookup attaches its namespace's
 // entry alone, follows that entry's sequence, and a publish of another namespace refreshes nothing.
+// The agent adds a namespace: `change` covers its slot before `selected` names it (D4 rule 4), so an
+// open, a refresh and a first lookup between the table's rename and the store word's bump read it.
+void adding_namespace(const std::filesystem::path &root) {
+	static struct {
+		bool armed = false;
+		std::filesystem::path store;
+		detent_reader *handle = nullptr;
+		detent_status opened = DETENT_OK, refreshed = DETENT_OK, looked = DETENT_OK;
+		std::int64_t a = 0, b = 0;
+	} w;
+	w.store = root / "adding";
+	detent::testing::GenerationWriter writer(w.store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"a:k":{"default":1}}})") == 1);
+	Opened r(w.store);
+	CHECK(r.status == DETENT_OK && get(r.handle, "a:k", DETENT_OK) == 1);
+	w.handle = r.handle;
+	w.armed = true;
+	detent::local::AgentStoreTesting::install(
+	    [](void *, const char *what) noexcept {
+		    if (!w.armed || std::string_view(what) != "rename table")
+			    return;
+		    w.armed = false;
+		    Opened other(w.store);
+		    w.opened = other.status;
+		    w.refreshed = detent_refresh(w.handle);
+		    w.looked = detent_get(w.handle, S("b:k"), none, none, -7, &w.b);
+		    (void)detent_get(w.handle, S("a:k"), none, none, -7, &w.a);
+	    },
+	    nullptr);
+	CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"a:k":{"default":2},"b:k":{"default":3}}})") == 2);
+	detent::local::AgentStoreTesting::install(nullptr, nullptr);
+	CHECK(!w.armed && w.opened == DETENT_OK && w.refreshed == DETENT_OK);
+	CHECK(w.looked == DETENT_OK && w.b == 3 && w.a == 2);
+	CHECK(get(r.handle, "a:k", DETENT_OK) == 2 && get(r.handle, "b:k", DETENT_OK) == 3);
+}
+// A namespace whose next generation cannot attach fails alone (D4): it answers its last generation and
+// the handle's other namespaces follow their publishes; detent_refresh reports the failure.
+void entry_failure(const std::filesystem::path &root) {
+	const auto store = root / "entry-failure";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	CHECK(writer.publish_json(R"({"schema_version":1,"knobs":{"t:k":{"default":1},"u:k":{"default":1}}})") == 1);
+	Opened both(store), only_t(store, {S("t")});
+	CHECK(get(both.handle, "t:k", DETENT_OK) == 1 && get(both.handle, "u:k", DETENT_OK) == 1);
+	CHECK(get(only_t.handle, "t:k", DETENT_OK) == 1);
+	CHECK(writer.publish_delta({"t", "u"}, "u", {{"u:k", 2}}, {}) == 2);
+	const auto u2 = x::PreparedReader::selection(store, ::getuid(), "u").descriptor.generation;
+	const auto metadata = store / (detent::local::generation_name(u2) + ".read");
+	std::filesystem::rename(metadata, root / "entry-failure.read");
+	for (const std::int64_t v : {3, 4}) {
+		CHECK(writer.publish_delta({"t", "u"}, "t", {{"t:k", v}}, {}) == std::uint64_t(v));
+		CHECK(get(both.handle, "t:k", DETENT_OK) == v && get(only_t.handle, "t:k", DETENT_OK) == v);
+		CHECK(get(both.handle, "u:k", DETENT_OK) == 1); // its last generation, without retrying
+	}
+	CHECK(detent_refresh(both.handle) == DETENT_UNAVAILABLE && get(both.handle, "t:k", DETENT_OK) == 4);
+	std::filesystem::rename(root / "entry-failure.read", metadata);
+	CHECK(get(both.handle, "u:k", DETENT_OK) == 1); // remembered at the sequence it failed at
+	CHECK(detent_refresh(both.handle) == DETENT_OK && get(both.handle, "u:k", DETENT_OK) == 2);
+	CHECK(writer.publish_delta({"t", "u"}, "t", {{"t:k", 5}}, {}) == 5);
+	CHECK(get(both.handle, "t:k", DETENT_OK) == 5 && get(both.handle, "u:k", DETENT_OK) == 2);
+}
 void per_namespace(const std::filesystem::path &root) {
 	const auto store = root / "per-namespace";
 	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
@@ -546,8 +607,8 @@ void values(const std::filesystem::path &root) {
 		    }
 	    },
 	    &race);
-	// Attaches: t's failed attempt, t's retry, then u's, whose entry moved with the same publish.
-	CHECK(get(r.handle, "t:rev", DETENT_OK) == 6 && race.fired == 3);
+	// Attaches: t's failed attempt and u's fifth, which publishes alone; then t's and u's sixth.
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 6 && race.fired == 4);
 	t::install(nullptr, nullptr);
 	std::filesystem::remove(root / "fifth.read");
 	CHECK(t::stats(r.handle).generations == 2);
@@ -663,6 +724,8 @@ int main() {
 	replaced_selected(root);
 	selected_reads(root);
 	per_namespace(root);
+	adding_namespace(root);
+	entry_failure(root);
 	unreadable_table(root);
 	refresh_memo(root);
 	replaced_change(root);
