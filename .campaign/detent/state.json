@@ -4785,6 +4785,21 @@
         "todo": "d70f26f0"
       },
       "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: msg-376 (Blocked on 1-3); waiting on jobs 261124-144100-b5ba51, 261124-144143-080cef, 261124-144154-201723 and CI; it asks: 1. The lead: the 1,000-namespace cells cannot reach 1 ms on this host while every first read hashes the whole `selected` table with SHA-256 (141 KB for 1,000 entries; 1,154 us on this i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel; 83% of a table decode by `sample`).\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:01:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:01:58",
+      "by": "campaign",
+      "closed": "answered: design checked sound with three conditions (one mark mechanism, entry-fits-page bound, a value test per row); five files widened; contributor resumed",
+      "id": "msg-383",
+      "settles": {
+        "todo": "748c7f4f"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 16 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
