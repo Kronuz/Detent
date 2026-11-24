@@ -1,6 +1,6 @@
 # consensus-seeds-rate-flake: journal
 
-State: working
+State: waiting on jobs 261124-041541-5d4555 261124-041545-a9b999 261124-041548-778dca 261124-041551-dab805
 Quest: .campaign/detent/quests/consensus-seeds-rate-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Fix committed on the quest branch (consensus:a2f6eb3): rate() samples the host's lag (a local `Lag`
+copy, rpc_hosts.h's shape with stop()) and bounds each gap by 150 ms + lag; lower bound stays 90 ms.
+Cause: the seed timer is re-armed after each send, so the unstalled gap is interval..interval+jitter
+(100..150 ms); the raw listener timestamps in the same single-threaded loop, so a process stall
+(CI runner pause) lands in one gap as stall time on top: 150 ms + 100 ms slack fails past 250 ms.
+It measures the runner, not the rate limit. Scripts: ~/.scratch/detent/consensus-seeds-rate-flake/.
 
 ## Next
 
-1. <step>
+1. Read the four jobs (A1 main stall fails, A2 head stall passes, A2 no-interval mutant fails, A3 50 runs); confirm none is a skip (exit 77) in disguise.
+2. Push, paste Evidence, Result.
 
 ## Blocked on
 
 <What, and who decides. "Nothing" when nothing.>
+
+Nothing.
 
 ## Evidence
 
@@ -38,4 +46,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- rpc_hosts.h cannot be included (its global `fixture`/`context` collide with seeds_test's own, and
+  it is outside my file set), so seeds_test.cc carries a 20-line copy of `Lag`. Follow-up for the
+  lead: one shared lag header once consensus-rpc-host-stream-gap lands.
+- The burst bound (`heard[2] - start < 80ms`) and the datagram floor take the same lag, one shape.
