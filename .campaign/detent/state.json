@@ -30455,17 +30455,52 @@
         "tests/support/**",
         "tests/detent_system/managed.py"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-23T23:59:12",
+          "ci": {
+            "carried": true,
+            "commit": "3983c4bc3af2aabcdb4f29fd6be5d2eef24d5d3a",
+            "runs": [
+              45335508357
+            ]
+          },
+          "commit": "870c232e8dac3a67b78f7347209bf92cf17f706f",
+          "criteria": {
+            "A1": "261123-235048-cba065, 261123-235049-42ec34, 261123-235049-a3868b, 261123-235050-0d76ad, 261123-235050-f12474, 261123-235051-1b5a43, 261123-235051-a451fc; fails without: 261122-215002-2b7198, 261123-110507-e20eab",
+            "A2": "261123-214459-12724c (passed at 7118c8c36d0b; only 1 merge from main since, none touching its files)",
+            "A3": "261123-214456-71425f (passed at 7118c8c36d0b; only 1 merge from main since, none touching its files); fails without: 261123-100834-000cbb"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "31b34432238a1587923ea14ceb8c713756b46bd1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261123-214459-12724c",
+              "level": "light",
+              "seconds": 712.3,
+              "state": "done",
+              "what": "system-failover-port-reuse check suite at 31b34432238a"
+            }
+          ],
+          "final": true,
+          "from": "b9cdafdf1d78ca1de5e98247e58c463d64faba92",
+          "reason": "",
+          "tested": "b382266984a0b2c5f3a402180fc7ac6de7624a72"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "test_system_managed_authority_failover: the restarted leader's bind fails with Address already in use",
-      "updated": "2026-11-23T10:15:54",
-      "worktree": "../Detent-wt/detent/system-failover-port-reuse"
+      "updated": "2026-11-23T23:59:20",
+      "worktree": ""
     },
     "task-cancellation": {
       "accepted": {},
