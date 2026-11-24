@@ -115,11 +115,9 @@ std::optional<PagedTable> read_table(int directory, uid_t owner, std::uint64_t b
 	if (!detail::checked_or_unlinked(table_file.fd, owner, std::uint64_t(info.st_size)))
 		return std::nullopt;
 	require(info.st_size > 0 && std::uint64_t(info.st_size) <= bound);
-	std::vector<char> bytes(std::size_t(info.st_size));
-	read_record(table_file.fd, bytes);
 	DETENT_COUNT(record_opens, 1);
 	try {
-		return PagedTable(std::move(bytes), std::move(account));
+		return PagedTable::map(table_file.fd, std::size_t(info.st_size), std::move(account));
 	} catch (const LayoutRefused &) {
 		throw;
 	} catch (const TableRefused &) {

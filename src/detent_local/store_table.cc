@@ -5,7 +5,10 @@
 #include "verified_pages.hh"
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <sha256.h>
+#include <system_error>
+#include <sys/mman.h>
 
 namespace detent::local {
 namespace {
@@ -156,8 +159,37 @@ struct PagedTable::State {
 	std::atomic<std::size_t> verified{0};
 };
 
+PagedTable::Mapping &PagedTable::Mapping::operator=(Mapping &&other) noexcept {
+	if (this != &other) {
+		if (at)
+			::munmap(at, size);
+		at = std::exchange(other.at, nullptr);
+		size = other.size;
+	}
+	return *this;
+}
+PagedTable::Mapping::~Mapping() {
+	if (at)
+		::munmap(at, size);
+}
+PagedTable PagedTable::map(int fd, std::size_t size, std::shared_ptr<distribution::StorageLedger> account) {
+	Mapping mapping;
+	if (size) {
+		const auto at = ::mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
+		if (at == MAP_FAILED)
+			throw std::system_error(errno, std::generic_category(), "selected mmap");
+		mapping.at = at;
+		mapping.size = size;
+	}
+	return PagedTable({}, std::move(mapping), std::move(account));
+}
 PagedTable::PagedTable(std::vector<char> bytes, std::shared_ptr<distribution::StorageLedger> account)
-	: bytes_(std::move(bytes)), state_(std::make_unique<State>()) {
+	: PagedTable(std::move(bytes), Mapping(), std::move(account)) {}
+PagedTable::PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr<distribution::StorageLedger> account)
+	: owned_(std::move(owned)), mapping_(std::move(mapping)),
+	  bytes_(mapping_.at ? std::span<const char>(static_cast<const char *>(mapping_.at), mapping_.size)
+	                     : std::span<const char>(owned_)),
+	  state_(std::make_unique<State>()) {
 	const std::span<const char> in(bytes_);
 	refuse(in.size() >= table_header + 32 && std::string_view(in.data(), 8) == table_magic, "header");
 	std::size_t at = 8;

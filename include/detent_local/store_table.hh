@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 // `selected`, the agent store's namespace table (docs/status/namespace-s7.md): a pure codec that
@@ -66,6 +67,9 @@ class PagedTable {
   public:
 	// Throws TableRefused, LayoutRefused for a whole table of an older layout.
 	explicit PagedTable(std::vector<char> bytes, std::shared_ptr<distribution::StorageLedger> account = {});
+	// The table `size` bytes long open at `fd`, mapped read-only as segments are: a read touches only the
+	// header, the index and the pages it reaches. Throws std::system_error when it cannot map.
+	static PagedTable map(int fd, std::size_t size, std::shared_ptr<distribution::StorageLedger> account = {});
 	PagedTable(PagedTable &&) noexcept;
 	PagedTable &operator=(PagedTable &&) noexcept;
 	~PagedTable();
@@ -90,9 +94,20 @@ class PagedTable {
 		std::string_view last;
 	};
 	struct State;
+	struct Mapping {
+		void *at = nullptr;
+		std::size_t size = 0;
+		Mapping() = default;
+		Mapping(Mapping &&other) noexcept : at(std::exchange(other.at, nullptr)), size(other.size) {}
+		Mapping &operator=(Mapping &&other) noexcept;
+		~Mapping();
+	};
+	PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr<distribution::StorageLedger> account);
 	std::optional<TableEntry> walk(std::size_t page, std::string_view name, std::vector<TableEntry> *all) const;
 
-	std::vector<char> bytes_;
+	std::vector<char> owned_;
+	Mapping mapping_;
+	std::span<const char> bytes_; // owned_'s or mapping_'s
 	std::uint64_t sequence_ = 0, count_ = 0;
 	DirectoryCursor directory_;
 	distribution::Profile profile_;
