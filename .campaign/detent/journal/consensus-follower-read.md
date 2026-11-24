@@ -1,6 +1,6 @@
 # consensus-follower-read: journal
 
-State: waiting on jobs 261124-020815-08319a 261124-020820-b56679 261124-022329-b17412 261124-022331-49a7de and the 15 mutant jobs 261124-022336-337103 .. 261124-022430-586762
+State: ready for review
 Quest: .campaign/detent/quests/consensus-follower-read.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,50 +9,52 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 1 at consensus:49deff5, pushed. Jobs:
-
-- Suite: 261124-022329-b17412 (`campaign verify --for A1`, head); 261124-020815-08319a at
-  consensus:d2126d0 (an early signal; only the test harness changed since).
-- Plain test, every case, 2000 randomized seeds: 261124-022331-49a7de (A1, A2, A3).
-- Decoder fuzz, control frames, ASan+UBSan, 2 x 15 min: 261124-020820-b56679 (A4), at d2126d0.
-- Mutants (`--fails-without`, `test/follower_read_mutants.py 49deff5 NAME`, the case it names):
-  A1 apply-skipped 337103, ready-without-quorum c81897, leader-change-kept 175f5a,
-  campaign-keeps-reads dcf92d, any-peer 7f7c21, any-term 8dbf8a, refusal-unsent 57781f,
-  nonce-unchecked 5d0874; A2 start-ignored 7ae2c2; A3 no-deadline acefff, deadline-unarmed
-  48b968, probe-shared d8cba0, answer-completes-all e779c8, rests-with-read fbfaaf;
-  A4 codec-unchecked 586762 (ids prefixed 261124-0223 / -0224).
-- Local pass before submitting: all 15 mutants killed (no-deadline hung the harness; fixed in
-  49deff5 so it fails at once).
+Round 1 complete at consensus:49deff5, pushed. A4's fuzz reruns at the head:
+261124-033426-3bcef3 (rerun of 261124-020820-b56679, which ran at d2126d0). CI at the head is
+running (A5).
 
 ## Next
 
-1. Read the jobs; paste `campaign brief`'s Evidence table; write the Result; State "ready for
-   review".
+1. The correctness review (lead); fold findings in by id, each fix with a failing-without test.
 
 ## Blocked on
 
-Lead (msg-303): the file set names `include/consensus/codec.h`, which does not exist. The quest
-also changes, outside the listed set:
-
-1. `include/consensus/transport/codec.h`: the two new kinds (12, 13). Held by
-   consensus-rpc-host-stream-gap through `include/consensus/transport/**`.
-2. `include/consensus/admission.h`: its plan static_asserts on every Message type; one line.
-3. `fuzz/seed.cc`: writes the new seeds.
-4. `test/follower_read_mutants.py`: the mutant writer (new file).
-
-Recommendation: `campaign set consensus-follower-read files` += those four, and take
-`transport/codec.h` out of rpc-host-stream-gap's set (it does not change it). The work is built
-against them; landing waits on that.
+Nothing. msg-303 (file set) is resolved by the lead: the set now holds
+include/consensus/transport/codec.h, include/consensus/admission.h, fuzz/seed.cc and
+test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is gone.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <pending> |
+| A1 | 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
+| A2 | 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
+| A3 | 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
+| A4 | 261124-033426-3bcef3 (fuzz at 49deff5, running); codec mutant 261124-022430-586762 (fails without, at 49deff5's mutant); seeds `fuzz/corpus/decoders/seed-read-index-request`, `seed-read-index-response`, `seed-read-index-refusal` |
+| A5 | [artifact] `docs/mechanisms/follower-read.md`: "A follower answers a `Read` only at an index its leader confirmed current with a quorum"; suite 261124-022329-b17412 (163 of 163 tests); TSan and CI: CI at 49deff5 (running) |
+
+Other jobs examined: 261124-020815-08319a (suite at d2126d0, superseded), 261124-020817-d6cced
+(cancelled, superseded by 49a7de), 261124-020820-b56679 (fuzz at d2126d0; rerun at the head).
 
 ## Result
 
-<pending>
+A follower's `Read` is forwarded to its leader (ReadIndex): `ReadIndexRequest{term, start,
+token}` (DTC2 kind 12), answered by `ReadIndexResponse` (kind 13: Ready with the leader's commit
+index at arrival, confirmed by a probe sent after it, or NotReady, Busy, NotLeader). The follower
+emits `ReadReady` once it applied the index. A change of its term or leader, its own campaign, or
+`election_max` from the send without answer and apply refuses `NotLeader`. `start` is
+`Start::nonce` (the Driver draws it from `std::random_device`); with none a follower refuses, as
+before. A follower holding a read does not rest and arms its deadline.
+
+Numbers: 15 mutants, one per rule, each killed by its case (jobs above). Randomized 3- and
+5-voter clusters with partitions, drops and restarts, 2000 seeds (49a7de): 231,988 reads
+completed, 134,742 of them at followers, none below a commit made before it began; 386,932
+refused. Suite 163/163 at 49deff5. Cost: 36- and 52-byte frames per read plus the leader's
+shared probe round; four words per idle Core (computed, not measured).
+
+Docs: docs/mechanisms/follower-read.md (rule, identity, deadline, rest, wire, tests), CHANGELOG.
+Open: no Driver-level test of the nonce (the Driver simulation now issues follower reads, so its
+read oracle covers them); ARCHITECTURE.md still describes leader reads only (outside the set).
 
 ## Rulings I made
 
