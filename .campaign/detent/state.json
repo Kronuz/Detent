@@ -12673,13 +12673,16 @@
         "correctness"
       ],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "consensus-driver-pipelined-sim"
+      ],
       "provides": [],
+      "reason": "shares driver files with consensus-driver-pipelined-sim and consensus-follower-read; starts after the sim lands",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-21T21:51:28"
+      "updated": "2026-11-24T01:34:50"
     },
     "driver-witness-removal-sink": {
       "accepted": {
