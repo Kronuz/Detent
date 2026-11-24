@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap review: correctness
 
-Commit: consensus:0e000db0120d2e5c2419c29c3b2831b1267ef0e4 (first reviewed at consensus:d428b37)
+Commit: consensus:e416bb002c0b (first reviewed at consensus:d428b37, then at 0e000db)
 Verdict: APPROVE
 Date: 2026-11-24
 
@@ -84,6 +84,21 @@ I reviewed `git diff d428b37 0e000db` (rpc_host_test.cc, and rpc_hosts.h's addit
 - **A2:** 261124-032548-9e4ff0. **A3:** 261124-032552-5023a3 (50 runs, 0 failed). CI at 0e000db
   was still running when I wrote this.
 
+## Re-review at consensus:e416bb0
+
+I reviewed `git diff 0e000db e416bb0`.
+
+- **F4 is fixed.** `arrived` now takes the wait's result and joins `ok`, and the log line prints
+  `arrived` or `LOST`.
+  - The drop-Control mutant 261124-050014-f52514 fails as required, logging "the last LOST" and
+    FAILED.
+  - A1 261124-050028-665c4f, A2 261124-050027-dd85d6 and A3 261124-050028-760936 pass. CI at
+    e416bb0 is green, per the lead.
+- **`Lag` moved to test/transport/lag.h without a change in behavior.** The struct, `stop()`
+  and the destructor are unchanged. To make the header self-contained, `steady::now()` became
+  `std::chrono::steady_clock::now()` and `1ms` became `std::chrono::milliseconds(1)`, and the
+  comment was reworded. rpc_hosts.h includes it.
+
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
@@ -92,13 +107,12 @@ I reviewed `git diff d428b37 0e000db` (rpc_host_test.cc, and rpc_hosts.h's addit
 | F2 | no | gap | **Fixed at 0e000db** (`Lag::stop()`, all four cases). `lag.worst` is read while the sampler still runs (:434). A stop that ends just before the check can be missing from Lag even though a beat delivered after resume already closed the gap, which is a residual false failure. The same read exists in fetch (:886) and group-full (:311). | c32cc2 offset 0.45 and 1b1ee9 offset 0.60: a 1.5 s stop inside the run reports lag 1-3 ms. The gap was open in those runs too, so the probes observed no false failure. | Stop and join the sampler before reading (for example `Lag::stop()` returning `worst`, in rpc_hosts.h), once for all three cases. |
 | F3 | no | nit | **Fixed at 0e000db** for call-full; groups_test.cc:586 remains out of the set. `call-full` (:366) is labelled `timing` and keeps a flat `beats.worst < 1000` with no Lag, so it is exposed to the same stall. groups_test.cc:586 is the same, with its own copy of `Beats` (:331); the journal already notes it. | Code reading | Give it the same allowance when the next flake shows up, or now (rpc_host_test.cc is in the set). |
 
-| F4 | no | gap | At 0e000db the stream case ignores the result of the 10 s wait (:439). A heartbeat lost outright, or later than 10 s, leaves `beats.worst` untouched and passes. Errors should not pass silently. | Code reading. The wait never times out normally (5023a3: 0.86 s a run), so failing on it costs nothing. | `const bool arrived = until(...)` and `&& arrived` in `ok`. The test: a mutant that drops Control frames after the call starts must fail. |
+| F4 | no | gap | **Fixed at e416bb0** (f52514 fails as required; 665c4f, dd85d6, 760936 pass). At 0e000db the stream case ignores the result of the 10 s wait (:439). A heartbeat lost outright, or later than 10 s, leaves `beats.worst` untouched and passes. Errors should not pass silently. | Code reading. The wait never times out normally (5023a3: 0.86 s a run), so failing on it costs nothing. | `const bool arrived = until(...)` and `&& arrived` in `ok`. The test: a mutant that drops Control frames after the call starts must fail. |
 
 ## Not run
 
 - macOS x86_64 or 4-vCPU timing locally. The spinner probe stands in for CPU starvation on this
   16-core host only.
-- CI at 0e000db, which was still running.
 - A rerun at main of the mutant. Main's stream check (main's rpc_host_test.cc:434) differs from the
   head's only in the bound, which I established by reading the diff.
 - TSan or sanitizers, which are CI's.
