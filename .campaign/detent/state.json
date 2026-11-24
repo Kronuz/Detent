@@ -3675,6 +3675,27 @@
       "closed": "file set fixed",
       "id": "msg-310",
       "text": "relay-mirror-idle-wake design + file-set request. Design: no new endpoint or parameter; the relay's watch uses W5 next's existing wait_ms (the authority parks it and re-plans at every applied entry, answering on change or 204 at its deadline). New Upstream::wait(positions, limit, std::stop_token) -> bool; default returns true at once (a poller: the mirror syncs every interval, today's behavior for in-process fakes). HttpUpstream::wait parks a next on its own W5 session (a second channel, following the endpoint of the last sync) so the mirror thread keeps serving and fetching; stop_token closes the socket on shutdown. MirrorService gains a watcher thread: after each good sync it waits on the ring heads; a change, the deadline (maximum_wait_ms, clamped by the upstream's session wait) or a failure wakes a sync, no sooner than interval after the last (interval becomes the floor between syncs and the backoff base; failed syncs keep the existing backoff and arm no watch). Files outside my set that this needs: include/detent_relay/mirror_service.hh (the set lists src/detent_relay/mirror_service.hh, which does not exist), include/detent_relay/namespace_relay.hh (Upstream::wait), include/detent_relay/http_upstream.hh, src/detent_relay/http_upstream.cc. Please add them; I do in-set work (baseline A1 measurement, counting test, doc) meanwhile."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:55:51",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:55:51",
+      "by": "campaign",
+      "closed": "stalled contributor stopped; fresh contributor resumed from the worktree",
+      "id": "msg-311",
+      "settles": {
+        "todo": "85301ebd"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (nothing moved it for 2 h: working; listed 31 min): `campaign status consensus-liveness-asan-timeout`, or park it with a reason"
+    },
+    {
+      "at": "2026-11-24T03:24:34",
+      "by": "campaign",
+      "closed": "a newer to-do replaced it",
+      "id": "msg-308"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
