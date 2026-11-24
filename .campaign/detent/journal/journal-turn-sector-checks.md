@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-160756-ede889 261123-160757-1330f1; ci:ci at journal:8bf1d1d
+State: waiting on jobs 261123-180604-09a8dc 261123-180608-7b9211 261123-180645-514406 261123-180639-e460e3 261123-180640-75fc0c 261123-180641-82725c 261123-180641-0b7099 261123-180642-577728; ci:ci at journal:bd6cad6
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,29 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Lead, at journal:94a043d (its design-doc fix pulled, fast-forward):
+- ci/linux-tsan (run 45296503675) failed on a timeout, not a race: `journal_turn_log` hit its 120 s
+  limit with no ThreadSanitizer report (TSAN_OPTIONS halt_on_error=1). The same code passed TSan at
+  8bf1d1d in 63.19 s (run 45294628696) and took 0.85 s at f1ca348, before midwrite_reads. The cause
+  is the case's size: 64-block segments, and MemoryIO's barrier copies the file, so the case took
+  17.2 s alone in Release locally. journal:c7d15ce uses eight-block segments: 1.4 s (0.52 s user),
+  same shapes (10721 checks, 0 failures). `partial_` is touched only on the loop's thread (stage,
+  completed, reads); the writer thread copies `staged_->bytes`, never `partial_`.
+- A4 latency 261123-160757-1330f1 (strict beside 8 light holds) did not decide: the fix had 3 slow
+  rounds of 12 (p50 about 40 ms), aa 1, main 0, so turns/s/core 32.3 vs 39.0/38.8 at 256 B.
+  journal:bd6cad6 makes turn_bench time the write (stage + write_at) and the barrier apart, for the
+  turn log and the per-group arm that runs right after it in the same invocation (a control for the
+  host's fsync regime; earlier jobs dropped its line). Two exclusive jobs, 12 rounds each, rotated
+  main/fix/aa, 2.5 s per arm and size: 261123-180604-09a8dc (rounds 1-12), 261123-180608-7b9211
+  (13-24).
+- Bytes ede889 (strict, 8bf1d1d) equal the local figures: sectors touched -4.87% at 256 B, +0.95%
+  at 4 KiB, -3.6 to -4.2% on T9; bytes passed to write() +14.5% at 256 B and +2.5% at 4 KiB, from
+  rewriting the shared sector. Rerun at bd6cad6: 261123-180642-577728.
+- Reruns at bd6cad6 (turn_log_test changed): F1 fails without 261123-180645-514406, F1 at the fix
+  261123-180639-e460e3, A1 261123-180640-75fc0c, A2 261123-180641-82725c, A3 261123-180641-0b7099.
+
+Before:
 
 Durability review CHANGES at journal:f1ca348 (reviews/journal-turn-sector-checks-durability.md):
 - F1 (blocking) fixed, journal:b6176f6: while a turn is staged, `Sectors` serves the sector its write
