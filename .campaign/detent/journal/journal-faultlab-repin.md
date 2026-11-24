@@ -28,16 +28,13 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261123-185919-e4cfcc (suite at journal:9c7e31c, crash and power-cut tests included) |
+| A2 | `ci:ci` |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+journal pins faultlab at 5d4df9b (stale at_mark fix), as consensus does. No code or test changed.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
-| A1 | job 261123-185919-e4cfcc (suite at journal:9c7e31c) |
-| A2 | `ci:ci` |
+None.
