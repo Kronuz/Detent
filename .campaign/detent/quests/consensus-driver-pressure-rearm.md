@@ -1,36 +1,32 @@
-# consensus-driver-pressure-rearm: consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock
+# consensus-driver-pressure-rearm: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock
 
 Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-driver-pressure-rearm`.
+is in `state.json`: `campaign status consensus-driver-pressure-rearm`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Found by consensus-next-deadline-removal's correctness review (R5,
+`.campaign/detent/reviews/consensus-next-deadline-removal-correctness.md`) and shown on main by job
+261124-…-a3e432: when the Worker refuses a due Tick with Pressure, `Driver::arm()` re-arms at Core's
+past clock (driver.h:832-846), so a due removal or a follower's past election deadline under
+control-pool pressure is re-stepped on every wheel pass until the pressure clears. After this
+quest a refused Tick re-arms once the pressure can have cleared (the pool's release wakes it, or a
+bounded back-off), never in the past, and no deadline Core acts on is lost.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A deterministic test: a Driver whose Worker refuses due Ticks with Pressure for a held
+  interval counts its re-steps, by value: bounded at the fix, one per wheel pass at main
+  (`--fails-without`): jobs
+- A2 When the pressure clears, the refused Tick runs within one wheel pass and its action (the
+  removal, the election) happens, by value: a job
+- A3 [artifact] `docs/mechanisms/deadlines.md` states the Driver's re-arm rule under Pressure
+- A4 The suite passes and `ci:ci` is green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Driver scheduling only; Core's decisions and `next_deadline()` are unchanged.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
-
-## Tasks
-
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
