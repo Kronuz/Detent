@@ -4800,6 +4800,21 @@
         "todo": "748c7f4f"
       },
       "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 16 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:37:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:37:09",
+      "by": "campaign",
+      "closed": "next-deadline: probes moved to main (this commit), review accepted, CI rerun of the macOS fetch flake running; first-read-1ms: answered as msg-3, contributor building",
+      "id": "msg-384",
+      "settles": {
+        "todo": "a98c0a19"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-next-deadline-removal (nothing moved it for 76 min: ready for review; to land: quest/detent/consensus-next-deadline-removal in the home changes more than its journals: .campaign/detent/probes/consensus-next-deadline-removal/a1.sh, .campaign/detent/probes/consensus-next-deadline-removal/held.sh, .campaign/detent/probes/consensus-next-deadline-removal/r5.sh, .campaign/detent/probes/consensus-next-deadline-removal/r5_pressure.cc, .campaign/detent/probes/consensus-next-deadline-removal/variant.py; new): `campaign status consensus-next-deadline-removal`\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 51 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
