@@ -245,6 +245,82 @@ The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131
 
    D48 was ruled on `fa1352` alone. In the two later exclusive runs the 64-thread row passes once and exceeds the ceiling once (+10.4), so "passes at 64 threads" holds in two runs of three; the lead has put that fact to the owner.
 
+## In the paged core (OB1-OB3, quest `observability-core`)
+
+D1-D10 were designed on the S6 core at `Detent:b1d281c`. The landed core (`Detent:805cd0c6`) differs in two ways that this section resolves before any code. It is a proposal for the lead's design check; the C declarations stay the owner's (PLAN.md, Reserved decisions).
+
+1. **One knob type (PLAN.md D65).** `evaluate` returns one `int64` (`src/detent_local/evaluation.hh:14-36`); there is no `wrong_type`, and a switch rule is a forced value or a group rollout.
+2. **No definition position.** A definition is a leaf body in a lazily mapped trie, found by `PagedReadState::definition` (`src/detent_local/paged_read_state.cc:9-35`). Nothing numbers definitions densely, so D10's "bit by definition position" has no index to use. What the core does hold is the body's address: it lies in a segment mapping that stays put for its `Generation`'s life (segments are unmapped only by `PageTable`'s destructor, `lazy_page_access.cc:110-113`), and two definitions never share one.
+
+### P1. Arms under one knob type
+
+Nine cells, the branch `evaluate` already takes: `published` (no rule applies), `no_hash` (a rollout or a matched group rollout with no hash: the default), `ramp_in`, `ramp_out` (the knob's rollout bucket), `switch_forced` (a matched forced override), `switch_in`, `switch_out` (a matched group rollout's bucket), `missing`, `fallback_other` (every other fallback status). `switch_forced` takes `wrong_type`'s cell. `evaluate` returns `{value, arm}`; its four callers take `.value`.
+
+### P2. The ever-read record: a claim index per generation
+
+Each attached `Generation` gets a **claim index**: an open-addressed array of `(body address, row)` pairs, a power of two at least twice `min(usage_slots, root.records)`, allocated when the refresh winner attaches the generation (the cold path, beside its `PageTable`). After a lookup finds a definition:
+
+1. **Hit.** Hash the body address (one multiply), load the slot, compare. A knob read before in this generation stops here: one load of a line that stays shared after the first read, the cost D10 measured for `ever_bit`.
+2. **First read in this generation.** An empty slot is claimed by compare-and-swap on the address; the winner finds or claims the knob's **row** in the usage table by full name (hash, probe, compare names, so no collision merges two knobs; Limit 1 goes) and stores the row index. A loser, or a reader that finds the row not yet stored, takes the slow path below if it is sampled.
+3. **Sampled.** The stripe's countdown (D2) reaching zero adds 1 to the row's arm cell. The row comes from the index, so a sampled warm lookup hashes no name. A lookup with no row in hand (`missing`, a fallback status, an unstored row) finds or claims its row by name.
+4. **Bounds.** The table holds `usage_slots` rows. A knob that finds the table full, or the index past half full, is not recorded: its reads count in the overflow row, and a flag set once (test before set) makes the overflow row appear. So a knob absent from `detent_usage`'s rows was not read unless the overflow row is present: the miss is stated, never silent.
+
+Rows are keyed by name and live for the handle, so "read since open" survives every publish without D10's fold: a new generation starts with an empty index, and each knob's first read there finds its existing row. A deleted knob keeps its row.
+
+**Against D10's bitmaps.** The bitmap is exact for every definition at 1 bit each (625 KB per generation at 5M), but needs a dense position the paged trie lacks: building one means returning the leaf's location from `PagedReadState`, a per-segment bitmap in `PageTable` (one bit per 8 bytes of segment, since bodies are at least 12 bytes apart: about 4.9 MB per generation for the 315 MB 5M store, `dense-pages.md:251`), and, to name what was read, a walk of every verified page, since a bit carries no name. The claim index costs memory in proportion to the knobs read, not the store: 12 bytes per index slot, at most 96 KB per generation and about 1.2 MB of rows at the default 4,096 (D3). Its exactness is bounded by `usage_slots` and its miss is stated; an application wanting every knob raises `usage_slots`. *Recommendation: the claim index.* It narrows Q7's "exact per definition" to "exact up to `usage_slots` knobs, overflow stated", which is the owner's (D47, D48, D61).
+
+### P3. The C ABI (D6's shape, OB1 freezes it)
+
+```c
+typedef enum detent_arm {
+  DETENT_ARM_PUBLISHED, DETENT_ARM_NO_HASH, DETENT_ARM_RAMP_IN, DETENT_ARM_RAMP_OUT,
+  DETENT_ARM_SWITCH_FORCED, DETENT_ARM_SWITCH_IN, DETENT_ARM_SWITCH_OUT,
+  DETENT_ARM_MISSING, DETENT_ARM_FALLBACK_OTHER, DETENT_ARM_COUNT
+} detent_arm;
+typedef struct { size_t size; detent_str name;   /* data == NULL: the overflow row */
+                 uint64_t samples[DETENT_ARM_COUNT]; } detent_knob_usage;
+typedef struct { size_t size; detent_str name_space; uint64_t revision, seen, current;
+                 uint64_t attached_ns; } detent_view_usage;
+detent_status detent_usage(detent_reader *, uint32_t *period,
+                           void (*knob)(void *, const detent_knob_usage *),
+                           void (*view)(void *, const detent_view_usage *), void *context);
+/* detent_open_options grows: uint32_t usage_slots;  0: 4,096; DETENT_USAGE_OFF: no table */
+#define DETENT_USAGE_OFF UINT32_MAX
+```
+
+Every row is a knob the handle read (A1's ever-read bit is the row's presence); `samples` times `period` estimates its reads by arm. `usage_slots = 0` means the default, as `mapping_bytes = 0` does, so a caller that zero-fills the grown struct keeps the table; off is explicit. The view records are D5's (OB2 of the build plan): `Entry` already keeps `seen` and the watched sequence, and the attach time is one clock read on the refresh path. The hook (D6 item 2) is not in this quest.
+
+### P4. Lifecycle
+
+States per handle: **off** (`DETENT_USAGE_OFF`: no table, countdown or index; every event below is a no-op) or **on**. Per generation: its index, empty at attach. The lookup's answer never changes with usage; the table is what changes.
+
+| Event | Table and index | `detent_usage` then reports | Test (`test_reader_usage`) |
+| --- | --- | --- | --- |
+| Open (on) | Table of `usage_slots` rows; stripe countdowns seeded in [1, 127] from the clock, the handle and the stripe | No rows; `period` 64 | `fresh_handle`: no rows; the first 64 lookups of one knob are not all sampled |
+| First read of a knob in a generation (OK) | Index slot claimed; row found or claimed by name | The knob's row | `ever_read`: every knob read has a row, none unread does |
+| Later read in that generation | Nothing (hit); a sampled one adds to its arm's cell | The row; its cell grows by one per sample | `arms`: period forced to 1, each arm's count exact |
+| Sampled countdown reload | Countdown from the stripe's xorshift in [1, 127] | | `cycle`: a 1,024-name cycle samples every name |
+| `missing` or a fallback status | Sampled only: row by name, cell `missing` or `fallback_other` | The row, when sampled | `fallbacks`: each status lands in its cell (period 1) |
+| `invalid_name`, `invalid_argument` | Nothing (a sprayed name cannot fill the table, D2) | Unchanged | `fallbacks` |
+| Generation published (new generation for a namespace) | The new generation's index starts empty; rows stay | The same rows; counts keep growing | `publish_reorder`: rows survive a publish that reorders and deletes definitions; a deleted knob keeps its row |
+| Attach failed, dropped, re-added with the same generation (D7) | The kept generation keeps its index | Unchanged | `kept_generation`: no second claim (period 1: counts equal lookups) |
+| Re-added at a new slot, slot reused (D7) | The new generation's index starts empty; rows by name | The same rows | `publish_reorder` |
+| Generation freed (no view holds it) | Its index is freed with it | Unchanged | `ever_read` under ASan |
+| Table full or index half full | The knob counts in the overflow row; the overflow flag is set | The overflow row (name absent) | `overflow`: `usage_slots` 4, six knobs |
+| `detent_usage` beside lookups | Relaxed loads of published rows (acquire on the row's name) | A consistent row per knob | `concurrent_usage` (TSan): 16 threads, period 1, exact sums |
+| Fork (child) | Rows, indexes and the overflow flag cleared; countdowns reseeded from `getpid()` and the clock | Only the child's reads | `fork_child`: the child's rows are its own; the parent's unchanged |
+| Close | Table and indexes freed | | ASan and leak checks |
+
+The period is forced to 1 only through `src/detent_reader/testing.hh`; the release library has no seam.
+
+### P5. Cost gate (D48, D61)
+
+OB1's gate as specified above (D2, "OB1's cost gate"): one binary, two handles over one store, one opened with `DETENT_USAGE_OFF`, alternated per block of 64 lookups on each thread, median of per-block differences, at least 7 repetitions, 1, 8 and 64 threads, hot and scattered names, plain and hashed lookups; at most 5 ns at 1 thread and 10 ns at 8 and 64. It is a mode of `reader_bench` (`benchmarks/reader_bench.cc`), which also runs reader-lookup.md's base/head comparison against main.
+
+### P6. Files beyond the quest's set
+
+`src/detent_local/evaluation.hh` (P1, and its callers `src/detent_local/view.cc`, `tests/detent_local/test_evaluation.cc`, `tests/detent/test_one_knob_differential.cc`, which take `.value`) and `benchmarks/reader_bench.cc` (P5).
+
 ## Checks
 
 Rerun with `campaign job rerun` on the four jobs at the commit under review (`observability-bench.sh build`, then `run smoke`, `run screen`, `run confirm`, on slot `obs-bench`, ref `s6=b1d281c`). Each run writes `<mode>.md` (the summary) and `<mode>-paired.md` (the paired deltas D2 quotes).
