@@ -1,6 +1,6 @@
 # authority-pages-design: journal
 
-State: waiting on jobs 261124-111619-945876 261124-111619-8a04c5 261124-111620-0bbbdb 261124-111620-a9701c 261124-111621-1c41a2 261124-111622-6718ae 261124-111623-31f7f5 261124-111623-b18370 261124-111624-56374f 261124-111629-fea86a 261124-111638-e08fc4 261124-111704-bdd5fe 261124-111650-5bc59c
+State: stopped by the lead mid round 3 (owner reconsidering authority pages); no jobs of this round queued
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -76,9 +76,21 @@ C3 does not change option 2's numbers: lag mode measured arrival to pass end thr
 
 ## Next
 
-1. When the final-head jobs pass: fill ⟨PASS4-DELTA⟩, ⟨PASS4-JOB⟩ and ⟨SEAL-LAG⟩ from the exclusive paced job
-   (`check.py pairs` on its log; pooled lag lines), compare the reruns with the doc, then set State "ready
-   for review" (round 3 goes to the owner).
+Stopped at the lead's word (2026-11-24, owner reconsidering authority pages for speed over verification).
+Where round 3 stands, at 6627483e:
+1. Done, committed: T1 (rule 3's clock = age of the oldest unverified record; model cases idle-then-write,
+   stall, lost roots, re-check; mutants last-check and any-check fail 3 and 2 cases locally), T1b (bound derived
+   at 15 s, owner options in "Rule 3's bound"), the clock sweep table ("Clocks"), U1-U6 text, T2's design (root
+   entries ride the next group) and the pass4r arm in the harness.
+2. Not done: the pass4r harness is unsmoked (the first local smoke hit the 64-transaction group bound; fixed by
+   riding roots as mutations of the last transaction, rebuilt, not rerun). ⟨PASS4-DELTA⟩, ⟨PASS4-JOB⟩,
+   ⟨SEAL-LAG⟩ and ⟨ROOT-ENTRIES⟩ remain unfilled.
+3. Jobs: I cancelled 261124-111623-b18370 at 11:59 myself, to replace it with one exclusive A/B at the round-3
+   head adding pass4r (ruling 15); its record shows no other reason. This round's smoke 261124-120011-be672b and
+   model tests 261124-120021-e8df6d were cancelled at the stop. Still queued from round 2 at 67b76b6c, the lead's
+   to keep or cancel: 945876, 8a04c5, 0bbbdb, a9701c, 1c41a2, 6718ae, 31f7f5, 56374f, fea86a, e08fc4, 5bc59c.
+4. To resume: smoke pass4r (`run.sh smoke`), then one exclusive `run.sh paced 10 500000 0.98 4 40` at the head,
+   fill the four slots, set "design ready for re-review".
 
 ## Blocked on
 
@@ -107,6 +119,20 @@ entry; relays forward roots and check their own; agents publish and verify at th
 - Decided: A4 = option 2 (D156), Q1 = no signing now (D157).
 
 ## Rulings I made
+
+13. T1b, rule 3's bound: 15 s, derived as 1.5 x the worst measured sum (record age 0.64 s + election 2 s + window
+    6.2 s + new root's commit 0.31 s + 1 s delivery budget = 10.2 s); my sum of parts 1-4 is 4.1-9.2 s (the
+    reviewer wrote 4.4). Recommended as configuration defaulting to 15 s; the owner decides (options 1-4 in the
+    doc, "Rule 3's bound").
+
+14. T2: root entries ride the next transaction group as part of its batch, never a proposal or sync of their
+    own (the loop admits one prepared proposal at a time). Measured by the paced arm pass4r: pass4 plus one
+    62-byte mutation per finished pass in the next group's last transaction (a group holds at most 64
+    transactions, a transaction 128 mutations; at most 120 roots ride one group, the rest wait).
+
+15. The exclusive paced A/B at 67b76b6c (261124-111623-b18370, still queued) ran no root entries; it is replaced
+    by one at the round-3 head that adds pass4r, so T2 and T3 share one exclusive job (the lead allowed folding
+    T2 into C2's A/B while it is queued).
 
 11. Pool size four, not one per namespace (supersedes 9's "up to one per namespace"): in the same strict jobs ten
     threads held the same root lag as four (p99 0.40 vs 0.33 s steady, 0.55 vs 0.56 s burst) at 1.5-1.6 times
