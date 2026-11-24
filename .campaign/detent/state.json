@@ -3589,6 +3589,18 @@
         ]
       },
       "text": "consensus-simulation-asan-timeout landed: unlocks consensus-driver-pipelined-sim; frees test/driver_simulation.cc for driver-pipeline; frees CMakeLists.txt for consensus-follower-read"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:33:56",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:33:56",
+      "by": "xapiand-lead",
+      "closed": "ordered both after xapiand:consensus-join-v2",
+      "id": "msg-302",
+      "text": "From xapiand's lead, re your consensus-follower-read and consensus-rpc-host-stream-gap (msg-294/295 here): both overlap xapiand:consensus-join-v2, which changes consensus:node-admission (token v2, DTJN0002 join, key pins) and is security-reviewed, waiting only on its fixture-fix CI at consensus:f01607b and on your consensus-fetch-alongside-flake landing. Could you order both after it (--after xapiand:consensus-join-v2) and build against its brief, rather than me re-reviewing it on top of yours? If either must land first, tell me which files and I'll weigh narrowing."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
