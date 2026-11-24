@@ -8453,21 +8453,52 @@
         "docs/mechanisms/rpc-lane.md",
         "test/transport/lag.h"
       ],
-      "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T07:28:10",
+          "ci": {
+            "carried": true,
+            "commit": "e416bb002c0b7aaef8f726c732af778c95a01cab",
+            "runs": [
+              45398915033
+            ]
+          },
+          "commit": "c363ad4492a22c346ea139379e740697f4690ba3",
+          "criteria": {
+            "A1": "261124-064724-819e4e; fails without: 261124-014521-c32cc2, 261124-014707-1319b1, 261124-015141-a3fef6",
+            "A2": "261124-064721-1b3cd9; fails without: 261124-014707-1319b1, 261124-032545-3c3ebf, 261124-033248-45a895, 261124-033251-9931b1, 261124-050014-f52514, 261124-050018-ff695c",
+            "A3": "261124-064725-275afe",
+            "A4": "`ci:macos-x86_64`, `ci:ci` (CI run 45398915033 at consensus:e416bb0, green)"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e416bb002c0b7aaef8f726c732af778c95a01cab",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5e22cf07ac832e35f8d051eeefdc36eae042360f",
+          "reason": "",
+          "tested": "c363ad4492a22c346ea139379e740697f4690ba3"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "xapiand:consensus-join-v2 landed (consensus:5e22cf0)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T06:46:54",
-      "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
+      "updated": "2026-11-24T07:28:14",
+      "worktree": ""
     },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
