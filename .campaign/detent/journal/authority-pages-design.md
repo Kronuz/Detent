@@ -1,4 +1,4 @@
-# authority-pages-design: journal
+State: waiting on jobs 261123-193507-f0eafa 261123-193510-65f196 261123-193513-95a0ae 261123-193517-519b4d 261123-193520-a9b30c 261123-193523-d6ce25 261123-193525-e60802 261123-193528-1675da 261123-193531-962367
 
 State: waiting on jobs 261123-143701-b2823a 261123-143702-63a2df 261123-143702-dbe12a 261123-143703-1457d9 261123-143704-14eaf8 261123-143705-ac3113 261123-143706-4d9157 261123-143707-02c215 261123-143708-866493 261123-143709-e27543 261123-143709-c59049 261123-143710-993a49
 Quest: .campaign/detent/quests/authority-pages-design.md (the lead's; never edit it)
@@ -9,44 +9,50 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Harness at bench/authority_pages/ (authority_pages_bench.cc, build.sh, run.sh, check.py): seals mode (per-seal
-build cost with the relay's build_generation, relocation rule, writes+F_FULLFSYNC, LtHash-shaped records
-digest) and commit mode (durable single-voter Node with positions and history; arms none, thread, inline,
-write run in the order named on one node).
+Fix round 1 after the design review (CHANGES at 65576604, F1-F11). main merged (68e099bd). Harness 7a4d6f83 adds
+`paced` (commit path beside a builder posted by the clock at a fixed seal rate; rounds of 8 blocks, none
+alternating with thread/pool/write/aa, rotated; `check.py pairs` = block p50 minus mean of the adjacent none
+blocks, aa = A/A band) and `lag` (open-loop arrivals at RATE/s with a burst, uniform over the corpus, into a
+coalescing pool: one pass per namespace per INTERVAL; warm, or cold = a new leader's cold build while changes
+arrive; per-change root lag, window = cold done + first pass). Smoke 261123-193433-2e4687 passed.
 
-Rounds 1-2 (smoke and build fixes, 449eed53, 36ae64aa, bf55a099): see git log. Round 2 rows: 100K seals
-261122-210428-976f07 (exclusive), 5M seals 261122-210429-1ed7a8 (exclusive), 5M idle 261123-073248-5fdf61
-(strict) passed and are in the doc. Commit rows 261123-073250-7ccbac (100K) and 261123-073252-43c224 (5M),
-both strict at bf55a099, FAILED in round 6 with "transaction rejected".
+Rows (all at 7a4d6f83, --for A2, after the smoke):
+- paced 5M (10 x 500,000, 0.98 seal/s, 4 rounds x 40 groups): strict P1 261123-193507-f0eafa, P2 261123-193510-65f196;
+  exclusive PE 261123-193517-519b4d. 100K strict P3 261123-193513-95a0ae.
+- lag 5M strict: L1 steady 261123-193520-a9b30c (T1/i1000, T10/i250, T10/i1000, T4/i250), L2 burst
+  261123-193523-d6ce25 (T1/i1000, T10/i250, T4/i250), L3 failover 261123-193525-e60802 (T1/i1000, T4/i250,
+  T10/i250, T10/i1000), L4 failover 261123-193528-1675da (second sample); exclusive LE 261123-193531-962367
+  (failover T10/i250 x2, steady and burst T10/i250).
 
-Cause (bench bug, not an authority limit): seeding gives key k the value k; a group gave producer i the value
-salt*64+i, so a pick of key k with salt*64+i == k is NoChange. Diagnostic at ff2d21ab (names status, key,
-value, held) reproduced it locally on the same draw sequence (`commit 1 1000 160 none none inline none none
-none`, light): "transaction 52 rejected: status 2 (key 53748, value 53748, held 53748)" = NoChange. Fix
-07ac6b63: group values start past the seeded count. Proof jobs: 261123-102546-6e81cf at ff2d21ab
-(--fails-without) passed: it failed with the same NoChange (key 53748); 261123-102550-885bdd at the fix pending.
+The doc is rewritten for F2-F11 (text); the ⟨…⟩ markers are the numbers these rows fill: LAG-TABLE,
+PACED-TABLE, WINDOW-TABLE, DELAY, POOL, REC-NUMBERS, C-COST, WRITE-RULING, FACTS, OPT-B, LAG-ABSTRACT,
+COST-ABSTRACT.
 
-Split: a commit row is 4 strict jobs of one arm rotation each (none-thread-inline-write, thread-inline-
-write-none, inline-write-none-thread, write-none-thread-inline: a Latin square, each arm once per position),
-about 5-6 min each; `check.py combine LOG...` gives per-arm median group p50 over the jobs and the paired
-delta against each job's own none run (median, min-max). 100K: 3c089f, 6f96c6, a63417, fdd616; 5M: afdabb,
-d23ae1, 7ae2b2, 0c4d8c (all 261123-1025xx/1026xx). Plus 100K idle seals 261123-102616-53d93e (strict). A first submission (261123-102306 to -102331) was cancelled
-unrun: zsh passed its options as one word, so they ran as the command.
-
-The harness edit (commit-mode code only; the seals path is byte-identical in behaviour) makes the seal rows
-"ran other code" at head, so they rerun at head, strict: 100K 261123-103432-c20472, 5M 261123-103435-b1e0ae,
-5M idle 261123-103438-3b96b1. The doc keeps the exclusive bf55a099 numbers if the head reruns agree within
-the strict noise (the strict 5M idle cold build read 2.2x the exclusive one); it cites both.
+Findings, where each is fixed in docs/design/authority-pages.md:
+- F1: "Commit latency and elections": old rows' rate stated (139-474 tx/s, 0.09-0.23 seal/s, builder 5-15%
+  busy) and not used for deltas; header no longer claims in-job comparison is unbiased; paced rows at rc3's
+  seal rate with paired interleaved blocks and an A/A arm (PACED-TABLE); 24d1dd cited for saturation.
+- F2: "After a leader change": eleven strict cold samples 11.1-20.1 s CPU, the exclusive 9.0 s, reviewer's pool
+  curve and RSS; WINDOW-TABLE end to end; agent rules wait vs publish-and-verify, recommendation 2.
+- F3: "Where the root comes from": per-path table (leader, follower/D145, relay every tier, agent), roots as
+  log entries, split answers at rooted positions, threat model (unsigned; Q1 for signing).
+- F4: pass-through specified (records for every delta, full copy fetched once, roots forwarded) and priced,
+  deferred; authority page serving priced (~500 MB at 5M) and not recommended; (b) restated as added cost;
+  "What it buys" table and Q4 row agree (authority serves records and roots).
+- F5: "What it changes" table: Limit 1, D1, D4, D6, D7, Q4, D34, D133 (with namespace_relay.cc:413/424-426,
+  coordinator.cc:685-692), D145: now and becomes.
+- F6: coalescing numbers (63b0f2) replace "2.95 cores / pool divides"; pool bound and root-lag metric in the
+  recommendation and quests; LAG-TABLE.
+- F7: inline quoted as 971-2,650 ms over four jobs, p99 1,020-2,303 vs 234-490.
+- F8: one exclusive job each, strict range 1.3-1.8x per seal (783-1,072 ms), 1.2-2.2x incl. cold.
+- F9: build CPU includes the records encode, stated (conservative).
+- F10: SHA-NI/XOF line in alternative (d) and the decision request's option 5.
+- F11: Limits 4.
 
 ## Next
 
-1. The doc and recommendation are final. Main's merge (f8805185) changed src/detent_local headers that the
-   bench's relay_page_window includes, so the brief counts the strict measurement jobs as other code; they
-   rerun at 392deab8: commit 100K b2823a 63a2df dbe12a 1457d9, 5M 14eaf8 ac3113 4d9157 02c215; seals 866493
-   (100K idle), e27543 (100K), c59049 (5M), 993a49 (5M idle), all 261123-1437xx. When they pass, re-combine,
-   confirm the doc's numbers within the noise floor (or update them), cite these ids in A1, State "ready for
-   review".
-2. Design review can start now: the reruns only confirm.
+1. When the rows pass: `check.py pairs` over P1/P2/PE logs (and P3), summarize L1-L4/LE, fill every ⟨…⟩ marker
+   with a job id beside each number, commit, State "ready for review".
 
 ## Blocked on
 
@@ -76,6 +82,19 @@ pages in memory, root in D1's frame-header field; (d) the fallback.
   failed in linux-tsan Configure on a github.com connect timeout (infrastructure, not this branch's files).
 
 ## Rulings I made
+
+10. F1, rc3's rate: this host's durable single voter cannot commit 2,000 tx/s (one F_FULLFSYNC per
+    64-transaction group). Pipelining 8 batches per group was tried locally and failed: the node admits one
+    proposal per service call and the harness drives IO synchronously, so a 512-transaction group took
+    ~1,050 ms (8 fsyncs). The paced rows therefore hold the builder at rc3's 0.98 seals/s by the clock,
+    independent of the voter's rate; the doc states this as Limits 3.
+
+9. Interval 250 ms and a pool of up to one thread per namespace are the recommended shape; immediate passes
+   (no interval) cost 1.08 cores on a 10K-key smoke with 314 relocations, so passes are rate-limited.
+
+8. F4: pass-through is deferred, not part of (b); (b) is restated as an added cost; the authority serves no
+   pages (priced). F3: roots as log entries and split answers at rooted positions are the design's answer to
+   followers, relays and unrooted positions; signing is the owner's Q1.
 
 7. Lead's ruling (2026-11-23): the exclusive seal rows (261122-210428-976f07, 261122-210429-1ed7a8) are not
    rerun; the doc cites their CPU at bf55a099, and the strict reruns at the merged head are A2's evidence that
