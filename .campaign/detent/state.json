@@ -5818,7 +5818,8 @@
       "consumes": [],
       "files": [
         "test/driver_simulation.cc",
-        "test/simulation_test.cc"
+        "test/simulation_test.cc",
+        "docs/mechanisms/simulation.md"
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
       "landed": [],
@@ -5829,11 +5830,12 @@
         "consensus-simulation-asan-timeout"
       ],
       "provides": [],
+      "reason": "the simulation's doc describes the pipelined configuration; free since consensus-simulation-asan-timeout landed",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T04:07:11",
+      "updated": "2026-11-24T05:15:09",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
