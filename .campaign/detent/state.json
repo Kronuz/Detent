@@ -31859,6 +31859,8 @@
         "dense-distribution-build",
         "reader-s6"
       ],
+      "base": "a06cbf1c8c77ce603e8516ff710330ca90ba05c0",
+      "branch": "quest/detent/split-detent",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -31914,9 +31916,10 @@
       "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T03:25:45"
+      "updated": "2026-11-24T10:08:38",
+      "worktree": "../Detent-wt/detent/split-detent"
     },
     "split-journal": {
       "accepted": {},
