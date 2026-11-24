@@ -89,9 +89,8 @@ def progress(message: str) -> None:
 
 async def rounds(certificates: Path, scratch: Path) -> None:
     scratch.mkdir(parents=True, exist_ok=True)
-    binary = scratch / "detent-authority"
-    binary.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{__file__}" --serve "$@"\n')
-    binary.chmod(0o755)
+    # A command, not a script: starting a fresh `#!` script beside a loaded host can take seconds.
+    binary = [sys.executable, __file__, "--serve"]
     evidence = Evidence(
         scratch / f"events-{random.randrange(1 << 32):08x}.jsonl", 1 << 20
     )

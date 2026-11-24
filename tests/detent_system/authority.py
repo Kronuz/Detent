@@ -12,7 +12,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -33,60 +33,24 @@ CONTEXT = {
 
 
 class HostLag:
-    """What the host is late by while a test waits: the longest a thread asleep for 1 ms went
-    without running, and the longest a trivial interpreter took to start (a new process can
-    wait long to exec while the harness itself runs), from start to stop."""
+    """The longest a thread asleep for 1 ms went without running, from start to stop."""
 
     def __init__(self) -> None:
-        self._ticks = 0.0
-        self._spawns = 0.0
-        self._spawning: float | None = None
+        self.worst = 0.0
         self._stop = threading.Event()
-        self._threads = [
-            threading.Thread(target=self._tick, daemon=True),
-            threading.Thread(target=self._spawn, daemon=True),
-        ]
-        for thread in self._threads:
-            thread.start()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
 
-    @property
-    def worst(self) -> float:
-        began = self._spawning
-        pending = 0.0 if began is None else time.monotonic() - began
-        return max(self._ticks, self._spawns, pending)
-
-    def _tick(self) -> None:
+    def _run(self) -> None:
         last = time.monotonic()
         while not self._stop.wait(0.001):
             now = time.monotonic()
-            self._ticks = max(self._ticks, now - last - 0.001)
+            self.worst = max(self.worst, now - last - 0.001)
             last = now
-
-    def _spawn(self) -> None:
-        while not self._stop.is_set():
-            self._spawning = began = time.monotonic()
-            process = subprocess.Popen(
-                [sys.executable, "-c", "pass"],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            while process.poll() is None:
-                if self._stop.wait(0.01):
-                    process.kill()
-                    process.wait()
-                    self._spawning = None
-                    return
-            self._spawns = max(self._spawns, time.monotonic() - began)
-            self._spawning = None
-            self._stop.wait(1)
 
     def stop(self) -> None:
         self._stop.set()
-        for thread in self._threads:
-            thread.join(
-                2
-            )  # a probe stuck in exec is a daemon thread and ends by itself
+        self._thread.join()
 
 
 def credential(index: int, shared_namespace: str | None = None) -> dict[str, Any]:
@@ -100,7 +64,7 @@ def credential(index: int, shared_namespace: str | None = None) -> dict[str, Any
 class Authority:
     def __init__(
         self,
-        binary: Path,
+        binary: Path | Sequence[str | Path],
         certificates: Path,
         directory: Path,
         actors: Actors,
@@ -204,7 +168,11 @@ class Authority:
         return await self.actors.start(
             f"authority-{index}",
             [
-                str(self.binary),
+                *(
+                    [str(self.binary)]
+                    if isinstance(self.binary, Path)
+                    else map(str, self.binary)
+                ),
                 "--authority",
                 str(self.directory / f"authority-{index}.json"),
                 "--port",
@@ -275,7 +243,7 @@ class Authority:
                     raise RuntimeError(
                         f"authority-{index} alive (pid {member.process.pid}) but not answering "
                         f"{time.monotonic() - began:.1f} s after restart ({seconds} s plus "
-                        f"{lag.worst:.1f} s of host lag allowed: late threads, slow process starts), attempt {attempts} spawned "
+                        f"{lag.worst:.1f} s of host lag allowed), attempt {attempts} spawned "
                         f"at {spawned:.3f}: last {refusal}; "
                         f"output {output[-400:].decode(errors='replace')!r}; "
                         f"{self._sockets(index, member.process.pid)}"
