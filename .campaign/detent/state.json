@@ -15803,17 +15803,16 @@
         "security"
       ],
       "milestone": "M2 Integration (RC-1)",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
-      "reason": "Caller-CPU cost gate NO-GO pending attribution (EXTRACTION_CHECKLIST EX-2); M2 work after the handoff landing",
+      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "EX-2: shared HTTP clients and common TLS",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-22T22:05:28"
+      "updated": "2026-11-24T14:21:35"
     },
     "http-coroutines": {
       "accepted": {},
