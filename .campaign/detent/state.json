@@ -18348,14 +18348,16 @@
     "journal-turn-sector-checks": {
       "accepted": {
         "durability": {
-          "at": "2026-11-23T16:20:59",
-          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "at": "2026-11-24T05:59:50",
+          "base": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb",
           "blobs": {
-            "AGENTS.md": "100644:e8796b22c2e8563d6de731422fa9b413f8024aa1",
-            "ARCHITECTURE.md": "100644:eda93c1105c92202832d811c28516495f3e53dbf",
+            "AGENTS.md": "100644:1c10852f4d0b411e22979f40bb621cb2ad4f5b2f",
+            "ARCHITECTURE.md": "100644:2c9c68317c53f27871d293b592e86b70014a9664",
             "CHANGELOG.md": "100644:d43878166c5ddad337c7fd8c08a0d1c5e1abe862",
-            "bench/turn_bench.cc": "100644:4098da24006d715ea40bdb6dd14e45d688aecfb0",
+            "CMakeLists.txt": "100644:80668861467a18cec2a4f8b91113de7085b6f3b3",
+            "bench/turn_bench.cc": "100644:b15964e51c5940e2255e62e80b8a9881002809d0",
             "docs/design/host-layout.md": "100644:0b701a250d142b77f3ce8b78df3707cd20dcb8ae",
+            "docs/design/turn-log-cut-header.md": "100644:1587c1165155bc82c2b0f2a318f93ad10f4768e1",
             "docs/mechanisms/framing.md": "100644:bb8afb58824b27d43ad2aec65f6b803489fd191d",
             "docs/mechanisms/turn-log-damage.md": "100644:1d1191a6513fd51230269948cf5ea09dbe6e1b13",
             "docs/mechanisms/turn-seal.md": "100644:2219de03cfd0242337cdde95713f38b6f036a7c5",
@@ -18382,19 +18384,21 @@
             "test/lost_bound_test.cc": "100644:676dbbaf3618b0b7aadb1cd288da1e0324b3e4c8",
             "test/turn_buffers_test.cc": "100644:52960b7fba14fee1209a485e939d77e219f8ab69",
             "test/turn_log_power_test.cc": "100644:37f91f1fd23a9c6fda5daa2f70cf90e591f0a63d",
-            "test/turn_log_test.cc": "100644:af92990f0787f7ddef2e9ee7dd62f87a6c36246d",
+            "test/turn_log_test.cc": "100644:0ee2c5efd9d3f88d385d976a7093a20a53de14fb",
             "test/turn_seal_test.cc": "100644:189d50120e504886b3d4c509ac591a7396bf7849"
           },
           "by": "review",
-          "commit": "8bf1d1d9668f1e86195e446d5eb3a8efde15ecb1",
+          "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
           "criteria": "65925497dfaa5b88",
           "diffs": {
             "": "a0e2f20af0246201",
             "AGENTS.md": "2bdd41f005654ccc",
             "ARCHITECTURE.md": "45d6d62341541379",
             "CHANGELOG.md": "b490faa604dcab9b",
-            "bench/turn_bench.cc": "91338ed6bcd75b4e",
+            "CMakeLists.txt": "59ac6c40207d0dcd",
+            "bench/turn_bench.cc": "7026c38e29668dcf",
             "docs/design/host-layout.md": "fd1f1a31797fc171",
+            "docs/design/turn-log-cut-header.md": "08398afa31f367d7",
             "docs/mechanisms/framing.md": "4d2e943888db9756",
             "docs/mechanisms/turn-log-damage.md": "9acf3b7a8ed1c2cb",
             "docs/mechanisms/turn-seal.md": "49280947cf952fa7",
@@ -18404,27 +18408,33 @@
             "test/lost_bound_test.cc": "7864d1987b53fe65",
             "test/turn_buffers_test.cc": "0eb32f9a21630829",
             "test/turn_log_power_test.cc": "9f1b073dbf02ef15",
-            "test/turn_log_test.cc": "fe0f523d23d6a16d",
+            "test/turn_log_test.cc": "7c9580b4983cbb43",
             "test/turn_seal_test.cc": "550f89a0f28ee5b7"
           },
           "findings": {
             "F1": {
               "jobs": [
                 {
-                  "cmd": "bash -c 'set -e; (cd .scratch && build/journal_turn_log_test midwrite_reads); bash /Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-sector-checks/run.sh run shared_sector_probe.cc invariant :: shared_sector_probe.cc midwrite | tee .scratch/f1-probe.out; grep -q '\"'\"'Corruption in 0 of'\"'\"' .scratch/f1-probe.out'",
-                  "commit": "8bf1d1d9668f1e86195e446d5eb3a8efde15ecb1",
+                  "cmd": "bash -c 'set -e; grep -rn memory_io include src test bench fuzz examples 2>/dev/null && exit 1; cd .scratch && build/journal_turn_log_test'",
+                  "commit": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261123-160744-836752",
+                  "job": "261124-054418-67e242",
                   "level": "light",
-                  "seconds": 69.1,
+                  "seconds": 34.3,
                   "state": "done",
-                  "what": "F1: midwrite_reads at the fix, and the reviewer's shared_sector_probe midwrite (0 throws required) and invariant"
+                  "what": "turn_log_test ported to faultfs at the merge: every case, build of every target (memory_io.h is gone)"
                 }
               ],
               "kind": "defect",
               "reproduced": false
             }
+          },
+          "fix_scope": {
+            "paths": [
+              "CMakeLists.txt"
+            ],
+            "reason": "after the accepted 8bf1d1d: test/turn_log_test.cc (the eight-block midwrite_reads regression test for F1, then ported from the deleted memory_io.h to faultfs after main's journal-drop-memory-io, cases unchanged), bench/turn_bench.cc (the latency harness) and one word in CMakeLists.txt (turn_log joins faultfs_tests); no mechanism; CI 4eb8165 green"
           },
           "note": "",
           "review": "b253ce87c297ec899d8e481bda960bdd6730317d",
@@ -18504,7 +18514,7 @@
       "risk": "high",
       "status": "active",
       "title": "Turn log format RFTW0002: per-sector checks so a torn newest turn is never lost silently",
-      "updated": "2026-11-24T05:46:49",
+      "updated": "2026-11-24T05:59:50",
       "worktree": "../journal-wt/detent/journal-turn-sector-checks"
     },
     "legacy-h": {
