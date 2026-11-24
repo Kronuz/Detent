@@ -23,6 +23,9 @@ first_open at mutant journal:b050603 = head with origin/main's host.h; ref
 refs/mutants/journal-bound-first-open/no-fix), open-cost A/B 261124-063448-c99934 (exclusive,
 main 4eb8165 vs head, 192 MiB, 7 runs: the review's F1 asked for exclusive).
 
+After one 600 s wait (2026-11-24 06:4x): A2 built at the mutant (the merged test compiles) and is
+running; A1 and the A/B still queued. CI at journal:529565e running.
+
 Mechanism: unchanged by the merge. host.h's fix (`settle_damage` reads each log with
 `TurnLog::read` and commits the verdict before the drivers' open records) is byte-identical to
 the reviewed journal:0951710 apart from the comment; the test's layout moved to RFTW0002
@@ -55,6 +58,13 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- With journal-turn-sector-checks landed, `spans()` is mine to change: it now calls `gap(true)`, so
+  the layout lives in one place (review F4: a copy drifts). `gap()` value-checks the positions it
+  derives against the log's bytes, so a future format change fails there by name, not by a
+  missing filler. F2 (dropped() comment, group 2 oracle) and F3 (one commit of bounds and losses)
+  stay as the review left them: nits, no measured disagreement; the printed uncut verdicts give
+  F2's values once A1 runs.
 
 - Fix in host.h only, no turn_log.h change: `settle_damage` reads each log with the existing
   `TurnLog::read` and stores the verdict before the drivers' open records. Cost: one more read of
