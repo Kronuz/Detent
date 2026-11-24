@@ -21,6 +21,12 @@ does not hold yet gets no frame until it is created. A relay upstream parks the 
 own sync moves past the cursor. The wait is `maximum_wait_ms` bounded by the session's `wait_ms`
 from its open, and its HTTP deadline is `timeout_ms` plus that wait.
 
+A parked next costs the authority no turns. Its owner loop marks a next it has looked at for the
+current applied index as parked, not as work in flight, and sleeps until its health turn or the
+next's deadlines; a publish wakes the owner, which re-plans every parked next at the new index
+(`service.cc`, `frames_busy` and `frames_until`). A next it has not looked at, or one waiting for
+history to be ready, keeps the 1 ms turn.
+
 The wait runs on its own W5 session at the source the last sync read, so it never makes the
 mirror's session busy, and the mirror thread keeps serving downstream reads and fetching files
 while it is parked. Only the watcher touches that session, and the counters are atomic. A stop
@@ -51,3 +57,6 @@ its upstream refuses (403 on the next) degrades the same way.
 changed comes at the deadline. With A stopped, B's syncs fail with the backoff, and B syncs again
 once A returns on its port. `tests/detent_relay/test_relay_service.py` checks that relays reading a
 three-voter authority, and a relay reading them, make no sync in 2 s at rest.
+`tests/detent_relay/test_relay_idle.py`: with one voter and a relay at rest, the authority keeps to
+its health turns (at most 60 a second) and the relay makes no sync over 2 s; a publish still wakes
+the relay within 2 s.

@@ -2165,6 +2165,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 								  (session_tasks.size() - options_.subscription_requests.closes + 7) / 8) + 1;
 		for (;;) {
 			auto owner_started = Clock::now();
+			// W5 nexts this pass leaves with work (busy), and the deadlines of those parked for a change.
+			bool frames_busy = false;
+			auto frames_until = Clock::time_point::max();
 			if (wake.begin_turn())
 				rescan = true;
 			if (rescan) {
@@ -2877,6 +2880,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						complete(held, {static_cast<int>(failure.status), std::string(failure.body)});
 					}
 				}
+				// A next looked at this applied index waits for the next one (a publish wakes the owner) or
+				// its deadlines; any other is visited again at once. An export is `framing`'s.
+				for (const auto &held : frames_tasks) {
+					const auto &task = *held;
+					if (task.exporting)
+						continue;
+					if (task.settled || task.looked != node.state().applied_index())
+						frames_busy = true;
+					else
+						frames_until = std::min({frames_until, task.poll_deadline, task.deadline});
+				}
 				// The cutover's enabling entry, proposed by the leader as it leads: every consumer is a W5
 				// session, which a follower answers only once positions are enabled. A durable leader waits
 				// for its history, which cuts the entry's seal 0.
@@ -3334,7 +3348,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			const bool transient = peers || queued || !pending.empty() || !session_pending.empty() || read_count ||
 								   reading || delivering || framing || preparing || carry_task || control_count ||
 								   session_retirement->count || close_authorization->count ||
-								   session_authorization->count || !frames_tasks.empty();
+								   session_authorization->count || frames_busy;
 			const auto occupied = static_cast<std::size_t>(
 				std::count_if(session_tasks.begin(), session_tasks.end(), [](const auto &task) { return !!task; }));
 			if (!transient && rescan) {
@@ -3353,7 +3367,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 				// Session expiry is a sweep of its own; an idle owner runs it whole before sleeping.
 				subscriptions->collect(options_.subscriptions.sessions, now);
 				frames_sessions->collect(now, options_.subscriptions.sessions);
-				until = std::min(last_health + std::chrono::milliseconds(250), parked_until);
+				until = std::min({last_health + std::chrono::milliseconds(250), parked_until, frames_until});
 				// A leader's own entries are due at their deadlines: the enabling entry's retry and D136's seal.
 				if (node.worker().role() == kronuz::consensus::Role::Leader &&
 					(!node.history() || node.history()->ready())) {

@@ -18,6 +18,8 @@
   the upstream's `wait_ms`) or on a failure, which keeps the backoff. `interval_ms` is now the least
   time between syncs. `Upstream::wait` is new; `HttpUpstream::Stats` counts `waits`
   (docs/mechanisms/relay-mirror-wait.md).
+- detent-authority: a W5 next parked for a change no longer turns the owner loop every millisecond;
+  the owner sleeps until a publish or the next's deadline.
 
 ### Pins: workpool, no scheduler
 

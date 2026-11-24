@@ -848,8 +848,14 @@ def main() -> int:
             time.sleep(0.05)
         check(lagging.stale > 0, "relay C never asked the lagging voter")
         gated.closed = False
-        # A and B as they stop, past the write that woke C.
+        # A and B as they stop, past the write that woke C and its seal (seal_after, 1 s, later).
         settled = run.converged(run.endpoints())
+        for _ in range(5):
+            time.sleep(1.5)
+            later = run.converged(run.endpoints())
+            if later == settled:
+                break
+            settled = later
         held = {file["name"] for file in settled["authority"]["files"]}
         run.stop("relay-b")
         run.stop("relay-a")
