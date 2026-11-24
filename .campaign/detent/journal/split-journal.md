@@ -1,6 +1,6 @@
 # split-journal: journal
 
-State: working
+State: waiting on jobs 261124-155553-798354 (A2) and CI on quest/detent/split-journal 275d9e7
 Quest: .campaign/detent/quests/split-journal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,13 +23,11 @@ Verdicts (files over 1,000 lines; `git ls-files | xargs wc -l`):
 
 ## Next
 
-1. Split host_test (idle cases), prove with split_check, build, ctest -N.
-2. Split journal_test, same.
-3. docs/dev/splits.md (A1), verify, push.
+1. On the jobs and CI: answer the lead's A3 read. Pushed: quest/detent/split-journal at journal:275d9e7.
 
 ## Blocked on
 
-The two headers (include/**) are outside the file set; listed above for the lead.
+The two headers (include/**) are outside the file set; listed above and in docs/dev/splits.md for the lead. docs/dev/splits.md itself (A1) is outside test/** and CMakeLists.txt; the quest names it.
 
 ## Evidence
 
@@ -40,14 +38,38 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | `docs/dev/splits.md` (journal:275d9e7): split table, kept-whole table (turn_seal_test.cc), two header candidates outside the file set |
+| A2 | job 261124-155553-798354 (split_check.py --base fc5c59b492ff test); local run at 24b3653: 0 errors, 57 warnings, listed under Rulings |
+| A3 | [manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above |
+| A4 | CI on 275d9e7 (pushed); local: host and journal ctest entries, ctest -N identical (106 tests, ~/.scratch/journal-split/{base,head}-ctest.txt), new headers self-contained (selfcontained.sh -t: 17 ok) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+host_test.cc 1424 -> host_test.cc 793 + host_idle_test.cc 515 + host_support.h 189 (journal:ed420b3).
+journal_test.cc 2376 -> journal_test.cc 640 + journal_artifact_test.cc 557 + journal_store_test.cc 399 +
+journal_reopen_test.cc 637 + journal_support.h 308 (journal:24b3653). turn_seal_test.cc kept whole.
+Each new file is a source of the same executable (CMakeLists.txt target_sources); case names, the
+CMake case regex over host_test.cc and ctest -N are unchanged. Layout note: docs/dev/splits.md.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Support headers keep the shared helpers in an anonymous namespace (one copy per file), so no
+  function gains `inline` and no helper changes linkage; the two check counters (`checks`,
+  `failures`) are the only shared state: `extern` in the header, defined by the main file at global
+  scope (their line moved out of the anonymous namespace: internal to external linkage).
+- Cases that main calls from another file leave the anonymous namespace (the host idle cases were
+  already global): prototypes in the support header (the `void name();` warnings of split_check).
+- Functions with default arguments called by main (checkpoint_publication_failures,
+  store_artifact_completions, reclamation_failures, append_failures, recovery_failures) stay in
+  journal_test.cc: a split definition would have to drop its defaults, which is not a move.
+- The heap counter (replaced operator new/delete, JOURNAL_TEST_TSAN) moved to
+  journal_reopen_test.cc with the only cases that read it; the replacement still applies to the whole
+  executable.
+- The `Steal` template is in host_support.h; each tag and its explicit instantiation sit in the one
+  file that uses it (RangesTag in host_test.cc, OpenedTag in host_idle_test.cc), one instantiation each.
+- split_check warnings (57): the case prototypes and the two `extern` counters (namespace-scope
+  declarations added), and one `namespace {` opened per file for the helpers (anonymous namespaces in
+  new code); no dropped `static`, no added `inline`, no moved dynamic initializer, no dropped include
+  or comment.
+- turn_seal_test.cc kept whole (reason in the table). docs/dev/splits.md is outside the stated file
+  set, written because A1 names it.
