@@ -1,52 +1,33 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-072638-7efa59 261124-072640-a63185 261124-072642-7d4f31 261124-072644-b5fbdb 261124-072646-006a62 261124-072649-6d7137, CI 45425539843 (c4c70f8)
+State: waiting on jobs 261124-113944-9df262 261124-114001-fe77b1 261124-114006-501c4f 261124-114010-09df4a 261124-114015-8765f9 261124-114019-068816, and CI at e0fd383
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
 
-Coordinator's message (scaled windows lose kills, D152): window scaling abandoned. A3 jobs
-261124-040943-062bfb and 261124-040951-86f5e6 showed main's harness alone catching
-votes-and-pre-votes-without-the-log-check ("a node fenced", Linux seed 7 heal: probe in
-.scratch where/), lone-campaigns-after-12-election-timeouts (arm64, Linux, FreeBSD), and
-lone-campaigns-after-15000ms in 4 profiles vs 1.
+Round at consensus:e0fd383 (main merged with git merge, 50 commits; clean; core.h changed on main).
+Local check at the merged head, release -O2: consensus_liveness_test 20 seeds 1.7 s, 0 failures;
+LIVENESS_VERIFY 3.9 s, 0 failures.
 
-New fix (consensus:3d788fe, f2fb... see git log): main's windows unchanged; the harness holds a
-node's Tick before Core::next_deadline() (read after each core step) instead of stepping it, still
-drawing its delay, and delivers it before the node's next event. A leader's Tick is held only with a
-settled membership and not as a witness (a D3 removal waits for a Tick: next_deadline() does not
-report it; found by LIVENESS_VERIFY). Messages move instead of copy. Exactness: trace.py hashes
-every action list (time, node, kind, message kind+term); old == new == LIVENESS_VERIFY in every
-profile (job 261124-050515-3d9f0f at 3d788fe). Release 20 seeds: 5.1 s -> 2.0 s locally.
+A1's old-harness job 261124-072649-6d7137 failed in its harness (alarm 14 at 400 s on the old
+instrumented run, then a parser StopIteration). Harness fixed in phases.sh (not committed: .scratch
+is the home's): a baseline (old) run killed by the alarm now prints "over the alarm (400 s)" and
+is a result (rc 0, no per-phase table); the new harness over the alarm still fails the job; BOUND=90
+on the new plain run unchanged (D152); the parser tolerates an empty table. Signal death shows as
+-14 in Python and 142 in bash; both are mapped.
 
-Profiles: old harness 261124-044728-e459f6; new (followers only) 261124-051424-4f6936: Core::step
-53%, leader drive 36% (replicas() set per tick 14%), next_deadline 10%, queue 12%.
-
-Jobs out at e44fe39: 444ce3 (A2 ASan old vs new same host), 1d53c7 (equiv), 5486f3/677391/d5a4f8
-(A3 mutants, now also reporting identical output), 6e6be3 (A2 --fails-without at main: plain ASan
-above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): superseded by 6e6be3.
+Evidence at e0fd383, all queued once: 261124-113944-9df262 (A2, exclusive same-host A/B, BOUND 90),
+A3 261124-114001-fe77b1 (trace hash and VERIFY), 114006-501c4f / 114010-09df4a (core mutants),
+114015-8765f9 (custom mutants), A1 261124-114019-068816 (old per-phase, strict). The A3 jobs are
+submitted with --inputs on include/consensus/**, src/** and the test: `campaign job rerun` reused
+the c4c70f8 results, since a job's identity is only the files its command names, and main changed
+core.h. CI on the pushed head: see the check (the macos-x86_64 consensus_transport_rpc_host_fetch
+stall is consensus-fetch-oversize-abort's, outside my files, not touched).
 
 ## Next
 
-Code frozen at consensus:c4c70f8 (coordinator's standing rule: one evidence set per round; no
-push while it runs). Docs commit b8577c1 is local, unpushed.
-1. When the set finishes: read 7efa59 (exclusive same-host A/B, wall and CPU) and CI
-   45425539843's ASan time; merge main once (git merge, never rebase); push; paste the brief's
-   table; ready for review.
-
-Since the last entry:
-- Coordinator's standing rule (evidence once per round): code frozen at c4c70f8; this set runs
-  without another push. 7efa59 is the round's one exclusive same-host A/B. Done so far: a63185
-  (equiv at c4c70f8: old == new, old == verify, every profile).
-- CI 45415901609 at e71996d (serial typed events) ran on a slow runner: consensus_liveness
-  97.61 s, over 90 s (shared_worker 241.58 s, ratio 0.404; consensus_consensus 6.95 s, so liveness
-  is 14.0x it, as at 8511ff1; main 28.6-38.6x).
-- consensus:c4c70f8 runs the four profiles on threads, each into its own ordered report, printed
-  in profile order; output and the 20-failure cap equal the serial run's (local trace check:
-  old == new == verify). CPU unchanged; wall is bounded by FreeBSD (~43%). TSan: Core headers
-  hold no mutable statics; report is thread_local.
-- Probes are thread-safe now (trace.py thread_local hash via say(); instrument.py thread_local
-  profile, mutex on its maps); phases.sh prints wall and CPU.
+1. When the jobs and CI finish: paste the brief's table into Evidence; State ready to land if
+   linux-asan-ubsan passes and only the known macos-x86_64 fetch stall (other quest) fails.
 
 ## Blocked on
 
@@ -56,10 +37,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; lone, removed, witness, heal; FreeBSD 14.2x the default's events); also 261124-040930-6e9c88 at main |
-| A2 | pending 261124-070728-3cfde4; CI 45410562603 (8511ff1) consensus_liveness 40.79 s vs consensus_shared_worker 143.55 s = 0.284, main 0.590 (54c6599, typical) and 0.728 (512e3ef, slow, 173.49 s); --fails-without at main 261124-051846-6e6be3 (plain ASan 132.5 s > 90 s) |
-| A3 | 261124-061800-6a30e3 (trace hash old == new == LIVENESS_VERIFY, every profile), 261124-061802-f328be, 261124-061803-1460cf (17 core mutants), 261124-061805-bab941 (12 custom): same kills, same output lines |
-| A4 | pending: CI at the head |
+| A1 | 261124-114019-068816 (old harness per phase at the merged head; over the alarm is recorded as a result); table: 261124-061759-e60de0 (main's harness at e71996d, ASan per phase: derived profiles 96% of the time; FreeBSD 14.2x the default's events; main's test file is unchanged) |
+| A2 | 261124-113944-9df262 (exclusive A/B at e0fd383); earlier 261124-072638-7efa59 (c4c70f8: ASan 129.7 -> 64.8 s); CI linux-asan-ubsan 40.79 s (0.284 of consensus_shared_worker; main 0.590-0.728); --fails-without at main 261124-051846-6e6be3 (plain ASan 132.5 s > 90 s) |
+| A3 | 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 (at e0fd383; earlier at c4c70f8: 261124-072640-a63185, 072642-7d4f31, 072644-b5fbdb, 072646-006a62) |
+| A4 | pending: CI at e0fd383 |
 
 Jobs examined and set aside: 261124-040934-6f74ca (hit its own alarm), 261124-040939-f3dbf8 and
 261124-040943-062bfb/-6ef39b/040951-86f5e6 (scaled windows, withdrawn: they showed the lost
