@@ -8027,7 +8027,8 @@
         "test/transport/rpc_hosts.h",
         "test/transport/repeat.sh",
         "docs/mechanisms/transport*.md",
-        "docs/mechanisms/rpc-lane.md"
+        "docs/mechanisms/rpc-lane.md",
+        "test/transport/lag.h"
       ],
       "journal": "../Detent-wt/detent/consensus-rpc-host-stream-gap",
       "landed": [],
@@ -8035,12 +8036,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "review F2: Lag::stop() joins the sampler; Lag lives in rpc_hosts.h, used only by rpc_host_test.cc",
+      "reason": "one Lag for every transport test: seeds_test needs it and collides with rpc_hosts.h's fixture names",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T03:30:04",
+      "updated": "2026-11-24T04:18:49",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
@@ -8114,7 +8115,8 @@
     "consensus-seeds-rate-flake": {
       "accepted": {},
       "after": [
-        "xapiand:consensus-join-v2"
+        "xapiand:consensus-join-v2",
+        "consensus-rpc-host-stream-gap"
       ],
       "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
       "branch": "quest/detent/consensus-seeds-rate-flake",
@@ -8138,11 +8140,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "uses the shared test/transport/lag.h that rpc-host-stream-gap extracts; no local copy",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T04:12:39",
+      "updated": "2026-11-24T04:18:54",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
