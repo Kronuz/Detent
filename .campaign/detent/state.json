@@ -6317,6 +6317,38 @@
       "updated": "2026-11-20T04:10:24",
       "worktree": ""
     },
+    "consensus-inline-sync-loop": {
+      "accepted": {},
+      "after": [
+        "consensus-fetch-alongside-flake",
+        "consensus-rpc-host-stream-gap"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/host_transport.h",
+        "DRIVER.md",
+        "docs/mechanisms/**",
+        "test/transport/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
+      "updated": "2026-11-23T19:57:28"
+    },
     "consensus-install-test-faultfs": {
       "accepted": {},
       "after": [],
