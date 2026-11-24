@@ -816,6 +816,20 @@ def main() -> int:
             f"byte-identical at the authority, A and B, the answer at no cursor also read directly; "
             f"heads {heads}"
         )
+        # W5's session contract: a next on a busy session (409 session_busy) is asked again.
+        proxy = Proxy(run.certificates, run.context, run.http[run.leader()], busy=True)
+        try:
+            via = run.probe(proxy.port, MIRROR)
+        finally:
+            proxy.close()
+        check(
+            via == first["authority"],
+            "the probe through busy nexts answered differently",
+        )
+        check(proxy.busy > 0, "the proxy answered no next busy")
+        run.log(
+            f"W5: {proxy.busy} nexts answered 409 session_busy; the reader asked again, answers unchanged"
+        )
         # At rest each relay waits on its upstream: no sync in 2 s, where every 100 ms polled 20.
         rested = {name: run.mirror(name)["syncs"] for name in ("a", "b", "c")}
         time.sleep(2)
@@ -834,22 +848,9 @@ def main() -> int:
             time.sleep(0.05)
         check(lagging.stale > 0, "relay C never asked the lagging voter")
         gated.closed = False
-        # W5's session contract: a next on a busy session (409 session_busy) is asked again.
-        proxy = Proxy(run.certificates, run.context, run.http[run.leader()], busy=True)
-        try:
-            via = run.probe(proxy.port, MIRROR)
-        finally:
-            proxy.close()
-        check(
-            via == first["authority"],
-            "the probe through busy nexts answered differently",
-        )
-        check(proxy.busy > 0, "the proxy answered no next busy")
-        run.log(
-            f"W5: {proxy.busy} nexts answered 409 session_busy; the reader asked again, answers unchanged"
-        )
-
-        held = {file["name"] for file in first["authority"]["files"]}
+        # A and B as they stop, past the write that woke C.
+        settled = run.converged(run.endpoints())
+        held = {file["name"] for file in settled["authority"]["files"]}
         run.stop("relay-b")
         run.stop("relay-a")
         run.start_relay("a")
@@ -863,7 +864,7 @@ def main() -> int:
         again = {name: run.probe(*where) for name, where in run.endpoints().items()}
         for name in ("a", "b"):
             check(
-                again[name] == first[name],
+                again[name] == settled[name],
                 f"relay {name} answers differently after a restart",
             )
         # The next seals: the restarted relays follow them again, and C moves off its lagging voter.

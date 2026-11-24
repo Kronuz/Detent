@@ -685,9 +685,15 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 			  << failed << " syncs: \"" << down.error << "\"\n";
 	// 20 + 40 + ... + 320 ms, then one per 400 ms.
 	check(failed >= 2 && failed <= std::uint64_t(gone / 400ms) + 6);
+	// A returns as it was, its change published, so its seal is B's and not one B refuses as older.
 	a = std::make_unique<RelayA>(f, root / "a", 200, port);
+	a->publish();
 	const auto back = b.status().syncs;
-	until([&] { return b.status().syncs > back && b.status().error.empty(); }, "relay B syncing from A again");
+	try {
+		until([&] { return b.status().syncs > back && b.status().error.empty(); }, "relay B syncing from A again");
+	} catch (const std::runtime_error &error) {
+		throw std::runtime_error(std::string(error.what()) + ": \"" + b.status().error + "\"");
+	}
 }
 } // namespace
 

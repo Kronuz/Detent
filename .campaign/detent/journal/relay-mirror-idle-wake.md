@@ -9,20 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-msg-310: the lead widened the set; the fix is committed (e2f92d48), main merged (80393d76, no
-src change), branch pushed. Dangling probe c97932cb and its job 261124-034543-d72b56 cancelled.
-Queued at 80393d76 against main ba79caae:
-- A3 fixed side: 261124-035147-903054 (test_http_upstream). Fails-without at main: 261124-033951-a94472
-  (exit 8, "B synced 37 times in 1.5 s at rest").
-- A5 suite: 261124-035149-ce2080.
-- A1 idle CPU relay+authority at 250 ms, 3 rounds interleaved, exclusive: 261124-035150-981777;
-  A/A band (main twice, at b06a8102): 261124-035211-92ed4b (the first A/A, 261124-034500-c0335d,
-  was superseded by the A1 job and cancelled).
-- A2 latency p50/p99, exclusive: 250 ms 261124-035152-3ac6f3, 10 ms 261124-035154-314fca; A/A
-  latency band 261124-034503-387342.
-
-Smoke 261124-033656-d26b03 (main's code, 5 s): idle relay 1.56% of a core, 4.36 syncs/s,
-authority 2.34% at 250 ms; latency p50 145 ms.
+Round 2 (lead's message after 80393d76). Causes, both in my test edits, not the fix:
+- A3 903054 / suite test_http_upstream: restarted relay A is a fresh voter at seal 2 while B holds
+  A's published seal 3, so every B sync is UpstreamBehind ("older seal") and the 30 s `until`
+  times out. Fix: the restarted A publishes once (its seal is B's again); the timeout message now
+  carries B's error. Polling at main would fail the same way; not a wake-path change.
+- Suite test_relay_service: the write I added to wake C ran before the busy-next probe, which
+  compares to `first`. Fix: the busy probe runs before the idle check and the write; the restart
+  comparison uses `settled`, a converged probe taken just before A and B stop.
+- Suite test_agent_store_crash (Timeout 900 s): pre-existing, not mine; the same timeout is in
+  other quests' suites 261123-175720-145715, 261123-200442-1898b2, 261124-065709-635779 (agent
+  store, no relay code).
+Neither fix touches src, so A1/A2 rows stand. Local targeted run under `quiet light` pending.
 
 ## Design (sent to the lead as msg-310)
 
@@ -44,7 +42,14 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Blocked on
 
-Nothing (msg-310 answered: the set now holds the headers and http_upstream.cc).
+The lead: A1's authority regression. A parked next spins the authority's owner loop (~780 turns/s,
++3.65% of a core), more than the relay saves (1.04%). The cause is in src/detent_authority/
+service.cc (a parked frames task counts as transient, 1 ms turns), outside this set. Options:
+1. A quest (loop-idle-waits' shape) that wakes parked frames tasks on apply or their deadline;
+   this quest lands after it, and A1's authority row is rerun then (needs your go). Recommended:
+   agents parked at the authority pay the same spin today.
+2. Widen this set to service.cc and fix it here (high risk, authority loop).
+3. Land as is: relay -1.04% each, authority +3.65% while any relay or agent parks.
 
 ## Evidence
 
@@ -59,9 +64,30 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+The mirror waits on its upstream with a parked W5 next on a second session and syncs on its
+return (change, deadline, failure); docs/mechanisms/relay-mirror-wait.md, CHANGELOG.md.
+
+A1, 981777 (fix 80393d76 vs main ba79caae, 250 ms, 3 x 20 s interleaved, exclusive); band 92ed4b
+(main twice): relay 1.12-1.19% of a core, authority 1.59-1.68%.
+| | main | fix |
+|---|---|---|
+| relay CPU, % of a core | 1.117, 1.098, 1.095 | 0.059, 0.060, 0.057 |
+| relay syncs/s | 3.80-3.85 | 0.0 |
+| relay interrupt wakeups/s | 36.2-36.6 | 11.1 |
+| authority CPU, % of a core | 1.552, 1.536, 1.521 | 5.159, 5.395, 5.013 |
+| authority owner turns/s | 19.9-20.1 | 773-788 |
+| authority interrupt wakeups/s | 68-69 | 856-862 |
+Relay: -1.044% of a core = 902 core-s a day per relay (about 0.1 W at 10 W a core). The relay's
+residual 0.059% is its host turn (9.9 turns/s, unchanged), no mirror work.
+Authority: +3.65% of a core = 3,156 core-s a day (+0.37 W): a parked W5 next makes the authority's
+owner turn every ~1 ms (service.cc:3337, `!frames_tasks.empty()` counts as transient work). That
+cost is per authority while any next is parked (agents park nexts there today), not per relay.
+Net for one relay on one authority: +2.6% of a core until the authority waits properly.
+
+A2 (p50 / p99 ms, 3 rounds each): at 250 ms, 3ac6f3: main 158.8/329.9, 166.7/325.3, 157.3/269.6;
+fix 31.0/169.5, 31.1/171.9, 31.7/182.1 (A/A band 387342: p50 168-186, p99 309-345). At 10 ms,
+314fca: main 33.7/180.0, 37.4/165.1, 34.4/162.5; fix 31.0/190.7, 31.1/172.4, 31.1/181.0: p50 3-6 ms
+lower, p99 +7 to +16 ms, inside the 250 ms A/A p99 spread (36 ms) but with no 10 ms A/A row.
 
 ## Rulings I made
 
