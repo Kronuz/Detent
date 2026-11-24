@@ -8115,7 +8115,8 @@
     "consensus-seeds-rate-flake": {
       "accepted": {},
       "after": [
-        "xapiand:consensus-join-v2"
+        "xapiand:consensus-join-v2",
+        "consensus-rpc-host-stream-gap"
       ],
       "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
       "branch": "quest/detent/consensus-seeds-rate-flake",
@@ -8139,11 +8140,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "uses the shared test/transport/lag.h that rpc-host-stream-gap extracts; no local copy",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T04:12:39",
+      "updated": "2026-11-24T04:18:54",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
