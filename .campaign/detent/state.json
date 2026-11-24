@@ -6518,7 +6518,52 @@
       "worktree": ""
     },
     "consensus-follower-read": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T05:51:09",
+          "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:eeb906a8265bc9fb8330525f27089d6ade81aa8c",
+            "CHANGELOG.md": "100644:21f98e8f9671759dfd6b7a6f8f51a9a7f86d5dde",
+            "CMakeLists.txt": "100644:b7c0a7b7810d455cb488d73de7d8823165fc05c6",
+            "docs/mechanisms/follower-read.md": "100644:1dbfeb2e499a4e2be0c4dbd1a62f3efad05e4b55",
+            "fuzz/corpus/decoders/seed-read-index-refusal": "100644:d097e146f08ef4bf543c34ccc69894efecdac943",
+            "fuzz/corpus/decoders/seed-read-index-request": "100644:6d1d6caecc93e2979fe5b2231f0c67374bea17cd",
+            "fuzz/corpus/decoders/seed-read-index-response": "100644:34f1594ab50f0e7406db9a3a6f4f0800974ea5bf",
+            "fuzz/seed.cc": "100644:924b063f35ae12924da1a9cef870f51b72e76eaa",
+            "include/consensus/admission.h": "100644:b334562848aa295e8b97aa550ef5c294a092b010",
+            "include/consensus/core.h": "100644:9da9e043bf8fa054fc606de80ac091bd800797ca",
+            "include/consensus/driver.h": "100644:7185f8af7ce4b7312bc9b2687c87c45e6b7ebe8f",
+            "include/consensus/transport/codec.h": "100644:48d9144b4b9e63569ea55288f5622f4cef773789",
+            "include/consensus/types.h": "100644:eb23da42f8c81aa0c459150f6b7f511bdd874eac",
+            "test/follower_read_mutants.py": "100644:d191ef16ad0b5d7e66be94269dc0c4f34d257ee6",
+            "test/follower_read_test.cc": "100644:91d02f29070359ddab070a3ac6d0930c4f11c39f"
+          },
+          "by": "review",
+          "commit": "0b8c911460ff778ac564561c8e52b764f5c54dc6",
+          "criteria": "3616ba87f672ca9f",
+          "diffs": {
+            "": "df042119c8ea7fa8",
+            "ARCHITECTURE.md": "3ab2be8871915e40",
+            "CHANGELOG.md": "b36919ea4da8412f",
+            "CMakeLists.txt": "0f516dfd151d77bf",
+            "docs/mechanisms/follower-read.md": "36b1a0e74942b972",
+            "fuzz/seed.cc": "12a8fe2677064c49",
+            "include/consensus/admission.h": "82dd9f147952fc92",
+            "include/consensus/core.h": "710ed0f950c59698",
+            "include/consensus/driver.h": "029ab81a64b5b7e9",
+            "include/consensus/transport/codec.h": "85951460981a62b6",
+            "include/consensus/types.h": "ac10e69c6136b0e0",
+            "test/follower_read_mutants.py": "848c2e84a11cf2d2",
+            "test/follower_read_test.cc": "e701a81c0a4094d7"
+          },
+          "findings": {},
+          "note": "",
+          "review": "d52c07890e5c00314b282a4a969cb52cbc007340",
+          "reviewed": "0b8c911460ff778ac564561c8e52b764f5c54dc6",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-quiesce-election-stall",
         "consensus-peers-wake",
@@ -6564,7 +6609,7 @@
       "risk": "high",
       "status": "review",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T03:48:40",
+      "updated": "2026-11-24T05:51:09",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
