@@ -9,20 +9,36 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Design round 3 (re-review CHANGES at Detent:0e096e0e, review file at Detent:e4218ae2; lead ruled
-segment bitmaps): docs/design/observability.md rewritten for marks + fold + rows-for-counts; the
-model tests/detent_reader/usage_claim_model.cc rewritten for marks, the fold and the row claim. No
-core code. Model job queued (see Evidence).
+Design round 4 (review CHANGES T1-T11 at Detent:780c353f; owner D161: `ever_read` exact per
+generation, no fold): docs/design/observability.md revised (fold removed, lifecycle table rebuilt
+first, T5-T9 and T11 fixed); the model rewritten for per-generation marks. Doc and model only.
 
 ## Next
 
-1. Whole-design re-review at max effort. Owner (through the lead): `ever_read` in
-   detent_knob_usage (D6) and DETENT_MINIMUM_MAPPING_BYTES 1,055,136 → 1,071,520 (D10).
+1. Design re-review. Code waits for `first-read-1ms` to land (it holds the reader hot path).
 2. Before any code edit in src/detent_local, the lead widens the file set to D10's surface:
    src/detent_local/paged_page_access.hh, lazy_page_access.hh, lazy_page_access.cc,
    paged_read_state.hh, paged_read_state.cc (evaluation.hh is already in), plus view.cc,
    tests/detent_local/test_evaluation.cc, tests/detent/test_one_knob_differential.cc (`.value`).
 3. Then the code per the Build plan's first row; A2 per D2's gate and Checks.
+
+## Findings → fixes (design round 4)
+
+| Finding | Fix (docs/design/observability.md) | Check |
+|---|---|---|
+| T1 fold budget unbounded | Gone with the fold (D161): the freer frees and does nothing else; no per-publish work beyond the core's. Fold moved to Alternatives | model `publish_resets`, `retired_marks_unreported` (`freer_work` 0); Lifecycle `publish_resets`, `retired_marks` |
+| T2 answers depend on usage | (i)-(iii) gone: no pending generation, no successor lookups, the walk enters verified pages only and verifies nothing. What remains is stated: the mark mapping's charge (D10 Mapping cap, Limit 11) | Lifecycle `usage_answers` (same statuses and values on and off at a cap that holds both, a corrupt unread page; `verifications` unchanged by `detent_usage`) |
+| T3 walk misses deep marks | Still applies to `detent_usage`'s walk; fixed: enter each verified page from the root, name marked bodies; priced 1.8 µs per verified page (estimate) | model `walk_deep` (verified walk names all; the marks-only walk names none); Lifecycle `ever_read` on the 100K store |
+| T4 fork reports parent's reads | Gone: retired marks are never reported. The child clears every ring generation's mark mapping anyway (`core.cc:280-282` visits them) | model `fork_child` (and the negative run without the clear); Lifecycle `fork_child` with a reader parked at `Pinned` |
+| T5 bitmap two ways | One anonymous mapping per PageTable, `root.segments` × 16,384 B, made and charged once at attach (page-rounded once), remapped zeroed in the child, unmapped with the table | Lifecycle `mark_charge`: on − off charge equals `rounded_mapping_bytes(root.segments × 16,384)` exactly, 100K store and one-pack store |
+| T6 minimum undecidable | Minimum unchanged (1,055,136), the open-time floor reader.md:130 defines; the mark mapping is charged at attach beside page-table allocations. "Reads one segment" dropped | Lifecycle `open_bounds` (1,055,136 opens on and off) |
+| T7 detent_usage waiting | Never takes `refreshing`, never refreshes, never waits: pins the installed view, walks, unpins (D6 item 4) | model `usage_no_wait`; Lifecycle `usage_during_refresh` |
+| T8 statuses[OK] | `statuses[DETENT_OK]` is 0; OK reads estimated from rows (D6 item 3) | Lifecycle `fallbacks` asserts 0 |
+| T9 struct sizes | D6 item 7: totals NULL allowed; size below first version → INVALID_ARGUMENT, nothing written; writes below min(size, library's), sets size; records carry the library's size | Lifecycle `usage_abi` (canaries, short and long structs) |
+| T10 freer allocation | Gone: no carried names; the freer allocates nothing | model `freer_work` 0; Lifecycle `retired_marks` (no allocation in the freer) |
+| T11 close test | Lifecycle `close_retired`: retired, unfreed, marked generation at close; `mark_mappings` back to its value, ASan/LSan clean | model `close_retired` (live generations back to 0) |
+| msg item 3 hot path | D10 "Hot-path cost against G2": address arithmetic + relaxed load + test; `fetch_or` once per knob per generation; `ever_bit` +2.6/+3.1 ns, `ever_sampled` up to +6.4 ns at 8 threads, under 10 ns by 3.6 ns; G2 decides | G2 at code time |
+| msg item 4 minimum | One line for the owner in D10: no change | |
 
 ## Findings → fixes (design round 3)
 
@@ -63,14 +79,16 @@ core code. Model job queued (see Evidence).
 
 ## Blocked on
 
-Lead: whole-design re-review at max effort; file set widened to D10's src/detent_local surface.
-Owner (through the lead): `ever_read` (D6) and the new DETENT_MINIMUM_MAPPING_BYTES (D10).
+Lead: design re-review; file set widened to D10's src/detent_local surface; code after
+`first-read-1ms` lands. Owner: nothing new (D161 decided `ever_read`; the minimum does not change).
 
 ## Messages
 
 - msg-1 (lead: file set widened; view records in; P2/P3 to the owner): done. View records are in
   D5 and D6; the file set still lacks view.cc and the two evaluation tests (N7).
 - Coordinator's design fix round (CHANGES, F1-F8): done, table above.
+- Coordinator: D161 (per-generation `ever_read`, no fold) and round-3 CHANGES T1-T11 at
+  780c353f: done, round-4 table above.
 - Coordinator: re-review CHANGES at 0e096e0e, lead rules segment bitmaps, R1-R5 and the table
   rebuild: done, round-3 table above.
 - Coordinator: D158 accepts D6's ABI shape; recorded in the doc's header and D6. P2 (D10) is
@@ -84,9 +102,10 @@ Owner (through the lead): `ever_read` (D6) and the new DETENT_MINIMUM_MAPPING_BY
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 
-Model (round 3): job `261124-112726-6e7cf6` (light, TSan, at Detent:fa7e5fba) exit 0, no TSan
-report, all eleven outcomes as designed; cycle: at least 615 of 1,024 names in 64 cycles and all
-within 800 over 100 seeds (fixed 64: 16); fresh: 69 of 10,000 first lookups sampled.
+Model (round 4): local run under `quiet light` (TSan) at the round-4 commit, exit 0, no TSan
+report, all 16 outcomes as designed, including the negative fork run (without the clear the child
+reports the parent's reads); cycle: at least 615 of 1,024 names in 64 cycles, all within 800;
+fresh: 88 of 10,000. Round 3's job `261124-112726-6e7cf6` covered the folded design.
 
 ## Result
 
@@ -98,11 +117,11 @@ within 800 over 100 seeds (fixed 64: 16); fresh: 69 of 10,000 first lookups samp
 2. (Round 3, replaces old 2-4) Marks are the read record; rows hold sampled counts only, and any
    sampled status in an opened namespace takes a row by name (missing included), so `ever_read`
    separates "read OK" from "has a row".
-3. The fold's budget is 1,024 keys per freer pass, at most one pending generation per namespace;
-   a second retire finishes the pending one unbudgeted.
-4. A failed successor lookup during the fold carries the name rather than retrying.
-5. Fork child remaps rows, name set and mark bitmaps anonymous, clears carried and pending (N3) and reseeds stripes.
+3. (Round 4, replaces the fold rulings) Rows stay since open across publishes; only `ever_read`
+   is per generation. `detent_usage` pins rather than takes `refreshing`.
+4. `statuses[DETENT_OK]` is 0 rather than a sampled estimate: one array, one meaning (exact).
+5. Fork child remaps rows, name set and every ring generation's mark mapping anonymous (N3) and reseeds stripes.
 6. `usage_slots` maximum 8,388,608: above the store's 5M knobs, below allocations that cannot
    succeed.
-7. Mark bitmaps are charged to the mapping cap with their segment; the minimum grows by 16,384 B
-   (owner's, reserved ABI constant).
+7. The mark mapping is one per generation sized for full segments (sizes unknown at attach),
+   charged once at attach; the mapping minimum does not change.

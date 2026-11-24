@@ -1,6 +1,6 @@
 // Executable model of the usage design (docs/design/observability.md D2, D3), run under TSan by
-// usage_claim_model.sh: segment-bitmap marks with the fold across publishes, the row claim on the
-// sampled path, and the sampling countdown. Each scenario forces one interleaving or checks one
+// usage_claim_model.sh: segment-bitmap marks exact per generation (no fold across publishes), the
+// walk that names them, the row claim on the sampled path, and the sampling countdown. Each scenario forces one interleaving or checks one
 // claim of the design; the program exits 0 when every outcome matches.
 #include <algorithm>
 #include <array>
@@ -25,7 +25,7 @@ constexpr std::uint32_t none = UINT32_MAX, overflow = UINT32_MAX - 1;
 constexpr std::size_t cells = 9, spare_cells = 64;
 enum Cell { Published, Missing = 7 };
 
-enum class Window { SawEmpty, RowWritten, NamePublished, Marked };
+enum class Window { SawEmpty, RowWritten, NamePublished, Marked, Refreshing };
 std::function<void(Window)> hook;
 void window(Window at) {
 	if (hook)
@@ -138,21 +138,49 @@ struct Table {
 	}
 };
 
-// ---- Marks: one bit per 8 bytes of a generation's segments (D3, Marks) ----
+// ---- Marks: one bit per 8 bytes of a generation's segments, exact per generation (D3, Marks) ----
+// A generation is a two-level trie when `deep`: the root page holds branch nodes only (no body, so no
+// mark), and each leaf page holds 64 bodies. A lookup verifies the pages on its path.
+struct Page {
+	std::atomic<bool> verified{false};
+	std::vector<std::size_t> children;
+	std::vector<std::pair<std::string, std::size_t>> bodies; // key, body offset
+};
+std::atomic<int> live_generations{0};
+std::atomic<std::uint64_t> generation_ids{0};
 struct Generation {
-	std::map<std::string, std::size_t, std::less<>> bodies; // key -> body offset (the trie)
+	const std::uint64_t id = generation_ids.fetch_add(1) + 1;
+	std::vector<std::unique_ptr<Page>> pages; // pages[0] is the root
+	std::map<std::string, std::pair<std::size_t, std::size_t>, std::less<>> index; // key -> page, offset
 	std::vector<std::atomic<std::uint64_t>> bits;
 	std::atomic<int> pins{0};
-	std::size_t folded = 0; // keys walked by the fold so far; the freer's
-	explicit Generation(const std::vector<std::string> &keys, std::size_t stride = 16)
+	explicit Generation(const std::vector<std::string> &keys, std::size_t stride = 16, bool deep = false)
 	    : bits(keys.size() * stride / 512 + 1) {
+		live_generations.fetch_add(1);
+		pages.push_back(std::make_unique<Page>());
 		std::size_t offset = 0;
-		for (const auto &key : keys)
-			bodies[key] = (offset += stride);
+		for (std::size_t i = 0; i != keys.size(); ++i) {
+			std::size_t page = 0;
+			if (deep) {
+				if (i % 64 == 0) {
+					pages[0]->children.push_back(pages.size());
+					pages.push_back(std::make_unique<Page>());
+				}
+				page = pages.size() - 1;
+			}
+			pages[page]->bodies.emplace_back(keys[i], offset += stride);
+			index[keys[i]] = {page, offset};
+		}
 	}
+	~Generation() { live_generations.fetch_sub(1); }
+	// The answer: verifies the root and the body's page, returns the body's offset.
 	const std::size_t *find(std::string_view key) const {
-		const auto at = bodies.find(key);
-		return at == bodies.end() ? nullptr : &at->second;
+		pages[0]->verified.store(true, std::memory_order_relaxed);
+		const auto at = index.find(key);
+		if (at == index.end())
+			return nullptr;
+		pages[at->second.first]->verified.store(true, std::memory_order_relaxed);
+		return &at->second.second;
 	}
 	// A warm hit: one load; the generation's first read of the key: one fetch_or.
 	bool mark(std::size_t offset) {
@@ -166,91 +194,84 @@ struct Generation {
 	bool marked(std::size_t offset) const {
 		return bits[offset / 8 / 64].load(std::memory_order_relaxed) >> (offset / 8 % 64) & 1;
 	}
+	// detent_usage's walk: enter each verified page from the root, name the marked bodies (T3). With
+	// `by_marks` it enters only pages holding a mark, the walk round 3 specified.
+	std::set<std::string> walk(bool by_marks = false) const {
+		std::set<std::string> names;
+		std::vector<std::size_t> stack{0};
+		while (!stack.empty()) {
+			const auto &page = *pages[stack.back()];
+			stack.pop_back();
+			bool any = false;
+			for (const auto &[key, offset] : page.bodies)
+				any |= marked(offset);
+			if (by_marks ? !any : !page.verified.load(std::memory_order_relaxed))
+				continue;
+			for (const auto &[key, offset] : page.bodies)
+				if (marked(offset))
+					names.insert(key);
+			stack.insert(stack.end(), page.children.begin(), page.children.end());
+		}
+		return names;
+	}
+	void clear() {
+		for (auto &word : bits)
+			word.store(0, std::memory_order_relaxed);
+	}
 };
 
-// The handle with one namespace: its installed generation, retired generations (still pinned or
-// not yet folded), at most one pending fold, and the names carried past their generation (D3, Fold).
+// The handle with one namespace: the installed generation and the retired ones a reader still pins.
+// `view` stands for the pin's load of the installed view; `refreshing` is held across a refresh.
 struct Handle {
-	std::mutex refreshing; // the core's `refreshing` flag; it also stands in for the pin's view load
+	std::mutex refreshing, view;
 	std::shared_ptr<Generation> installed;
 	std::vector<std::shared_ptr<Generation>> retired;
-	std::vector<std::shared_ptr<Generation>> pending;
-	std::set<std::string, std::less<>> carried;
-	std::size_t budget = 4096;
+	std::size_t freer_work = 0; // successor lookups and allocations the freer makes: none
 
-	// A lookup: pin the installed generation, answer, mark, unpin. True when the key was found.
-	bool read(const std::string &key) {
-		std::shared_ptr<Generation> g;
-		{
-			std::lock_guard lock(refreshing);
-			g = installed;
-			g->pins.fetch_add(1);
-		}
+	std::shared_ptr<Generation> pin() {
+		std::lock_guard lock(view);
+		installed->pins.fetch_add(1);
+		return installed;
+	}
+	// A lookup: pin, answer, mark, unpin. Returns the answering generation's id, or 0 when missing.
+	std::uint64_t read(const std::string &key) {
+		const auto g = pin();
 		const auto *offset = g->find(key);
 		if (offset && g->mark(*offset))
 			window(Window::Marked);
 		g->pins.fetch_sub(1, std::memory_order_release);
-		return offset != nullptr;
+		return offset ? g->id : 0;
 	}
-	// Folds `old` into the installed generation, at most `limit` marked keys; true when done.
-	bool fold(Generation &old, std::size_t limit) {
-		std::size_t done = 0, at = 0;
-		for (const auto &[key, offset] : old.bodies) {
-			if (at++ < old.folded)
-				continue;
-			if (done == limit)
-				return false;
-			++old.folded;
-			if (!old.marked(offset))
-				continue;
-			++done;
-			if (const auto *target = installed->find(key))
-				installed->mark(*target);
-			else
-				carried.emplace(key);
-		}
-		return true;
-	}
-	// The freer, on the refresh path: the pending fold first, then retired generations that no
-	// reader pins, within the budget.
-	void free_retired(std::size_t limit) {
-		for (auto it = pending.begin(); it != pending.end();)
-			if (fold(**it, limit))
-				it = pending.erase(it);
-			else
-				return;
-		for (auto it = retired.begin(); it != retired.end();) {
-			if ((*it)->pins.load(std::memory_order_acquire)) {
-				++it;
-				continue;
-			}
-			if (!fold(**it, limit))
-				pending.push_back(*it);
-			it = retired.erase(it);
-		}
+	// The freer frees what no reader pins, and does nothing else (no fold).
+	void free_retired() {
+		std::erase_if(retired, [](const auto &g) { return g->pins.load(std::memory_order_acquire) == 0; });
 	}
 	void publish(std::shared_ptr<Generation> next) {
 		std::lock_guard lock(refreshing);
-		// At most one pending fold: an older one finishes now, into the generation it was folding into.
-		for (auto &p : pending)
-			fold(*p, SIZE_MAX);
-		pending.clear();
-		retired.push_back(std::exchange(installed, std::move(next)));
-		free_retired(budget);
+		window(Window::Refreshing);
+		{
+			std::lock_guard pinning(view);
+			retired.push_back(std::exchange(installed, std::move(next)));
+		}
+		free_retired();
 	}
-	// detent_usage under `refreshing`: finishes the pending fold, then names every mark.
+	// detent_usage: pins the installed view as a lookup does, walks, unpins; never takes `refreshing`.
 	std::set<std::string> usage() {
-		std::lock_guard lock(refreshing);
-		free_retired(SIZE_MAX);
-		std::set<std::string> names(carried.begin(), carried.end());
-		for (const auto &[key, offset] : installed->bodies)
-			if (installed->marked(offset))
-				names.insert(key);
-		for (const auto &g : retired) // still pinned: reported from their own marks, folded later
-			for (const auto &[key, offset] : g->bodies)
-				if (g->marked(offset))
-					names.insert(key);
+		const auto g = pin();
+		auto names = g->walk();
+		g->pins.fetch_sub(1, std::memory_order_release);
 		return names;
+	}
+	// The fork child's handler: every ring generation's marks zeroed, pins zeroed (core.cc:278-282).
+	void child_after_fork(bool clear_marks = true) {
+		for (auto *g : {&installed})
+			if (clear_marks)
+				(*g)->clear();
+		for (auto &g : retired) {
+			if (clear_marks)
+				g->clear();
+			g->pins.store(0);
+		}
 	}
 };
 
@@ -280,90 +301,156 @@ bool check(bool ok, const char *what) {
 	return ok;
 }
 
-// A publish that reorders and deletes: every key read before it is still reported, the kept keys
-// through the new generation's marks and the deleted one carried by name.
-bool publish_reorder_delete() {
+// D161: a publish that reorders and deletes starts a record of its own: nothing is carried, the
+// freer frees the old generation at once and makes no lookup or allocation (T1, T2, T10).
+bool publish_resets() {
 	Handle h;
 	h.installed = std::make_shared<Generation>(keys(0, 100));
 	for (const auto *key : {"ns:k3", "ns:k50", "ns:k99"})
 		h.read(key);
+	const bool before = h.usage() == std::set<std::string>{"ns:k3", "ns:k50", "ns:k99"};
 	auto reordered = keys(0, 99); // k99 deleted
 	std::reverse(reordered.begin(), reordered.end());
 	h.publish(std::make_shared<Generation>(reordered, 24));
-	const auto names = h.usage();
-	return names == std::set<std::string>{"ns:k3", "ns:k50", "ns:k99"} && h.carried.count("ns:k99") == 1 &&
-	       h.installed->marked(*h.installed->find("ns:k3")) && h.retired.empty() && h.pending.empty();
+	const bool reset = h.usage().empty() && h.retired.empty() && h.freer_work == 0 && live_generations.load() == 1;
+	h.read("ns:k3");
+	return before && reset && h.usage() == std::set<std::string>{"ns:k3"};
 }
 
-// A reader pinned on the old generation marks a key after the publish: the fold waits for the
-// unpin, so the late mark is reported meanwhile and folded after.
-bool late_mark_on_retired() {
+// A reader pinned on the old generation marks a key after the publish: the mark stays in the retired
+// generation, is never reported, and goes with it when the freer frees it (T1-T4 have no subject).
+bool retired_marks_unreported() {
 	step = 0;
 	Handle h;
 	h.installed = std::make_shared<Generation>(keys(0, 10));
 	park_first_at(Window::Marked);
-	std::thread reader([&] { h.read("ns:k7"); }); // marks k7, parks before its unpin
+	std::thread reader([&] { h.read("ns:k7"); }); // marks k7 in generation 1, parks before its unpin
 	wait_for(1);
-	h.publish(std::make_shared<Generation>(keys(0, 10))); // the old one is pinned: not folded
-	const bool held = h.retired.size() == 1 && !h.installed->marked(*h.installed->find("ns:k7"));
-	const bool reported = h.usage().count("ns:k7") == 1;
+	h.publish(std::make_shared<Generation>(keys(0, 10))); // generation 1 is pinned: kept, not freed
+	const bool held = h.retired.size() == 1 && h.usage().empty();
 	step = 2;
 	reader.join();
 	hook = nullptr;
-	h.usage(); // unpinned now: folds
-	return held && reported && h.retired.empty() && h.installed->marked(*h.installed->find("ns:k7"));
+	h.publish(std::make_shared<Generation>(keys(0, 10))); // frees both retired generations
+	return held && h.retired.empty() && h.usage().empty() && h.freer_work == 0 && live_generations.load() == 1;
 }
 
-// The budget: a fold larger than it stays pending and is reported; a second publish finishes the
-// older pending fold first; detent_usage finishes the rest.
-bool budget_and_pending() {
-	Handle h;
-	h.budget = 4;
-	h.installed = std::make_shared<Generation>(keys(0, 64));
-	for (int k = 0; k != 10; ++k)
-		h.read("ns:k" + std::to_string(k));
-	h.publish(std::make_shared<Generation>(keys(0, 64)));
-	const bool pending_after_first = h.pending.size() == 1;
-	h.publish(std::make_shared<Generation>(keys(5, 64))); // k0-k4 deleted
-	const auto names = h.usage();
-	bool all = names.size() == 10;
-	for (int k = 0; k != 10; ++k)
-		all &= names.count("ns:k" + std::to_string(k)) == 1;
-	return pending_after_first && all && h.pending.empty() && h.carried.size() == 5;
-}
-
-// Stress (TSan): 8 readers mark random keys while a publisher replaces the generation 50 times with
-// reordered sets that delete keys; at the end the report is exactly the keys read OK.
+// Stress (TSan): 8 readers mark random keys while a publisher replaces the generation 50 times and a
+// reporter walks; at the end the report is exactly the keys the final generation answered.
 bool stress() {
 	Handle h;
-	h.budget = 8;
-	h.installed = std::make_shared<Generation>(keys(0, 512));
+	h.installed = std::make_shared<Generation>(keys(0, 512), 16, true);
 	std::atomic<bool> stop{false};
-	std::vector<std::set<std::string>> read(8);
+	std::vector<std::vector<std::pair<std::uint64_t, std::string>>> read(8);
 	std::vector<std::thread> pool;
 	for (int t = 0; t != 8; ++t)
 		pool.emplace_back([&, t] {
 			std::uint64_t x = 0x9e3779b97f4a7c15ull * std::uint64_t(t + 1);
 			while (!stop.load(std::memory_order_relaxed)) {
 				x ^= x << 13, x ^= x >> 7, x ^= x << 17;
-				const auto key = "ns:k" + std::to_string(x % 512);
-				if (h.read(key))
-					read[std::size_t(t)].insert(key);
+				auto key = "ns:k" + std::to_string(x % 512);
+				if (const auto g = h.read(key))
+					read[std::size_t(t)].emplace_back(g, std::move(key));
 			}
 		});
+	std::thread reporter([&] {
+		while (!stop.load(std::memory_order_relaxed))
+			h.usage();
+	});
 	for (int p = 1; p != 51; ++p) {
 		auto next = keys(p % 7, 512);
 		std::rotate(next.begin(), next.begin() + p, next.end());
-		h.publish(std::make_shared<Generation>(next, std::size_t(16 + 8 * (p % 3))));
+		h.publish(std::make_shared<Generation>(next, std::size_t(16 + 8 * (p % 3)), true));
 		std::this_thread::sleep_for(std::chrono::microseconds(200));
 	}
 	stop = true;
 	for (auto &thread : pool)
 		thread.join();
+	reporter.join();
+	const auto final = h.installed->id;
 	std::set<std::string> expected;
-	for (const auto &s : read)
-		expected.insert(s.begin(), s.end());
-	return h.usage() == expected && h.pending.empty();
+	for (const auto &reads : read)
+		for (const auto &[g, key] : reads)
+			if (g == final)
+				expected.insert(key);
+	return !expected.empty() && h.usage() == expected && h.freer_work == 0;
+}
+
+// T3: in a deep trie the root page holds no body and so no mark. The walk that enters verified pages
+// names every key read; the round-3 walk, entering only pages with a mark, names none.
+bool walk_deep() {
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 1024), 16, true);
+	std::set<std::string> expected;
+	for (int k = 0; k < 1024; k += 37)
+		h.read(expected.emplace("ns:k" + std::to_string(k)).first->c_str());
+	return h.usage() == expected && h.installed->walk(true).empty();
+}
+
+// T4: the fork child zeroes every ring generation's marks, including one a parked reader pins; the
+// child reports none of the parent's reads, then its own. Without the clear it reports the parent's.
+bool fork_child(bool clear_marks) {
+	step = 0;
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 10));
+	h.read("ns:k1");
+	park_first_at(Window::Marked);
+	std::thread parked([&] { h.read("ns:k2"); });
+	wait_for(1);
+	h.publish(std::make_shared<Generation>(keys(0, 10))); // generation 1 retired, pinned
+	h.read("ns:k3");
+	h.child_after_fork(clear_marks); // the child's view of the ring
+	const bool none = h.usage().empty();
+	h.publish(std::make_shared<Generation>(keys(0, 10))); // the child frees the retired ones
+	step = 2;
+	parked.join();
+	hook = nullptr;
+	h.read("ns:k4");
+	return none && h.usage() == std::set<std::string>{"ns:k4"};
+}
+
+// T7: detent_usage neither waits for nor takes `refreshing`: with a refresher parked inside it,
+// detent_usage returns at once and reports the installed generation.
+bool usage_no_wait() {
+	step = 0;
+	Handle h;
+	h.installed = std::make_shared<Generation>(keys(0, 10));
+	h.read("ns:k5");
+	park_first_at(Window::Refreshing);
+	std::thread refresher([&] { h.publish(std::make_shared<Generation>(keys(0, 10))); });
+	wait_for(1);
+	std::atomic<bool> done{false};
+	std::set<std::string> names;
+	std::thread reporter([&] {
+		names = h.usage();
+		done = true;
+	});
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	while (!done && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
+	const bool returned = done;
+	step = 2;
+	refresher.join();
+	reporter.join();
+	hook = nullptr;
+	return returned && names == std::set<std::string>{"ns:k5"};
+}
+
+// T11: closing with a retired, unfreed generation that holds marks frees every generation.
+bool close_retired() {
+	{
+		step = 0;
+		Handle h;
+		h.installed = std::make_shared<Generation>(keys(0, 10));
+		h.read("ns:k1");
+		auto held = h.pin(); // a pin that outlives the publish, released before close
+		h.publish(std::make_shared<Generation>(keys(0, 10)));
+		held->pins.fetch_sub(1);
+		held.reset();
+		if (h.retired.size() != 1 || live_generations.load() != 2)
+			return false;
+	}
+	return live_generations.load() == 0;
 }
 
 // Rows: two claimers of one name, the first parked mid-claim: one row and no wait (F2).
@@ -416,7 +503,7 @@ bool boundary() {
 	return table.rows_for("ns:k") == 1 && !table.overflowed.load() && table.rows[0].samples[Published].load() == 2;
 }
 
-// Past usage_slots the counts overflow, but every key read stays reported through the marks.
+// Past usage_slots the counts overflow, but every key read stays reported through the marks (R2).
 bool overflow_counts() {
 	Table table(4);
 	Handle h;
@@ -492,10 +579,14 @@ bool fresh_handles() {
 
 int main() {
 	bool ok = true;
-	ok &= check(publish_reorder_delete(), "fold: a reordering, deleting publish keeps every key read (kept by mark, deleted by name)");
-	ok &= check(late_mark_on_retired(), "fold: a mark on a pinned, retired generation is reported, then folded after the unpin");
-	ok &= check(budget_and_pending(), "fold: past the budget the fold is pending and reported; the next publish finishes it first");
-	ok &= check(stress(), "fold stress: 8 readers, 50 reordering, deleting publishes: the report is exactly the keys read");
+	ok &= check(publish_resets(), "D161: a reordering, deleting publish starts an empty record; the freer frees at once, no lookup or allocation");
+	ok &= check(retired_marks_unreported(), "T1-T4: a late mark on a pinned, retired generation is never reported and leaves with it");
+	ok &= check(stress(), "stress: 8 readers, a reporter, 50 reordering, deleting publishes: the report is the final generation's reads");
+	ok &= check(walk_deep(), "T3: the walk enters verified pages and names every key read; entering marked pages names none");
+	ok &= check(fork_child(true), "T4: the fork child clears every ring generation's marks and reports only its own reads");
+	ok &= check(!fork_child(false), "T4: without the clear the child reports the parent's reads (the check can fail)");
+	ok &= check(usage_no_wait(), "T7: detent_usage returns while a refresher holds refreshing, with the installed generation");
+	ok &= check(close_retired(), "T11: close with a retired, unfreed, marked generation frees every generation");
 	ok &= check(two_claimers(Window::RowWritten), "rows: two claimers, one parked with its row unpublished: one row, no wait, spare reused");
 	ok &= check(two_claimers(Window::NamePublished), "rows: two claimers, one parked after publishing: one row, no wait");
 	ok &= check(equal_hashes(), "rows: equal hashes, two names, two rows");
