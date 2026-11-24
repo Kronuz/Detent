@@ -32357,8 +32357,7 @@
     "split-journal": {
       "accepted": {},
       "after": [
-        "journal-tail-second-sector",
-        "xapiand:journal-lost-bound"
+        "xapiand:journal-sync-mode"
       ],
       "checks": [
         {
@@ -32406,11 +32405,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "split-journal moves test/**, which xapiand's journal-sync-mode edits; split after it lands",
       "repo": "../journal",
       "risk": "low",
       "status": "planned",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-21T11:45:01"
+      "updated": "2026-11-24T13:23:52"
     },
     "stage-0-architecture": {
       "accepted": {},
