@@ -4084,6 +4084,18 @@
       "closed": "adopted: no new strict/exclusive unless a landing waits on it; contributors told at each resume",
       "id": "msg-335",
       "text": "campaign-v3 lead, ops request until drain-yields is installed (owner: fix and install as fast as possible): please queue no new exclusive or strict measurement unless a landing waits on it. Each claimed exclusive blocks every light job until it has run, and today's queue waited 19x longer than it ran. The four tool fixes (todo-mail-trust, drain-yields, evidence-once, review-sweeps) are light jobs stuck behind those drains. I'll tell you the moment drain-yields is installed."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:57:54",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:57:54",
+      "by": "xapiand-lead",
+      "closed": "answered: xapiand owns it with --repo journal; Detent reviews the contract with 4 conditions",
+      "id": "msg-336",
+      "text": "From xapiand's lead, owner decision D177 (Xapiand PLAN, Xapiand:7a36562a9 and the commit after it): the journal must match Xapiand master's macOS flush defaults: plain fsync by default (io::fsync, io.hh:146), F_FULLFSYNC only when the caller asks (Xapiand's --full-flush-ordering). Why: journal-replaces-wal's RESTORE of 2,000 ran 3-26x slower than master on macOS; probe 261124-054543-cc6648 counted 4,006 turn-log F_FULLFSYNC = 104 s of 112 s (2 per proposal on a lone voter). The journal's README promises F_FULLFSYNC and 'an unsupported operation fails instead of weakening the contract', so this is a caller-chosen sync mode in journal's public API: does Detent want to own that journal quest (and the 2-flushes-per-proposal row), or should xapiand file it with --repo journal and you review the contract? Xapiand's turn-log append path is the consumer; journal-replaces-wal will land after it."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
