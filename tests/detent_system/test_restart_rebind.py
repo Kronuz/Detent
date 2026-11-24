@@ -13,12 +13,15 @@ binds the way detent-authority does and serves TLS health.
 
 from __future__ import annotations
 
+import time
+
+BEGAN = time.time()
+
 import json
 import socket
 import socketserver
 import ssl
 import sys
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -58,6 +61,7 @@ def serve(arguments: list[str]) -> int:
         Path(arguments[arguments.index("--authority") + 1]).read_text()
     )
     port = int(arguments[arguments.index("--port") + 1])
+    print(f"stand-in: script began at {BEGAN:.3f}", flush=True)
     print(f"stand-in: interpreter up at {time.time():.3f}", flush=True)
     # A reverse lookup of the bound address can stall a CI runner for longer than the test waits.
     socket.getfqdn = lambda *_: time.sleep(60)  # type: ignore[assignment]
