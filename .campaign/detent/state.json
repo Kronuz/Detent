@@ -3663,6 +3663,18 @@
       "closed": "todo-mail behavior noted",
       "id": "msg-307",
       "text": "campaign skill: agent-campaign:709523e installed (todo-mail). What changes for you:\n1. Your to-do now arrives as mail from the worker: one message per campaign, critical path first, each line with its evidence, age and exact command, ending 'or park it with a reason'.\n2. It repeats every 30 minutes (CAMPAIGN_TODO_REPEAT) while an item is undone; each new mail replaces the last. Closing the mail declines nothing: park the quest with a reason, or answer it.\n3. An item undone 2 hours after its first mail is escalated to the owner once (a notify, plus a '\ud83d\udea8 N to do, oldest 2h' pill in your workspace that clears when the list empties).\n4. To-do lines in status, brief and wait now start with 'todo: ' instead of '- ': if your output filter dropped '- ' lines, it no longer hides them.\nMail goes only to a live recorded lead."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:32:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:32:31",
+      "by": "relay-mirror-idle-wake",
+      "closed": "file set fixed",
+      "id": "msg-310",
+      "text": "relay-mirror-idle-wake design + file-set request. Design: no new endpoint or parameter; the relay's watch uses W5 next's existing wait_ms (the authority parks it and re-plans at every applied entry, answering on change or 204 at its deadline). New Upstream::wait(positions, limit, std::stop_token) -> bool; default returns true at once (a poller: the mirror syncs every interval, today's behavior for in-process fakes). HttpUpstream::wait parks a next on its own W5 session (a second channel, following the endpoint of the last sync) so the mirror thread keeps serving and fetching; stop_token closes the socket on shutdown. MirrorService gains a watcher thread: after each good sync it waits on the ring heads; a change, the deadline (maximum_wait_ms, clamped by the upstream's session wait) or a failure wakes a sync, no sooner than interval after the last (interval becomes the floor between syncs and the backoff base; failed syncs keep the existing backoff and arm no watch). Files outside my set that this needs: include/detent_relay/mirror_service.hh (the set lists src/detent_relay/mirror_service.hh, which does not exist), include/detent_relay/namespace_relay.hh (Upstream::wait), include/detent_relay/http_upstream.hh, src/detent_relay/http_upstream.cc. Please add them; I do in-set work (baseline A1 measurement, counting test, doc) meanwhile."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6169,6 +6181,37 @@
       "updated": "2026-11-24T01:35:36",
       "worktree": ""
     },
+    "consensus-fetch-alongside-loop-stall": {
+      "accepted": {},
+      "after": [
+        "xapiand:consensus-join-v2"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/transport/**",
+        "include/consensus/transport/**",
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/transport*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
+      "updated": "2026-11-24T03:28:09"
+    },
     "consensus-fetch-lane": {
       "accepted": {
         "correctness": {
@@ -6380,7 +6423,8 @@
         "include/consensus/transport/codec.h",
         "include/consensus/admission.h",
         "fuzz/seed.cc",
-        "test/follower_read_mutants.py"
+        "test/follower_read_mutants.py",
+        "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/consensus-follower-read",
       "landed": [],
@@ -6390,12 +6434,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "msg-303: the set named a codec.h that does not exist; the read-index frames live in transport/codec.h, admission.h, fuzz/seed.cc; no other quest holds them",
+      "reason": "review N5: ARCHITECTURE.md still describes leader-only reads",
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T02:38:52",
+      "updated": "2026-11-24T03:48:40",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
@@ -7932,6 +7976,7 @@
       "consumes": [],
       "files": [
         "test/transport/rpc_host_test.cc",
+        "test/transport/rpc_hosts.h",
         "test/transport/repeat.sh",
         "docs/mechanisms/transport*.md",
         "docs/mechanisms/rpc-lane.md"
@@ -7942,11 +7987,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review F2: Lag::stop() joins the sampler; Lag lives in rpc_hosts.h, used only by rpc_host_test.cc",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T03:11:06",
+      "updated": "2026-11-24T03:30:04",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
@@ -28593,6 +28639,8 @@
       "after": [
         "loop-idle-waits"
       ],
+      "base": "b3bfc1c7655da0c40315033800eddc7a53c83318",
+      "branch": "quest/detent/relay-mirror-idle-wake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -28604,7 +28652,10 @@
       "consumes": [],
       "files": [
         "src/detent_relay/mirror_service.cc",
-        "src/detent_relay/mirror_service.hh",
+        "include/detent_relay/mirror_service.hh",
+        "include/detent_relay/namespace_relay.hh",
+        "include/detent_relay/http_upstream.hh",
+        "src/detent_relay/http_upstream.cc",
         "src/detent_relay/configuration.cc",
         "test/relay*",
         "tests/detent_relay/**",
@@ -28619,11 +28670,13 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-23T16:53:54"
+      "updated": "2026-11-24T03:50:56",
+      "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
       "accepted": {},
