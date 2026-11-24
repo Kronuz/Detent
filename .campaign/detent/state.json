@@ -6169,6 +6169,37 @@
       "updated": "2026-11-24T01:35:36",
       "worktree": ""
     },
+    "consensus-fetch-alongside-loop-stall": {
+      "accepted": {},
+      "after": [
+        "xapiand:consensus-join-v2"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/transport/**",
+        "include/consensus/transport/**",
+        "test/transport/groups_test.cc",
+        "docs/mechanisms/transport*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
+      "updated": "2026-11-24T03:28:09"
+    },
     "consensus-fetch-lane": {
       "accepted": {
         "correctness": {
