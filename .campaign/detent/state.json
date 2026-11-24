@@ -29159,11 +29159,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "needs pin-wave's task bump (f937bc2+); pin-wave needs legacy-h",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "blocked",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-22T21:57:47",
+      "until": [
+        "pin-wave"
+      ],
+      "updated": "2026-11-23T16:47:28",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
