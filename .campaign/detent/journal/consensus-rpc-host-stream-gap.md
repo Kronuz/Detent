@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-032545-3c3ebf 261124-032548-9e4ff0 261124-032552-5023a3 261124-032555-cf6897 and CI of consensus:0e000db (A4); then ready for review
+State: waiting on CI of consensus:0e000db (A4); then ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -31,10 +31,10 @@ Nothing
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-015744-1b1ee9 (head: gap over 1,000 ms equals the host's lag); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main 512e3ef: 6 of 7 stops fail at 1,521-1,573 ms); a1.sh at the probe: 261124-015310-731798; unstalled gaps 103-222 ms under 16-24 burners: 261124-013928-c5f6e7, 261124-014534-123e12 |
-| A2 | 261124-014655-15443a (7 stops, 0 failed, gaps 1,517-1,604 ms within 1,000 plus lag); fails without: 261124-014707-1319b1 (main) |
-| A3 | 261124-014657-c7b211 (50 runs beside 4 burners, 0 failed) |
-| A4 | `ci:macos-x86_64`, `ci:ci` (CI run 45370136336 at consensus:d428b37, green) |
+| A1 | 261124-032555-cf6897 (gap over 1,000 ms equals the host's lag); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main: 6 of 7 stops fail at 1,521-1,573 ms); earlier head 261124-015744-1b1ee9; unstalled gaps 103-222 ms under 16-24 burners: 261124-013928-c5f6e7, 261124-014534-123e12 |
+| A2 | 261124-032548-9e4ff0 (7 stops at the fix); fails without: 261124-014707-1319b1 (main, stopped process), 261124-032545-3c3ebf (the review's Control-delay mutant at the fix: 1,500 ms gap 1,501 of 1,005 allowed and 2,000 ms gap 1,999 of 1,003 both fail; 1,000 ms passes at 999) |
+| A3 | 261124-032552-5023a3 (50 runs beside 4 burners, 0 failed, longest gap 109 ms at run 50) |
+| A4 | CI of consensus:0e000db (running; `campaign verify consensus-rpc-host-stream-gap --for A4` submitted) |
 
 ## Result
 
@@ -45,7 +45,7 @@ stay 103-222 ms. CI run 45299903223's 1,170 ms gap in a 1,593 ms stream fits a s
 on this 16-core host starved the process, so the stop is the deterministic reproduction.
 Fix: the stream case's bound is 1,000 ms plus the Lag sampler's worst, as the fetch and group-full
 cases (consensus:303455c, :93df08c); the 1,000 ms base is unchanged. Docs: docs/mechanisms/rpc-lane.md
-stream row. Open: groups_test.cc:586 `beats_2.worst < 1000` has no lag allowance (outside the file set).
+stream row. Review F1-F3 folded in (consensus:0e000db): the stream waits for its heartbeat tail, `Lag::stop()` joins the sampler before each read, call-full takes the lag allowance; a Control delay of 1,500-2,000 ms now fails. Open: groups_test.cc:586 `beats_2.worst < 1000` has no lag allowance (outside the file set).
 
 ## Rulings I made
 
