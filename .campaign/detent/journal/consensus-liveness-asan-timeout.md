@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-051825-444ce3 261124-051827-1d53c7 261124-051829-5486f3 261124-051830-677391 261124-051832-d5a4f8 261124-051846-6e6be3
+State: waiting on jobs 261124-052615-4ff43a 261124-051832-d5a4f8, CI on consensus:01a109c
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -28,9 +28,22 @@ above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): 
 
 ## Next
 
-1. Read the jobs. If ASan new is not well under 90 s locally, cut more (queue entries without
-   std::function, fewer next_deadline calls) keeping the trace hash equal.
-2. CI time on the pushed fix vs consensus_shared_worker; push e44fe39+docs.
+1. Read 4ff43a (ASan old vs new, same host, BOUND=90 on new) and d5a4f8 (custom mutants,
+   sorted-line compare). If new ASan is not well under 90 s, cut harness cost further, keeping
+   equiv.sh's hash equal.
+2. CI times at 01a109c vs consensus_shared_worker (ci-times.sh); Result; Evidence table.
+
+Results so far at e44fe39:
+- 261124-051827-1d53c7: old == new == LIVENESS_VERIFY (trace hash per profile), 20 seeds.
+- 261124-051829-5486f3, 261124-051830-677391: all 17 core mutants, same kills old vs new, same
+  output lines (order differs only by line buffering). votes-and-pre-votes-without-the-log-check
+  caught by both now.
+- 261124-051846-6e6be3 (--fails-without, main): plain ASan 132.5 s, above 90 s.
+- 261124-051825-444ce3 failed: phases.sh edited in place while it ran; replaced by 4ff43a.
+- vote-ignores-leader-contact: caught by neither harness (gap, per the coordinator).
+- Core finding for the lead: a leader's due D3 removal waits for a Tick that
+  Core::next_deadline() does not report (LIVENESS_VERIFY found it), so a host sleeping until
+  next_deadline() delays the removal.
 
 ## Blocked on
 
