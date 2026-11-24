@@ -4687,6 +4687,21 @@
         "todo": "12459201"
       },
       "text": "to do, critical path first:\ntodo: review consensus-next-deadline-removal (its journal says ready for review; then launch its correctness review; new): `campaign set consensus-next-deadline-removal status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:46:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:46:40",
+      "by": "campaign",
+      "closed": "A1 pair, the 20-run test and A2 x200 passed; the suite timed out at 30 min under load 60 (invalid, not a failure), rerun as 6d9c49; CI green; the macOS suite probe is queued",
+      "id": "msg-375",
+      "settles": {
+        "todo": "d90f97db"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its journal waits on jobs 261124-123054-1bea5f, 261124-123059-eda87c, 261124-123104-84309d and 261124-123112-1fc948, which ended (done, timeout) 4 min ago; new): `campaign status consensus-fetch-oversize-abort`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
