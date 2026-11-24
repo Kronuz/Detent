@@ -7526,12 +7526,16 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "follower-read (parked, accepted) also changes include/consensus/core.h; land after it and merge its main",
+      "reason": "start would hold include/consensus/core.h that the accepted, parked follower-read lands with; A3 needs liveness's held-Tick harness on main",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "blocked",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T06:08:29"
+      "until": [
+        "consensus-follower-read",
+        "consensus-liveness-asan-timeout"
+      ],
+      "updated": "2026-11-24T06:13:14"
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
