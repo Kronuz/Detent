@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-050027-dd85d6 261124-050028-760936 261124-050028-665c4f 261124-050014-f52514 261124-050018-ff695c and CI of consensus:e416bb0 (A4); then ready for review
+State: ready for review; review accepted at consensus:e416bb0; lands after xapiand:consensus-join-v2
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
