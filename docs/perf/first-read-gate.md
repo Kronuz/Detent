@@ -16,6 +16,9 @@ first value. Process launch and dynamic loading are excluded.
 | Branch (reader core) | `first_read_core --core DIR NAME EXPECTED` | `detent_open`, then the first `detent_get` |
 | Main (pre-S6 Client) | `first_read_phases --client DIR NAMESPACE KEY EXPECTED` | the Client's retirement runtime, `PreparedReader::open`, its refresh thread, the first `try_get` |
 
+A tree with `src/detent_reader` (main since reader-s6) runs the reader core in both arms; only a
+tree before it runs the Client.
+
 Each sample prints one JSON line: each step's wall time, user and system CPU and minor faults,
 `total_ns` (the gated number), and the store path's component count. Reads cycle through 40
 integer keys.
@@ -91,6 +94,11 @@ read fails, and its last line totals main's refused reads. Those refusals depend
 collection, not on load, so the exclusive run is kept for the timing and the slow-read breakdown.
 
 ## Attribution
+
+`first-read-gate.sh profile-prepare OUT` and `profile OUT stopped running` time each step of the
+core's first read with marks that `first-read-probe.py` inserts; `first-read-1ms.md` has the
+profile and what it found.
+
 
 `first_read_phases --phases` splits the Client's read further: it adds the directory trust walk
 cold and warm ahead of attach and reports segment mapping time. `--micro DIR ITERATIONS` prints
