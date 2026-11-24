@@ -2,6 +2,8 @@
 // publication and verified reuse.
 #include "agent_store_fixture.hh"
 #include "change_file.hh"
+#include "detent_local/layout.hh"
+#include <algorithm>
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
@@ -102,7 +104,7 @@ void derived_ids() {
 		check(variant != id);
 	// Pinned: two builds on any host name the same files, and the derivation never drifts silently.
 	const auto pinned = l::generation_name(l::derive_generation(profile, cursor('i', 9), zero, 0));
-	if (pinned != "generation-560af59f6e78605358004bdb201499f4")
+	if (pinned != "generation-a3a0f029e196353de7b1b9f816bc1ac4")
 		throw std::runtime_error("derivation drifted: " + pinned);
 	check(l::derive_segment(id, 0) == l::derive_segment(id, 0) && l::derive_segment(id, 0) != l::derive_segment(id, 1) &&
 		  l::derive_segment(id, 0) != l::derive_segment(base, 0));
@@ -134,11 +136,26 @@ void table_codec() {
 	}
 	refuses<l::TableRefused>([&] { l::decode_table(std::string_view(bytes).substr(0, bytes.size() - 1)); });
 	refuses<l::TableRefused>([&] { l::decode_table(std::string_view(bytes).substr(0, 64)); });
+	// Signs every page's digest into its index record, then the table digest over the header and index.
 	auto resign = [](std::string bytes) {
-		const auto sum = sha(std::string_view(bytes).substr(0, bytes.size() - 32));
-		std::copy(sum.begin(), sum.end(), bytes.end() - 32);
+		const auto pages = std::size_t(l::read_integer(bytes, 60, 4));
+		std::size_t index = 72;
+		for (std::size_t k = 0; k < pages; ++k)
+			index += 33 + std::size_t(std::uint8_t(bytes[index + 32]));
+		const auto first = index + 32;
+		for (std::size_t k = 0, record = 72; k < pages; ++k) {
+			const auto at = first + k * l::table_page_bytes;
+			const auto sum = sha(std::string_view(bytes).substr(at, std::min(l::table_page_bytes, bytes.size() - at)));
+			std::copy(sum.begin(), sum.end(), bytes.begin() + record);
+			record += 33 + std::size_t(std::uint8_t(bytes[record + 32]));
+		}
+		const auto sum = sha(std::string_view(bytes).substr(0, index));
+		std::copy(sum.begin(), sum.end(), bytes.begin() + index);
 		return bytes;
 	};
+	// One page after a 72-byte header, one index record naming its last entry, and the table digest.
+	const auto page = std::size_t(72 + 33 + std::string_view("gamma/delta").size() + 32);
+	check(bytes[page] == 5 && std::string_view(bytes).substr(page + 1, 5) == "alpha");
 	auto duplicate = table;
 	duplicate.entries[1].slot = duplicate.entries[0].slot;
 	refuses<l::TableRefused>([&] { l::decode_table(l::encode_table(duplicate)); });
@@ -146,7 +163,7 @@ void table_codec() {
 	layout[8] = 2;
 	refuses<l::TableRefused>([&] { l::decode_table(resign(layout)); });
 	auto unordered = bytes; // "alpha" and "beta" differ in their first byte; swap it to put beta first
-	unordered[64 + 1] = 'c';
+	unordered[page + 1] = 'c';
 	refuses<l::TableRefused>([&] { l::decode_table(resign(unordered)); });
 	check(l::decode_table(resign(bytes)) == table);
 	refuses<std::invalid_argument>([&] {
