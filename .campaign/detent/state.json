@@ -15095,19 +15095,39 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-24T14:46:59",
+          "lenses": [
+            [],
+            [
+              "security",
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "risk": [
+            "normal",
+            "high"
+          ],
+          "voided": [],
+          "weakened": []
         }
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "change 2's race hook moves to the first fstatat (test_trusted_paths); change 4 opens .image once, so the read counters drop a record (test_read_counters); the 1,000-namespace cell needs the test writer's 1,000-generation limit raised; no active quest holds them",
+      "reason": "it now changes the selected table's on-disk verification format (per-page digests via lazy_page_access), a persistent format on an authenticity surface",
       "repo": ".",
-      "risk": "normal",
+      "risk": "high",
       "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T14:46:30",
+      "updated": "2026-11-24T14:46:59",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
