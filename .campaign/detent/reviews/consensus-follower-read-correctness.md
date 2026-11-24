@@ -1,6 +1,6 @@
 # consensus-follower-read review: correctness
 
-Commit: consensus:49deff5cd6b81c2927c299420d2c764b75b5cba3
+Commit: consensus:0b8c911460ff778ac564561c8e52b764f5c54dc6
 Verdict: APPROVE
 Date: 2026-11-24
 
@@ -78,6 +78,31 @@ I also read the code against the lead's questions:
    randomized oracle checks the index, and the harness asserts `applied >= index` on every
    ReadReady. The Driver simulation sends 1 read in 8 to a non-leader (driver_simulation.cc:584),
    so its read oracle covers forwarded reads.
+
+## Recheck at 0b8c911
+
+consensus:c88f5b7 and consensus:0b8c911 touch only test/follower_read_test.cc,
+test/follower_read_mutants.py and ARCHITECTURE.md (`git diff 49deff5 0b8c911`). No assertion of
+49deff5 is removed or weakened:
+
+1. The per-read oracle (`index < floor` fails) is unchanged; its message now names the role.
+2. The volume check gains `reinjected > seeds`. The dropped `ready` erase on restart was redundant
+   with the `erase_if` on the same node that follows it.
+3. Only `randomized` changes. It now injects N4's faults (a third of the seeds each: none,
+   ReadIndex frames, every frame) and restarts slightly more often (2.0% of steps, was 1.5%).
+   The deterministic cases, which every 49deff5 mutant targets, are untouched.
+4. The default drops from 200 to 30 seeds. That is less random volume (1,668 reads, was 10,061)
+   on reseeded schedules, not a looser check, so D152 holds. Each fault mode and cluster size
+   still runs (seed mod 6).
+
+Evidence: mutant jobs 261124-044549-28af93 through 261124-044628-2ed859 (16) run the binary with
+no arguments, as ctest does, at mutant commits whose parent is 0b8c911. I checked each commit
+against its edit in the mutants script. Each built (exit 0) and failed with exit 1 on its own
+case's `FAIL` assertion. None timed out, and every log prints `randomized: 30 seeds`.
+`nonce-reused` fails `randomized` at seeds 7, 8 and 11. Suite 261124-043342-61c0c9: 163/163.
+`follower_read_test all 2000` 261124-043343-fb8ffd: exit 0 (179,110 reads, 100,015 at
+followers, 156,587 frames re-injected). CI 45394693963 at 0b8c911 is green, linux-asan-ubsan
+included. N4 and N5 are resolved.
 
 ## Findings
 
