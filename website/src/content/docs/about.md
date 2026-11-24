@@ -13,17 +13,17 @@ flags, kill switches and live settings. It features:
   * Per-group forced values and per-group rollouts.
 
 ##### Allocation-free reads:
-  * One atomic load, one lookup and one evaluation per read.
-  * No network, disk, lock or allocation on the read path.
-  * Pinned views for consistent multi-knob reads.
+  * One load of the change sequence, one lookup and one evaluation per read.
+  * No network, lock, syscall or allocation on a warm read.
+  * No reader thread: a lookup sees a new generation on its own.
 
 ##### Safe updates:
   * Strict validation off the read path.
-  * Atomic whole-snapshot swaps; last known good on any failure.
-  * Fail-fast on missing knobs, with baked defaults shipped alongside code.
+  * Atomic whole-generation switches; last known good on any failure.
+  * A fallback on every read, with the status that explains it.
 
 ##### Distribution:
-  * Live updates from a snapshot file, or managed delivery from the authority.
+  * Managed delivery from the authority into immutable local generations.
   * A host-local managed agent and `detent get` for any language.
 
 ##### Durable authority:

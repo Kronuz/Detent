@@ -1,6 +1,6 @@
 # consensus-seeds-rate-flake review: correctness
 
-Commit: consensus:a2f6eb33b65879ff61f7b5f0d96169ba68933e29
+Commit: consensus:803c37e
 Verdict: APPROVE
 Date: 2026-11-24
 
@@ -38,6 +38,14 @@ Scripts in `.scratch/detent/review-consensus-seeds-rate-flake-correctness/` (hom
   test/transport/lag.h once `Clock` is read as steady_clock (seeds_test.cc:43) and `1ms` as
   `milliseconds(1)` (a scripted diff printed IDENTICAL). stop() sets `stopped`, joins the sampler,
   then reads `worst`; the destructor's second stop() is a no-op.
+- Catch-up mutant (drift-free timer that bursts after a stall, consensus:a19a119): unstalled it
+  passes 5/5 (261124-050639-352716, as a drift-free timer should); under 0.4 s stops it asserts
+  at the 90 ms lower bound 2/2 (261124-050641-eb8792). Head under 1.0 s stops at 0.8/0.95/1.1 s
+  passes 3/3 with lag 1005-1007 ms (261124-050643-024d21).
+- Re-review at consensus:803c37e (main merged, then the copy swapped): 803c37e itself only adds
+  `#include "lag.h"` and deletes the local `Lag`; lag.h equals e416bb0's; against merged main
+  (c363ad4) the rate case's checks are a2f6eb3's unchanged. The probes above ran at a2f6eb3 and
+  stand, the struct being token-identical.
 
 ## Findings
 
@@ -45,12 +53,9 @@ Scripts in `.scratch/detent/review-consensus-seeds-rate-flake-correctness/` (hom
 |---|---|---|---|---|---|
 | C1 | no | gap | One stall widens every gap's bound and the burst's by the worst lag, not just the gap it hit: under a stall of L the gap check admits any interval up to 150 + L ms, and only the floor still sees a slow source; a stall of about 1 s would hide a 250-400 ms interval entirely. Unstalled and loaded hosts (the normal case) keep full strength. | 261124-050632-19cfe1; seeds_test.cc:595-601 | Optional: have Lag record when the stalls happened and widen only the gap and burst windows that overlap one. Keeping it as is is fine for a test whose quest asks for full strength only on an unstalled host. |
 | C2 | no | nit | `lag.stop()` runs before `stop(loop, seeds)`, whose `loop.until` still drains the open raw socket, so a datagram heard there falls outside the sampled window. | seeds_test.cc:586-589, 116-119 | Read the lag after `raw.close()`. |
-| C3 | no | nit | The local `Lag` relies on transitive `<algorithm>`/`<cstdint>`; moot once it is replaced by lag.h as the journal plans. | seeds_test.cc:28-36 | Include lag.h after consensus-rpc-host-stream-gap lands. |
+| C3 | no | nit | Resolved at 803c37e: lag.h brings its own includes; `<atomic>` and `<thread>`, added for the copy, are now unused in seeds_test.cc. | `git diff c363ad4 803c37e -- test/transport/seeds_test.cc` | Drop the two includes, or keep them. |
 
 ## Not run
 
-Still queued when the review was written (confirmatory, not needed for the verdict):
-261124-050639-352716 (catchup mutant, unstalled),
-261124-050641-eb8792 (catchup mutant under 0.4 s stops, expected to assert at the 90 ms lower
-bound), 261124-050643-024d21 (head under 1.0 s stops, expected to pass). No Linux or CI run of the
-probes, and no suite run (A4 is CI and `campaign verify` at landing).
+No Linux or CI run of the probes, and no suite run (A4 is CI and `campaign verify` at landing).
+No probe rerun at 803c37e: its test change is the token-identical swap.

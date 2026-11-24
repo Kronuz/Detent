@@ -60,7 +60,6 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 {
   "managed_path": "managed.json",
   "generation_dir": "agent-state",
-  "defaults_path": "defaults.json",
   "runtime_dir": "/run/detent",
   "log_level": "info",
   "verbosity": 0,
@@ -70,14 +69,10 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 | Field | Meaning |
 | --- | --- |
-| `defaults_path` | Optional fallback knobs; `defaults.json` beside the config is found automatically |
 | `runtime_dir` | Runtime directory |
 | `managed_path` | Private managed credential file |
 | `generation_dir` | Managed generation directory |
 | `log_level`, `verbosity`, `color` | [Logging](/Detent/operations/logging/) |
-
-An explicitly configured defaults file must exist and be valid; an absent
-conventional `defaults.json` is skipped.
 
 ## `detent-authority.json`
 
@@ -151,7 +146,6 @@ The private managed agent configuration names the followed `namespaces` (every g
 | --- | --- | --- |
 | `DETENT_MANAGED_CONFIG` | agent, `detent` | Private managed configuration |
 | `DETENT_GENERATION_DIR` | agent, `detent` | Durable generation directory |
-| `DETENT_DEFAULTS_PATH` | `detent` | Defaults file |
 | `DETENT_RUNTIME_DIR` | agent, `detent` | Runtime directory |
 | `DETENT_AUTHORITY_PORT` | `detent-authority` | Port |
 | `DETENT_AUTHORITY_REACTORS` | `detent-authority` | Reactor threads |

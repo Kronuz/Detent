@@ -1,5 +1,5 @@
 // A1: every former bool knob, lifted to one int64 definition (default 0/1, rollout value 1),
-// answers through Client::get exactly what main's evaluator answered, cell by cell, against
+// answers through the paged evaluator exactly what main's evaluator answered, cell by cell, against
 // main's answers recorded in one_knob_main.hex (one_knob_record.sh). The one deliberate change
 // (D68) is enumerated: a default-true knob's hashed caller outside the applied percentage, where
 // main answered false, now gets the default 1.
@@ -7,10 +7,12 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include <vector>
 
-#include "detent/client.hh"
 #include "detent/hashing.hh"
 #include "detent/json_schema.hh"
+#include "detent_local/paged_definition.hh"
+#include "evaluation.hh"
 #include "one_knob_cells.hh"
 
 namespace {
@@ -42,6 +44,15 @@ std::string recorded(std::size_t &cells) {
 	return bits;
 }
 
+// The knob's answer through the reader's evaluator, over the definition as the paged format stores it.
+std::int64_t evaluate(const detent::KnobDef &definition, std::optional<std::string_view> hash,
+                      std::optional<std::string_view> group) {
+	std::vector<char> body(detent::local::paged::definition_size(definition));
+	detent::local::paged::encode_definition(body, definition, 1);
+	return detent::local::evaluate(detent::local::detail::BorrowedDefinition::from_paged(body), "ns", "k", hash,
+	                               group);
+}
+
 } // namespace
 
 int main() {
@@ -53,7 +64,7 @@ int main() {
 	for (const auto &definition : definitions()) {
 		auto snapshot = detent::parse_defaults(one_knob_json(definition));
 		CHECK(snapshot.has_value());
-		detent::Client client(std::move(snapshot).value());
+		const auto &knob = snapshot.value().knobs.at(kName);
 		for (const auto &group : groups())
 			for (const auto &hash : hashes()) {
 				std::optional<std::string_view> g, h;
@@ -61,14 +72,13 @@ int main() {
 				if (hash) h = *hash;
 				CHECK(at < cells);
 				const bool before = main_bits[at++] == '1';
-				const auto after = client.get(kName, h, g);
-				CHECK(after.has_value());
+				const auto after = evaluate(knob, h, g);
 				const auto pct = applied_percentage(definition, group);
 				if (definition.fallback && pct && hash && detent::stable_bucket(kName, *hash) >= *pct) {
-					CHECK(!before && after.value() == 1);
+					CHECK(!before && after == 1);
 					++changed;
 				} else {
-					CHECK(after.value() == (before ? 1 : 0));
+					CHECK(after == (before ? 1 : 0));
 					++equal;
 				}
 			}

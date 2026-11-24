@@ -40,7 +40,7 @@ stdout:
 e2e:end -->
 
 ```cpp
-bool enabled = client.get_or_panic("payments:new_processor", user_id) == 1;
+bool enabled = reader.get_as<bool>("payments:new_processor", false, user_id);
 ```
 
 The same identifier always lands in the same bucket, across reads, processes,
@@ -127,4 +127,4 @@ instead. Because a publish replaces the whole definition, leaving out
 `rollout_pct` and `rollout_value` removes the gate.
 
 When the feature is fully launched and stable, make the new path unconditional
-in code, then remove the knob read, its live definition and its baked default.
+in code, then remove the knob read and its live definition.

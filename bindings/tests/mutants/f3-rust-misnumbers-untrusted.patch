@@ -1,0 +1,15 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..494797a2 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -83,8 +83,8 @@ impl Status {
+             3 => Status::NotOpened,
+             4 => Status::SourceFailure,
+             5 => Status::Unavailable,
+-            6 => Status::Untrusted,
+-            7 => Status::InvalidArgument,
++            7 => Status::Untrusted,
++            6 => Status::InvalidArgument,
+             8 => Status::NoMemory,
+             9 => Status::Io,
+             other => Status::Unknown(other as u32),

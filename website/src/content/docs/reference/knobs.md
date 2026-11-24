@@ -16,8 +16,9 @@ range. Every knob supports a rollout percentage and group overrides.
 | Read with | Returns |
 | --- | --- |
 | `get` | The `int64` value |
-| `get_as<T>` | The value converted to `T`; a value that does not fit is `ConversionFailed` |
-| `get_as<bool>` | `false` for 0, `true` for 1; any other value is `ConversionFailed` |
+| `get_as<T>` | The value converted to `T`; a value that does not fit returns the fallback |
+| `get_as<bool>` | `false` for 0, `true` for 1; any other value returns the fallback |
+| `lookup` | The `int64` value with the lookup's status |
 
 There are no string, float, list or JSON knobs.
 
@@ -61,7 +62,7 @@ search:max results       # space
 ```
 
 An invalid name is rejected everywhere: in a snapshot, which fails the whole
-update, and on a read, which returns `InvalidName`.
+update, and on a read, which returns the fallback with the status `INVALID_NAME`.
 
 The knobset is also the unit of authorization and atomicity in the
 [durable authority](/Detent/guides/durable-authority/), where it's called a
@@ -123,6 +124,3 @@ previous one **entirely**. There is no field-level merge:
 // Result: the employees override is gone
 { "default": 0, "rollout_pct": 20, "rollout_value": 1 }
 ```
-
-The same rule applies when a live snapshot is merged over baked defaults: a
-knob present in the live snapshot replaces its baked definition as a whole.

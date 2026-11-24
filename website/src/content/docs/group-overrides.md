@@ -51,7 +51,7 @@ stdout:
 e2e:end -->
 
 ```cpp
-bool enabled = client.get_or_panic("payments:new_processor", user_id, user_group) == 1;
+bool enabled = reader.get_as<bool>("payments:new_processor", false, user_id, user_group);
 ```
 
 ---
@@ -60,15 +60,14 @@ bool enabled = client.get_or_panic("payments:new_processor", user_id, user_group
 
 Detent checks, in order:
 
-1. A CLI override for this knob in this process, if any.
-2. An override whose group name **exactly** matches the switch value:
+1. An override whose group name **exactly** matches the switch value:
    - A forced override returns its value.
    - A rollout override returns `rollout_value` when the caller's bucket is
      below the group's percentage, and `default` otherwise or without a hash
      value.
-3. The knob-wide `rollout_pct`, when a hash value is present: `rollout_value`
+2. The knob-wide `rollout_pct`, when a hash value is present: `rollout_value`
    inside the bucket, `default` outside it.
-4. The knob's `default`.
+3. The knob's `default`.
 
 A group that isn't listed falls through to the knob-wide rollout:
 

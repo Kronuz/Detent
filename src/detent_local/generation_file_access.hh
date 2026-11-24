@@ -2,6 +2,7 @@
 #include "detent_local/read_counters.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/store_table.hh"
 #include "generation_mapping.hh"
 #include <array>
 #include <cerrno>
@@ -62,14 +63,18 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 		offset += static_cast<std::size_t>(count);
 	}
 }
-// `selected` is the agent store's table (docs/status/namespace-s7.md); until namespace-s6-cutover its one
-// entry names the selected generation, whose cursor its image holds (D88). Absent, GenerationUnavailable;
-// nullopt when the image it names is gone, so the table moved on and the caller reads it again.
+// `selected` is the agent store's table (docs/status/namespace-s7.md): an entry per namespace, each naming
+// its selected generation, whose cursor its image holds (D88). Absent, GenerationUnavailable; nullopt
+// when the image it names is gone, so the table moved on and the caller reads it again.
 struct Selected {
 	Descriptor descriptor;
 };
 // The table entry `name` (D8), or the table's only entry when `name` is empty.
 std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});
+// The whole table, checked as a record; nullopt when a publish renamed the next one over it since the open.
+std::optional<StoreTable> read_store_table(int directory, uid_t owner);
+// One entry of a table read by read_store_table: nullopt when the image it names is gone.
+std::optional<Selected> select_entry(int directory, uid_t owner, const StoreTable &, const TableEntry &);
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
 	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)

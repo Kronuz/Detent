@@ -16,6 +16,7 @@
 #include <cstring>
 #include <exception>
 #include <iterator>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <optional>
@@ -106,15 +107,17 @@ detent_status classify(std::exception_ptr error) noexcept {
 	}
 }
 
-// One attached table entry's generation: its lease, checked records and page table.
+// One attached table entry's generation: its namespace and `change` slot, lease, checked records and page table.
 struct Generation {
+	std::string name;
+	std::uint32_t slot;
 	x::AttachedGeneration attached;
 	x::PageTable pages;
 	x::PagedReadState state;
 	std::size_t views = 0; // views holding it; changed only by the holder of `refreshing`
-	Generation(x::AttachedGeneration generation, int directory, uid_t publisher,
+	Generation(const l::TableEntry &entry, x::AttachedGeneration generation, int directory, uid_t publisher,
 	           const std::shared_ptr<d::StorageLedger> &mappings)
-	    : attached(std::move(generation)),
+	    : name(entry.name), slot(entry.slot), attached(std::move(generation)),
 	      pages(directory, publisher, attached.root, attached.limits, mappings, mappings),
 	      state{attached.root, {}, std::shared_ptr<const x::PagedPageAccess>(std::shared_ptr<void>(), &pages)} {}
 };
@@ -123,9 +126,18 @@ struct Change {
 	x::ChangeMapping mapping;
 	std::size_t views = 0;
 };
-// Today's store table has one entry, the selected generation, serving every namespace at slot 0.
-constexpr std::uint32_t whole_store_slot = 0;
+// One read of `selected`, an entry per namespace (reader.md D2), with every sequence of `change` loaded
+// before it (D4 rule 1); a member of every view built over it.
+struct Table {
+	l::StoreTable store;
+	std::vector<std::uint64_t> sequences; // by slot, through the highest slot the table names
+	std::size_t views = 0;
+};
+// The sequences a first table read loads; a table naming a higher slot is read again past it.
+constexpr std::size_t initial_slots = 4096;
+// An attached namespace: its generation and the sequence it was attached at.
 struct Entry {
+	std::string_view name; // the generation's
 	Generation *generation;
 	const x::ChangeWord *sequence;
 	std::uint64_t seen;
@@ -133,11 +145,15 @@ struct Entry {
 // Immutable once published: the store word and table it was built from, and the attached entries.
 struct View {
 	Change *change = nullptr; // null while the store has no change file (Q6)
-	std::uint64_t store_seen = 0;
-	std::uint64_t seen = 0;           // the whole-store sequence, loaded with `store_seen` (D4 rule 1)
-	std::optional<x::Selected> table; // `selected` as read after those loads; empty when absent
-	std::vector<Entry> entries;
-	const Entry *find(std::string_view) const noexcept { return entries.empty() ? nullptr : &entries.front(); }
+	std::uint64_t store_seen = 0; // loaded before `table` was read
+	Table *table = nullptr;       // null while the store has no `selected`
+	std::vector<Entry> entries;   // sorted by name
+	const Entry *find(std::string_view ns) const noexcept {
+		const auto at = std::lower_bound(entries.begin(), entries.end(), ns,
+		                                 [](const Entry &entry, std::string_view key) { return entry.name < key; });
+		return at != entries.end() && at->name == ns ? &*at : nullptr;
+	}
+	bool listed(std::string_view ns) const noexcept { return table && table->store.find(ns); }
 };
 struct alignas(64) Stripe {
 	std::atomic<std::uint64_t> count{0};
@@ -171,6 +187,9 @@ struct detent_reader {
 	std::atomic<std::uint64_t> retry_at{0}, failed_store{UINT64_MAX}, store_try_at{0};
 	std::atomic<int> failed_status{DETENT_OK};
 	std::uint64_t backoff = 0;
+	detent_status entry_failure = DETENT_OK; // the last refresh's failed attach, its others published
+
+	std::size_t slots = initial_slots; // sequences a table read loads first; the holder of `refreshing`'s
 	// Relaxed counters: written by the holder of `refreshing`, read by `testing::stats` from any thread.
 	std::atomic<std::uint64_t> publishes{0}, refused{0}, attached{0}, generations{0};
 	detent_reader *next = nullptr;
@@ -190,6 +209,8 @@ struct detent_reader {
 			}
 		if (view->change && !--view->change->views)
 			delete view->change;
+		if (view->table && !--view->table->views)
+			delete view->table;
 		delete view;
 	}
 	bool try_refreshing() noexcept {
@@ -345,6 +366,21 @@ struct Pin {
 
 enum class Outcome { Published, Unchanged, Refused, Failed };
 
+// Keeps what the current exception raised for testing::last_failure.
+void record_failure() noexcept {
+#ifdef DETENT_READER_TEST_HOOKS
+	try {
+		std::rethrow_exception(std::current_exception());
+	} catch (const std::exception &error) {
+		failure_text = error.what();
+	} catch (const Failure &failure) {
+		failure_text = "status " + std::to_string(int(failure.status));
+	} catch (...) {
+		failure_text = "unknown";
+	}
+#endif
+}
+
 // Opens the store directory and `change` (Q6 (a): an absent store is not an error).
 void open_store(detent_reader &handle, Change *&change) {
 	if (handle.directory < 0) {
@@ -377,10 +413,47 @@ void open_store(detent_reader &handle, Change *&change) {
 	change = new Change{std::move(mapping), 0};
 }
 
-// The publisher half of D5. Only the holder of `refreshing` runs it. `want` attaches the whole-store
-// entry when the view has none; `force` is detent_refresh, which ignores the retry clocks.
-Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
+// Loads the store word and the sequences through `handle.slots`, then reads `selected` (D4 rule 1). A
+// table naming a slot past the loaded ones loads through it and reads again; past the mapping, it remaps
+// `change` first (rule 4), replacing `owned`, the refresh's own mapping.
+std::unique_ptr<Table> read_table(detent_reader &handle, Change *&change, Change *&owned, std::uint64_t &store_word) {
+	bool uncovered = false;
+	for (unsigned attempt = 0; attempt != 4; ++attempt) {
+		store_word = change->mapping.store().load(std::memory_order_acquire);
+		auto table = std::make_unique<Table>();
+		const auto loaded = std::min(handle.slots, change->mapping.slots());
+		table->sequences.resize(loaded);
+		for (std::size_t k = 0; k != loaded; ++k)
+			table->sequences[k] = change->mapping.sequence(k)->load(std::memory_order_acquire);
+		auto read = x::read_store_table(handle.directory, handle.publisher);
+		if (!read)
+			continue; // renamed over since its open: load and read again
+		table->store = std::move(*read);
+		std::size_t named = 0;
+		for (const auto &entry : table->store.entries)
+			named = std::max<std::size_t>(named, std::size_t(entry.slot) + 1);
+		uncovered = named > loaded;
+		if (!uncovered)
+			return table;
+		handle.slots = std::max(handle.slots, named);
+		if (named <= change->mapping.slots())
+			continue;
+		// A slot past the mapping: only the winner remaps (D4 rule 4).
+		Change *grown = nullptr;
+		open_store(handle, grown);
+		delete owned;
+		owned = change = grown;
+	}
+	if (uncovered)
+		throw Failure{DETENT_SOURCE_FAILURE};
+	throw l::GenerationUnavailable("selected changed while reading it");
+}
+
+// The publisher half of D5. Only the holder of `refreshing` runs it. `want` names a namespace to attach
+// when the view has none; `force` is detent_refresh, which ignores the retry clocks.
+Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force) noexcept {
 	DETENT_WINDOW(Refreshing);
+	handle.entry_failure = DETENT_OK;
 	const auto s = handle.current.load(std::memory_order_relaxed);
 	const View *installed = handle.ring[s % ring_size].view.load(std::memory_order_relaxed);
 	auto &next = handle.ring[(s + 1) % ring_size];
@@ -398,9 +471,11 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	if (occupied)
 		DETENT_WINDOW(AfterFree);
 	View *built = nullptr;
-	Generation *fresh = nullptr;
+	std::vector<Generation *> fresh;
 	Change *new_change = nullptr;
+	Table *new_table = nullptr;
 	std::uint64_t attempted = UINT64_MAX; // the store word this attempt read the table at
+	bool want_failed = false;             // `want`'s first attach failed; the others publish
 	try {
 		Change *change = installed ? installed->change : nullptr;
 		if (!change || force) {
@@ -422,90 +497,119 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 			if (new_change)
 				change = new_change;
 		}
-		// D4 rule 1: load the store word and the sequences before reading the table.
-		const auto store_word = change->mapping.store().load(std::memory_order_acquire);
+		const bool first = !want.empty() && !(installed && installed->find(want));
+		auto store_word = change->mapping.store().load(std::memory_order_acquire);
 		attempted = store_word;
-		const x::ChangeWord *sequence = change->mapping.sequence(whole_store_slot);
-		auto seen = sequence ? sequence->load(std::memory_order_acquire) : 0;
-		const Entry *had = installed ? installed->find({}) : nullptr;
-		std::optional<x::Selected> table;
-		if (!force && !had && installed && installed->change == change && installed->store_seen == store_word) {
-			// D4: a first attach at an unchanged store word uses the view's table and the sequence
-			// loaded before it, so a publish since then still moves that sequence.
+		Table *table = nullptr;
+		if (!force && first && installed && installed->change == change && installed->store_seen == store_word)
+			// D4: a first attach at an unchanged store word uses the view's table and the sequences loaded
+			// before it, so a publish since then still moves them.
 			table = installed->table;
-			seen = installed->seen;
-		} else
+		else
 			try {
-				table = x::PreparedReader::selected(handle.directory, handle.publisher);
+				table = new_table = read_table(handle, change, new_change, store_word).release();
+				attempted = store_word;
 			} catch (const l::GenerationUnavailable &) {
-				// An attached namespace keeps answering, stale, rather than drop with the table (D4).
-				if (had)
+				// Attached namespaces keep answering, stale, rather than drop with the table (D4).
+				if (installed && !installed->entries.empty())
 					throw;
 			}
 		built = new View;
 		built->change = change;
 		built->store_seen = store_word;
-		built->seen = seen;
 		built->table = table;
-		if (table && (had || want)) {
-			if (!sequence) {
-				// A slot past the mapping: only the winner remaps (D4 rule 4).
-				Change *grown = nullptr;
-				open_store(handle, grown);
-				if (new_change)
-					delete new_change;
-				new_change = grown;
-				built->change = change = grown;
-				sequence = change->mapping.sequence(whole_store_slot);
-				if (!sequence)
+		// Keeps `previous` while the entry names its generation at its slot; otherwise attaches the entry's.
+		const auto attach = [&](const l::TableEntry &entry, Generation *previous) {
+			if (previous && previous->attached.descriptor.generation == entry.generation && previous->slot == entry.slot)
+				return previous;
+			DETENT_WINDOW(Attaching);
+			const auto selected = x::select_entry(handle.directory, handle.publisher, table->store, entry);
+			auto attached = x::PreparedReader::attach(handle.directory, handle.publisher, l::ViewLimits::prepared(), {},
+			                                          selected ? &*selected : nullptr, entry.name);
+			if (previous) {
+				// A4: no regression within an incarnation.
+				const auto &before = previous->attached.descriptor.cursor;
+				const auto &cursor = attached.descriptor.cursor;
+				if (before.same_identity(cursor) && cursor.position < before.position)
 					throw Failure{DETENT_SOURCE_FAILURE};
 			}
-			Generation *generation = nullptr;
-			if (had && had->generation->attached.descriptor.generation == table->descriptor.generation)
-				generation = had->generation;
-			else {
-				DETENT_WINDOW(Attaching);
-				auto attached = x::PreparedReader::attach(handle.directory, handle.publisher,
-				                                          l::ViewLimits::prepared(), {}, &*table);
-				const auto &cursor = attached.descriptor.cursor;
-				if (had) {
-					// A4: no regression within an incarnation.
-					const auto &previous = had->generation->attached.descriptor.cursor;
-					if (previous.same_identity(cursor) && cursor.position < previous.position)
-						throw Failure{DETENT_SOURCE_FAILURE};
+			fresh.push_back(nullptr);
+			fresh.back() = new Generation(entry, std::move(attached), handle.directory, handle.publisher, handle.mappings);
+			return fresh.back();
+		};
+		// Watches `slot` from the sequence loaded before the table.
+		const auto add = [&](Generation *generation, std::uint32_t slot) {
+			const auto *sequence = change->mapping.sequence(slot);
+			if (!sequence || slot >= table->sequences.size())
+				throw Failure{DETENT_SOURCE_FAILURE};
+			built->entries.push_back({generation->name, generation, sequence, table->sequences[slot]});
+		};
+		// A failed attach fails its namespace alone (D4): it keeps its generation and remembers the
+		// sequence it failed at, so it retries when that moves or at detent_refresh; the others publish.
+		const auto failed_attach = [&] {
+			const auto status = classify(std::current_exception());
+			record_failure();
+			if (handle.entry_failure == DETENT_OK)
+				handle.entry_failure = status;
+			return status;
+		};
+		if (table) {
+			// Every attached namespace follows its entry; one that left the table keeps its generation.
+			if (installed)
+				for (const auto &had : installed->entries) {
+					const auto *listed = table->store.find(had.name);
+					if (!listed) {
+						// Its slot is no longer its own: it watches the store word, so the publish that
+						// re-adds it, at whatever slot, makes its next lookup attach the new entry.
+						built->entries.push_back({had.name, had.generation, &change->mapping.store(), store_word});
+						continue;
+					}
+					Generation *generation = had.generation;
+					try {
+						generation = attach(*listed, had.generation);
+					} catch (...) {
+						failed_attach();
+					}
+					add(generation, listed->slot);
 				}
-				fresh = new Generation(std::move(attached), handle.directory, handle.publisher, handle.mappings);
-				generation = fresh;
-			}
-			built->entries.push_back({generation, sequence, seen});
+			if (first)
+				if (const auto *listed = table->store.find(want)) {
+					try {
+						add(attach(*listed, nullptr), listed->slot);
+					} catch (...) {
+						// Remembered at this store word, as a whole failed refresh is.
+						handle.failed_status.store(failed_attach(), std::memory_order_relaxed);
+						want_failed = true;
+					}
+				}
+			std::sort(built->entries.begin(), built->entries.end(),
+			          [](const Entry &a, const Entry &b) { return a.name < b.name; });
 		}
-		const auto same_table = [](const std::optional<x::Selected> &a, const std::optional<x::Selected> &b) {
-			return a.has_value() == b.has_value() && (!a || a->descriptor.generation == b->descriptor.generation);
+		const auto same_table = [](const Table *a, const Table *b) {
+			return a == b || (a && b && a->store == b->store);
+		};
+		const auto same_entries = [](const std::vector<Entry> &a, const std::vector<Entry> &b) {
+			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](const Entry &x, const Entry &y) {
+				return x.generation == y.generation && x.seen == y.seen;
+			});
 		};
 		if (installed && built->change == installed->change && built->store_seen == installed->store_seen &&
-		    built->seen == installed->seen && same_table(built->table, installed->table) &&
-		    built->entries.size() == installed->entries.size() &&
-		    (built->entries.empty() || (built->entries[0].generation == installed->entries[0].generation &&
-		                                built->entries[0].seen == installed->entries[0].seen))) {
+		    same_table(built->table, installed->table) && same_entries(built->entries, installed->entries)) {
 			delete built;
-			return Outcome::Unchanged;
+			delete new_table;
+			if (!want_failed)
+				return Outcome::Unchanged;
+			handle.failed_store.store(attempted, std::memory_order_release);
+			return Outcome::Failed;
 		}
 	} catch (...) {
 		const auto status = classify(std::current_exception());
-#ifdef DETENT_READER_TEST_HOOKS
-		try {
-			std::rethrow_exception(std::current_exception());
-		} catch (const std::exception &error) {
-			failure_text = error.what();
-		} catch (const Failure &failure) {
-			failure_text = "status " + std::to_string(int(failure.status));
-		} catch (...) {
-			failure_text = "unknown";
-		}
-#endif
+		record_failure();
 		delete built;
-		delete fresh;
+		for (auto *generation : fresh)
+			delete generation;
 		delete new_change;
+		delete new_table;
 		handle.failed_status.store(status, std::memory_order_relaxed);
 		// Remembered at the word the attempt read (D4): a publish since then retries it.
 		if (attempted == UINT64_MAX && installed && installed->change)
@@ -518,17 +622,19 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 	for (const auto &entry : built->entries)
 		++entry.generation->views;
 	++built->change->views;
-	if (fresh) {
-		handle.generations.fetch_add(1, std::memory_order_relaxed);
-		handle.attached.fetch_add(1, std::memory_order_relaxed);
-		DETENT_COUNT(namespaces_attached, 1);
+	if (built->table)
+		++built->table->views;
+	if (!fresh.empty()) {
+		handle.generations.fetch_add(fresh.size(), std::memory_order_relaxed);
+		handle.attached.fetch_add(fresh.size(), std::memory_order_relaxed);
+		DETENT_COUNT(namespaces_attached, fresh.size());
 	}
 	next.view.store(built, std::memory_order_release);
 	handle.current.store(s + 1, std::memory_order_seq_cst);
 	handle.publishes.fetch_add(1, std::memory_order_relaxed);
 	handle.backoff = 0;
 	handle.retry_at.store(0, std::memory_order_relaxed);
-	handle.failed_store.store(UINT64_MAX, std::memory_order_relaxed);
+	handle.failed_store.store(want_failed ? attempted : UINT64_MAX, std::memory_order_release);
 	handle.free_retired((s + 1) % ring_size);
 	return Outcome::Published;
 }
@@ -568,21 +674,22 @@ template <class Answer> detent_status lookup(detent_reader &handle, std::string_
 			    now_ns() < handle.retry_at.load(std::memory_order_relaxed) || !handle.try_refreshing())
 				return answer(*entry->generation); // stale, never waiting (D4)
 			pin.release();
-			refresh_locked(handle, true, false);
+			refresh_locked(handle, ns, false);
 			handle.release_refreshing();
 			continue;
 		}
 		detent_status failed;
 		if (remembered(handle, view, failed))
 			return failed;
-		if (view && view->change && !view->table &&
+		// A namespace the table does not list, at the store word it was read at, has no generation yet.
+		if (view && view->change && !view->listed(ns) &&
 		    view->change->mapping.store().load(std::memory_order_acquire) == view->store_seen)
 			return DETENT_UNAVAILABLE;
 		if (now_ns() < handle.retry_at.load(std::memory_order_relaxed))
 			return DETENT_UNAVAILABLE;
 		pin.release();
 		if (handle.try_refreshing()) {
-			const auto outcome = refresh_locked(handle, true, false);
+			const auto outcome = refresh_locked(handle, ns, false);
 			handle.release_refreshing();
 			if (outcome == Outcome::Published)
 				continue;
@@ -665,7 +772,7 @@ detent_status detent_open(const detent_open_options *options, detent_reader **ou
 	}
 	// Directory trust once, `change` and the table; nothing attached (D2). An empty store opens (Q6).
 	handle->refreshing.store(true, std::memory_order_relaxed);
-	const auto outcome = refresh_locked(*handle, false, false);
+	const auto outcome = refresh_locked(*handle, {}, false);
 	handle->refreshing.store(false, std::memory_order_relaxed);
 	if (outcome == Outcome::Failed) {
 		const auto status = detent_status(handle->failed_status.load(std::memory_order_relaxed));
@@ -728,10 +835,11 @@ detent_status detent_refresh(detent_reader *handle) {
 		return DETENT_INVALID_ARGUMENT;
 	if (!handle->try_refreshing())
 		return DETENT_OK; // another thread is refreshing
-	const auto outcome = refresh_locked(*handle, false, true);
+	const auto outcome = refresh_locked(*handle, {}, true);
+	// A namespace that failed to attach fails the refresh, though the others published.
 	const auto status = outcome == Outcome::Failed
 	                        ? detent_status(handle->failed_status.load(std::memory_order_relaxed))
-	                        : DETENT_OK;
+	                        : handle->entry_failure;
 	// A refresh that does not fail forgets a remembered failure, so the next first lookup attaches (D4).
 	if (outcome != Outcome::Failed)
 		handle->failed_store.store(UINT64_MAX, std::memory_order_relaxed);
@@ -754,6 +862,7 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_hook = hook;
 }
 const char *last_failure() noexcept { return failure_text.c_str(); }
+void hold_retry(detent_reader *handle) noexcept { handle->retry_at.store(UINT64_MAX, std::memory_order_relaxed); }
 void refuse_atfork(bool refused) noexcept { atfork_refused = refused; }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;

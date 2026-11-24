@@ -1,0 +1,583 @@
+{
+ "comment": "Shared by the C++, Python and Rust reader tests. The runner publishes publishes[0], opens a Reader over `namespaces`, runs the cases with after=1, publishes publishes[1], then runs after=2. get checks the returned integer, and get_as the value read as `type` (C++ get_as<T>, Rust get_as::<T>; Python runs the bool rows through get_bool, its ints having no width): the fallback on any error or when the value is out of the type's range, for bool other than 0 or 1; lookup checks the status name (detent_status_name) and the value, the fallback on any error; revision checks the namespace revision or null.",
+ "namespaces": [
+  "checkout",
+  "search",
+  "t",
+  "payments"
+ ],
+ "publishes": [
+  {
+   "schema_version": 1,
+   "knobs": {
+    "checkout:killswitch_new_path": {
+     "default": 0
+    },
+    "checkout:enabled": {
+     "default": 1
+    },
+    "search:max_results": {
+     "default": 25
+    },
+    "t:max": {
+     "default": 9223372036854775807
+    },
+    "t:min": {
+     "default": -9223372036854775808
+    },
+    "payments:new_processor": {
+     "default": 0,
+     "rollout_pct": 10,
+     "overrides": {
+      "internal_employees": 1
+     },
+     "rollout_value": 1
+    },
+    "payments:zero": {
+     "default": 0,
+     "rollout_pct": 0,
+     "rollout_value": 1
+    },
+    "payments:full": {
+     "default": 0,
+     "rollout_pct": 100,
+     "rollout_value": 1
+    },
+    "payments:group": {
+     "default": 1,
+     "overrides": {
+      "blocked": 0
+     }
+    },
+    "other:hidden": {
+     "default": 1
+    },
+    "search:tier": {
+     "default": 10,
+     "overrides": {
+      "vip": 30,
+      "beta": {
+       "rollout_pct": 100
+      }
+     },
+     "rollout_pct": 100,
+     "rollout_value": 20
+    },
+    "t:two": {
+     "default": 2
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "knobs": {
+    "checkout:killswitch_new_path": {
+     "default": 1
+    },
+    "checkout:enabled": {
+     "default": 1
+    },
+    "search:max_results": {
+     "default": 100
+    },
+    "t:max": {
+     "default": 9223372036854775807
+    },
+    "t:min": {
+     "default": -9223372036854775808
+    },
+    "payments:new_processor": {
+     "default": 0,
+     "rollout_pct": 10,
+     "overrides": {
+      "internal_employees": 1
+     },
+     "rollout_value": 1
+    },
+    "payments:zero": {
+     "default": 0,
+     "rollout_pct": 0,
+     "rollout_value": 1
+    },
+    "payments:full": {
+     "default": 0,
+     "rollout_pct": 100,
+     "rollout_value": 1
+    },
+    "payments:group": {
+     "default": 1,
+     "overrides": {
+      "blocked": 0
+     }
+    },
+    "other:hidden": {
+     "default": 1
+    },
+    "search:tier": {
+     "default": 10,
+     "overrides": {
+      "vip": 30,
+      "beta": {
+       "rollout_pct": 100
+      }
+     },
+     "rollout_pct": 100,
+     "rollout_value": 20
+    },
+    "t:two": {
+     "default": 2
+    }
+   }
+  }
+ ],
+ "cases": [
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "checkout:killswitch_new_path",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "checkout:enabled",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:max_results",
+   "fallback": -1,
+   "value": 25
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "t:max",
+   "fallback": 0,
+   "value": 9223372036854775807
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "t:min",
+   "fallback": 0,
+   "value": -9223372036854775808
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "checkout:killswitch_new_path",
+   "fallback": -1,
+   "status": "ok",
+   "value": 0
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "search:max_results",
+   "fallback": -1,
+   "status": "ok",
+   "value": 25
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "t:min",
+   "fallback": -1,
+   "status": "ok",
+   "value": -9223372036854775808
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "checkout:nope",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "checkout:nope",
+   "fallback": false,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:nope",
+   "fallback": -7,
+   "value": -7
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "checkout:nope",
+   "fallback": -1,
+   "status": "missing",
+   "value": -1
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "search:max_results",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "no-colon",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "no-colon",
+   "fallback": -1,
+   "status": "invalid_name",
+   "value": -1
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "ns:has space",
+   "fallback": -1,
+   "status": "invalid_name",
+   "value": -1
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "other:hidden",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "other:hidden",
+   "fallback": -5,
+   "value": -5
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "other:hidden",
+   "fallback": -1,
+   "status": "not_opened",
+   "value": -1
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "hash": "user-1",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:new_processor",
+   "fallback": false,
+   "hash": "user-42",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:new_processor",
+   "fallback": false,
+   "hash": "user-2",
+   "switch": "internal_employees",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "hash": "user-2",
+   "switch": "other_group",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "payments:new_processor",
+   "fallback": -1,
+   "hash": "user-42",
+   "status": "ok",
+   "value": 1
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "payments:new_processor",
+   "fallback": -1,
+   "hash": "user-2",
+   "switch": "internal_employees",
+   "status": "ok",
+   "value": 1
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:zero",
+   "fallback": true,
+   "hash": "user-42",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:full",
+   "fallback": false,
+   "hash": "user-1",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:full",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:group",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:group",
+   "fallback": true,
+   "hash": "user-1",
+   "switch": "blocked",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "payments:group",
+   "fallback": false,
+   "hash": "user-1",
+   "switch": "nobody",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "checkout",
+   "value": 1
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "other",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "bad namespace",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "value": 10
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "hash": "user-1",
+   "value": 20
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "hash": "user-1",
+   "switch": "vip",
+   "value": 30
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "switch": "vip",
+   "value": 30
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "hash": "user-1",
+   "switch": "beta",
+   "value": 20
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:tier",
+   "fallback": -1,
+   "switch": "beta",
+   "value": 10
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "search:tier",
+   "fallback": -1,
+   "hash": "user-2",
+   "switch": "nobody",
+   "status": "ok",
+   "value": 20
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "search:tier",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "search:tier",
+   "fallback": false,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "checkout:enabled",
+   "fallback": -3,
+   "value": 1
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "t:two",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "bool",
+   "name": "t:two",
+   "fallback": false,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "int8",
+   "name": "t:max",
+   "fallback": 3,
+   "value": 3
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "uint8",
+   "name": "search:max_results",
+   "fallback": 0,
+   "value": 25
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "uint64",
+   "name": "t:min",
+   "fallback": 4,
+   "value": 4
+  },
+  {
+   "after": 1,
+   "op": "get_as",
+   "type": "int64",
+   "name": "t:min",
+   "fallback": 4,
+   "value": -9223372036854775808
+  },
+  {
+   "after": 2,
+   "op": "get_as",
+   "type": "bool",
+   "name": "checkout:killswitch_new_path",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 2,
+   "op": "get",
+   "name": "search:max_results",
+   "fallback": -1,
+   "value": 100
+  },
+  {
+   "after": 2,
+   "op": "get",
+   "name": "t:max",
+   "fallback": 0,
+   "value": 9223372036854775807
+  },
+  {
+   "after": 2,
+   "op": "revision",
+   "namespace": "checkout",
+   "value": 2
+  },
+  {
+   "after": 2,
+   "op": "revision",
+   "namespace": "search",
+   "value": 2
+  }
+ ]
+}

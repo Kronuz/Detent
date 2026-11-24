@@ -40,7 +40,7 @@ ctest --test-dir build --output-on-failure
 4. **Bounded everything.** New inputs, queues and caches need explicit limits
    checked before allocation.
 5. **Keep the read path clean.** Nothing that allocates, locks or does I/O
-   goes on `eval`/`get`.
+   goes on `get`/`lookup`.
 6. **Document as you go.** Update the design documents in `docs/` and this
    website alongside the code.
 

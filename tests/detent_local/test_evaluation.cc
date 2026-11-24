@@ -1,4 +1,5 @@
-#include "detent/detail/evaluation.hh"
+#include "detent/hashing.hh"
+#include "detent/model.hh"
 #include "detent_local/paged_definition.hh"
 #include "evaluation.hh"
 #include <iostream>
@@ -13,6 +14,24 @@ void check(bool value, int line) {
 		throw std::runtime_error("evaluation invariant at line " + std::to_string(line));
 }
 #define CHECK(value) check(value, __LINE__)
+// The reference semantics, written out independently of the paged evaluator: a matching group override
+// (forced, or a group percentage that needs a hash), then the knob-wide rollout, then the default.
+std::int64_t reference(const d::KnobDef &definition, std::string_view name, std::optional<std::string_view> hash,
+                       std::optional<std::string_view> group) {
+	const auto ramped = [&](std::uint64_t pct) {
+		return hash && d::stable_bucket(name, *hash) < pct ? definition.rollout_value.value_or(definition.default_value)
+		                                                   : definition.default_value;
+	};
+	if (group) {
+		const auto override = definition.overrides.find(*group);
+		if (override != definition.overrides.end()) {
+			if (const auto *forced = std::get_if<std::int64_t>(&override->second))
+				return *forced;
+			return ramped(std::get<d::GroupRollout>(override->second).rollout_pct);
+		}
+	}
+	return definition.rollout_pct ? ramped(*definition.rollout_pct) : definition.default_value;
+}
 // Evaluates through the paged evaluator over a definition encoded as the paged format stores it.
 std::int64_t lifted(const d::KnobDef &def, std::string_view ns, std::string_view key,
                     std::optional<std::string_view> hash, std::optional<std::string_view> group) {
@@ -69,7 +88,7 @@ int main() {
 		ramped += bucket < 50;
 	}
 	CHECK(ramped > 100 && ramped < 300);
-	// Oracle: detail::evaluate over KnobDef on the full small domain, bool and integer shapes.
+	// Oracle: the reference semantics above on the full small domain, flag and integer shapes.
 	std::vector<std::optional<std::string>> hashes{std::nullopt}, groups{std::nullopt, "g", "other"};
 	for (unsigned i = 0; i != 25; ++i)
 		hashes.push_back("h" + std::to_string(i));
@@ -90,7 +109,7 @@ int main() {
 								h = *hash;
 							if (group)
 								g = *group;
-							CHECK(lifted(def, "ns", "k", h, g) == d::detail::evaluate(def, "ns:k", h, g));
+							CHECK(lifted(def, "ns", "k", h, g) == reference(def, "ns:k", h, g));
 							++cases;
 						}
 	std::cout << cases << " cases\n";

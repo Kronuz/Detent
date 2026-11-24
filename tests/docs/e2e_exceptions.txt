@@ -17,7 +17,7 @@ guides/shell-and-agent#2 -- a shell fragment that calls run_new_path, which is u
 guides/shell-and-agent#3 -- reads ./defaults.json, which the guide never creates
 guides/shell-and-agent#4 -- output shows pid and revision placeholders; reference/cli/detent-agent#1 asserts the same command
 guides/shell-and-agent#5 -- stops the agent the later pages use
-guides/shell-and-agent#6 -- needs a service-managed system agent
+guides/cpp-application#1 -- configures and builds the project with its examples, which the runner's build leaves out
 guides/testing#1 -- my_app is a placeholder program
 guides/python-and-rust#1 -- builds the Python and Rust bindings, which need their toolchains
 guides/durable-authority#1 -- builds the authority
