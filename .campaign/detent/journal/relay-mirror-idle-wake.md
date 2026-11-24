@@ -25,7 +25,8 @@ test_namespace_coordinator passed.
 
 Earlier rounds: A3 903054 and suite ce2080 failed on test bugs (restarted A at an older seal; the
 wake write before the busy probe), fixed in 0ef266b3. Jobs 261124-102825-ffc13c, -102832-d10575,
--102840-e72d93 ran at 0ef266b3, before the authority fix: superseded, not evidence.
+-102840-e72d93 ran at 0ef266b3, before the authority fix: superseded, not evidence (ffc13c and
+d10575 cancelled; the suite e72d93 failed only test_relay_service on the late seal fixed in dec62ada).
 
 ## Design (sent to the lead as msg-310)
 
