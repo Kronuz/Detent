@@ -19558,12 +19558,12 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "owner D154: third fix round with the lifecycle table first; D155 keeps reader.md D4",
+      "reason": "round 3 (D154) ready at Detent:5cc302f8: lifecycle table D7, F5 fix 021dfa5e, class sweep",
       "repo": ".",
       "risk": "critical",
-      "status": "active",
+      "status": "review",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-24T07:23:35",
+      "updated": "2026-11-24T07:54:15",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
