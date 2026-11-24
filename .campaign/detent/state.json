@@ -3541,6 +3541,18 @@
       "closed": "handled: legacy-h file set widened (f525e81c and earlier); msg-298's quests starting now",
       "id": "msg-281",
       "text": "legacy-h (fix round 1, F1-F3/A21-A22) needs three file-set additions: src/detent_local/generation.cc and src/detent_local/generation_file_access.hh (expose the trusted whole-table read and select_entry, so the core reads selected once per refresh and attaches by entry without a second table read: T2 at 1,000 namespaces), and tests/docs/** (F3: check_docs.py's error enums and docs_exceptions.txt's three stale rows; F11: mutants.py M3). I am proceeding on them now; refuse and I revert."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T17:15:26",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T17:15:26",
+      "by": "legacy-h contributor",
+      "closed": "handled: legacy-h file set widened (f525e81c and earlier); msg-298's quests starting now",
+      "id": "msg-282",
+      "text": "legacy-h: one more file-set addition, tests/detent_testing/test_generation_writer.cc: the writer's C face now publishes an entry per namespace (the agent's layout, so the bindings read multi-namespace stores), and its test opened the C face's store as a one-entry table; it now opens entry t and checks two entries. Same terms as msg-281."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
