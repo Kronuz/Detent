@@ -70,7 +70,7 @@ Second contributor, 2026-11-23 (the first's context filled):
 ## Next
 
 1. Read jobs 869a55 (A1), bbaf94 (A2), 3cb87a and 9dea3a (A3) and CI at consensus:4dbaee0 (A3's
-   ci:macos-x86_64, A4); then Evidence, Result, "ready for review".
+   ci:macos-x86_64, A4: run 45299903223, queued); then Evidence, Result, "ready for review".
 2. rpc-lane.md: no lane contract changed (the cause is the test's journal placement); leave it.
 
 ## Blocked on
