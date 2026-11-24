@@ -5959,7 +5959,46 @@
       "worktree": ""
     },
     "consensus-driver-pipelined-sim": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T06:33:43",
+          "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "blobs": {
+            "docs/mechanisms/simulation.md": "100644:256830043a2374619df292507e917a0b9da9e2a4",
+            "test/driver_simulation.cc": "100644:fe991747b44c86ad2ff180350bb15d0cfc0aece7"
+          },
+          "by": "review",
+          "commit": "8f21d10b20e413fe9bf841af5095802f4e67b7b6",
+          "criteria": "ee5cb2b093e97908",
+          "diffs": {
+            "docs/mechanisms/simulation.md": "e790cb6447bed628",
+            "test/driver_simulation.cc": "be5bf2b99d745647"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "sh -c 'o=$(SIM_DRIVER_SEEDS=60 SIM_DRIVER_PIPELINE=1 build/consensus_simulation_test 0 3000 1) || exit 1; echo \"$o\"; echo \"$o\" | grep -q \" 0 of them extending a flight\" && echo \"$o\" | grep -q \"(at most 1 in flight)\\|(at most 0 in flight)\"'",
+                  "commit": "8f21d10b20e413fe9bf841af5095802f4e67b7b6",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261124-054535-246acf",
+                  "level": "light",
+                  "seconds": 48.8,
+                  "state": "done",
+                  "what": "sh -c 'o=$(SIM_DRIVER_SEEDS=60 SIM_DRIVER_PIPELINE=1 build/c at 8f21d10b20e4"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "c73be2c696502bc7ca074e4bbf414f79d8e05ce6",
+          "reviewed": "551a5e6b658574856791915e498104a8f5d53270",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
       "branch": "quest/detent/consensus-driver-pipelined-sim",
@@ -5985,7 +6024,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [
         "consensus-driver-flow",
@@ -5997,7 +6038,7 @@
       "risk": "normal",
       "status": "review",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T05:15:09",
+      "updated": "2026-11-24T06:33:43",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
