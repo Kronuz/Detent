@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: blocked on lead: widen the file set for the outside-set citations below; waiting on jobs 261124-094de0 (restart_wake x20 at main) 261124-125737-1d97f0 (x20 at head)
+State: waiting on jobs 261124-130138-b44ae2 261124-130141-2b5161 261124-130144-82572f 261124-130148-82971a 261124-130151-a63f81 261124-130156-8e3551 261124-125750-094de0 261124-125737-1d97f0, and CI
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,13 +25,9 @@ using, 1 anonymous namespace), notes only for service_runtime.cc.
 
 ## Blocked on
 
-Lead: widen the file set, then I edit (all are moves of a citation, no behavior):
-1. tests/docs/check_docs.py:164 reads service.cc for the `names[]` result table (CI check-docs fails on `assert names`): it lives in service_runtime.cc now.
-2. tests/detent_relay/mutants/{absence-trusted,history-not-gated,layouts-no-enable}.patch name src/detent_authority/service.cc: their hunks are in service_runtime.cc.
-3. tests/detent_authority/history_mutant.sh: `old-fetch-bound` patches service_options.cc now (`accept-low-fetch-bound` stays service.cc).
-4. tests/detent_authority/revert_followup_check.sh lines 18-24: `leader_alive`, `leader_known` are in service_runtime.cc.
-5. Left alone: tests/detent_authority/revert_ready_check.sh (one-off against an old BASE, already stale: src/detentd/main.cc).
-6. Docs citing service.cc/state.cc by line: docs/mechanisms/{format-refusal,authority-retained-state,authority-reply,authority-capacity-raise}.md, docs/design/{namespace-delivery,observability,http-coroutines}.md, docs/ONLINE_CAPACITY_ARCHITECTURE.md, docs/LIBRARY_ADOPTION_ARCHITECTURE.md, docs/dev/docs-site-audit.md (docs/status and docs/reviews are dated records; not edited).
+Nothing. The lead widened the file set; citations repointed at 0793c894 (check_docs.py, the relay and history mutants and revert checks, four mechanism pages). Dated design records (docs/design/*, LIBRARY_ADOPTION_ARCHITECTURE, ONLINE_CAPACITY_ARCHITECTURE, docs-site-audit) left alone; `check_docs.py` passes locally ("33 gaps, 33 listed, 0 unlisted, 0 stale"), so none of them breaks it. revert_ready_check.sh drops the split pieces after restoring BASE's one-file service (untested: BASE is an old commit).
+
+Jobs at the final head (0793c894 code): build + full ctest b44ae2; split_check 2b5161; ctest -N 82572f; check_docs 82971a; relay mutants a63f81; history mutants 8e3551. restart_wake x20: main 094de0, head 1d97f0 (counts to add when they end).
 
 ## Evidence
 
