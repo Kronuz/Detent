@@ -5789,9 +5789,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T01:34:07",
+      "updated": "2026-11-24T04:07:11",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-drop-memory-io-include": {
