@@ -4516,6 +4516,21 @@
         "todo": "6d6046e7"
       },
       "text": "to do, critical path first:\ntodo: resume relay-mirror-idle-wake (nothing moved it for 62 min: blocked on split-detent: landing; then move the authority edit and queue evidence; new): `campaign status relay-mirror-idle-wake`, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T11:59:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T11:59:17",
+      "by": "campaign",
+      "closed": "parked until the suite probe ends (known msg-86)",
+      "id": "msg-366",
+      "settles": {
+        "todo": "e08cc75e"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 2 h): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
