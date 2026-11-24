@@ -9,8 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Baseline: A/A idle CPU at the default 250 ms (bench/idle-wakeups/compare.sh idle, branch = main +
-bench edits only, against main).
+The fix is written but the out-of-set files (headers, http_upstream.cc) are not committed on the
+branch, pending msg-310: probe commit c97932cb (dangling, `git commit-tree`) runs the relay tests
+(probe 261124-034543-d72b56, no evidence). Baselines queued at b06a8102 (main's binaries) vs main:
+A/A idle 261124-034500-c0335d, A/A latency 261124-034503-387342. A3 fails-without at b06a8102
+(test only, main's mirror): 261124-033951-a94472.
+
+Smoke 261124-033656-d26b03 (main's code, 5 s, 5 samples): idle relay 1.56% of a core, 4.36
+syncs/s, authority 2.34%; latency p50 145 ms at 250 ms.
 
 ## Design (sent to the lead as msg-310)
 
@@ -27,9 +33,9 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Lead adds include/detent_relay/{mirror_service,namespace_relay,http_upstream}.hh and
-   src/detent_relay/http_upstream.cc to the set (msg-310); then implement.
-2. Counting test (A3) and its --fails-without at main; doc (A4); A1/A2 exclusive jobs.
+1. On msg-310's answer: commit the fix (mirror_service.cc and the four out-of-set files), then
+   `campaign verify --for A1`(suite) and A1/A2 exclusive head-vs-main jobs; push.
+2. CHANGELOG line; Result with numbers; core-seconds a day and power.
 
 ## Blocked on
 
