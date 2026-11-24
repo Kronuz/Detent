@@ -18775,12 +18775,15 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "correctness review round 2 F1: the agent names a new slot in selected before growing change; the cause is in agent_store.cc",
+      "reason": "fix round 2 review CHANGES (F5); a third round needs the owner's go (asked 2026-11-24); contributor held",
       "repo": ".",
       "risk": "critical",
-      "status": "active",
+      "status": "blocked",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-24T00:26:58",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T03:25:17",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
