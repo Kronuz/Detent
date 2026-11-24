@@ -4334,6 +4334,21 @@
         "todo": "479b93be"
       },
       "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; new): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 16 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:24:01",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:24:01",
+      "by": "campaign",
+      "closed": "observability-core parked for the owner (P2, P3) with its design review running; relay-mirror resumed; fetch-oversize-abort waits on CI runs still running",
+      "id": "msg-353",
+      "settles": {
+        "todo": "d5105077"
+      },
+      "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; listed 5 min): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume relay-mirror-idle-wake (its journal waits on jobs 261124-035147-903054, 261124-035149-ce2080, 261124-035150-981777, 261124-035152-3ac6f3, 261124-035154-314fca, 261124-035211-92ed4b and 261124-034503-387342, which ended (done, failed) 3 min ago; new): `campaign status relay-mirror-idle-wake`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 21 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
