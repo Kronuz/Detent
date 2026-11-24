@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: waiting on jobs A/B arms (interleaved, strict; head 261124-025047-c4ea2e 261124-025142-351c2c 261124-025149-f081eb, main 54c6599 261124-025108-24d3ad 261124-025146-40fbca 261124-025152-901a42); earlier head arms 261124-021447-93b7d7 021453-191418 021459-13d657 (28.4, 28.6, 25.8 s), ASan head 261124-021509-0302a0 (23.6 s, RelWithDebInfo; the Release arms are an unoptimised build)
+State: ready for review (A3: the suite verify and CI of 551a5e6 were still running when written)
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,17 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code and docs done at consensus:551a5e6 (merged main 54c6599 clean). Jobs A1 (120 seeds default
-mix; 60 seeds each forced at depth 4 and 16), A2 mutants (overlap, previous-term) and A3 verify
-queued. Next after they finish: paste `campaign brief`'s table, push, set ready for review.
+Nothing; waiting for A3 (suite verify, CI) to finish at consensus:551a5e6.
 
 ## Next
 
-0. Lead's msg (coordinator): A/B jobs, strict, CI default driver phase (SIM_DRIVER_SEEDS=20, 3000 steps), interleaved
-   main 54c6599 / head: bceda5 93b7d7 081013 191418 6f75bf 13d657 (ids 261124-0214..); ASan head timing job 261124-021509-0302a0.
-   Say in Result: A2 met by `overlap`; the counter proves A1; five batching mutants survive (Core re-check).
-
-1. Read the jobs; if all pass, paste the Evidence table, fill Result, push, State "ready for review".
+1. Lead reviews; A3 goes green or fails on the suite/CI.
 
 ## Blocked on
 
@@ -27,14 +21,15 @@ queued. Next after they finish: paste `campaign brief`'s table, push, set ready 
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
+Failed jobs, named: 261124-021444-bceda5, -021450-081013, -021456-6f75bf (main arms, exit 127: my
+`--commit` was passed inside the command; resubmitted below). 261124-025043-2cd267, -025050-f32e6e,
+-025056-3f0bc4 were cancelled by a later `--quest` submit. No message (msg-N) is listed.
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261124-014735-3e572f (60 seeds, 45 of 46 pipelined seeds had a second append in flight), 261124-020911-4b0af3 (120 seeds), 261124-020914-c49b0b (60 seeds at depth 4), 261124-020918-cb3518 (60 seeds at depth 16) |
+| A2 | 261124-014735-3e572f; fails without: 261124-020921-0e0ba5 (`overlap`), 261124-020925-4954e1 (`previous-term`) |
+| A3 | pending: `campaign verify consensus-driver-pipelined-sim --for A3` and `ci:ci` at 551a5e6 |
 
 ## Result
 
@@ -61,7 +56,19 @@ not pipelining-specific. Mutants of the batching path alone (worker.h hold: cont
 261124-014725-7daa04, term 261124-014727-9c0961, peer 261124-014729-8b0461; bounds
 261124-015131-aa9eff; core.h `more` loop term 261124-014732-04eab3) all survive 60 seeds: Core
 re-checks each merged append (previous, term) and the bounds are rarely reached, so they are
-equivalent or too rare for this load. Not done: a mutant observable only at depth > 1.
+equivalent or too rare for this load. Not done: a mutant observable only at depth > 1; A2 as
+written does not require one, and A1's counter (45 of 46 seeds with a second append in flight) is
+what proves pipelining runs.
+
+Runtime of the driver phase at CI's default (SIM_DRIVER_SEEDS=20, 3000 steps; strict, interleaved
+pairs head/main, unoptimised `build`, one host): head 34.5, 29.9, 31.8 s (c4ea2e, 351c2c, f081eb)
+against main 54c6599 28.1, 28.5, 26.9 s (24d3ad, 40fbca, 901a42): per-pair +6.4, +1.4, +4.9 s,
+mean +4.3 s (27.8 to 32.1 s, +15%, pairs +5% to +23%). Not negligible for this phase, and the
+cause is not isolated (more appends in flight and batching on 3 of 4 seeds, plus the counters).
+Three earlier head runs under another load took 28.4, 28.6, 25.8 s (021447-93b7d7, -021453-191418,
+-021459-13d657). ASan (RelWithDebInfo, the head, one run, beside 4 light holds): 23.6 s
+(261124-021509-0302a0), not comparable to the unoptimised arms and with no main arm; CI's
+consensus_simulation (59 s typical, 300 s TIMEOUT) will show the whole-test effect.
 
 ## Rulings I made
 
