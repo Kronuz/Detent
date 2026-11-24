@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-180604-09a8dc 261123-180608-7b9211 261123-180645-514406 261123-180639-e460e3 261123-180640-75fc0c 261123-180641-82725c 261123-180641-0b7099 261123-180642-577728; ci:ci at journal:bd6cad6
+State: waiting on jobs 261123-180604-09a8dc 261123-180608-7b9211 261123-180645-514406 261123-180639-e460e3 261123-180640-75fc0c 261123-180642-577728; ci:ci at journal:bd6cad6
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -91,14 +91,16 @@ defect:
 
 ## Next
 
-1. Queued strict at journal:8bf1d1d: A4 bytes 261123-160756-ede889, latency 261123-160757-1330f1;
-   `ci:ci` for A6 (pushed). Done at 8bf1d1d, exit as required: F1 fails without
-   261123-160740-42038e (921 of 10854 checks fail, "log record changed since it was written");
-   F1 at the fix 261123-160744-836752 (midwrite_reads 10854 checks 0 failures; reviewer's
-   invariant 92029 checks 0 failures; midwrite "Corruption in 0 of 4768" turns, 0 of 28080 peeks;
-   was 4414 of 4768 at f1ca348); A1 261123-160755-5fb5e6 (main newest SILENT 36, fix 6473 checks 0
-   failures), A2 261123-160755-a04ac3, A3 261123-160756-3b5db8. Then the Evidence table from
-   `campaign brief`, the Result, "ready for review".
+1. When the exclusive latency jobs end, run
+   `python3 ~/.scratch/detent/journal-turn-sector-checks/lat.py <log of 09a8dc> <log of 7b9211>`:
+   per arm and size the medians, the write and barrier p50 apart, which runs are slow (p50 > 30 ms)
+   and whether the per-group control of the same invocation is slow too (host fsync regime) or
+   only the turn log (the shared sector's rewrite). If the fix loses throughput beyond the A/A
+   band, report to the lead with the numbers before changing anything. Done at bd6cad6: A2
+   261123-180641-82725c, A3 261123-180641-0b7099 (exit 0). Still queued: F1 fails without
+   261123-180645-514406, F1 at the fix 261123-180639-e460e3, A1 261123-180640-75fc0c, A4 bytes
+   261123-180642-577728. Then Evidence, Result (log growth, sectors touched, and bytes passed to
+   write() +14.5% at 256 B), "ready for review".
 
 ## Blocked on
 
