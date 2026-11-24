@@ -4770,6 +4770,21 @@
         "todo": "5e267d70"
       },
       "text": "to do, critical path first:\ntodo: resume observability-core (nothing moved it for 3 h: design ready for re-review; new): `campaign status observability-core`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:45:47",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:45:46",
+      "by": "campaign",
+      "closed": "answered msg-376 by message: option a via the trie's first-touch verification; three files widened",
+      "id": "msg-382",
+      "settles": {
+        "todo": "d70f26f0"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: msg-376 (Blocked on 1-3); waiting on jobs 261124-144100-b5ba51, 261124-144143-080cef, 261124-144154-201723 and CI; it asks: 1. The lead: the 1,000-namespace cells cannot reach 1 ms on this host while every first read hashes the whole `selected` table with SHA-256 (141 KB for 1,000 entries; 1,154 us on this i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel; 83% of a table decode by `sample`).\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
