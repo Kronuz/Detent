@@ -1,6 +1,6 @@
 # consensus-follower-read: journal
 
-State: ready for review
+State: waiting on jobs 261124-043342-61c0c9, 261124-043343-fb8ffd, 261124-043347-acca2c
 Quest: .campaign/detent/quests/consensus-follower-read.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 1 complete at consensus:49deff5, pushed. A4's fuzz reruns at the head:
-261124-033426-3bcef3 (rerun of 261124-020820-b56679, which ran at d2126d0). CI at the head is
-running (A5).
+Round 2 (review N4, N5) at consensus:0b8c911, pushed. The decoder is unchanged since 49deff5, so A4's
+fuzz 261124-033426-3bcef3 stands. CI at 0b8c911 is running (A5).
 
 ## Next
 
-1. The correctness review (lead); fold findings in by id, each fix with a failing-without test.
+1. When the three jobs finish, cite them and CI at 0b8c911 in Evidence, set State "ready for review".
+2. Follow-up (lead): N2, below.
 
 ## Blocked on
 
@@ -27,14 +27,15 @@ test/follower_read_mutants.py, and the nonexistent include/consensus/codec.h is 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
-| A2 | 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
-| A3 | 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
-| A4 | 261124-033426-3bcef3 (fuzz at 49deff5, running); codec mutant 261124-022430-586762 (fails without, at 49deff5's mutant); seeds `fuzz/corpus/decoders/seed-read-index-request`, `seed-read-index-response`, `seed-read-index-refusal` |
-| A5 | [artifact] `docs/mechanisms/follower-read.md`: "A follower answers a `Read` only at an index its leader confirmed current with a quorum"; suite 261124-022329-b17412 (163 of 163 tests); TSan and CI: CI at 49deff5 (running) |
+| A1 | at 0b8c911: suite 261124-043342-61c0c9, plain 261124-043343-fb8ffd; fails without: 261124-043347-acca2c (nonce-reused, review N4). At 49deff5 (core unchanged since): 261124-022329-b17412, 261124-022331-49a7de; fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874 |
+| A2 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022358-7ae2c2 |
+| A3 | 261124-043343-fb8ffd (0b8c911), 261124-022331-49a7de; fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf |
+| A4 | 261124-033426-3bcef3 (fuzz at 49deff5; the decoder is unchanged at 0b8c911); codec mutant 261124-022430-586762 (fails without, at 49deff5's mutant); seeds `fuzz/corpus/decoders/seed-read-index-request`, `seed-read-index-response`, `seed-read-index-refusal` |
+| A5 | [artifact] `docs/mechanisms/follower-read.md`: "A follower answers a `Read` only at an index its leader confirmed current with a quorum"; suite 261124-043342-61c0c9; TSan and CI: CI run 45390811085+ at 0b8c911 (running). CI at 49deff5 (run 45374547236): linux-tsan passed; linux-asan-ubsan timed out on consensus_follower_read (fixed at 0b8c911); macos-x86_64 failed consensus_transport_rpc_host_fetch, which also fails on main at 512e3ef (run 45366654906): pre-existing |
 
 Other jobs examined: 261124-020815-08319a (suite at d2126d0, superseded), 261124-020817-d6cced
-(cancelled, superseded by 49a7de), 261124-020820-b56679 (fuzz at d2126d0; rerun at the head).
+(cancelled, superseded by 49a7de), 261124-020820-b56679 (fuzz at d2126d0; rerun at the head);
+261124-040935-e4aada, 261124-040937-e8b581, 261124-040949-975e1f (at c88f5b7, cancelled, superseded by 0b8c911).
 
 ## Result
 
@@ -46,15 +47,34 @@ emits `ReadReady` once it applied the index. A change of its term or leader, its
 `Start::nonce` (the Driver draws it from `std::random_device`); with none a follower refuses, as
 before. A follower holding a read does not rest and arms its deadline.
 
-Numbers: 15 mutants, one per rule, each killed by its case (jobs above). Randomized 3- and
-5-voter clusters with partitions, drops and restarts, 2000 seeds (49a7de): 231,988 reads
+Numbers: 16 mutants, one per rule, each killed by its case (jobs above). `randomized` runs the
+correctness review's fault schedule (by seed: no faults, ReadIndex frames, or every frame dropped,
+delayed, duplicated and re-injected; restarts with a fresh nonce); ctest runs 30 seeds (12 s of
+CPU under ASan, inside ctest's 30 s), the jobs 2000. At 49deff5, before the schedule, 2000 seeds (49a7de): 231,988 reads
 completed, 134,742 of them at followers, none below a commit made before it began; 386,932
 refused. Suite 163/163 at 49deff5. Cost: 36- and 52-byte frames per read plus the leader's
 shared probe round; four words per idle Core (computed, not measured).
 
 Docs: docs/mechanisms/follower-read.md (rule, identity, deadline, rest, wire, tests), CHANGELOG.
-Open: no Driver-level test of the nonce (the Driver simulation now issues follower reads, so its
-read oracle covers them); ARCHITECTURE.md still describes leader reads only (outside the set).
+ARCHITECTURE.md describes follower reads (N5). Open: no Driver-level test of the nonce (the Driver
+simulation now issues follower reads, so its read oracle covers them); N2 (follow-up below).
+
+## Review notes
+
+Correctness review APPROVE at consensus:49deff5 (.campaign/detent/reviews/consensus-follower-read-correctness.md,
+Detent:37e94ab7; probe 261124-034400-55de11).
+
+- N1: the lead's decision D153, the nonce stays as is (std::random_device per open).
+- N2, follow-up (not fixed here): forwarded and local reads share the leader's `limits.reads`,
+  and `receive_message(ReadIndexRequest)` does not check that the source is a member, so any
+  authenticated incarnation can keep local reads Busy while it floods (one probe round and one
+  52-byte refusal per request). Options: a per-peer cap, or refuse non-members.
+- N4: folded in: `randomized` now runs the reviewer's fault schedule (none / ReadIndex frames /
+  every frame delayed, duplicated and re-injected, by seed), and `nonce-reused` in
+  test/follower_read_mutants.py keeps the forced-nonce-reuse variant as a fails-without mutant.
+- N5: folded in: ARCHITECTURE.md's read paragraph describes follower reads (consensus:c88f5b7).
+- CI at 49deff5 timed out `consensus_follower_read` under ASan (200 seeds, 73 s locally against
+  ctest's 30 s); 0b8c911 runs 30 seeds by default (the nonce-reused mutant still fails 13 of 30).
 
 ## Rulings I made
 
@@ -78,3 +98,5 @@ read oracle covers them); ARCHITECTURE.md still describes leader reads only (out
    (outside the set).
 7. **Leader change in the same term** (LeaderGone, Gone, CheckQuorum at a follower) refuses at
    once, as a term change does; the design's table names leader changes and term moves alike.
+8. **ctest runs 30 randomized seeds**, not 200: the 30 s ctest timeout in CMakeLists.txt is shared
+   by the unit tests, so the default moved in the test (my file), not a per-test TIMEOUT there.
