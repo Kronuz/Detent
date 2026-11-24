@@ -1,36 +1,30 @@
 # consensus-drop-memory-io-include: consensus: drop driver_install_request_test's unused memory_io include
 
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-drop-memory-io-include`.
+Risk: low (one test include). The lead writes this quest; contributors read it and never edit it.
+Its machine state is in `state.json`: `campaign status consensus-drop-memory-io-include`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`test/driver_install_request_test.cc:40` includes `journal/memory_io.h` and uses nothing from it.
+journal-drop-memory-io deletes that header, and its A1 needs `git grep memory_io` over consensus
+main to find nothing. The include goes.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 `git grep memory_io` at the landed commit finds nothing, and `ci:ci` is green there.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: its own one-line quest, since no active quest holds the file.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Not applicable.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
