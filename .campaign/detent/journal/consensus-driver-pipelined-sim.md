@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: waiting on jobs 261124-020911-4b0af3 261124-020914-c49b0b 261124-020918-cb3518 261124-020921-0e0ba5 261124-020925-4954e1 261124-021444-bceda5 261124-021447-93b7d7 261124-021450-081013 261124-021453-191418 261124-021456-6f75bf 261124-021459-13d657 261124-021509-0302a0 and the A3 verify
+State: waiting on jobs A/B arms (interleaved, strict; head 261124-025047-c4ea2e 261124-025142-351c2c 261124-025149-f081eb, main 54c6599 261124-025108-24d3ad 261124-025146-40fbca 261124-025152-901a42); earlier head arms 261124-021447-93b7d7 021453-191418 021459-13d657 (28.4, 28.6, 25.8 s), ASan head 261124-021509-0302a0 (23.6 s, RelWithDebInfo; the Release arms are an unoptimised build)
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
