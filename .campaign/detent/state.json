@@ -15550,9 +15550,37 @@
       "files": [
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/journal-faultlab-repin",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-23T19:22:04",
+          "ci": {
+            "commit": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb",
+            "runs": [
+              45316239368
+            ]
+          },
+          "commit": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb",
+          "criteria": {
+            "A1": "261123-185919-e4cfcc",
+            "A2": "`ci:ci`"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "4f8a03809d17c6de465892dd26a0df733a672f30",
+          "reason": "",
+          "tested": "9c7e31cd1c69312b93eb45f3f349d39a81b2e3cb"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "journal-drop-memory-io"
@@ -15560,10 +15588,10 @@
       "provides": [],
       "repo": "../journal",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "journal pins faultlab at 5d4df9b (stale at_mark fix)",
-      "updated": "2026-11-23T18:58:36",
-      "worktree": "../journal-wt/detent/journal-faultlab-repin"
+      "updated": "2026-11-23T19:22:13",
+      "worktree": ""
     },
     "journal-fuzz-decoder-pin": {
       "accepted": {},
