@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: working (rows tabulated, doc rewritten; merging main next)
+State: waiting on jobs 261124-084513-df11ea (harness probe at merged head 794fe37f; suite 261124-084506-9cfdb6 passed)
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -78,7 +78,7 @@ checked what), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261123-165617-0de0e5, 261123-165620-51800c, 261123-165624-e3b117, 261123-165628-f15efc, 261123-165631-3bc1e4, 261123-165634-7ba37a, 261123-165638-b3fd52, 261123-165643-4f1b40, 261123-165646-b31273, 261123-165649-7c0f14, 261123-165653-3ebe6a, 261123-165656-0c6a5e, 261123-165700-7beee0, 261123-165703-83f18d (exclusive at 3f0a5b59, no "ran beside"); probe 261123-165613-3cde33, 261123-164928-adf267 |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-3f0a5b59.jsonl (before: rows-3a57661b.jsonl) |
-| Suite | 261124-084506-9cfdb6 at the merged head 794fe37f (pending) |
+| Suite | 261124-084506-9cfdb6 (exit 0 at the merged head 794fe37f) |
 
 ## Result
 
