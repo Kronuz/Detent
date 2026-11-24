@@ -1,6 +1,6 @@
 # journal-drop-memory-io: journal
 
-State: waiting on jobs 261121-222332-05d7c1 261121-222339-b9f595; then quest 1's landing (consensus-install-test-faultfs)
+State: ready for review
 Quest: .campaign/detent/quests/journal-drop-memory-io.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,7 +28,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `git grep memory_io` in journal at 9f5e846: empty. Suite: 261121-222332-05d7c1. Bench builds and runs: 261121-222339-b9f595. `ci:macos-arm64` and the rest of CI green at 9f5e846. consensus side: consensus-install-test-faultfs |
+| A1 | `git grep memory_io` empty in journal at 4f8a038 and in consensus main at consensus:c177c88 (consensus-drop-memory-io-include, landed). Suite: 261123-181729-3e6d81. Bench builds and runs: 261123-181730-c059ab. `ci:ci` at 4f8a038. |
 
 ## Result
 
