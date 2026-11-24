@@ -16396,7 +16396,8 @@
       "files": [
         "include/journal/host.h",
         "test/lost_bound_test.cc",
-        "docs/mechanisms/lost-bound.md"
+        "docs/mechanisms/lost-bound.md",
+        "include/journal/turn_log.h"
       ],
       "history": [
         {
@@ -16424,12 +16425,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "journal-turn-sector-checks landed (journal:4eb8165)",
+      "reason": "a host.h-only fix costs one extra full recovery (+78% open at 192 MiB); turn_log.h lets recovery read once; no other active journal quest holds it",
       "repo": "../journal",
       "risk": "high",
       "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-24T06:31:20",
+      "updated": "2026-11-24T11:20:36",
       "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
