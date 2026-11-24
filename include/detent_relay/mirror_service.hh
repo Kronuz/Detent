@@ -11,17 +11,21 @@
 
 // The relay's namespace service (W8; docs/status/namespace-s8.md, "The service"): one thread owns the
 // NamespaceRelay, so its single-thread rule holds by construction. It syncs the configured names from
-// the upstream every interval and answers the relay's HTTP routes from the mirror: W5 sessions with
-// W6 frames, and the layouts and files a downstream relay reads. Full builds (dense distribution D7)
-// run on a second thread, one at a time, so answers keep flowing while one runs.
+// the upstream when the upstream changes, and answers the relay's HTTP routes from the mirror: W5
+// sessions with W6 frames, and the layouts and files a downstream relay reads. Full builds (dense
+// distribution D7) run on a second thread, one at a time, so answers keep flowing while one runs. A
+// third waits on the upstream (Upstream::wait) after each good sync; its return, on a change, its
+// deadline or a failure, starts the next sync (docs/mechanisms/relay-mirror-wait.md).
 namespace detent::relay {
 struct MirrorServiceOptions {
 	std::filesystem::path directory;  // the mirror's own, mode 0700
 	distribution::Identity cluster{}; // the authority's, as its cursors carry it
 	std::vector<std::string> namespaces; // the names mirrored, strictly increasing
+	// The least time between syncs, and the first wait after a failed one; `idle` ends a session.
 	std::chrono::milliseconds interval{250}, idle{60000};
 	// The longest wait after failed syncs in a row; at least `interval`.
 	std::chrono::milliseconds reconnect_maximum{30000};
+	// The longest a next parks here, and the deadline of the wait on the upstream.
 	std::uint64_t maximum_wait_ms = 30000;
 	std::size_t sessions = 1024;
 };

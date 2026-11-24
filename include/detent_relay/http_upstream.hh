@@ -40,12 +40,17 @@ class HttpUpstream final : public Upstream {
 	// carries its positions with `wait_ms` 0. An idle answer (204) is a body with no frames. A
 	// session still retiring its previous answer (409 `session_busy`) is asked again after a wait.
 	std::string frames(std::span<const Position>) override;
+	// A next parked for `limit`, at most its session's bound, on a second W5 session at the source the
+	// other calls read last; it returns on an answer, idle or not. Safe beside the other calls; `stop`
+	// closes its connection. Throws UpstreamUnavailable as frames() does.
+	void wait(std::span<const Position>, std::chrono::milliseconds limit, std::stop_token stop) override;
 	std::size_t sources() const noexcept override;
 	void skip() override;
 	struct Stats {
 		std::uint64_t requests = 0, failures = 0, rotations = 0, sessions = 0;
 		std::uint64_t fetched_files = 0, fetched_bytes = 0;
 		std::uint64_t ranges = 0, resumed = 0; // range requests answered; fetches resumed from a prefix
+		std::uint64_t waits = 0;               // parked nexts answered
 	};
 	Stats stats() const noexcept;
 

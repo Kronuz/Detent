@@ -10,6 +10,15 @@
   `detent-authority-<port>.pid` and `.log`, and the service files (`detent-authority.service`,
   `org.detent.detent-authority`, rc.d `detent_authority`). No alias keeps the old names.
 
+### detent-relay: the mirror waits on its upstream
+
+- An idle relay's mirror no longer syncs every `interval_ms`. After each good sync it parks one
+  W5 next (`wait_ms`, the protocol's own parked read) at its upstream on a second session, and
+  syncs when that returns: on a change, at the wait's deadline (`maximum_wait_ms`, 30 s, bounded by
+  the upstream's `wait_ms`) or on a failure, which keeps the backoff. `interval_ms` is now the least
+  time between syncs. `Upstream::wait` is new; `HttpUpstream::Stats` counts `waits`
+  (docs/mechanisms/relay-mirror-wait.md).
+
 ### Pins: workpool, no scheduler
 
 - The logger pin moves to logger:907d27f: it links `workpool::workpool` (the library formerly named

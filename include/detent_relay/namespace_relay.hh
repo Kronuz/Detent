@@ -1,8 +1,10 @@
 #pragma once
 #include "detent_distribution/session_frames.hh"
 #include "detent_relay/mirror.hh"
+#include <chrono>
 #include <functional>
 #include <map>
+#include <stop_token>
 
 // W8 (docs/design/namespace-delivery.md D7; docs/status/namespace-s8.md): a relay reads its
 // upstream, the authority or another relay, and is never a member. It adopts the upstream's layout
@@ -43,6 +45,11 @@ class Upstream {
 	// the mirror's or a refusal to answer: a sync tries each source once before it fails.
 	virtual std::size_t sources() const noexcept { return 1; }
 	virtual void skip() {}
+	// Returns once the upstream may hold something past `positions` (a position with no cursor: once
+	// it holds that namespace), at the latest after `limit` or when `stop` is requested. It may run on
+	// another thread beside the other calls. This default cannot wait and returns at once: its reader
+	// syncs every interval.
+	virtual void wait(std::span<const Position>, std::chrono::milliseconds, std::stop_token) {}
 };
 // The upstream answered below its own ring: it sealed between its layout and its frames.
 class UpstreamMoved : public std::runtime_error {

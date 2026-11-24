@@ -7,6 +7,7 @@
 #include <map>
 #include <mutex>
 #include <openssl/rand.h>
+#include <stop_token>
 #include <thread>
 
 namespace detent::relay {
@@ -69,7 +70,13 @@ struct MirrorService::Impl {
 	std::deque<std::function<void()>> builds;
 	std::condition_variable build_wake;
 	bool built = false;
-	std::thread thread, builder;
+	// The watcher thread's wait on the upstream, under `mutex`: the positions to wait on, set after a
+	// good sync; `woken` tells the mirror thread the wait returned (a change, its deadline, a failure).
+	std::optional<std::vector<Position>> watch;
+	bool woken = false;
+	std::condition_variable watch_wake;
+	std::stop_source unwatch;
+	std::thread thread, builder, watcher;
 
 	void finish(MirrorJob &job) {
 		job.done.store(true, std::memory_order_release);
@@ -358,8 +365,38 @@ struct MirrorService::Impl {
 			wake.notify_one();
 		}
 	}
+	void watch_loop() {
+		for (;;) {
+			std::vector<Position> positions;
+			{
+				std::unique_lock lock(mutex);
+				watch_wake.wait(lock, [&] { return stopping || watch; });
+				if (stopping)
+					return;
+				positions = std::move(*std::exchange(watch, std::nullopt));
+			}
+			try {
+				upstream->wait(positions, std::chrono::milliseconds(options.maximum_wait_ms), unwatch.get_token());
+			} catch (const std::exception &) {
+				// The sync it wakes meets the failure and backs off.
+			}
+			std::lock_guard lock(mutex);
+			woken = true;
+			wake.notify_one();
+		}
+	}
+	// Waits on every mirrored name from the ring's head; a name the upstream lacks, from no cursor.
+	void watch_heads() {
+		std::vector<Position> positions;
+		for (const auto &name : options.namespaces)
+			positions.push_back({name, relay->head(name)});
+		std::lock_guard lock(mutex);
+		watch = std::move(positions);
+		watch_wake.notify_one();
+	}
 	void run() {
 		builder = std::thread([this] { build_loop(); });
+		watcher = std::thread([this] { watch_loop(); });
 		try {
 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
 			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
@@ -373,19 +410,24 @@ struct MirrorService::Impl {
 			state.failed = true;
 			state.error = std::string("relay mirror: ") + error.what();
 		}
+		// A sync no sooner than `next_sync`, and none while the watcher waits on the upstream.
 		auto next_sync = Clock::now();
+		bool watching = false;
 		unsigned failing = 0; // consecutive failed syncs: each doubles the wait, up to reconnect_maximum
 		for (;;) {
 			std::deque<std::shared_ptr<MirrorJob>> jobs;
 			{
 				std::unique_lock lock(mutex);
-				auto until = next_sync;
+				auto until = watching ? Clock::now() + std::chrono::hours(1) : next_sync;
 				for (const auto &each : parked)
 					until = std::min(until, each.deadline);
-				wake.wait_until(lock, until, [&] { return stopping || !incoming.empty() || state.failed || built; });
+				wake.wait_until(lock, until,
+								[&] { return stopping || !incoming.empty() || state.failed || built || woken; });
 				if (stopping || state.failed)
 					break;
 				jobs.swap(incoming);
+				if (std::exchange(woken, false))
+					watching = false;
 			}
 			const bool landed = take_built() && relay->collect();
 			auto now = Clock::now();
@@ -402,12 +444,16 @@ struct MirrorService::Impl {
 					finish(*job);
 				}
 			}
-			const bool synced = now >= next_sync;
+			const bool synced = !watching && now >= next_sync;
 			if (synced) {
 				failing = sync() ? 0 : std::min(failing + 1, 16u);
 				now = Clock::now();
 				next_sync = now + std::min(options.interval * (1u << failing),
 										   options.reconnect_maximum);
+				if (!failing) {
+					watch_heads();
+					watching = true;
+				}
 				std::erase_if(sessions, [&](const auto &entry) {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});
@@ -436,7 +482,10 @@ struct MirrorService::Impl {
 			stopping = true;
 			builds.clear();
 			build_wake.notify_one();
+			watch_wake.notify_one();
 		}
+		unwatch.request_stop();
+		watcher.join();
 		builder.join();
 	}
 	bool take_built() {
@@ -476,9 +525,13 @@ void MirrorService::submit(std::shared_ptr<MirrorJob> job) {
 		job->answered();
 }
 void MirrorService::close() noexcept {
-	std::lock_guard lock(impl_->mutex);
-	impl_->stopping = true;
-	impl_->wake.notify_one();
+	{
+		std::lock_guard lock(impl_->mutex);
+		impl_->stopping = true;
+		impl_->wake.notify_one();
+		impl_->watch_wake.notify_one();
+	}
+	impl_->unwatch.request_stop();
 }
 MirrorStatus MirrorService::status() const {
 	std::lock_guard lock(impl_->mutex);
