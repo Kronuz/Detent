@@ -1,36 +1,39 @@
 # consensus-next-deadline-removal: Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal
 
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-next-deadline-removal`.
+Risk: high (consensus Core timing, membership). The lead writes this quest; contributors read it and
+never edit it. Its machine state is in `state.json`: `campaign status consensus-next-deadline-removal`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Found by consensus-liveness-asan-timeout (2026-11-24), which holds Ticks that land before
+`Core::next_deadline()`: a due D3 removal waits for a Tick, but `next_deadline()` does not report
+it. A driver that sleeps until `next_deadline()` (the Driver and any embedding that schedules by it)
+therefore delays the removal until some other deadline or event. Make `next_deadline()` report every
+deadline Core acts on at a Tick, the removal included, so sleeping to it never delays Core's work.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A deterministic test: a node with a due D3 removal and no other deadline; `next_deadline()`
+  names the removal's time, and a Tick at that time performs it, by value. `--fails-without` at main.
+- A2 An audit, as a table in `docs/mechanisms/deadlines.md`: every action Core takes on a Tick and
+  the deadline that `next_deadline()` reports for it; any other omission found gets a test like A1.
+- A3 The liveness harness's held-Tick mode (consensus-liveness-asan-timeout) gives traces identical
+  to stepping every Tick, in all four profiles, with the removal case included: a job.
+- A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+`Core::next_deadline()`'s meaning: the earliest time a Tick changes Core's state. No signature change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-24: its own quest, after consensus-liveness-asan-timeout, whose held-Tick harness
+found it and proves the fix.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Not applicable.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
