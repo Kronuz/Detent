@@ -3798,6 +3798,21 @@
         "todo": "ba985814"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-rpc-host-stream-gap (its journal waits on jobs 261124-050027-dd85d6, 261124-050028-760936, 261124-050028-665c4f, 261124-050014-f52514 and 261124-050018-ff695c, which passed 41 min ago; new): `campaign status consensus-rpc-host-stream-gap`, read them, or park it with a reason\ntodo: resume consensus-follower-read (its journal waits on jobs 261124-043342-61c0c9, which passed 38 min ago; listed 5 min): `campaign status consensus-follower-read`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T05:57:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T05:57:13",
+      "by": "campaign",
+      "closed": "the liveness contributor is live; its own waiter resumes it on these jobs",
+      "id": "msg-319",
+      "settles": {
+        "todo": "aa16805b"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-052615-4ff43a and 261124-051832-d5a4f8, which ended (done, failed) 10 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
