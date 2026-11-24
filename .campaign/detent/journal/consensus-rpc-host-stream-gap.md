@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on CI of consensus:d428b37 (A4); then ready for review
+State: ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -34,7 +34,7 @@ Nothing
 | A1 | 261124-015744-1b1ee9 (head: gap over 1,000 ms equals the host's lag); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main 512e3ef: 6 of 7 stops fail at 1,521-1,573 ms); a1.sh at the probe: 261124-015310-731798; unstalled gaps 103-222 ms under 16-24 burners: 261124-013928-c5f6e7, 261124-014534-123e12 |
 | A2 | 261124-014655-15443a (7 stops, 0 failed, gaps 1,517-1,604 ms within 1,000 plus lag); fails without: 261124-014707-1319b1 (main) |
 | A3 | 261124-014657-c7b211 (50 runs beside 4 burners, 0 failed) |
-| A4 | CI of consensus:d428b37 (running; `campaign verify consensus-rpc-host-stream-gap --for A4` submitted) |
+| A4 | `ci:macos-x86_64`, `ci:ci` (CI run 45370136336 at consensus:d428b37, green) |
 
 ## Result
 
