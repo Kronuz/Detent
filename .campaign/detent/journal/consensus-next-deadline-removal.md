@@ -23,12 +23,14 @@ all 4 profiles, held Ticks per class (leaving/witness/nonvoter) default 2219/283
 
 ## Blocked on
 
-Lead (not blocking A1-A4): test/liveness_test.cc's holdable() guard (leaders with a leaving member
-or unsettled membership, witness leaders, non-voters stepped every Tick) and docs/mechanisms/
-liveness.md's "a D3 removal and a hand-off wait for a Tick, which next_deadline() does not report"
-are now stale. Options: (a) widen this quest's file set to both and drop the guard (holdable()
-becomes "always"; held.sh proves it equivalent, and the harness gets faster); (b) a follow-up
-quest; (c) keep the guard. Recommend (a).
+Nothing.
+
+## msg (coordinator: file set widened)
+
+Done: consensus:d9c7747 drops holdable() from test/liveness_test.cc (every Tick before
+next_deadline() is held; LIVENESS_VERIFY also checks retirement) and its sentence in
+docs/mechanisms/liveness.md. Core unchanged, so A1 4ce8df and bcb45d stand; A3 and the suite
+requeued (d41f93, c31551); variant.py handles both harness shapes. Pushed.
 
 ## Evidence
 
@@ -41,8 +43,8 @@ jobs no journal names), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261124-132220-4ce8df (core_deadline_test at e42c01c); --fails-without 261124-132225-bcb45d (d31b547, main's core.h) |
 | A2 | docs/mechanisms/deadlines.md (table, 4 omissions); each omission's test in the A1 jobs |
-| A3 | 261124-132230-a79939 (held.sh 20 seeds at e42c01c); --fails-without 261124-132235-b8ca66 (d31b547) |
-| A4 | suite 261124-132249-c19e1f; `ci:ci` on the pushed e42c01c |
+| A3 | 261124-133203-d41f93 (held.sh 20 seeds at d9c7747, unguarded harness); --fails-without 261124-132235-b8ca66 (d31b547); a79939 cancelled (stale) |
+| A4 | suite 261124-133206-c31551 at d9c7747 (c19e1f cancelled, stale); `ci:ci` on the pushed d9c7747 |
 
 ## Result
 
@@ -55,8 +57,7 @@ The table found four omissions, each with a by-value test in test/core_deadline_
 Also: removal() holds only when its entry fits the log (configuration_fits, shared with
 propose_membership), so a full log cannot spin a driver; a non-voter's Tick no longer rewrites its
 unread election deadline. Probes: .campaign/detent/probes/consensus-next-deadline-removal/
-(a1.sh, held.sh, variant.py). Leaves open: the liveness harness's holdable() guard and
-docs/mechanisms/liveness.md's sentence about it are now stale (outside my file set; see Blocked on).
+(a1.sh, held.sh, variant.py). The liveness harness now holds every Tick before next_deadline() (consensus:d9c7747).
 
 ## Rulings I made
 
