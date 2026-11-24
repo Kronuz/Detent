@@ -16423,25 +16423,27 @@
     "journal-bound-first-open": {
       "accepted": {
         "durability": {
-          "at": "2026-11-23T11:45:07",
-          "base": "e58f977ef05453a8be7ae5b95c2b333d2a28fc53",
+          "at": "2026-11-24T11:55:04",
+          "base": "4eb8165a4311a3ffe1307c07dd0df35321d4f91f",
           "blobs": {
-            "docs/mechanisms/lost-bound.md": "100644:90df3a139161ab906432660a6095ebe69ffce91d",
-            "include/journal/host.h": "100644:b9e848378d096b4413f8467a2e8f1ef2ff9d744b",
-            "test/lost_bound_test.cc": "100644:9d8167c9da7a1dc29727accd9886d5c73b5fcaed"
+            "docs/mechanisms/lost-bound.md": "100644:468db232d48b1412a675b8d7dffba91fc912187f",
+            "include/journal/host.h": "100644:568781398e4e22cf9f9277fc65e943e34685770e",
+            "include/journal/turn_log.h": "100644:500c0dc98077049aeb9ac0bd61317b9b0724adeb",
+            "test/lost_bound_test.cc": "100644:c447554fc5440e87075d6d9e3fd477afa3694b03"
           },
           "by": "review",
-          "commit": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "commit": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "criteria": "2c746bd6f8489691",
           "diffs": {
-            "docs/mechanisms/lost-bound.md": "798ce6911369f7f1",
-            "include/journal/host.h": "04df3faad6d22e7e",
-            "test/lost_bound_test.cc": "37292cd506bcefe2"
+            "docs/mechanisms/lost-bound.md": "04cfb53f8a2fdc90",
+            "include/journal/host.h": "7ed91f06b0313a19",
+            "include/journal/turn_log.h": "a1cf81e92f338da9",
+            "test/lost_bound_test.cc": "6a0e63ee03f7cab4"
           },
           "findings": {},
           "note": "",
-          "review": "208746fd53a2d5ba9537345f8a3648c3db8a85a8",
-          "reviewed": "095171035dab0964e2e38863c66b06a41ee48c0d",
+          "review": "0eaf7f653051615ec1e97342df5f6a0123da946d",
+          "reviewed": "a2d65da45e72f142695934bd605910e60fd1d3cd",
           "verdict": "APPROVE"
         }
       },
@@ -16502,7 +16504,7 @@
       "risk": "high",
       "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "updated": "2026-11-24T11:20:36",
+      "updated": "2026-11-24T11:55:04",
       "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
