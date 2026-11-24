@@ -30494,12 +30494,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "both write src/detent_authority/service.cc (relay-mirror's widening overlapped split-detent's src/detent_authority/**); the split lands first, relay-mirror merges and edits the split file",
+      "reason": "waits for split-detent to land, then moves the authority edit to the split file and queues evidence",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T10:44:34",
+      "until": [
+        "split-detent"
+      ],
+      "updated": "2026-11-24T11:54:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
