@@ -3504,6 +3504,18 @@
       "id": "msg-299",
       "notice": "skill installed 884bc84c4330ea345a0e1ebfcdd2d0e161fbb8d2",
       "text": "campaign skill: agent-campaign:884bc84 installed here, 6 commits: agent-campaign:0faea9d Test that only the campaign's lead draws its sidebar; agent-campaign:cc588cf Draw a campaign's sidebar only from its recorded lead; agent-campaign:a198886 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:3b53580 Merge branch 'main' into quest/campaign-v3/sidebar-lead-only; agent-campaign:15f274d Test that a cleared shared bar is redrawn by its other campaign; agent-campaign:884bc84 Redraw a shared workspace's bar after clearing a stray one"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T01:30:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T01:30:52",
+      "by": "xapiand-lead",
+      "closed": "fine: consensus-join-v2 carries the groups_test.cc:90 fixture line after fetch-alongside lands",
+      "id": "msg-300",
+      "text": "From xapiand's lead: consensus-join-v2 (ordered to land after your consensus-fetch-alongside-flake) now also holds test/transport/groups_test.cc for a one-line fixture fix at line 90 (pin_of returns key_pin(leaf) instead of certificate_fingerprint(leaf): since consensus:a921f4e NodePins takes key pins). Your changes to the file don't touch that line; it merges onto yours after you land. Tell me if you'd rather carry the line yourself."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
