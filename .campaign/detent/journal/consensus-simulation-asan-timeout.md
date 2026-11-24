@@ -1,6 +1,6 @@
 # consensus-simulation-asan-timeout: journal
 
-State: ready for review
+State: waiting on jobs 261123-231348-ff18c4 261123-231353-be4231
 Quest: .campaign/detent/quests/consensus-simulation-asan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: ready for review at consensus:2db1a9d (cbe0522 plus a docs commit; evidence still counts).
+Review: correctness APPROVE at consensus:2db1a9d (Detent:84f19b6e). Lead ruling D152 on F1:
+bound the core heal at 2,000 rounds. Done at consensus:eb9153f (test/simulation_test.cc:240,
+docs/mechanisms/simulation.md); main c177c88 merged in at consensus:54c6599 and pushed for CI.
+- Confirming default ASan run at the fix: 261123-231348-ff18c4 (A2, limit 150 s).
+- Heal probe: 261123-231353-be4231, the reviewer's 747c2a core-heal probe with inst.py's new loop
+  pinned at `round < 2000` (heal-probe/ in .scratch/asan-timeout); it fails unless the source's
+  bound is 2,000, and prints each loop's max majority round for seeds 1-200.
 
 Round 2, at consensus:cbe0522 (main 3aa1355 merged in, clean). Scripts in the consensus
 worktree's .scratch/asan-timeout/; asan-time.sh reports wall and CPU seconds and, with CAP=1,
@@ -144,11 +150,13 @@ healing.
 Does stopping the core heal once a majority applies weaken them? No safety oracle is weakened:
 each runs on every action, so the heal now feeds them fewer post-heal quiet rounds, not weaker
 checks, and check_logs() still runs after the loop. The liveness oracle is the same condition
-(`applied_healed() < healed_quorum()`) under the same 4,000-round bound, and it now has to hold
-sooner, since proposals start at round 0 instead of 2,000:
+(`applied_healed() < healed_quorum()`) with the same budget from the first proposal: main
+proposed from round 2,000 of 4,000, so a majority had 2,000 rounds after it; the fix proposes
+from round 0 and bounds the loop at 2,000 (D152, consensus:eb9153f). Seeds 1-200 reach the
+majority within 713 rounds (2.8x headroom):
 
 ```cpp
-for (int round = 0; round < 4000 && !failures && applied_healed() < healed_quorum(); ++round) {
+for (int round = 0; round < 2000 && !failures && applied_healed() < healed_quorum(); ++round) {
 	quiet_round();
 	if (round % 50 == 0) { /* every up leader proposes "healed" */ }
 }
@@ -165,13 +173,11 @@ so it shrinks with the timeout (34,000 -> 4,500) and still outlasts two transfer
 slowest node's clock, and its liveness oracle (every member applies) is unchanged.
 
 Leaves open: consensus_liveness's own ASan timeout (quest consensus-liveness-asan-timeout).
-main moved 2 files (CMakeLists.txt) since cbe0522; not merged.
 
 ## Rulings I made
 
 - snapshot_timeout 1,000 ms (5x election_max; the core simulation's is 2.5x), not the
   production 60 s, which no quiet heal can afford.
-- Core heal proposes from round 0, every 50 rounds, and ends at the majority it asserts.
+- Core heal proposes from round 0, every 50 rounds, and ends at the majority it asserts, within
+  2,000 rounds (the lead's D152).
 - A3 ran as 9 strict shards of 3 concurrent copies x 2 rounds to fit the 10-minute cap.
-- Did not merge main's latest CMakeLists.txt change: it would rerun every job for a file outside
-  this quest; the lead merges at land.
