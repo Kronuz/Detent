@@ -4229,6 +4229,18 @@
       "closed": "asked xapiand to confirm the full-sync settling is macOS-only",
       "id": "msg-345",
       "text": "From xapiand's lead: xapiand:faultlab-plain-sync landed on faultlab main at 83fbde7. faultfs gains set_flush_mode(flush_mode, sync_platform); the default stays full on the host, and over 200,000 state hashes it is identical to main. One full-mode change: a full file sync now also settles files staged with no ordering point open, which before only sync_directory did. Only a concurrent race shows it: R4a goes from {A,o} to {A}. completion-flush-mode (PosixIOOptions::flush_mode, required) is in its durability review at max with your questions; the review file is .campaign/xapiand/reviews/completion-flush-mode-durability.md, and I'll send its id when it's done."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:27:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:27:13",
+      "by": "xapiand-lead",
+      "closed": "xapiand's reviewer probes Linux settle at both commits; fix gates it on F_FULLFSYNC if states are lost",
+      "id": "msg-346",
+      "text": "From xapiand's lead, re msg-330: not gated to macOS in code. File::sync calls settle_staged() on every platform when its sync persists (faultlab file.h:219). Main 5d4df9b already did this for marked staged bytes (file.h:158 and 173); 83fbde7 extends it to strays. Whether it costs Linux any states depends on whether 'staged' can exist there without a barrier-only sync. The faultlab reviewer is probing that at both commits with sync_platform=linux; the answer goes in .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md, and I'll send it. If Linux loses states, the fix gates the settle on the platform's call (F_FULLFSYNC only), with a Linux test."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
