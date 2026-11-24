@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: working: layout 3 (paged table) built and tested locally; screening it against main
+State: ready for review; waiting on jobs 261124-155135-e8bc6d, 261124-155138-5da24c, 261124-155140-00faf4, 261124-155142-9a0f4d (A2), 261124-155155-541c14 (A1), 261124-155200-b45b23 (reader_bench), 261124-155204-3e4aa2 (mutant) and CI; the suite needs Blocked on 1
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,8 +21,19 @@ Screens, strict beside light holds, branch median vs main (us): stopped 1 ns 930
 
 ## Next
 
-1. Screen the mapped table; queue at the final head: A1 profile rerun, A2 gate exclusive (stopped
-   and running jobs), the mutant job, reader_bench, `campaign verify --for A3`; push; ready for review.
+Jobs at `Detent:bfad7733`, the final code:
+- A2, exclusive, one cell each against main: 261124-155135-e8bc6d (stopped 1), 261124-155138-5da24c
+  (stopped 1,000), 261124-155140-00faf4 (running 1), 261124-155142-9a0f4d (running 1,000; main's
+  publisher cannot run it, so the cell reports the branch alone).
+- A1 profile rerun: 261124-155155-541c14. reader_bench A/B: 261124-155200-b45b23.
+- Mutant `Detent:1bb490d8`, --fails-without: 261124-155204-3e4aa2 (a build failure would also exit
+  nonzero; read its log).
+- A3: CI on the pushed branch; `campaign verify --for A3` queued nothing locally. test_agent_store
+  fails until Blocked on 1.
+Strict screen of the mapped table, beside light holds, branch vs main medians (us): stopped 1 ns
+745 vs 1,072; stopped 1,000 ns 846 vs 2,349; running 1 ns 680 vs 860; running 1,000 ns 600 (main
+refused). Pooled p99s under that load were 1.4-2.0 ms; the exclusive runs decide A2.
+Local scratch: `.scratch/fr`, `.scratch/main-tree` (detached main worktree), build dirs.
 
 ## Messages
 
