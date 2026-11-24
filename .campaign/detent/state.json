@@ -28640,7 +28640,10 @@
       "consumes": [],
       "files": [
         "src/detent_relay/mirror_service.cc",
-        "src/detent_relay/mirror_service.hh",
+        "include/detent_relay/mirror_service.hh",
+        "include/detent_relay/namespace_relay.hh",
+        "include/detent_relay/http_upstream.hh",
+        "src/detent_relay/http_upstream.cc",
         "src/detent_relay/configuration.cc",
         "test/relay*",
         "tests/detent_relay/**",
@@ -28655,11 +28658,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "msg-310: the set named src/detent_relay/mirror_service.hh, which does not exist; the parked-next wait lives in the relay headers and http_upstream.cc; no other quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T03:25:58",
+      "updated": "2026-11-24T03:50:56",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
