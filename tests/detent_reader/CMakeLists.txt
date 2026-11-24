@@ -21,6 +21,7 @@ if(TARGET detent::testing_store)
   target_link_libraries(test_reader_scenarios PRIVATE detent::reader detent::testing_store)
   # With the `detent` binary, its `get` reads the same multi-namespace store by value (D148).
   if(TARGET detent-reader)
+    add_dependencies(test_reader_scenarios detent-reader)
     add_test(NAME test_reader_scenarios COMMAND test_reader_scenarios ${PROJECT_SOURCE_DIR}/bindings/tests/scenarios.json
              $<TARGET_FILE:detent-reader>)
   else()

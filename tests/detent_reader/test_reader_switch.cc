@@ -384,7 +384,9 @@ void parks(const std::filesystem::path &root) {
 		CHECK(get(r.handle) == pinned_rev + 3); // the installed view still answers
 		release(park);
 		reader.join();
-		CHECK(seen == pinned_rev); // the pinned view stayed mapped
+		// It answers from the view it pinned, which stayed mapped, unless the refusals' retry clock ran
+		// out before it resumed: then its stale lookup refreshes first, as D4 has every lookup do.
+		CHECK(seen == pinned_rev || seen == rev);
 		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
 		CHECK(t::stats(r.handle).live_views == 1);
 	}

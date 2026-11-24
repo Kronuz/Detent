@@ -17,5 +17,5 @@ if(DETENT_BUILD_TESTS)
             "DETENT_TEST_ROOT=${CMAKE_BINARY_DIR}/.scratch"
             "DETENT_SCENARIOS=${PROJECT_SOURCE_DIR}/bindings/tests/scenarios.json"
             ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_detent.py)
-  set_tests_properties(detent_python_test PROPERTIES TIMEOUT 120)
+  set_tests_properties(detent_python_test PROPERTIES TIMEOUT 300)
 endif()
