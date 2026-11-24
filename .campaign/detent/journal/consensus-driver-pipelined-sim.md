@@ -1,6 +1,6 @@
 # consensus-driver-pipelined-sim: journal
 
-State: waiting on jobs 261124-054533-5b8358 261124-054535-246acf 261124-054538-eaf00b 261124-054541-b8f48a 261124-054544-8ae5fe 261124-054547-32f2aa (fix round 1, consensus:8f21d10)
+State: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written)
 Quest: .campaign/detent/quests/consensus-driver-pipelined-sim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,25 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 at consensus:8f21d10 (pushed). The depth-1 "2 in flight" is NOT a Driver defect.
-Traced (jobs 261124-054210-f7768f seed 4, -054212-5397a0 seed 1, -054420-bffb4a with Core prints
-`.scratch/pipelined/dbg.sh`): every Core send had `flights_before 0` at depth 1. The pair on the wire
-is a timeout resend (rpc 57, prev 0, n 7) followed by an append that extends it (rpc 59, prev 7):
-the acks for rpc 50 and 54 (matched 7) were delivered to the leader's Driver at sim 3071 and 3117,
-but its Worker handled the resend's timer first, then the queued acks (Core: "send ... flights_before
-0 now 3363", "ack rpc 50 matched 7 flights 1", "ack rpc 54 flights 0", "send ... flights_before 0
-matched 7"), so the resend left the Sink after the answer that covers it, and the next append then
-extends it. Core's depth bound holds; the cost is one redundant resend per such race. The sim's
-tracker sees deliveries, not the Worker's handling order, so it now ignores a send whose last entry
-an already-delivered answer covers (8f21d10). Seed 19 at depth 4 ("5 in flight") is the same family;
-the jobs below show whether it holds.
+Nothing; fix round 1 done at consensus:8f21d10 (main already merged, pushed). Waiting only for CI.
 
 ## Next
 
-1. Read the six jobs: depth 1 must print 0 extending appends; default, d4, d16 must pass; ack-tip
-   fails-without must fail at the default cycle. If the chain-depth oracle still fires on another
-   race, drop that oracle (keep the counter) and say so. Then merge main, push, CI at the new head,
-   Evidence table, cite review F2-F6 in the Result.
+1. A3 is CI run 45407143806 (and the suite verify) at 8f21d10.
 
 ## Blocked on
 
@@ -35,15 +21,17 @@ the jobs below show whether it holds.
 
 ## Evidence
 
-Failed jobs, named: 261124-021444-bceda5, -021450-081013, -021456-6f75bf (main arms, exit 127: my
-`--commit` was passed inside the command; resubmitted below). 261124-025043-2cd267, -025050-f32e6e,
--025056-3f0bc4 were cancelled by a later `--quest` submit. No message (msg-N) is listed.
+Failed or cancelled jobs, named: 261124-021444-bceda5, -021450-081013, -021456-6f75bf (main arms,
+exit 127, `--commit` inside the command); 261124-051721-39b95f, -052350-82cc5b, -051724-a70d9e,
+-052352-53da0a, -052354-fb8731 (the chain-depth oracle fired on the Worker's resend-before-answer
+order, see Result; fixed at 8f21d10); 261124-051728-97bb63 and others superseded by newer submits.
+No message (msg-N) is listed.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-014735-3e572f (60 seeds, 45 of 46 pipelined seeds had a second append in flight), 261124-020911-4b0af3 (120 seeds), 261124-020914-c49b0b (60 seeds at depth 4), 261124-020918-cb3518 (60 seeds at depth 16) |
-| A2 | 261124-014735-3e572f; fails without: 261124-020921-0e0ba5 (`overlap`), 261124-020925-4954e1 (`previous-term`) |
-| A3 | `ci:macos-x86_64`, `ci:ci` (CI run 45372452058 at consensus:551a5e6, green on rerun; attempt 1 failed only in groups fetch-alongside, filed as consensus-fetch-alongside-loop-stall) |
+| A1 | 261124-054533-5b8358 (default cycle, 60 seeds), 261124-054538-eaf00b (depth 4), 261124-054541-b8f48a (depth 16), 261124-054535-246acf (depth 1: 0 extending appends) |
+| A2 | 261124-054533-5b8358; fails without: 261124-054544-8ae5fe (`ack-tip`, pipelining-specific; survives depth 1: 261124-054547-32f2aa), 261124-052358-086ed2 (`ack-tip` at 19c0727), 261124-020921-0e0ba5 (`overlap`), 261124-020925-4954e1 (`previous-term`) |
+| A3 | `ci:ci`: CI run 45407143806 at 8f21d10 (queued when written) |
 
 ## Result
 
@@ -56,10 +44,31 @@ to the same peer (same term, within a heartbeat), the most in flight, those deli
 later one, and seeds at depth above 1 with a second append in flight. Interface unchanged
 (`seeds steps first`, `SIM_DRIVER_SEEDS`); docs/mechanisms/simulation.md describes it.
 
-Probe at consensus:7118df2 (job 261124-014735-3e572f, 60 seeds): 52123 appends with entries, 493
-sent with another in flight (at most 4), 48 delivered after a later one, 45 of 46 seeds at depth
-above 1 had a second append in flight, every oracle held. Follower batching engaged: a probe
-(261124-020539-7ba07b) counted about 600 held appends in 60 seeds, about 35 of them merged 2-4.
+Counts at consensus:8f21d10, 60 seeds each (an append is pipelined when it extends a flight the
+leader has not had answered; a resend or first flight is not): default cycle (5b8358) 189 of
+52,123 appends with entries extend a flight, at most 4 in flight, 44 of the 46 seeds at depth above
+1 had one; forced depth 4 (eaf00b) 238 of 53,043, at most 4, 58 of 61 seeds; forced depth 16
+(b8f48a) 239 of 53,044, at most 4 (the load never opens more), 58 of 61; forced depth 1 (246acf) 0
+of 50,961, at most 1, and the run fails any seed whose chain exceeds its pipeline. Every oracle
+held. Follower batching engaged: a probe (261124-020539-7ba07b) counted about 600 held appends
+in 60 seeds, about 35 merged 2-4.
+
+Review F1 (the counter flagged 11 of 15 depth-1 seeds): not a Driver defect. At depth 1 the Core
+never has a flight before a send (traced, jobs 261124-054420-bffb4a, -054210-f7768f, -054212-5397a0):
+a leader's Worker handles a resend's timer before the answers already queued behind its storage, so
+the Sink sees the resend after the answer that covers it, and the next append then extends it. The
+tracker counts deliveries, so it now ignores a send whose last entry a delivered answer covers, keeps
+the leader's matched mark, and clears flights on a rejection and on an installed image. The cost
+in the system is one redundant resend per such race.
+
+A2's pipelining-specific mutant is the reviewer's `ack-tip` (a success acknowledges through the
+last flight, not the answered one): killed at the default cycle (054544-8ae5fe), survives depth 1.
+Reviewer notes F2-F6 need no change: F2 (rejection-path mutants `reject-keep`, `reject-tip` survive
+at every depth, benign to safety; a pipeline_test case is outside this file set), F3 (the five
+batching mutants are equivalent, each Worker check has a Core counterpart), F4 (the runtime is the
+pipelined seeds' own work), F5 (`SIM_DRIVER_PIPELINE=N` couples depth with batching and no window;
+a separate `SIM_DRIVER_BATCHING` when driver-pipeline needs it), F6 (docs/mechanisms/simulation.md
+is outside the file set; the lead widens it or accepts).
 
 Mutants (follower append handling in core.h, runner `.scratch/pipelined/mutant.sh` in the
 worktree, copy of include/ patched, simulation rebuilt, Driver seeds alone): `overlap` (an
