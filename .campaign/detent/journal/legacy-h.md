@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-145542-ea7b40 261123-145543-117504 261123-145544-84591d 261123-145721-0d40d0 261123-145724-5cb1a0 261123-145728-9aba9a 261123-145732-8cfaab 261123-145735-aa6efc 261123-145739-98e2a8 261123-145743-a3b9c5 261123-145747-841eac 261123-145751-a77953 261123-145755-cd3bb8 261123-145800-81ce67 261123-145804-7bcb89 261123-145808-ac5564 and CI run 45284336540 at `Detent:e30799b8`
+State: waiting on jobs 261123-175720-145715 261123-175722-b26bcf 261123-175722-13a7f9 261123-175723-de3cb2 261123-175725-7fad98 261123-175727-3d4b80 261123-175759-67f119 and CI runs 45308791726, 45308791259 at `Detent:8d61d548`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,49 +9,65 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 3 at `Detent:62293129` (fixes `Detent:1e7264e5`, `Detent:62293129`; main merged `Detent:72de6c74`).
-CI run 45254351645 at `Detent:5610152f` failed on Linux only:
-- `test_reader_exports`, `test_testing_exports` (every Linux job): `check_exports.cmake` runs as
-  `cmake -P` without a minimum version; CMake 3.x leaves CMP0057 unset and rejects `IN_LIST`
-  (CMake 4 locally makes it NEW). `test_reader_exports_unlisted` passed on that same error (WILL_FAIL);
-  it now requires the "exports detent_close, which" message.
-- `test_installed_testing_component` (asan, tsan): the consumer linked the sanitized libraries
-  without the sanitizer runtime (`undefined reference to __tsan_unaligned_write16`); it now gets the
-  build's `CMAKE_CXX_FLAGS[_<TYPE>]` and `CMAKE_EXE_LINKER_FLAGS`.
-- `test_reader_switch` (linux-x86_64-gcc, T3 "threads 1 (before 2)"): the baseline counted the
-  joined priming thread still in `/proc/self/task`; the primer records the count less itself and
-  the test polls `threads()` to it (5 s deadline, prints the count on a miss).
-Mutant f3-python built `int` into a `detent_status` member (exit 126); the patch casts it.
-Local (Release, macOS): the three export tests, `test_installed_testing_component` and
-`test_reader_switch` pass; a non-matching failure of the export script does not match the pattern.
+Fix round 1 after the correctness review (CHANGES at `Detent:e30799b8`), at `Detent:8d61d548`:
+`Detent:407e4410` (per-namespace reader core, F1/F2, D150), `Detent:55b49db4` (Docs gate, F3, F7,
+F11), `Detent:e1a45597` (F6, F8, F10), `Detent:ae68d8f7` (writer builder lifetime),
+`Detent:8d61d548` (T2 benchmark). Pushed. Local (Release, macOS): reader, testing, bindings, CLI,
+installed-component tests and `test_reader_switch` pass; `check_docs.py` "33 gaps, 33 listed, 0
+unlisted, 0 stale"; `run_e2e.py --list` no MISSING.
 
 ## Next
 
-1. Read CI run 45284336540 at `Detent:e30799b8` (pushed by the lead; supersedes 45269732772) for
-   A9 (`ci:linux-asan-ubsan`, `ci:linux-tsan`) and the CI gate (`ci:ci`).
-2. Read the mutant jobs: each is the plain `bindings/tests/run.sh` (`--fails-without`) at a commit
-   of `Detent:e30799b8` plus one patch (refs `refs/mutants/legacy-h/<name>`):
-   - A12 (T5): python-ignores-fallback 261123-145721-0d40d0, python-drops-hash 261123-145724-5cb1a0,
-     python-untrusted-is-ok 261123-145728-9aba9a, rust-ignores-fallback 261123-145732-8cfaab,
-     rust-drops-hash 261123-145735-aa6efc, rust-untrusted-is-ok 261123-145739-98e2a8.
-   - A20 F1: f1-rust-flag-any-nonzero 261123-145743-a3b9c5.
-   - A20 F2: f2-python-drops-mapping-bytes 261123-145747-841eac, f2-rust-drops-mapping-bytes 261123-145751-a77953.
-   - A20 F3: f3-python-misnumbers-untrusted 261123-145755-cd3bb8, f3-rust-misnumbers-untrusted 261123-145800-81ce67.
-   - A20 F4: c3-bool-accepts-any-nonnegative (`^test_reader_core$`) 261123-145804-7bcb89.
-   - A20 F7: f7-exports-prefix-check (`^test_reader_exports_unlisted$`) 261123-145808-ac5564.
-   Plain runs at the head: bindings 261123-145542-ea7b40 (A2-A5, A12, A20), A10 grep
-   261123-145543-117504, A13 261123-145544-84591d.
-3. Evidence table from `campaign brief`; Result; ready for review.
+1. Read the jobs: native gate 261123-175720-145715 (A1-A4, A6-A8, A18, A19, A21); bindings
+   261123-175722-b26bcf (A2-A5, A12, A20, A21's Python/Rust); A10 grep 261123-175722-13a7f9; A13
+   261123-175723-de3cb2; review probe 261123-175725-7fad98 (A21: the website's pages on an agent store,
+   `get` against main `Detent:6acfb0e9`); fails-without at the one-entry core 261123-175727-3d4b80
+   (mutant `refs/mutants/legacy-h/a21-one-entry-core`, `Detent:43c6e350` = head + e30799b8's
+   `src/detent_reader/core.cc`); T2 timing 261123-175759-67f119 (strict).
+2. CI runs 45308791726, 45308791259 at `Detent:8d61d548`: `ci:linux-asan-ubsan`, `ci:linux-tsan`
+   (A9), `ci:ci` and the Docs workflow (A22).
+3. Evidence table from `campaign brief`; T2 numbers into Result and `docs/mechanisms/reader-core.md`;
+   ready for review.
 
-Done at `Detent:9ab80296`: native rerun 261123-141425-73c546 passed (A1-A4, A6-A8, A18, A19; its
-first run 261123-132656-1c173d timed out in three authority and agent tests while the host's
-15-minute load stood near 27; the quest touches neither). Mutants at `Detent:62293129`: F3-python
-261123-132722-52d35a and F7 261123-132740-6858e4 die (exit 8).
+Done at `Detent:9ab80296`: native rerun 261123-141425-73c546 passed (A1-A4, A6-A8, A18, A19).
 
 ## Blocked on
 
-Nothing. msg-266 and msg-267 closed: the lead added `src/detent_local/evaluation.hh` (comment fixed)
-and `include/detent_testing/**` (store.hh stays) to the file set.
+Nothing blocks the work. msg-284 (to the lead): the fix round changes seven paths outside the file
+set, which `campaign brief` flags: `src/detent_local/generation.cc`,
+`src/detent_local/generation_file_access.hh` (the core's whole-table read and `select_entry`),
+`tests/detent_testing/test_generation_writer.cc` (the C face writes an entry per namespace),
+`tests/docs/check_docs.py`, `tests/docs/docs_exceptions.txt`, `tests/docs/e2e_exceptions.txt`,
+`tests/docs/mutants.py` (A22). Recommend adding them. msg-266 and msg-267 closed earlier.
+
+## Correctness review (legacy-h-correctness.md) findings
+
+- F1, F2 (A21, D150): the core reads the whole `selected` table once per refresh (sequences of the
+  slots it names loaded first, D4 rule 1; retried on a rename; slots past 4,096 raise the bound and
+  reread), attaches a namespace's entry on its first lookup, and keeps attached entries sorted for a
+  binary search. Each entry follows its own sequence; a namespace that leaves the table keeps its
+  last generation; one the table never listed answers UNAVAILABLE. Tests: `test_reader_core`
+  `per_namespace` (two entries, a list-opened handle, isolation of a delta in `u` from `t`, a new
+  namespace attaching, a dropped one staying stale, 64 namespaces read with one `selected` read and at
+  most 4 views); `test_reader_scenarios` runs `detent get` on 21 rows over the five-entry scenario
+  store; the bindings read the same store. Fails without: 261123-175727-3d4b80.
+- F3 (A22): `check_docs.py` reads the statuses from `reader.h`; three stale flag exceptions go;
+  e2e excepts `guides/cpp-application#1` (a full project build) and drops `shell-and-agent#6`.
+- F4: the Docs workflow is now read with CI at each push (Next 2).
+- F5: CHANGELOG says `DETENT_DEFAULTS_PATH` is ignored.
+- F6: `detent get`'s usage says "(default 512 MiB)".
+- F7: the `detent` reference names `DETENT_READER_MAPPING_BYTES`.
+- F8: Python copies the namespace list into a tuple before releasing the GIL.
+- F9: `Store` states its thread rule; publish on a moved-from `Store` throws `std::logic_error`
+  (`tests/cmake_consumer/installed`).
+- F10: the testing shared library and its install exist only with libdetent_reader's shared twin.
+- F11: mutant M3 renames `generation_dir` in a tree carrying the sources; A10's grep covers
+  `mutants.py` again.
+- F14: reader-core.md, client-local-source.md, update-path.md and how-it-works.md describe the
+  per-namespace table.
+- Not taken: F12 (the grep's exclusions are rulings 6 and 9; the lead's to restate A10), F13 (T5
+  against the old binary is S7's; the scenarios' `detent get` rows cover values), F15 (A2's count is
+  the quest file's).
 
 ## Design review (legacy-h-design.md) findings
 
@@ -141,3 +157,15 @@ Not yet.
 10. `test_reader_switch`'s baseline race is in a reader-core test this quest does not otherwise
     touch (likely pre-existing on main: a timing race, not shown by a job at main); fixed inside the
     file set (`tests/detent_reader/**`) since it red-lit this quest's CI.
+11. The test writer has two layouts (`GenerationWriter::Layout`): `OneEntry` (default; store-level
+    tests outside the file set keep their one-entry stores) and `PerNamespace` (an entry per
+    namespace with its own cursor scope, deltas moving one entry, at most 16 plans per cycle; compact
+    is OneEntry-only). The C face and `detent::testing::Store` use `PerNamespace`, as an agent does.
+12. Reader-core semantics for D150: a namespace that leaves the table keeps answering from its last
+    generation (as main's per-namespace Client did); a refresh failure on one entry fails the whole
+    refresh and keeps the installed view (D4); `initial_slots` = 4,096 sequences loaded per refresh,
+    raised when the table names a higher slot.
+13. Writer builders live until their publication settles (`Detent:ae68d8f7`): splitting the plan
+    out of publish had freed them first and let the old generation's segments go, which
+    `test_testing_trusted_restart` refusals/t5 caught (A/B: old writer 3 of 3 pass, split 0 of 3,
+    held 3 of 3).
