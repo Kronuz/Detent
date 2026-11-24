@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: waiting on jobs 261124-035147-903054 261124-035149-ce2080 261124-035150-981777 261124-035152-3ac6f3 261124-035154-314fca 261124-035211-92ed4b 261124-034503-387342
+State: waiting on jobs 261124-102825-ffc13c 261124-102832-d10575 261124-102840-e72d93
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -20,7 +20,12 @@ Round 2 (lead's message after 80393d76). Causes, both in my test edits, not the 
 - Suite test_agent_store_crash (Timeout 900 s): pre-existing, not mine; the same timeout is in
   other quests' suites 261123-175720-145715, 261123-200442-1898b2, 261124-065709-635779 (agent
   store, no relay code).
-Neither fix touches src, so A1/A2 rows stand. Local targeted run under `quiet light` pending.
+Neither fix touches src, so A1/A2 rows stand: 80393d76 and 0ef266b3 differ only in tests and this
+journal (brief says "ran other code" for that reason). Local `quiet light` run at the fixed tests:
+test_http_upstream passed (11.6 s), test_relay_service passed (123.9 s).
+Queued at 0ef266b3: A3 fixed side 261124-102825-ffc13c; A3 fails-without 261124-102832-d10575 at
+04b424d0 (0ef266b3 with the five fix files at main: the revert mutant); suite 261124-102840-e72d93;
+CI on the pushed branch. The earlier fails-without 261124-033951-a94472 used the older test.
 
 ## Design (sent to the lead as msg-310)
 
@@ -60,7 +65,16 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261124-035150-981777 (fix vs main), band 261124-035211-92ed4b; at 80393d76, src as at head |
+| A2 | 261124-035152-3ac6f3 (250 ms), 261124-035154-314fca (10 ms), band 261124-034503-387342; at 80393d76 |
+| A3 | 261124-102825-ffc13c queued; fails-without 261124-102832-d10575 queued |
+| A4 | [artifact] docs/mechanisms/relay-mirror-wait.md |
+| A5 | 261124-102840-e72d93 queued; CI pending |
+
+Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
+exit 8 as required), 261124-034543-d72b56 (probe, cancelled), 261124-034500-c0335d (A/A, superseded
+and cancelled), 261124-035147-903054 and 261124-035149-ce2080 (failed: test bugs above; suite's
+test_agent_store_crash timeout is pre-existing). msg-310: answered by the lead (set widened).
 
 ## Result
 
