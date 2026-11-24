@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-052615-4ff43a 261124-051832-d5a4f8, CI on consensus:01a109c
+State: waiting on jobs 261124-055736-3b5693 261124-060707-907c80 261124-060708-478fe7 261124-060709-6fad07 261124-060711-d7e273 261124-060728-146185, CI on consensus:8511ff1
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -28,22 +28,21 @@ above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): 
 
 ## Next
 
-1. Read 4ff43a (ASan old vs new, same host, BOUND=90 on new) and d5a4f8 (custom mutants,
-   sorted-line compare). If new ASan is not well under 90 s, cut harness cost further, keeping
-   equiv.sh's hash equal.
-2. CI times at 01a109c vs consensus_shared_worker (ci-times.sh); Result; Evidence table.
+1. When the jobs finish: paste `campaign brief`'s Evidence table, read CI 8511ff1's
+   linux-asan-ubsan times (ci-times.sh), fill Result and the docs' cost table, set
+   "ready for review".
 
-Results so far at e44fe39:
-- 261124-051827-1d53c7: old == new == LIVENESS_VERIFY (trace hash per profile), 20 seeds.
-- 261124-051829-5486f3, 261124-051830-677391: all 17 core mutants, same kills old vs new, same
-  output lines (order differs only by line buffering). votes-and-pre-votes-without-the-log-check
-  caught by both now.
-- 261124-051846-6e6be3 (--fails-without, main): plain ASan 132.5 s, above 90 s.
-- 261124-051825-444ce3 failed: phases.sh edited in place while it ran; replaced by 4ff43a.
-- vote-ignores-leader-contact: caught by neither harness (gap, per the coordinator).
-- Core finding for the lead: a leader's due D3 removal waits for a Tick that
-  Core::next_deadline() does not report (LIVENESS_VERIFY found it), so a host sleeping until
-  next_deadline() delays the removal.
+Since the last entry:
+- consensus:3d647b6 keeps each node's single Tick on the node (time, order) beside the queue;
+  consensus:8511ff1 reads the hold deadline lazily at the Tick. Both trace-checked locally
+  (old == new == verify, release).
+- ASan A/B same host, 20 seeds (strict): e44fe39 157.6 -> 105.4 s (261124-052615-4ff43a; failed
+  only its BOUND=90); 3d647b6 159.7 -> 84.3 s, 0.53 of main (261124-054710-31c4e2).
+- Custom mutants at e44fe39 (261124-051832-d5a4f8): all 12 same kills, same output lines; incl.
+  lone-campaigns-after-12-election-timeouts and -15000ms in the same profiles as main.
+- Profile at 3d647b6 (261124-054712-948bdb): Core::step 49% (real deliveries and their Ticks),
+  next_deadline 7%, queue 2.5%. What is left is core work on events main also delivers.
+- CI 45390900739 at 1bbef40 (scaled windows, withdrawn): liveness 16.80 s.
 
 ## Blocked on
 
