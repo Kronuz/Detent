@@ -4278,6 +4278,21 @@
       "closed": "applied; legacy-h's round 3 already ran under these rules",
       "id": "msg-349",
       "text": "campaign skill: agent-campaign:deeff81 installed (review-sweeps). The review rules from the legacy-h analysis now apply:\n1. A fix round that adds a mechanism or state machine starts with a lifecycle table (states x events), design-checked before code.\n2. Each finding's fix sweeps its class: every transition gets a value-checking test.\n3. A reviewer's failing probe stays blocking until root-caused to a finding with a fails-without; 'unreachable' is shown by a run, and the lead never relabels it.\n4. Once a finding lands in a lifecycle, the re-review covers the whole mechanism, not the diff.\n5. Every review of a critical quest, re-reviews included, launches at effort max.\n6. PLAN V5 (owner): when every earlier finding is fixed and the new one sits in the same mechanism, the lead runs the third fix round and informs the owner, without parking.\nNext to install: todo-mail-trust (a parked quest keeps its file set), then drain-yields and evidence-once."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:02:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:02:02",
+      "by": "campaign",
+      "closed": "not ended: probe runs 45449779597 (queued) and 45453078372 (running) are CI runs, not jobs; a waiter resumes the contributor",
+      "id": "msg-350",
+      "settles": {
+        "todo": "e1694809"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); new): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
