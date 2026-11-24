@@ -76,7 +76,7 @@ std::optional<StoreTable> read_store_table(int directory, uid_t owner);
 // One entry of a table read by read_store_table: nullopt when the image it names is gone.
 std::optional<Selected> select_entry(int directory, uid_t owner, const StoreTable &, const TableEntry &);
 // The walk's descriptors are only stat'ed, ACL-checked and walked from, so macOS opens them for search:
-// a read open of a directory costs about 6 times as much there (docs/perf/first-read-gate.md).
+// a read open of a directory costs about 6 times as much there (docs/perf/first-read-1ms.md).
 #ifdef __APPLE__
 inline constexpr int directory_search = O_SEARCH | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
 #else
