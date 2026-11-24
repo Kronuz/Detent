@@ -27875,6 +27875,43 @@
       "updated": "2026-11-11T18:11:46",
       "worktree": ""
     },
+    "relay-mirror-idle-wake": {
+      "accepted": {},
+      "after": [
+        "loop-idle-waits"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_relay/mirror_service.cc",
+        "src/detent_relay/mirror_service.hh",
+        "src/detent_relay/configuration.cc",
+        "test/relay*",
+        "tests/detent_relay/**",
+        "bench/idle-wakeups/**",
+        "docs/mechanisms/relay-mirror*.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "detent-relay's mirror waits for upstream change instead of polling",
+      "updated": "2026-11-23T16:53:54"
+    },
     "relay-snapshot-lifecycle": {
       "accepted": {},
       "after": [],
