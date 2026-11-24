@@ -1,6 +1,6 @@
 # journal-turn-sector-checks: journal
 
-State: waiting on jobs 261123-180604-09a8dc 261123-180608-7b9211 261123-180645-514406 261123-180639-e460e3 261123-180640-75fc0c 261123-180642-577728; ci:ci at journal:bd6cad6
+State: waiting on jobs 261124-053626-81c403 (A4 bytes rerun at the merge 384ad20) and ci:ci at journal:384ad20; everything else ready for review
 Quest: .campaign/detent/quests/journal-turn-sector-checks.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -91,16 +91,9 @@ defect:
 
 ## Next
 
-1. When the exclusive latency jobs end, run
-   `python3 ~/.scratch/detent/journal-turn-sector-checks/lat.py <log of 09a8dc> <log of 7b9211>`:
-   per arm and size the medians, the write and barrier p50 apart, which runs are slow (p50 > 30 ms)
-   and whether the per-group control of the same invocation is slow too (host fsync regime) or
-   only the turn log (the shared sector's rewrite). If the fix loses throughput beyond the A/A
-   band, report to the lead with the numbers before changing anything. Done at bd6cad6: A2
-   261123-180641-82725c, A3 261123-180641-0b7099 (exit 0). Still queued: F1 fails without
-   261123-180645-514406, F1 at the fix 261123-180639-e460e3, A1 261123-180640-75fc0c, A4 bytes
-   261123-180642-577728. Then Evidence, Result (log growth, sectors touched, and bytes passed to
-   write() +14.5% at 256 B), "ready for review".
+1. When 261124-053626-81c403 ends (bytes at the merge; must equal 577728: -4.87% sectors touched at
+   256 B, +0.95% at 4 KiB), set State to "ready for review". The lead pushes or re-accepts
+   durability (only bench/turn_bench.cc and test/turn_log_test.cc changed since 8bf1d1d).
 
 ## Blocked on
 
@@ -121,18 +114,59 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261123-104119-1fb4f2: main e58f977 with b335b69's probe: newest tail SILENT 36 of 201, earlier turns 4807 reported, 0 silent (blocks-newest-turn SILENT 29 of 108). Fix, its port (`turn_log_power_test probe 24 40`): newest crossing 258 reported, every changed sector 436 reported + 5 harmless, earlier turns 5525 reported + 2 harmless, newest turn of the clean log 103 reported: 0 SILENT; 6473 checks, 0 failures. Counts differ with the layout (Ruling 6) |
-| A2 | 261123-104121-0dca59 (sector_verdicts 17 checks, stale_alias 5, newest_turn_damage 447 reported and 487 tears, T9 at 8 seeds 31268 checks, 0 failures); fails without: 261123-104123-1ecb5a (newest_turn_damage at main: 41 SILENT, exit 1) |
-| A3 | 261123-104126-e17d15; fails without: 261123-104128-58508b (sector_check binding 32 bits: "a sector of segment S - 2^32 reads as stale, never as current: W is torn", exit 1) |
-| A4 | bytes 261123-104143-3708f8 (main e58f977 vs fix, same workloads): T9's 897.3 -> 838.2 (-6.59%) at 2 KiB, 869.2 -> 816.1 (-6.10%) at 4 KiB, 838.8 -> 790.8 (-5.72%) at 32 KiB; turn_bench 256 B 2512.4 -> 2366.7 (-5.80%); 4 KiB records 33350.7 -> 33673.8 (+0.97%). Design: -5.6 to -6.2%, +1.0%; 2 KiB is 0.4 points better than its estimate. Bytes written per write (whole sectors) +50-55% T9, +14.5% 256 B, +2.5% 4 KiB. Latency: pending 261123-104146-ca1f89 |
+| A1 | 261123-180640-75fc0c (at bd6cad6; supersedes 261123-104119-1fb4f2): main e58f977 with b335b69's probe: newest tail SILENT 36 of 201, earlier turns 4807 reported, 0 silent. Fix, its port (`turn_log_power_test probe 24 40`): 0 SILENT in the newest crossing, every changed sector, earlier turns and the clean newest turn. Counts differ with the layout (Ruling 6) |
+| A2 | 261123-180641-82725c, 261123-180639-e460e3 (F1 at the fix); fails without: 261123-104123-1ecb5a (newest_turn_damage at main: 41 SILENT), 261123-160740-42038e, 261123-180645-514406 (midwrite_reads at f1ca348: 898 failures, exit 1) |
+| A3 | 261123-180641-0b7099; fails without: 261123-104128-58508b |
+| A4 | bytes 261123-180642-577728 (strict, bd6cad6; rerun at the merge 384ad20: 261124-053626-81c403); latency (exclusive, A/A rotated, 24 rounds) 261123-180604-09a8dc, 261123-180608-7b9211; earlier, not cited: 261123-104143-3708f8, 261123-104146-ca1f89, 261123-132700-4d14e4, 261123-160757-1330f1 (strict beside light holds: did not decide) |
 | A5 | `docs/mechanisms/turn-log-damage.md`: "A sector more than 2^32 segments older than the file's segment reads as damage, not as stale" (F6); "An all-zero sector is never written, not damage, and this is not \"verifies under neither\"" (F7); "A fragment never verifies on its own, so bytes inside a torn write's payload that once formed a valid fragment cannot forge a record" ... "reports every group lost" (journal-earlier-turn-loss F1) |
-| A6 | fixtures regenerated (journal:2e17407; journal_crc_fixture_test 87 checks, 0 failures locally); lost_bound 116 checks, host idle_damage 11 and idle_unmanifested 8, 0 failures locally at journal:8c1e8c2; ci:ci pending at journal:8c1e8c2 |
+| A6 | fixtures regenerated (journal:2e17407; journal_crc_fixture_test 87 checks); suite `ci:macos-arm64` and `ci:ci` at the merge 384ad20, gate jobs queued by `campaign verify` |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+RFTW0002: the turn log's data is written in 512 B sectors, each 504 data bytes and an 8 B check
+bound to the full segment and the sector's index, so a torn or rotted sector is reported as damage,
+never read as the end of the log (A1 0 SILENT, A2 every verdict by value, A3 the 32-bit alias).
+Mechanism and Limits: `docs/mechanisms/turn-log-damage.md` (Cost section for the numbers below);
+design `docs/design/turn-log-cut-header.md`. Fixtures regenerated, fuzz replay reads them.
+
+Cost against main e58f977 (strict, 261123-180642-577728 at bd6cad6; same figures at 8bf1d1d in
+ede889):
+- Log growth per turn: T9 897.3 -> 838.2 B (-6.59%) at 2 KiB blocks, 869.2 -> 816.1 (-6.10%) at
+  4 KiB, 838.8 -> 790.8 (-5.72%) at 32 KiB; turn_bench 256 B records 2512.4 -> 2366.7 (-5.80%);
+  4 KiB records 33350.7 -> 33673.8 (+0.97%). Design: -5.6 to -6.2%, +1.0%.
+- Sectors touched per turn (what a device writes back): T9 1408.0 -> 1348.6 (-4.22%), 1380.0 ->
+  1325.6 (-3.94%), 1349.6 -> 1300.5 (-3.64%); 256 B 3022.9 -> 2875.7 (-4.87%); 4 KiB 33861.3 ->
+  34184.6 (+0.95%). Pages touched -1.04 to -2.31%, +0.85% at 4 KiB.
+- Bytes passed to write() (whole sectors: the shared sector again, zeros after): +14.5% at 256 B
+  (2512.4 -> 2875.7), +2.5% at 4 KiB, +50-55% on T9. It equals sectors touched; the log's growth is
+  what falls.
+- Append latency, exclusive, 24 rounds rotated main/fix/A-A (261123-180604-09a8dc rounds 1-12,
+  261123-180608-7b9211 rounds 13-24; lat.py), turn_bench 16 groups, 50% active, medians of 24 runs:
+
+  | size | arm | turns/s/core | p50 ms | p99 ms | write p50 us |
+  |---|---|---|---|---|---|
+  | 256 B | main | 48.4 | 20.77 | 22.7 | 32.1 |
+  | 256 B | fix | 48.6 | 20.71 | 22.6 | 30.9 |
+  | 256 B | A/A | 48.4 | 20.80 | 23.0 | 35.2 |
+  | 4 KiB | main | 48.4 | 20.81 | 23.5 | 45.0 |
+  | 4 KiB | fix | 48.0 | 20.82 | 23.1 | 42.8 |
+  | 4 KiB | A/A | 48.4 | 20.76 | 23.1 | 40.3 |
+
+  The A/A band (main vs main) is 0.03-0.05 ms on p50 and 0.3 ms on p99; the fix is inside it at both
+  sizes (-0.06 and +0.01 ms against main). No run was slow (p50 > 30 ms) in any arm: p50 is the
+  host's fsync interval (about 20.1 or 20.8 ms), the barrier is 99.7% of it, and the write itself
+  is 25-73 us. So there is no latency loss beyond the band; the write's 31-45 us is dominated by
+  noise between runs, larger than any difference between arms. Latency is bound by the barrier, so
+  the +14.5% bytes handed to write() costs nothing measurable here.
+- The earlier strict job beside light holds (261123-160757-1330f1) did not decide (3 slow rounds in
+  the fix, a host fsync regime); the exclusive jobs replace it. The merge of main (384ad20) touches
+  no code turn_bench or the log runs: CMakeLists's faultlab pin and group_io_bench, memory_io.h
+  removal; the latency jobs are cited at bd6cad6, the bytes job is rerun at the merge.
+
+Suite: F1 (a read in flight sees the durable shared sector) fails at f1ca348 with 898 failures
+(261123-180645-514406) and passes at the fix (261123-180639-e460e3). Open (documented in Limits):
+F2 (damage past an unwritten header reads as the end), F3 (a tear inside a turn's first sector
+loses the turn before's groups too; the fix is the design's O2, +27.7 to +30.7% bytes).
 
 ## Rulings I made
 
