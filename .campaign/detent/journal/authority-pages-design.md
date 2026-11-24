@@ -10,11 +10,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Fix round 1 after the design review (CHANGES at 65576604, F1-F11) is done in the doc: every ⟨…⟩ marker filled
-from the fix-round rows (18937291), main merged (a6bc98d7, tests only: no src or bench change). At head: suite 261124-065709-635779 passed; exclusive 100K seal rerun 261124-065725-fc6f20 running. The lead
-cancelled the other seven reruns at a6bc98d7 (acad60, 43d298, e44a71, 8185bb, ca279e, 3d2260, 9ec83f): no new
-strict or exclusive jobs until campaign-v3's drain-yields lands. Reruns of the measurement jobs at the merged head
-are deferred until the owner decides A4; the merge touched tests only, so the original jobs measure the same src
-and bench, and the evidence cites them.
+from the fix-round rows (18937291). The owner decided A4 = option 2 (PLAN D156) and Q1 = no signing now (D157);
+the doc's Decision section records both (7fbc96b2). main merged twice (a6bc98d7: tests only; then again at the
+final head, with src changes in detent_local, detent_reader, detent_testing), so the measurement jobs the evidence
+cites are rerun once at the final head, as `campaign brief` lists them (job ids under Evidence). Suite
+261124-065709-635779 passed at a6bc98d7; the seven reruns there were cancelled by the lead, and fc6f20 stays for
+the 100K exclusive comparison. The reviewer's probes (261123-145400-63b0f2 and its sat probe) are cited by the
+doc, are the reviewer's harness, and are not rerun.
 
 Fix-round rows (at 7a4d6f83; the merge since touched tests only), summarized:
 - Paced commit, `check.py pairs` (arm p50 minus adjacent none, ms; mean [95% CI]): 5M exclusive PE
@@ -29,30 +31,27 @@ Fix-round rows (at 7a4d6f83; the merge since touched tests only), summarized:
   T10/i250 4.3 / 3.2 / 2.3 s; T10/i1000 4.0 s. LE 2.7 / 2.1 s (T10, exclusive). Peak RSS 0.55-0.69 / 1.0-1.2 /
   1.9-2.0 GB for 1 / 4 / 10 threads.
 
-Blocking findings, each with what confirms its fix (all in docs/design/authority-pages.md; the suite at head,
-261124-065709-635779, is the job for the text-only ones):
-- F1 (commit rows not at rc3 load; noise above the floor): paced rows at rc3's seal rate with an A/A arm:
-  261123-193517-519b4d (exclusive; A/A ±1 ms; pool -0.2 inside, write +37.1 resolved), 261123-193507-f0eafa,
-  261123-193510-65f196, 261123-193513-95a0ae; old rows' rate stated and not used for deltas; 24d1dd cited.
-  Confirm F1=261123-193517-519b4d.
-- F2 (root lag after a leader change understated): window measured end to end, 261123-193525-e60802,
-  261123-193528-1675da, 261123-193531-962367 (WINDOW table); agent rule and Limit 1's delay stated (rule 2,
-  DELAY). Confirm F2=261123-193531-962367.
-- F3 (root not specified per serving path): "Where the root comes from" table (leader, follower/D145, relay per
-  tier, agent), root entries in the log, split answers, threat model. Text; confirm F3=261124-065709-635779.
-- F4 (pass-through unpriced; Q4 contradiction): pass-through specified, priced and deferred; authority page
-  serving priced (~500 MB at 5M) and not recommended; (b) restated as an added cost (1.34-1.75 cores,
-  261123-193520-a9b30c, 261123-193523-d6ce25). Confirm F4=261123-193520-a9b30c.
-- F5 (decision rows): "What it changes" table names Limit 1, D1, D4, D6, D7, Q4, D34, D133 (with the landed
-  code), D145. Text; confirm F5=261124-065709-635779.
-Non-blocking: F6 LAG table and coalescing (63b0f2); F7 range quoted; F8 exclusive seal reruns at head deferred
-until A4 (fc6f20 only, running); F9 stated; F10 decision request option 5; F11 Limits 4.
+Design review findings, each with the job or section that fixes it (sections of docs/design/authority-pages.md;
+"suite" = the suite job at the final head, for text-only fixes):
+
+| Finding | Blocking | Fixed in | Confirming job |
+|---|---|---|---|
+| F1 commit rows not at rc3 load, noise above floor | yes | "Commit latency and elections": paced rows at 0.98 seal/s with an A/A arm; old rows' rate stated, not used for deltas; 24d1dd cited | 261123-193517-519b4d (exclusive: pool -0.2 ms inside A/A ±1 ms, write +37.1); strict 261123-193507-f0eafa, -193510-65f196, -193513-95a0ae |
+| F2 root lag after a leader change | yes | "After a leader change": WINDOW table measured end to end; agent rules, DELAY; Limit 1 row | 261123-193531-962367 (exclusive), 261123-193525-e60802, -193528-1675da |
+| F3 root per serving path | yes | "Where the root comes from": per-path table, root entries in the log, split answers, threat model (D157) | suite (text) |
+| F4 pass-through and Q4 contradiction | yes | "What it buys": pass-through specified, priced, deferred; authority page serving priced, not recommended; (b) as an added cost | 261123-193520-a9b30c, -193523-d6ce25 (1.34-1.75 cores) |
+| F5 decision rows | yes | "What it changes": Limit 1, D1, D4, D6, D7, Q4, D34, D133 with landed code, D145 | suite (text) |
+| F6 coalescing | no | LAG table, coalescing paragraph, pool bound (four threads) | 261123-193520-a9b30c, -193523-d6ce25 |
+| F7 inline range | no | quoted as 971-2,650 ms over four jobs | 261123-143704-14eaf8 and the 5M commit rows |
+| F8 one exclusive job per CPU number | no | strict range stated; exclusive reruns at the final head | 261124-065725-fc6f20 and the 5M seal rerun under Evidence |
+| F9 encode in build CPU | no | "Cost on the authority", stated as conservative | text |
+| F10 SHA-NI / XOF | no | alternative (d) and Decision option 5 | text |
+| F11 builder reads its own corpus | no | Limits 4 | text |
 
 ## Next
 
-1. When 261124-065725-fc6f20 passes: compare it with the doc's 78.8 ms at 100K (cite it if it agrees), set State
-   "ready for review". Queue no strict or exclusive job. The lead accepts the design review with the confirms
-   under Doing and launches the correctness reviewer.
+1. Design re-review of the CHANGES findings (table under Doing). When the final-head reruns pass, compare them
+   with the doc's numbers; a moved number gets updated in the doc with its new job.
 
 ## Blocked on
 
@@ -62,10 +61,10 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | docs/design/authority-pages.md prices (a)-(d) at 100K and 5M, every number citing its job. Seals: exclusive 261122-210428-976f07, 261122-210429-1ed7a8; strict 261123-143709-e27543, -143709-c59049, -143710-993a49, idle -143708-866493. First commit rows (inline ruling): 261123-143701-b2823a, -143704-14eaf8 and 261123-102558-6f96c6 to -102613-0c4d8c. Paced commit: 261123-193517-519b4d (exclusive), -193507-f0eafa, -193510-65f196, -193513-95a0ae. Root lag and window: 261123-193520-a9b30c, -193523-d6ce25, -193525-e60802, -193528-1675da, -193531-962367 (exclusive). Reviewer probes 261123-145400-63b0f2, -145405-24d1dd. All at their named commits; reruns at the merged head (tests-only merge) deferred until A4 |
+| A1 | docs/design/authority-pages.md prices (a)-(d) at 100K and 5M, every number citing its job. Seals: exclusive 261122-210428-976f07, 261122-210429-1ed7a8; strict 261123-143709-e27543, -143709-c59049, -143710-993a49, idle -143708-866493. First commit rows (inline ruling): 261123-143701-b2823a, -143704-14eaf8, 261123-143702-63a2df and 261123-102605-a63417 to -102613-0c4d8c. Paced commit: 261123-193517-519b4d (exclusive), -193507-f0eafa, -193510-65f196, -193513-95a0ae. Root lag and window: 261123-193520-a9b30c, -193523-d6ce25, -193525-e60802, -193528-1675da, -193531-962367 (exclusive). Reruns at the final head: see Doing |
 | A2 | 261123-193433-2e4687 (smoke at 7a4d6f83; the merge since touches tests only); fails without: 261123-102546-6e81cf (with 261123-102550-885bdd). Every row is strict or exclusive at a named commit; before = arm none / option (a), interleaved; noise floor = the aa (A/A) arm's 95% CI (paced), min-max of 30 seals (seals). Suite at head 261124-065709-635779 (passed) |
 | A3 | docs/design/authority-pages.md, "Recommendation" and "What it changes": Limit 1 closed with a bounded detection delay (open against a lying relay, Q1); Q4 (b) stands for pages, the authority serves records and roots; D6 unchanged plus split answers; D1, D4, D7, D34 (reason: off the service loop) and D133 amended; quests added: authority-root-entries, authority-builder-pool, relay-authority-root, agent-root-check; none dropped |
-| A4 | [manual] open: the owner's decision, requested at the doc's end ("Decision request"). Recommendation, option 2: (b) on four builder threads with 250 ms passes, agents publish and verify at the next root; at 5M 1.3-1.8 cores and a 135-243 MB head on the leader, commit p50 unchanged inside the A/A band, detection delay p99 0.33 s (0.56 s burst, 3.3-6.2 s after a leader change); (d) the fallback at 9.4% of a core per voter |
+| A4 | [manual] owner decision, PLAN D156 (2026-11-24): option 2, the leader builds for the root on four builder threads, one pass per namespace every 250 ms, pages in memory, agents publish and verify at the next root; (d) the fallback. Q1: PLAN D157, no root signing now. Recorded in docs/design/authority-pages.md, "Decision" |
 
 ## Result
 
@@ -78,7 +77,7 @@ entry; relays forward roots and check their own; agents publish and verify at th
   +37.1 ms (exclusive 519b4d). Inline stalls the loop 971-2,650 ms: ruled out.
 - Leader change: first root past the cold build in 3.3-6.2 s on four threads (strict), 2.1-2.7 s on ten
   (exclusive), at 1.0-1.2 / 1.9-2.0 GB peak RSS.
-- Open: A4 and Q1 (signed roots), both the owner's.
+- Decided: A4 = option 2 (D156), Q1 = no signing now (D157).
 
 ## Rulings I made
 
