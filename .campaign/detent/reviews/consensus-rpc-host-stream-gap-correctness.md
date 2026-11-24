@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap review: correctness
 
-Commit: consensus:d428b377eb75f888cd38bed532dc6f996f9cda80
+Commit: consensus:0e000db0120d2e5c2419c29c3b2831b1267ef0e4 (first reviewed at consensus:d428b37)
 Verdict: APPROVE
 Date: 2026-11-24
 
@@ -64,18 +64,41 @@ Answers to the lead's questions:
    - `local-throw`, which ran inside the stream's window (01:34:09.94-10.22), took a normal 0.27 s.
      The stall therefore fell after it, beside only `stalled-peer`, whose 4 s sleep absorbs it.
 
+## Re-review at consensus:0e000db
+
+I reviewed `git diff d428b37 0e000db` (rpc_host_test.cc, and rpc_hosts.h's additive
+`Lag::stop()`).
+
+- **The wait cannot hang.** `until(beats.count >= posted, 10s)` (rpc_host_test.cc:439) has a 10 s
+  deadline. `posted` is written and read only on the main thread, and `beats.count` is atomic. It
+  never timed out in practice: A3 (5023a3) ran 50 runs in 43 s, about 0.86 s a run, so every
+  warm-up beat arrived.
+- **The sampler is joined once on every path.** `stop()` sets `stopped`, joins only while the
+  thread is `joinable()`, and returns `worst`. The destructor's second call is a no-op. Every
+  early return comes before `Lag` exists (stream's warm-up), or the destructor joins.
+  group-full, call-full, stream and fetch each read the value `stop()` returned, so F2 is closed.
+- **F1 is fixed.** My Control-delay mutant at the fix (3c3ebf): 1,500 ms and 2,000 ms fail, and
+  1,000 ms passes at 999 ms of 1,004. The stopped runs (9e4ff0) now measure the gap at offset
+  0.60, 1,571 ms where d428b37's run showed 103 ms, and all 7 pass within the lag.
+- **F3 is fixed.** call-full has `Lag` and a `1000 + lagged` bound (:369-370).
+- **A2:** 261124-032548-9e4ff0. **A3:** 261124-032552-5023a3 (50 runs, 0 failed). CI at 0e000db
+  was still running when I wrote this.
+
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| F1 | no | gap | The stream case measures only closed gaps. It checks `beats.worst` the moment the call ends (rpc_host_test.cc:427-436), so a Control delay longer than the remaining stream (about 0.5 s) is never seen. This predates the quest: main has the same check. | Job 261124-031642-88f679: a Control hold of 1,000-2,000 ms passes with a gap of 0-4 ms and fails only with a tail. Contributor jobs c32cc2 (offset 0.45: 1,933 ms stream, gap 108 ms) and 15443a (offset 0.60: 2,075 ms, gap 103 ms) miss a 1.5 s stop the same way. | Before the check, either heartbeat for a tail of 1-2 s, or fold `now - beats.last` into `worst`, or require a beat count as call-full does (:366). The test: rerun `patch.py`'s `MUTANT_DELAY_MS=1500` without a tail, which must fail. Lead's call: fold it in here (the file is in the set) or open a follow-up. |
-| F2 | no | gap | `lag.worst` is read while the sampler still runs (:434). A stop that ends just before the check can be missing from Lag even though a beat delivered after resume already closed the gap, which is a residual false failure. The same read exists in fetch (:886) and group-full (:311). | c32cc2 offset 0.45 and 1b1ee9 offset 0.60: a 1.5 s stop inside the run reports lag 1-3 ms. The gap was open in those runs too, so the probes observed no false failure. | Stop and join the sampler before reading (for example `Lag::stop()` returning `worst`, in rpc_hosts.h), once for all three cases. |
-| F3 | no | nit | `call-full` (:366) is labelled `timing` and keeps a flat `beats.worst < 1000` with no Lag, so it is exposed to the same stall. groups_test.cc:586 is the same, with its own copy of `Beats` (:331); the journal already notes it. | Code reading | Give it the same allowance when the next flake shows up, or now (rpc_host_test.cc is in the set). |
+| F1 | no | gap | **Fixed at 0e000db** (jobs 3c3ebf, 9e4ff0, 5023a3). The stream case measures only closed gaps. It checks `beats.worst` the moment the call ends (rpc_host_test.cc:427-436), so a Control delay longer than the remaining stream (about 0.5 s) is never seen. This predates the quest: main has the same check. | Job 261124-031642-88f679: a Control hold of 1,000-2,000 ms passes with a gap of 0-4 ms and fails only with a tail. Contributor jobs c32cc2 (offset 0.45: 1,933 ms stream, gap 108 ms) and 15443a (offset 0.60: 2,075 ms, gap 103 ms) miss a 1.5 s stop the same way. | Before the check, either heartbeat for a tail of 1-2 s, or fold `now - beats.last` into `worst`, or require a beat count as call-full does (:366). The test: rerun `patch.py`'s `MUTANT_DELAY_MS=1500` without a tail, which must fail. Lead's call: fold it in here (the file is in the set) or open a follow-up. |
+| F2 | no | gap | **Fixed at 0e000db** (`Lag::stop()`, all four cases). `lag.worst` is read while the sampler still runs (:434). A stop that ends just before the check can be missing from Lag even though a beat delivered after resume already closed the gap, which is a residual false failure. The same read exists in fetch (:886) and group-full (:311). | c32cc2 offset 0.45 and 1b1ee9 offset 0.60: a 1.5 s stop inside the run reports lag 1-3 ms. The gap was open in those runs too, so the probes observed no false failure. | Stop and join the sampler before reading (for example `Lag::stop()` returning `worst`, in rpc_hosts.h), once for all three cases. |
+| F3 | no | nit | **Fixed at 0e000db** for call-full; groups_test.cc:586 remains out of the set. `call-full` (:366) is labelled `timing` and keeps a flat `beats.worst < 1000` with no Lag, so it is exposed to the same stall. groups_test.cc:586 is the same, with its own copy of `Beats` (:331); the journal already notes it. | Code reading | Give it the same allowance when the next flake shows up, or now (rpc_host_test.cc is in the set). |
+
+| F4 | no | gap | At 0e000db the stream case ignores the result of the 10 s wait (:439). A heartbeat lost outright, or later than 10 s, leaves `beats.worst` untouched and passes. Errors should not pass silently. | Code reading. The wait never times out normally (5023a3: 0.86 s a run), so failing on it costs nothing. | `const bool arrived = until(...)` and `&& arrived` in `ok`. The test: a mutant that drops Control frames after the call starts must fail. |
 
 ## Not run
 
 - macOS x86_64 or 4-vCPU timing locally. The spinner probe stands in for CPU starvation on this
   16-core host only.
+- CI at 0e000db, which was still running.
 - A rerun at main of the mutant. Main's stream check (main's rpc_host_test.cc:434) differs from the
   head's only in the bound, which I established by reading the diff.
 - TSan or sanitizers, which are CI's.
