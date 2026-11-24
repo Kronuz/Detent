@@ -18019,7 +18019,11 @@
         "website/**",
         "docs/design/client-local-source.md",
         "src/detent_local/evaluation.hh",
-        "include/detent_testing/**"
+        "include/detent_testing/**",
+        "src/detent_local/generation.cc",
+        "src/detent_local/generation_file_access.hh",
+        "tests/detent_testing/test_generation_writer.cc",
+        "tests/docs/**"
       ],
       "history": [
         {
@@ -18129,7 +18133,7 @@
       "risk": "critical",
       "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "updated": "2026-11-23T15:49:27",
+      "updated": "2026-11-23T18:12:52",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
