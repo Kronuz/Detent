@@ -32199,7 +32199,20 @@
         "src/CMakeLists.txt",
         "tests/detent_delivery/CMakeLists.txt",
         "docs/dev/splits.md",
-        "tests/detent_authority/test_state.cc"
+        "tests/detent_authority/test_state.cc",
+        "tests/docs/check_docs.py",
+        "tests/detent_authority/history_mutant.sh",
+        "tests/detent_authority/revert_followup_check.sh",
+        "tests/detent_authority/revert_ready_check.sh",
+        "tests/detent_authority/test_history_ranges_mutant_unbounded.patch",
+        "tests/detent_delivery/mutants/loop_idle_waits.sh",
+        "tests/detent_relay/mutants/absence-trusted.patch",
+        "tests/detent_relay/mutants/history-not-gated.patch",
+        "tests/detent_relay/mutants/layouts-no-enable.patch",
+        "docs/mechanisms/authority-capacity-raise.md",
+        "docs/mechanisms/authority-reply.md",
+        "docs/mechanisms/authority-retained-state.md",
+        "docs/mechanisms/format-refusal.md"
       ],
       "history": [
         {
@@ -32236,12 +32249,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "A1's artifact docs/dev/splits.md, and test_state.cc (1,084 lines) needs a verdict",
+      "reason": "the split moves code that check_docs, mutant patches and scripts and four CURRENT mechanism docs cite by file; parked msgpack/persistent-map/voter-read/relay-mirror globs cover some of them but their branches edit none (checked); dated design records and docs-site-audit stay for the docs wave",
       "repo": ".",
       "risk": "low",
       "status": "active",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T10:44:29",
+      "updated": "2026-11-24T12:59:24",
       "worktree": "../Detent-wt/detent/split-detent"
     },
     "split-journal": {
