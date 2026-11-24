@@ -6244,7 +6244,8 @@
       "after": [
         "consensus-quiesce-election-stall",
         "consensus-peers-wake",
-        "xapiand:consensus-request-install"
+        "xapiand:consensus-request-install",
+        "xapiand:consensus-join-v2"
       ],
       "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
       "branch": "quest/detent/consensus-follower-read",
@@ -6276,11 +6277,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "xapiand msg-302: consensus-join-v2 changes node-admission and is security-reviewed; land after it",
       "repo": "../consensus",
       "risk": "high",
       "status": "active",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T01:33:30",
+      "updated": "2026-11-24T01:34:22",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
