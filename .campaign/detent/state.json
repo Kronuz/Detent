@@ -26616,15 +26616,12 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "owner: P2 narrows Q7 (exact up to usage_slots) and P3's C ABI; design reviewer checking P1-P6 meanwhile",
+      "reason": "design review CHANGES (F1-F8): design fix round before the owner's P2/P3 rulings",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "knob observability OB1-OB3 in the reader core",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-24T10:24:09",
+      "updated": "2026-11-24T10:27:56",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
