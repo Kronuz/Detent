@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: consensus:5b1ffb6 drops the include; A1's job and CI remain.
+Nothing: consensus:c177c88 runs the test on faultfs (5b1ffb6 dropped an include the test used: CI red); CI remains.
 
 ## Next
 
@@ -39,4 +39,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
-| A1 | job 261123-164556-dd9522 (`git grep memory_io` empty at consensus:5b1ffb6); `ci:ci` |
+| A1 | job 261123-170615-153c05 (no memory_io or MemoryIO; 10 of 10 install_request cases pass at consensus:c177c88); `ci:ci` |
+
+Failed: 261123-164556-dd9522 passed at 5b1ffb6 but CI failed there (jt::Disk, jt::MemoryIO still used).
