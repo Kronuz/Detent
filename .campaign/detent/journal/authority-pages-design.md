@@ -9,6 +9,31 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+Round 3 (design re-review CHANGES at 12608a08: T1-T3, U1-U6; owner rule V5, table first). Plan, then fixes:
+
+| Finding | Fix | Shown by |
+|---|---|---|
+| T1 rule 3's clock counts from the last new-root check | clock = age of the oldest published-but-unverified record, zero when none; re-checking the held root never resets it; doc rule 3 has one reading | model: idle then write publishes at once; a stalled builder with writes trips at the bound; lost roots trip; re-check does not reset |
+| T1b bound by hand (10 s) | derived from measured parts: last root age + election timeout + window + root commit + delivery budget, times margin; presented with what a user sees per trigger; the owner decides | doc "Rule 3's bound" |
+| T2 root-entry proposals unpriced | root entries ride in the next transaction group (no extra sync); bytes per entry stated; harness arm pass4r = pass4 plus its root entries riding each group | the paced exclusive A/B at the final head (replaces 261124-111623-b18370, which ran no root entries) |
+| T3 pass4 slots unfilled | fill ⟨PASS4-DELTA⟩, ⟨PASS4-JOB⟩, ⟨SEAL-LAG⟩ from the A/B | the paced exclusive A/B |
+| U1 retry storm | asking another source is jittered and rate-limited; records, not a full copy, unless a check failed | doc rule 3 |
+| U2 agent restart | v, the tail and the clock's start persist with the published state, else the tail is unverified from the restart; second generation priced | doc rule 2 |
+| U3 new namespace or incarnation | invisible until its first root: stated as rule 2's exception | doc rule 2; model incarnation case |
+| U4 untested states | kept as acceptance criteria for the implementation quests | doc quests list |
+| U5 pending lists unbounded in a stall | bound, past which the namespace is dropped from the pool and cold-built again | doc loop paragraph |
+| U6 wording, line numbers | "elections whose window outruns the bound"; D133 row at namespace_relay.cc:414/426, coordinator.cc:683-692 | doc |
+
+Sweep, every timer and clock in option 2 (start, reset, what idles it, model case):
+
+| Clock | Starts | Resets / stops | Idle | Model case |
+|---|---|---|---|---|
+| Rule 3 (agent) | first publish of a record past the last verified root | a checked root covering the oldest unverified record (moves to the next; zero if none) | nothing unverified: zero | idle-then-write, stall, lost roots, re-check |
+| Pass interval (leader, per namespace) | start of the namespace's last pass | the next pass's start | no pending changes: no pass; the interval is a minimum, so an idle namespace's first change passes at once | scheduler: idle write passes on arrival; busy waits the interval |
+| Step-down cancel (leader) | the loop sees its role change | a new term as leader starts a fresh pool | a follower has no pool | results of an old term are never proposed |
+| Staleness (voter, relay, agent) | not a clock: order by (incarnation, position) | a newer entry replaces | none | a root of an old incarnation or older position is ignored |
+| Source retry (agent, U1) | a refused answer | a checked root | nothing refused | jittered, rate-limited (doc only) |
+
 Fix round 2: correctness review CHANGES (C1-C8) and design re-review CHANGES (R1-R6, N1-N4), both at 28ca4c31.
 The eight reruns at b5ce810d were cancelled before they ran (the harness changes again here). Fix round 1
 (F1-F11), D156 and D157 are recorded below and in the doc.
