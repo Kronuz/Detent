@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: working
+State: waiting on jobs 261124-034543-d72b56 261124-034500-c0335d 261124-034503-387342
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-The fix is written but the out-of-set files (headers, http_upstream.cc) are not committed on the
-branch, pending msg-310: probe commit c97932cb (dangling, `git commit-tree`) runs the relay tests
-(probe 261124-034543-d72b56, no evidence). Baselines queued at b06a8102 (main's binaries) vs main:
-A/A idle 261124-034500-c0335d, A/A latency 261124-034503-387342. A3 fails-without at b06a8102
-(test only, main's mirror): 261124-033951-a94472.
+Waiting on the lead (msg-310, file set) and jobs. The fix is written in the worktree but its
+out-of-set files are uncommitted: src/detent_relay/mirror_service.cc (in set, uncommitted since it
+needs the headers), include/detent_relay/{mirror_service,namespace_relay,http_upstream}.hh,
+src/detent_relay/http_upstream.cc. Probe commit c97932cb (dangling, made with `git commit-tree`;
+holds exactly that diff) runs the relay tests: probe 261124-034543-d72b56 (no evidence).
+Baselines at b06a8102 (main's binaries) vs main 24c5601a (no src change since the branch base):
+A/A idle 261124-034500-c0335d, A/A latency 261124-034503-387342, both exclusive, queued.
 
 Smoke 261124-033656-d26b03 (main's code, 5 s, 5 samples): idle relay 1.56% of a core, 4.36
-syncs/s, authority 2.34%; latency p50 145 ms at 250 ms.
+syncs/s, authority 2.34% at 250 ms; latency p50 145 ms.
+A3 fails-without 261124-033951-a94472 at b06a8102 (main's mirror + the idle test): exit 8 at the
+first check, "B synced 37 times in 1.5 s at rest" (passes as --fails-without).
 
 ## Design (sent to the lead as msg-310)
 
@@ -59,5 +63,21 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- `interval_ms` stays and becomes the least time between syncs (and the backoff's base): a stream
+  of changes costs at most one sync an interval, as polling did, so no config change.
+- The wait's deadline is the relay's `maximum_wait_ms` (30 s), bounded by the upstream session's
+  `wait_ms`; no new option. A deadline return also syncs (seals that moved no head).
+- The watch is a signal: its answer's frames are dropped and the sync re-reads them (one extra
+  request per change; NamespaceRelay unchanged). Under constant churn that is 3 requests per
+  interval instead of 2.
+- Names the upstream lacks are watched with no cursor (the authority answers on creation). A name
+  the upstream refuses (403) makes the wait fail at once: that relay polls every interval, as before.
+- The watch's session follows the endpoint of the last sync and never rotates the reading one.
+
+## Notes for relay-service-refused-sync-flake
+
+test_relay_service.py's D9 step relied on C polling its lagging proxy; it now writes once to wake C
+(this quest's edit). The proxy's 10 s upstream timeout would cut a 30 s parked next; raised to 45 s.
 
 <Decisions inside the quest's scope, so the reviewer can check them.>

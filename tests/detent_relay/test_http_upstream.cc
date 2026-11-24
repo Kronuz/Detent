@@ -625,7 +625,7 @@ void chain(Fixture &f, const std::filesystem::path &root) {
 	std::cout << "chain: B mirrored A's " << a.file.size << "-byte base in ranges of " << range << "\n";
 }
 // idle: relay B waits on A's parked next and syncs only when something changed or its wait's
-// deadline passed. Idle, it makes no sync between deadlines, where polling every 10 ms makes ~150;
+// deadline passed. Idle, it makes no sync between deadlines, where polling every 10 ms makes dozens;
 // A's change wakes it at once; with A gone it fails with the backoff, and syncs again when A returns.
 void idle(Fixture &f, const std::filesystem::path &root) {
 	constexpr auto deadline = 4000ms;

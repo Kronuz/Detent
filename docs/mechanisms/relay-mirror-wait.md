@@ -46,7 +46,8 @@ its upstream refuses (403 on the next) degrades the same way.
 ## Tests
 
 `tests/detent_relay/test_http_upstream.cc` (`idle`): relay B mirrors relay A over HTTPS with a
-10 ms interval and a 4 s deadline. At rest B syncs at most once in 1.5 s, where polling makes
-about 150. A's change reaches B within 1.5 s, and B's next sync with nothing changed comes at
-the deadline. With A stopped, B's syncs fail with the backoff, and B syncs again once A returns
-on its port. `tests/detent_relay/test_relay_service.py` runs the three-voter authority path.
+10 ms interval and a 4 s deadline. At rest B syncs at most once in 1.5 s, where polling made 37
+(job 261124-033951-a94472). A's change reaches B within 1.5 s, and B's next sync with nothing
+changed comes at the deadline. With A stopped, B's syncs fail with the backoff, and B syncs again
+once A returns on its port. `tests/detent_relay/test_relay_service.py` checks that relays reading a
+three-voter authority, and a relay reading them, make no sync in 2 s at rest.
