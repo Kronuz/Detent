@@ -31815,7 +31815,7 @@
         "src/detent_agent/config.cc",
         "tests/*/CMakeLists.txt",
         "docs/mechanisms/server-composition.md",
-        "website/src/content/docs/reference/**",
+        "site/src/content/docs/reference/**",
         "QUICKSTART.md",
         "README.md",
         "bench/idle-wakeups/pair.py",
@@ -31849,13 +31849,13 @@
         "tests/detent_system/test_relay_sigterm.py",
         "tests/docs/link_exceptions.txt",
         "tools/w5/first_read.py",
-        "website/src/components/PageTitle.astro",
-        "website/src/content/docs/architecture/agent.md",
-        "website/src/content/docs/architecture/relay.md",
-        "website/src/content/docs/guides/durable-relay.md",
-        "website/src/content/docs/guides/shell-and-agent.md",
-        "website/src/content/docs/operations/logging.md",
-        "website/src/content/docs/operations/services.md"
+        "site/src/components/PageTitle.astro",
+        "site/src/content/docs/architecture/agent.md",
+        "site/src/content/docs/architecture/relay.md",
+        "site/src/content/docs/guides/durable-relay.md",
+        "site/src/content/docs/guides/shell-and-agent.md",
+        "site/src/content/docs/operations/logging.md",
+        "site/src/content/docs/operations/services.md"
       ],
       "history": [
         {
@@ -31890,7 +31890,7 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "needs pin-wave's task bump (f937bc2+); pin-wave needs legacy-h",
+      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
       "repo": ".",
       "risk": "normal",
       "status": "blocked",
@@ -31898,7 +31898,7 @@
       "until": [
         "pin-wave"
       ],
-      "updated": "2026-11-23T16:47:28",
+      "updated": "2026-11-24T12:39:57",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
