@@ -26835,20 +26835,9 @@
       ],
       "consumes": [],
       "files": [
-        "include/detent/reader.h",
-        "include/detent/reader.hh",
-        "include/detent_local/read_counters.hh",
-        "src/detent_reader/**",
-        "tests/detent_reader/**",
         "docs/design/observability.md",
-        "docs/mechanisms/read-counters.md",
-        "src/detent_local/evaluation.hh",
-        "benchmarks/reader_bench.cc",
-        "src/detent_local/lazy_page_access.cc",
-        "src/detent_local/lazy_page_access.hh",
-        "src/detent_local/view.cc",
-        "include/detent_local/view.hh",
-        "tests/detent_local/test_evaluation.cc"
+        "tests/detent_reader/usage_claim_model.cc",
+        "tests/detent_reader/usage_claim_model.sh"
       ],
       "history": [
         {
@@ -26887,12 +26876,15 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "D10 segment bitmaps (D159): the mark bitmap is charged with its segment in lazy_page_access; view records (N7) need view.cc/.hh and the evaluation tests; no active quest holds them",
+      "reason": "design round 3 CHANGES (T1-T11, Detent:780c353f): the cross-publish fold for exact ever_read since open fails a third round; owner decides Q7's scope. Files narrowed to what its branch changes, so first-read-1ms can run; the set is widened again when it resumes",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T11:36:02",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T13:02:16",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
