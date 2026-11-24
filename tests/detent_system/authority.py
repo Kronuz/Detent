@@ -232,6 +232,13 @@ class Authority:
             while member.process.returncode is None:
                 try:
                     await self.request(index, "/v1/health")
+                    self.actors.evidence.record(
+                        "member_answered",
+                        index=index,
+                        attempts=attempts,
+                        spawned=spawned,
+                        answered=time.time(),
+                    )
                     return
                 except (OSError, http.client.HTTPException) as error:
                     refusal = repr(error)
