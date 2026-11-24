@@ -84,8 +84,9 @@ Owner (through the lead): `ever_read` (D6) and the new DETENT_MINIMUM_MAPPING_BY
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 
-Model: local TSan run under `quiet light`, all ten outcomes as designed; job `261124-104834-6ab99d`
-(light, at Detent:0e096e0e) runs `tests/detent_reader/usage_claim_model.sh`.
+Model (round 3): job `261124-112726-6e7cf6` (light, TSan, at Detent:fa7e5fba) exit 0, no TSan
+report, all eleven outcomes as designed; cycle: at least 615 of 1,024 names in 64 cycles and all
+within 800 over 100 seeds (fixed 64: 16); fresh: 69 of 10,000 first lookups sampled.
 
 ## Result
 
