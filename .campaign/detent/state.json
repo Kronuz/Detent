@@ -4558,6 +4558,36 @@
         "todo": "6ae892ad"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-113944-9df262, 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9 and 261124-114019-068816, which ended (done, failed) 5 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:07:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:07:16",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-351",
+      "items": {
+        "first-read-1ms": "first-read-1ms",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "observability-core": "observability-core",
+        "split-detent": "split-detent",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "first-read-1ms",
+          "journal-open-single-read",
+          "observability-core",
+          "split-detent",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "legacy-h landed: unlocks first-read-1ms; observability-core; split-detent; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -8231,18 +8261,48 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T12:44:04",
+          "ci": {
+            "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+            "runs": [
+              45472511590
+            ]
+          },
+          "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "criteria": {
+            "A1": "261124-123229-68cd34",
+            "A2": "261124-113944-9df262; fails without: 261124-040934-6f74ca, 261124-051846-6e6be3",
+            "A3": "261124-072642-7d4f31 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072644-b5fbdb (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072646-006a62 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-072640-a63185 (passed at c4c70f8dc215; 1 merge from main since, none touching its files; ignores docs-only docs/mechanisms/liveness.md), 261124-114001-fe77b1, 261124-114006-501c4f, 261124-114010-09df4a, 261124-114015-8765f9",
+            "A4": "`ci:ci` (run 45472511590 at e0fd383, green on every job)"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "5341bd3166c3442a5acc7df87a3f5333ae2a600f",
+          "reason": "",
+          "tested": "e0fd3838ed792697d857a57a9fb91a39da736e9e"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-24T01:33:42",
-      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
+      "updated": "2026-11-24T12:44:09",
+      "worktree": ""
     },
     "consensus-mutants-per-test": {
       "accepted": {},
