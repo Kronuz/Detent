@@ -2,7 +2,6 @@
 #include "detent_local/derived_ids.hh"
 #include "detent_local/layout.hh"
 #include <algorithm>
-#include <set>
 #include <sha256.h>
 
 namespace detent::local {
@@ -113,7 +112,8 @@ StoreTable decode_table(std::span<const char> in) {
 	refuse(std::all_of(in.begin() + at, in.begin() + table_header, [](char byte) { return byte == 0; }), "padding");
 	at = table_header;
 	const auto end = in.size() - 32;
-	std::set<std::uint32_t> slots;
+	std::vector<std::uint32_t> slots;
+	slots.reserve(count);
 	table.entries.reserve(count);
 	for (std::uint64_t i = 0; i < count; ++i) {
 		refuse(at < end, "truncated entry");
@@ -133,10 +133,12 @@ StoreTable decode_table(std::span<const char> in) {
 		take(in, at, entry.read);
 		refuse(valid_name(entry.name) && nonzero(entry.generation), "entry");
 		refuse(table.entries.empty() || table.entries.back().name < entry.name, "entry order");
-		refuse(slots.insert(entry.slot).second, "duplicate slot");
+		slots.push_back(entry.slot);
 		table.entries.push_back(std::move(entry));
 	}
 	refuse(at == end, "trailing bytes");
+	std::sort(slots.begin(), slots.end());
+	refuse(std::adjacent_find(slots.begin(), slots.end()) == slots.end(), "duplicate slot");
 	return table;
 }
 
