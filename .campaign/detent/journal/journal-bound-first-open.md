@@ -26,6 +26,13 @@ main 4eb8165 vs head, 192 MiB, 7 runs: the review's F1 asked for exclusive).
 After one 600 s wait (2026-11-24 06:4x): A2 built at the mutant (the merged test compiles) and is
 running; A1 and the A/B still queued. CI at journal:529565e running.
 
+Coordinator's standing rule (campaign-v3, until evidence-once lands): iterate with `quiet light`
+on targeted tests in the worktree; queue evidence once per round, at "ready for review"; never
+rerun a passed mutant whose reverted code is unchanged. This round's jobs were queued before the
+rule and are its one evidence round. A2 3123df was already running when the rule came: its
+reverted code (host.h's fix) is unchanged, but the test it runs moved to RFTW0002 positions, so
+it is kept rather than cancelled mid-run; no further A2 reruns unless host.h's fix changes.
+
 Mechanism: unchanged by the merge. host.h's fix (`settle_damage` reads each log with
 `TurnLog::read` and commits the verdict before the drivers' open records) is byte-identical to
 the reviewed journal:0951710 apart from the comment; the test's layout moved to RFTW0002
