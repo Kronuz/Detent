@@ -37,7 +37,12 @@ prepare() {
 	cat > "$out/targets.cmake" <<EOF
 add_executable(first_read_phases "$branch/tests/detent_system/first_read_phases.cc")
 target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(first_read_phases PRIVATE detent::local_client detent::testing_store)
+# The Client's library before legacy-h removed it; the read internals live in local_view since.
+if(TARGET detent::local_client)
+  target_link_libraries(first_read_phases PRIVATE detent::local_client detent::testing_store)
+else()
+  target_link_libraries(first_read_phases PRIVATE detent::local_view detent::testing_store)
+endif()
 if(TARGET detent::reader)
   add_executable(first_read_core "$branch/tests/detent_system/first_read_phases.cc")
   target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
