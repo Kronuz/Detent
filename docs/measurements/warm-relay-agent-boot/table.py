@@ -1,7 +1,8 @@
 """Tabulate the rows' SUMMARY lines: per size and arm, median and range of each measure.
 
 usage: table.py SOURCE...   (a job id, read from ~/.scratch/campaign/jobs/JOB/a*/out/summary.jsonl,
-or a rows file such as rows-131bde6.jsonl, whose lines carry their job)
+or a rows file such as rows-3f0a5b59.jsonl, whose lines carry their job; the rows files add the relay's
+RSS before the agent and at peak, read from each run's marks.json trace)
 Prints a Markdown table per measure group and one line per run.
 """
 
@@ -53,6 +54,16 @@ def cell(values: list[float], digits: int = 2) -> str:
     return f"{statistics.median(values):.{digits}f} ({low:.{digits}f} to {high:.{digits}f})"
 
 
+def mib(group: list[dict[str, object]], key: str) -> str:
+    values = [float(str(r[key])) / 1024 for r in group if r.get(key) is not None]
+    return f"{statistics.median(values):.0f}" if values else ""
+
+
+def mb(group: list[dict[str, object]], key: str) -> str:
+    values = [float(str(r[key])) / 1e6 for r in group if r.get(key) is not None]
+    return f"{statistics.median(values):.1f}" if values else ""
+
+
 def main() -> None:
     every = [run for job in sys.argv[1:] for run in runs(job)]
     sizes = sorted({int(str(run["records"])) for run in every})
@@ -79,9 +90,10 @@ def main() -> None:
     print(
         "| Records | Arm | Files | Groups | Device flushes (publication, since start)"
         " | Agent bytes in | Agent bytes out | Relay bytes out (serving) | Relay CPU during agent, s"
-        " | Agent RSS peak, MiB |"
+        " | Agent RSS peak, MiB | Relay RSS before (warm), MiB | Relay RSS peak, MiB"
+        " | Mirror fetched, MB |"
     )
-    print("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: |")
+    print("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |")
     for size in sizes:
         for mode in ("warm", "cold"):
             group = [r for r in every if r["records"] == size and r["mode"] == mode]
@@ -102,7 +114,9 @@ def main() -> None:
                 f" | {cell([float(str(r['agent_bytes_out'])) for r in group], 0)}"
                 f" | {cell([float(str(r['relay_serve_bytes_out'])) for r in group], 0)}"
                 f" | {cell([float(str(r['relay_cpu_during_agent_s'])) for r in group])}"
-                f" | {rss:.0f} |"
+                f" | {rss:.0f}"
+                f" | {mib(group, 'relay_rss_before_kib')} | {mib(group, 'relay_rss_peak_kib')}"
+                f" | {mb(group, 'relay_mirror_fetched_bytes')} |"
             )
     print()
     for run in every:
