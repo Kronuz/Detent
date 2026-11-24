@@ -6899,7 +6899,7 @@
         "test/follower_read_mutants.py",
         "ARCHITECTURE.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-follower-read",
+      "journal": "",
       "landed": [
         {
           "at": "2026-11-24T07:38:34",
@@ -6949,8 +6949,8 @@
       "risk": "high",
       "status": "landed",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T07:38:45",
-      "worktree": "../consensus-wt/detent/consensus-follower-read"
+      "updated": "2026-11-24T07:39:43",
+      "worktree": ""
     },
     "consensus-full-window-stall": {
       "accepted": {
