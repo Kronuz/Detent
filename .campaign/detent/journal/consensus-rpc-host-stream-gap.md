@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on jobs 261124-015310-731798 and CI of 93df08c25545 (A4)
+State: waiting on CI of consensus:d428b37 (A4); then ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,21 +29,25 @@ Nothing
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261124-015744-1b1ee9 (head: gap over 1,000 ms equals the host's lag); fails without: 261124-014521-c32cc2 (probe 97d862d: stages, post->send 0 ms, send->deliver 0-1 ms), 261124-014707-1319b1, 261124-015141-a3fef6 (main 512e3ef: 6 of 7 stops fail at 1,521-1,573 ms); a1.sh at the probe: 261124-015310-731798; unstalled gaps 103-222 ms under 16-24 burners: 261124-013928-c5f6e7, 261124-014534-123e12 |
+| A2 | 261124-014655-15443a (7 stops, 0 failed, gaps 1,517-1,604 ms within 1,000 plus lag); fails without: 261124-014707-1319b1 (main) |
+| A3 | 261124-014657-c7b211 (50 runs beside 4 burners, 0 failed) |
+| A4 | CI of consensus:d428b37 (running; `campaign verify consensus-rpc-host-stream-gap --for A4` submitted) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Cause: a host stall, not lane scheduling. A process stopped 1.5 s mid-stream shows the heartbeat gap
+equal to the host's lag (1,527-1,574 ms against 1,510-1,517 ms); the heartbeat thread itself was
+frozen, and post->send and send->deliver took 0-1 ms: nothing waited behind Bulk. Unstalled gaps
+stay 103-222 ms. CI run 45299903223's 1,170 ms gap in a 1,593 ms stream fits a stall; no CPU load
+on this 16-core host starved the process, so the stop is the deterministic reproduction.
+Fix: the stream case's bound is 1,000 ms plus the Lag sampler's worst, as the fetch and group-full
+cases (consensus:303455c, :93df08c); the 1,000 ms base is unchanged. Docs: docs/mechanisms/rpc-lane.md
+stream row. Open: groups_test.cc:586 `beats_2.worst < 1000` has no lag allowance (outside the file set).
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Lag allowance, not a wider base bound: one shape with fetch and group-full.
+- A1's reproduction is SIGSTOP at 7 offsets (scripts in ~/.scratch/detent/consensus-rpc-host-stream-gap/), since load alone did not starve a 16-core host.
