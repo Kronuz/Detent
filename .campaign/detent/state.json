@@ -19360,15 +19360,12 @@
         "detent-rust",
         "detent-get-cli"
       ],
-      "reason": "fix round 2 review CHANGES (F5); a third round needs the owner's go (asked 2026-11-24); contributor held",
+      "reason": "owner D154: third fix round with the lifecycle table first; D155 keeps reader.md D4",
       "repo": ".",
       "risk": "critical",
-      "status": "blocked",
+      "status": "active",
       "title": "Legacy H: the Client goes, bindings on the reader core",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-24T03:25:17",
+      "updated": "2026-11-24T07:23:35",
       "worktree": "../Detent-wt/detent/legacy-h"
     },
     "legacy-i": {
