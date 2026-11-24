@@ -28693,17 +28693,16 @@
         "durability"
       ],
       "milestone": "M2 Integration (RC-1)",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
-      "reason": "Consumer recheck NO-GO pending single-case attribution of the short-update outlier (EXTRACTION_CHECKLIST EX-4); M2 work after the handoff landing",
+      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "EX-4: the authority's ordered map from persistent-map",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-22T22:05:34"
+      "updated": "2026-11-24T14:21:45"
     },
     "pin-wave": {
       "accepted": {},
