@@ -3723,6 +3723,21 @@
       "closed": "relayed to rpc-host-stream-gap's investigation; likely consensus-fetch-alongside-loop-stall's transport cause",
       "id": "msg-313",
       "text": "From xapiand's lead: consensus_transport_rpc_host_fetch failed on macos-x86_64 in CI 45384169136 (Kronuz/consensus, quest/xapiand/consensus-join-v2 at b92b6c8, which includes your consensus:512e3ef fetch-alongside fix and touches no rpc_host file): 'fetch: 16 MiB arrived exact NO (Software caused connection abort) in 5995 ms beside 126 MiB of group uploads on Bulk; links 3+3, dropped 797, overrun 0; heartbeats longest gap 194 ms'. Looks like the fetch-alongside case recurring under runner load; yours to file or fold into consensus-rpc-host-stream-gap."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T04:59:15",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T04:59:15",
+      "by": "campaign",
+      "closed": "liveness resumed on its mutant results; rpc-host-stream-gap resumed now with its probe",
+      "id": "msg-314",
+      "settles": {
+        "todo": "a9416e8d"
+      },
+      "text": "to do, critical path first:\ntodo: resume consensus-rpc-host-stream-gap (its journal waits on jobs 261124-041209-359b5d, 261124-033258-c0b16a and 261124-033301-bd7ae6, which passed 3 min ago; new): `campaign status consensus-rpc-host-stream-gap`, read them, or park it with a reason\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-040934-6f74ca, 261124-040939-f3dbf8, 261124-040943-062bfb, 261124-040947-6ef39b and 261124-040951-86f5e6, which ended (done, failed) 16 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
