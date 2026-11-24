@@ -238,6 +238,7 @@ async def run() -> dict[str, Any]:
             marks["authority_ready_s"] = time.monotonic() - t0
             writers = MixedWriters(authority, records, 4, 17, maximum_records=records)
             positions: dict[str, int] = {}
+            revision = 0
             for producer in range(4):
                 name = authority.namespace(producer)
                 state = await asyncio.wait_for(
@@ -248,11 +249,19 @@ async def run() -> dict[str, Any]:
                     ),
                     60,
                 )
-                version = state.get("version")
-                if type(version) is not int or version < 1:
-                    raise RuntimeError(f"authority {name} position {version}")
-                positions[name] = version
-            revision = max(positions.values())
+                # D3: the agent selects each namespace at its own position, not the group revision.
+                version, position = (
+                    state.get("version"),
+                    state.get("namespace_revision"),
+                )
+                if (
+                    type(position) is not int
+                    or position < 1
+                    or type(version) is not int
+                ):
+                    raise RuntimeError(f"authority {name} read {version} {position}")
+                positions[name] = position
+                revision = max(revision, version)
             if revision < seeded_revision:
                 raise RuntimeError(
                     f"authority revision {revision} below seeded {seeded_revision}"
@@ -301,7 +310,7 @@ async def run() -> dict[str, Any]:
                         raise TimeoutError("relay health never ready")
                     await asyncio.sleep(0.1)
                 marks["relay_revision_s"] = time.monotonic() - relay_start
-                # Idle: four half-second samples in a row add at most 0.01 s of relay CPU.
+                # Settled: four half-second samples in a row add at most 0.1 s of relay CPU (the mirror polls every 10 ms).
                 quiet = 0
                 last = (await ps([relay]))[relay][0]
                 while (
@@ -311,7 +320,7 @@ async def run() -> dict[str, Any]:
                 ):
                     await asyncio.sleep(0.5)
                     now = (await ps([relay]))[relay][0]
-                    quiet = quiet + 1 if now - last <= 0.01 else 0
+                    quiet = quiet + 1 if now - last <= 0.1 else 0
                     last = now
                 marks["relay_settled"] = quiet >= 4
                 marks["relay_settled_s"] = time.monotonic() - relay_start
