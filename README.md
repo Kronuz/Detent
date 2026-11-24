@@ -63,7 +63,7 @@ Open one `Reader` per process and share it; lookups are thread-safe. Only the co
 
 ### 3. Run the authority
 
-Start a voter with `detent-authority --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](website/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
+Start a voter with `detent-authority --authority authority.json` and publish with `POST /v2/transactions`; the [durable authority guide](site/src/content/docs/guides/durable-authority.md) walks through the configuration and a first transaction.
 
 ### 4. Testing
 
@@ -225,7 +225,7 @@ Most of the difference comes from RapidJSON and ordinary C++ runtime support.
 ./build/src/detent-authority --authority authority.json
 ```
 
-`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](website/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](website/src/content/docs/reference/cli/detent-authority.md).
+`detent-authority` listens on port `8317` unless `--port` says otherwise, and serves the authority named by `--authority` (or the `authority` field of `detent-authority.json`). `detent-authority.json` lives in the same platform config directory as `agent.json` and accepts `authority`, `port`, `reactors`, `runtime_dir` and the logging fields; relative paths are resolved against the config file. `--config PATH` selects another file. CLI arguments override `DETENT_AUTHORITY_*` environment variables, which override config. `detent-authority --status` reports health over plain HTTP, or over HTTPS when the authority's publisher uses TLS. See [the durable authority guide](site/src/content/docs/guides/durable-authority.md) and [the `detent-authority` reference](site/src/content/docs/reference/cli/detent-authority.md).
 
 ### Running detent-agent
 
@@ -304,7 +304,7 @@ Benchmarks in `benchmarks/` build by default. Measured output on one 14-core arm
 
 ### Security boundary
 
-`detent-authority` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](website/src/content/docs/operations/security.md). Host-local reads trust the host.
+`detent-authority` authenticates publishers with bearer tokens, voters with mutual TLS and a certificate pin, and bounds every admission layer; see [Security](site/src/content/docs/operations/security.md). Host-local reads trust the host.
 
 ### Consistency model
 

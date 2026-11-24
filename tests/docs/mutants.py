@@ -19,16 +19,16 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-DOCS = Path("website/src/content/docs")
+DOCS = Path("site/src/content/docs")
 
 
 def mutant_tree(name: str, copy_source: bool) -> Path:
     """A root with the real tests, sidebar and source, a private copy of the pages, and optionally of src."""
     tree = ROOT / ".scratch" / "mutants" / name
     shutil.rmtree(tree, ignore_errors=True)
-    (tree / "website" / "src").mkdir(parents=True)
+    (tree / "site" / "src").mkdir(parents=True)
     (tree / "tests").symlink_to(ROOT / "tests")
-    (tree / "website" / "src" / "lib").symlink_to(ROOT / "website" / "src" / "lib")
+    (tree / "site" / "src" / "lib").symlink_to(ROOT / "site" / "src" / "lib")
     shutil.copytree(ROOT / DOCS, tree / DOCS)
     for entry in ("src", "include", "cmake", "CMakeLists.txt"):
         source = ROOT / entry

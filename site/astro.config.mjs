@@ -73,7 +73,7 @@ export default defineConfig({
 				},
 			],
 			editLink: {
-				baseUrl: `${REPO_URL}/edit/main/website/`,
+				baseUrl: `${REPO_URL}/edit/main/site/`,
 			},
 			// ```rest blocks copy as curl against a local distributor on its default port.
 			expressiveCode: {

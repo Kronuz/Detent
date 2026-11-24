@@ -42,21 +42,21 @@ ctest --test-dir build --output-on-failure
 5. **Keep the read path clean.** Nothing that allocates, locks or does I/O
    goes on `get`/`lookup`.
 6. **Document as you go.** Update the design documents in `docs/` and this
-   website alongside the code.
+   site alongside the code.
 
 ---
 
-## This Website
+## This Site
 
-The site lives in `website/` and is built with
+The site lives in `site/` and is built with
 [Astro](https://astro.build) and [Starlight](https://starlight.astro.build),
 using the same theme as the Xapiand documentation:
 
 ```sh
-cd website
+cd site
 npm ci
 npm run dev       # http://localhost:4321/Detent
-npm run build     # static site in website/dist, with Pagefind search
+npm run build     # static site in site/dist, with Pagefind search
 ```
 
 Diagrams are ```` ```d2 ```` fences rendered at build time, so install

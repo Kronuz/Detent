@@ -15,9 +15,9 @@ paths: `rim`, `hexagon`, `knob` and `stops`. Its origin is the hexagon's center.
 `family.png` shows the logo beside the Kronuz and Xapiand logos, 512 px tall on light and dark
 and at 16 and 32 px scaled up; `family.sh` renders it.
 
-`node brand/build-icons.mjs`, run from the repository root after `npm ci` in `website/`, renders
+`node brand/build-icons.mjs`, run from the repository root after `npm ci` in `site/`, renders
 every variant from the master into `variants/<name>/`, rasterizing each PNG once at its exact
-size, then copies the site's files into `website/`:
+size, then copies the site's files into `site/`:
 
 - `logo.svg` is the master in the variant's colors.
 - `favicon.svg` serves tabs at any DPR, and `favicon.ico` (16, 32 and 48 px frames) is the
@@ -32,5 +32,5 @@ size, then copies the site's files into `website/`:
 | `light` | The master: green `#93c34d`, white knob, stops and rim; tiles `#fdfdfc` | Light pages and the touch icons |
 | `dark` | No rim, so no white halo on a dark page; tiles `#1a1a1a` | Dark pages, and the site's logo and favicon, since without the rim it reads on both themes |
 
-The site serves `dark/logo.svg` as `website/src/assets/logo.svg`, `dark/favicon.svg` and
-`dark/favicon.ico` in `website/public/`, and the `light` touch tiles beside them.
+The site serves `dark/logo.svg` as `site/src/assets/logo.svg`, `dark/favicon.svg` and
+`dark/favicon.ico` in `site/public/`, and the `light` touch tiles beside them.
