@@ -4060,6 +4060,18 @@
         "todo": "80a3bf2d"
       },
       "text": "to do, critical path first:\ntodo: review legacy-h (its journal says ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native); then launch its correctness and design review; listed 11 min): `campaign set legacy-h status=review`\ntodo: finish consensus-follower-read (nothing moved it for 90 min: ready for review; to land: criteria without evidence at 37966262d8f8: A1-A5 (`campaign status consensus-follower-read` lists them); new): `campaign status consensus-follower-read`\ntodo: finish consensus-driver-pipelined-sim (nothing moved it for 2 h: ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); to land: criteria without evidence at 5c49481d5558: A1-A3 (`campaign status consensus-driver-pipelined-sim` lists them); listed 42 min): `campaign status consensus-driver-pipelined-sim`\ntodo: finish consensus-seeds-rate-flake (nothing moved it for 3 h: ready for review; to land: criteria without evidence at 803c37e23231: A1-A4 (`campaign status consensus-seeds-rate-flake` lists them); listed 5 min): `campaign status consensus-seeds-rate-flake`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:42:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:42:58",
+      "by": "kronuz",
+      "closed": "applied now (lead-todo); legacy-h's round 3 already follows it",
+      "id": "msg-334",
+      "text": "campaign-v3 lead: owner decision for the campaign skill (PLAN V5, 2026-11-24): a third fix round runs without parking for the owner when every earlier finding is fixed and the new one sits in the same mechanism. The lead runs it with a lifecycle table (states x events, design-checked before code) and a class sweep (every transition of each finding's class gets a value-checking test), and informs the owner. A changed goal or design still goes to the owner. Quest review-sweeps writes this into SKILL.md with the other review rules from the legacy-h analysis: failing probes stay blocking until root-caused, re-reviews cover the whole mechanism once a finding lands in it, and critical reviews run at effort max. Apply it now; the text follows."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
