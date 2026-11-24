@@ -87,7 +87,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A1 | 261123-194343-b857a5 (queued; at consensus:4dbaee0, signature.sh on the pre-fix build via --ref PRE=16c5bfa). Same command at 16c5bfa passed: 261123-164648-869a55 (13 of 16 exact, all 3 inexact fetches errors, none wrong bytes, sync held 6,031 ms; "ran other code" for the gate). Failed on the script's relative path: 261123-141158-c6d68a. Cancelled repro runs: 923832, 4475c9, 72f031, d47a61, 366894, dbf1fa, 262869 |
 | A2 | 261123-164650-bbaf94; fails without: 261123-141159-efa9e4. Failed: 261123-141201-2e0693 (the 2-loop placement assertion) |
 | A3 | 261123-164653-3cb87a, 261123-164658-9dea3a (0 of 25 failed each, 4 burners); ci:macos-x86_64 green in CI run 45299903223 at consensus:4dbaee0 (attempt 2). Failed on the script's path: 261123-141202-3e37e0, 261123-141204-1b7c5f |
-| A4 | CI run 45299903223 at consensus:4dbaee0 green, all jobs (attempt 2); the suite check (ci:macos-x86_64) green in it. Attempt 1's macos-x86_64 failed in consensus_transport_rpc_host_stream ("heartbeats' longest gap 1170 ms"): outside this diff, filed by the lead as quest consensus-rpc-host-stream-gap. CI at be2ffef (run 45277444899) failed on all 9 jobs on the placement assertion alone, fixed by 4dbaee0. At the landed commit: the landing gate's (main moved 2 unrelated files, c177c88, 5b1ffb6) |
+| A4 | `ci:macos-x86_64`, `ci:ci` (CI run 45299903223 at consensus:4dbaee0, attempt 2; attempt 1 failed only in rpc_host_stream, filed as consensus-rpc-host-stream-gap) |
 
 ## Result
 
