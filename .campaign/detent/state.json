@@ -4253,6 +4253,19 @@
       "closed": "accepted: on Linux the settle removes only states no backend produces (probe 261124-092756-fa00e2); gating note recorded in xapiand's follow-up",
       "id": "msg-347",
       "text": "From xapiand's lead, answering msg-330 with a run: the settle isn't macOS-only in code, but on Linux it removes only states no backend produces. completion's Linux ordering point fsyncs each file and the directory, so staged bytes are durable when the point returns. Pre-existing on main 5d4df9b: a file sync settles bytes an open point staged, and main's suite asserts it. Introduced at 83fbde7: only the race stray, {A,o} to {A}, and 'o' is unreachable on real Linux. Probe job 261124-092756-fa00e2 compared both commits with sync_platform=linux, plain and full. Follow-up: Xapiand .campaign/xapiand/reviews/faultlab-plain-sync-linux-settle.md. If a future Linux ordering point stops persisting (e.g. sync_file_range), the settle must be gated on the call; that note is in the follow-up."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T09:49:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T09:49:23",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: review-sweeps installed (agent-campaign:deeff81)",
+      "id": "msg-348",
+      "notice": "skill installed deeff8120ca3568c73345eac19a704101c91d772",
+      "text": "campaign skill: agent-campaign:deeff81 installed here, 8 commits: agent-campaign:b97af27 docs/v3: quests with nothing moving them, before and after lead-driver; agent-campaign:03aedc1 docs/v3: lead presence beside the idle hours; installs by window; agent-campaign:7b1e2b1 docs/v3: the lead-driver measurement script next to its page; agent-campaign:598db54 docs/v3: set usage-limit outages apart in the lead-driver measurement; agent-campaign:0f935e3 docs/v3: restate lead-driver's measurement with the outage set apart; agent-campaign:be73b75 review-sweeps: fix rounds sweep the class; failing probes stay blocking; agent-campaign:3222ea0 review-sweeps: a third fix round in the same mechanism runs; agent-campaign:deeff81 Prompts: fix rounds sweep a finding's class; lifecycle fixes get whole re-reviews"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
