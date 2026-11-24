@@ -1,6 +1,6 @@
 # consensus-seeds-rate-flake: journal
 
-State: waiting on jobs 261124-041541-5d4555 261124-041545-a9b999 261124-041548-778dca 261124-041551-dab805
+State: ready for review
 Quest: .campaign/detent/quests/consensus-seeds-rate-flake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,19 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix committed on the quest branch (consensus:a2f6eb3): rate() samples the host's lag (a local `Lag`
-copy, rpc_hosts.h's shape with stop()) and bounds each gap by 150 ms + lag; lower bound stays 90 ms.
-Cause: the seed timer is re-armed after each send, so the unstalled gap is interval..interval+jitter
-(100..150 ms); the raw listener timestamps in the same single-threaded loop, so a process stall
-(CI runner pause) lands in one gap as stall time on top: 150 ms + 100 ms slack fails past 250 ms.
-It measures the runner, not the rate limit. Scripts: ~/.scratch/detent/consensus-seeds-rate-flake/.
+Done: fix at consensus:a2f6eb3, pushed. Waiting on landing order only.
 
 ## Next
 
-1. Read the four jobs (A1 main stall fails, A2 head stall passes, A2 no-interval mutant fails, A3 50 runs); confirm none is a skip (exit 77) in disguise.
-2. Check each fails-without log (A1 main, A2 mutant) shows the assertion line, not exit 77; say so in the Evidence row.
-3. Lead (msg): when consensus-rpc-host-stream-gap lands test/transport/lag.h, merge consensus main, include lag.h in seeds_test.cc, delete the local Lag copy (jobs stand until then).
-4. Paste Evidence, Result; State "ready for review" (waits for the lag.h swap and CI before landing).
+1. After consensus-rpc-host-stream-gap lands test/transport/lag.h: merge consensus main, include lag.h in seeds_test.cc, delete the local `Lag` copy (the jobs stand until then; rerun A1-A3 only if the lead asks).
 
 ## Blocked on
 
@@ -38,13 +30,20 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261124-041545-a9b999; fails without: 261124-041541-5d4555 (at main 512e3ef, process stopped 0.4 s: log shows "Assertion failed: (gap >= 90ms && gap <= 150ms + 100ms) ... line 570" at the 0.8 s and 1.1 s offsets, not exit 77). Cause: the timer re-arms after each send (unstalled gap 100-150 ms) and the listener timestamps in the same loop, so a stall adds to one gap. |
+| A2 | 261124-041545-a9b999 (head, same stalls: passes); fails without: 261124-041548-778dca (no-interval mutant: assertion at line 598, 141 datagrams in 1.5 s, not exit 77) |
+| A3 | 261124-041551-dab805 (50 runs beside 4 burners, strict: none failed) |
+| A4 | CI on the pushed branch; suite at landing (`campaign verify`) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+test/transport/seeds_test.cc rate(): a `Lag` sampler (rpc_hosts.h's shape) runs over the 1.5 s window;
+each gap is bounded `90 ms <= gap <= 150 ms + lag` (interval + jitter + the host's lag), the burst
+bound is `80 ms + lag`, the datagram floor drops one per 150 ms of lag. The old fixed 100 ms slack is
+gone: an unstalled host now holds 150 ms plus its ~1-2 ms measured lag, stricter than before, and the
+90 ms lower bound (the rate limit) is unchanged. At main, a 0.4 s process stop fails at line 570; at
+head the same stops pass; a mutant sending at the burst spacing fails. 50 runs beside 4 burners: 0
+failures. No doc change (a test).
 
 ## Rulings I made
 
