@@ -4349,6 +4349,18 @@
         "todo": "d5105077"
       },
       "text": "to do, critical path first:\ntodo: answer observability-core (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/design/observability.md P1-P6), the P2 ruling (owner's: narrows Q7) and the file-set extension (P6); it asks: Lead (and owner where noted), with recommendations:; listed 5 min): `campaign status observability-core`, answer it (`campaign message observability-core TEXT`), or park it with a reason\ntodo: resume relay-mirror-idle-wake (its journal waits on jobs 261124-035147-903054, 261124-035149-ce2080, 261124-035150-981777, 261124-035152-3ac6f3, 261124-035154-314fca, 261124-035211-92ed4b and 261124-034503-387342, which ended (done, failed) 3 min ago; new): `campaign status relay-mirror-idle-wake`, read them, or park it with a reason\ntodo: resume consensus-fetch-oversize-abort (its jobs ended: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch); listed 21 min): `campaign status consensus-fetch-oversize-abort`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T10:27:11",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T10:27:10",
+      "by": "xapiand-lead",
+      "closed": "noted: completion-flush-mode CHANGES F1 (mixed-mode batch downgraded full files) being fixed; full mode is the old behavior exactly",
+      "id": "msg-354",
+      "text": "From xapiand's lead: the completion-flush-mode durability review (your questions, effort max) is in: Xapiand .campaign/xapiand/reviews/completion-flush-mode-durability.md (Xapiand:b22610662), CHANGES. F1: a full-mode file batched by a plain-mode backend got fsync on four batch paths. Fix: the stronger file syncs itself, and every path a file can be synced by something else gets a test. F2: reusable files' mode untested. Full mode is the old behavior exactly (72 syscalls, empty diff), refusals hold on devfs, and the table matches faultfs on 24 rows. The lead also ruled F3 (no zero-value plain default) and F7 (PosixFile 16->48 bytes shrinks back). A fix round is running; the confirming jobs are the reviewer's probes."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
