@@ -3553,6 +3553,18 @@
       "closed": "handled: legacy-h file set widened (f525e81c and earlier); msg-298's quests starting now",
       "id": "msg-282",
       "text": "legacy-h: one more file-set addition, tests/detent_testing/test_generation_writer.cc: the writer's C face now publishes an entry per namespace (the agent's layout, so the bindings read multi-namespace stores), and its test opened the C face's store as a one-entry table; it now opens entry t and checks two entries. Same terms as msg-281."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T17:53:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T17:53:21",
+      "by": "legacy-h",
+      "closed": "handled: legacy-h file set widened (f525e81c and earlier); msg-298's quests starting now",
+      "id": "msg-284",
+      "text": "legacy-h fix round 1 needs seven paths added to its file set (all at Detent:ae68d8f7): src/detent_local/generation.cc and src/detent_local/generation_file_access.hh (the reader core's whole-table read and select_entry, D150/A21), tests/detent_testing/test_generation_writer.cc (C face now writes per-namespace entries), tests/docs/check_docs.py, tests/docs/docs_exceptions.txt, tests/docs/e2e_exceptions.txt, tests/docs/mutants.py (A22 Docs gate, review F3/F11). Recommend: add them (campaign set legacy-h files=...)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
