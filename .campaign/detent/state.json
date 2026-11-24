@@ -6774,15 +6774,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "accepted at 0b8c911 and every criterion met; lands after xapiand:consensus-join-v2",
+      "reason": "xapiand:consensus-join-v2 landed (consensus:5e22cf0)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "blocked",
+      "status": "review",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "until": [
-        "xapiand:consensus-join-v2"
-      ],
-      "updated": "2026-11-24T06:08:17",
+      "updated": "2026-11-24T06:47:26",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
