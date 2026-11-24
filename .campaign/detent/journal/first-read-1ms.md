@@ -9,33 +9,46 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Change 1 (trust walk opens directories with O_SEARCH on macOS) screened against main:
-`.scratch/fr/ab.sh LABEL stopped` (strict, the gate's `measure` over the local build, main's
-`first_read_core` from `.scratch/fr/out/main`). Next changes are listed under Next.
+Hot path: `benchmarks/reader_bench_ab.sh` (interleaved main/head, core, int, hot and scattered, 1 and
+8 threads) built locally under `.scratch/fr/rb`; then profile hot 1-thread and fix in
+`src/detent_local` if the cost is there.
 
 ## Next
 
-1. A1 job 261124-134303-81190d (strict, probe profile, four cells): record it.
-2. Change 2: trust walk without the pre/post `fstatat` per component (classify on ENOTDIR only).
-3. Change 3: `decode_table` without the `std::set` and per-entry overheads (~310 us for 1,000 entries).
-4. Change 4: one image read per attach (`select_entry` and `attach` both open and read `.image`).
-5. reader_bench hot path (1 and 8 threads, hot and scattered) against main.
-6. A2 exclusive gate runs (stopped, running) at the final head; A3 via `campaign verify` and CI.
+1. A1 job 261124-134303-81190d (strict, probe profile, four cells): record it when it runs.
+2. Hot path A/B and fix (above).
+3. When the lead answers Blocked on 1-3: apply the held patches (changes 2 and 4) with their test
+   updates, screen, then queue A2 (exclusive, stopped and running) and `campaign verify --for A3`.
 
 ## Blocked on
 
 1. The lead: the 1,000-namespace cells cannot reach 1 ms on this host while every first read
    hashes the whole `selected` table with SHA-256 (141 KB for 1,000 entries; 1,154 us on this
-   i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel). The table's
-   format (D43, namespace-s7) fixes the digest. Options, for the lead or owner:
-   a. A faster table checksum or a chunked digest (a format change; greenfield, no compat).
-   b. An AVX2 SHA-256 kernel in the sha256 library for x86 without SHA-NI (about 2x, not enough).
+   i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel; 83% of a table
+   decode by `sample`). The table's format (D43, namespace-s7) fixes the digest. Options:
+   a. A chunked table digest (or a cheaper checksum), so a first read hashes its entry's chunk:
+      a format change; greenfield, no compat. Recommended.
+   b. An x86 SHA-256 kernel without SHA-NI in the sha256 library (CommonCrypto runs 141 KB in
+      643-780 us against the portable kernel's 1,169-1,382 us here, about 1.9x): helps every
+      SHA-256 on this host (table, image, `.read`, first-touch pages) but leaves the table at
+      about 600 us.
    c. Accept the 1,000-namespace cells above 1 ms on hosts without SHA hardware.
-   Recommendation: (a), a chunked digest, so a first read hashes its entry's chunk only.
-2. The lead: the running 1,000-namespace cell cannot run on main. The test writer
-   (`src/detent_testing/generation_writer.cc`, outside this quest's files) limits a store to
-   1,000 generations, so a 1,000-namespace store refuses the publisher's next publish ("local
-   disk admission pressure"). Raising that limit is one line; the probe skips the cell meanwhile.
+2. The lead: widen the file set by two test files, so two measured changes can land:
+   - Change 2 (`.scratch/fr/change2-walk-precheck.patch`): the trust walk opens each component
+     first and runs `fstatat` only to classify a failed open (alias or refusal), keeping the
+     post-open name check. Screen with change 1: -333 us (1 ns) and -348 us (1,000 ns) against
+     main, against change 1 alone -243 and -214 (floors 30-155 us). It needs
+     `tests/detent_local/test_trusted_paths.cc`: its race hook fires on the second `fstatat` of
+     "raced" (`race_calls == 2`), which becomes the first.
+   - Change 4 (`.scratch/fr/change4-image-once.patch`): attach takes the image bytes the
+     selection read (with their ACL checked there), so a first read opens `.image` once, not
+     twice. It needs `tests/detent_local/test_read_counters.cc`: the Client open counts 4 records,
+     not 5, and 320 fewer table bytes (CI's counters job).
+3. The lead: the running 1,000-namespace cell cannot run on main. The test writer
+   (`src/detent_testing/generation_writer.cc`) limits a store to 1,000 generations, so a
+   1,000-namespace store refuses the publisher's next publish ("local disk admission pressure").
+   Raising that limit is one line; the probe skips the cell meanwhile, and the gate's `measure
+   ... running` fails on it.
 
 ## Evidence
 
@@ -59,6 +72,17 @@ Micro (strict): directory openat O_RDONLY 9.7 us, O_SEARCH 1.6 us; fstatat 4.8, 
 3.1, file openat+close 18.7. The host ran at a 68% CPU speed limit under load 30-90, so the
 absolute numbers are inflated; the shares are the finding.
 
+## Screens (local, strict beside light holds, `.scratch/fr/ab.sh`, stopped, 6 pairs x 200)
+
+Median of run medians, us, main against branch; paired difference (floor):
+- Change 1 (O_SEARCH, `Detent:5d879068`): 1 ns 1,386 / 1,140, -243 (71); 1,000 ns 3,149 / 2,967,
+  -214 (121).
+- Changes 1+2: 1 ns 1,375 / 1,024, -333 (30); 1,000 ns 3,169 / 2,918, -348 (155). Held (Blocked 2).
+- Changes 1+3+4 (3 = `Detent:e7dc35d6`): 1 ns 1,491 / 1,200, -317 (96); 1,000 ns 3,384 / 2,879,
+  -527 (162). Change 4 held (Blocked 2).
+The host ran loaded (load 30-90, CPU speed limit 68%): main's 1 ns median is 1.39-1.49 ms here
+against about 0.6 ms on an exclusive hold, so these are screens, not A2.
+
 ## Result
 
 <When ready for review: what changed, its measured effect with numbers and the jobs behind them,
@@ -67,5 +91,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
+- R2: change 2 keeps the post-open name check (`test_trusted_paths` "raced" pins it); only the
+  pre-open `fstatat` goes. Change 3 refuses the same tables; a duplicate slot is now found after
+  the whole table decodes, not at its entry (one TableRefused either way, D43).
 - R1: the gate runs the reader core in both trees once a tree has `src/detent_reader` (reader-s6
   landed): this quest's A/B is core against core; main before reader-s6 still runs its Client.
