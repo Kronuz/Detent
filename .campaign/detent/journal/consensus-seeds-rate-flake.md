@@ -19,7 +19,9 @@ It measures the runner, not the rate limit. Scripts: ~/.scratch/detent/consensus
 ## Next
 
 1. Read the four jobs (A1 main stall fails, A2 head stall passes, A2 no-interval mutant fails, A3 50 runs); confirm none is a skip (exit 77) in disguise.
-2. Push, paste Evidence, Result.
+2. Check each fails-without log (A1 main, A2 mutant) shows the assertion line, not exit 77; say so in the Evidence row.
+3. Lead (msg): when consensus-rpc-host-stream-gap lands test/transport/lag.h, merge consensus main, include lag.h in seeds_test.cc, delete the local Lag copy (jobs stand until then).
+4. Paste Evidence, Result; State "ready for review" (waits for the lag.h swap and CI before landing).
 
 ## Blocked on
 
