@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-055736-3b5693 261124-060707-907c80 261124-060708-478fe7 261124-060709-6fad07 261124-060711-d7e273 261124-060728-146185, CI on consensus:8511ff1
+State: waiting on jobs 261124-061759-e60de0 261124-061800-6a30e3 261124-061802-f328be 261124-061803-1460cf 261124-061805-bab941 261124-062325-f25d84, CI 45410562603 (8511ff1)
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -28,9 +28,12 @@ above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): 
 
 ## Next
 
-1. When the jobs finish: paste `campaign brief`'s Evidence table, read CI 8511ff1's
-   linux-asan-ubsan times (ci-times.sh), fill Result and the docs' cost table, set
-   "ready for review".
+1. Coordinator (latest): A1/A2 bar is CI's ASan run <= 90 s; profile where the rest goes (lone
+   50%, removed 20%) and cut with the same exactness proof. consensus:e71996d (typed queue events,
+   cut bits) is at 0.50 of main on the same host: 129.7 -> 64.8 s (261124-061757-8fb9aa, which
+   failed only in phases.sh's ratio code on a zero event count; fixed: instrument.py now counts
+   core steps). Profile f25d84 pending; push e71996d after CI 45410562603's ASan time is read.
+2. Then: Evidence table, Result, docs cost table, ready for review.
 
 Since the last entry:
 - consensus:3d647b6 keeps each node's single Tick on the node (time, order) beside the queue;
