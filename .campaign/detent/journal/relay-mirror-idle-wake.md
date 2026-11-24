@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: waiting on jobs 261124-102825-ffc13c 261124-102832-d10575 261124-102840-e72d93
+State: blocked on split-detent: landing; then move the authority edit and queue evidence
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,23 +9,23 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 2 (lead's message after 80393d76). Causes, both in my test edits, not the fix:
-- A3 903054 / suite test_http_upstream: restarted relay A is a fresh voter at seal 2 while B holds
-  A's published seal 3, so every B sync is UpstreamBehind ("older seal") and the 30 s `until`
-  times out. Fix: the restarted A publishes once (its seal is B's again); the timeout message now
-  carries B's error. Polling at main would fail the same way; not a wake-path change.
-- Suite test_relay_service: the write I added to wake C ran before the busy-next probe, which
-  compares to `first`. Fix: the busy probe runs before the idle check and the write; the restart
-  comparison uses `settled`, a converged probe taken just before A and B stop.
-- Suite test_agent_store_crash (Timeout 900 s): pre-existing, not mine; the same timeout is in
-  other quests' suites 261123-175720-145715, 261123-200442-1898b2, 261124-065709-635779 (agent
-  store, no relay code).
-Neither fix touches src, so A1/A2 rows stand: 80393d76 and 0ef266b3 differ only in tests and this
-journal (brief says "ran other code" for that reason). Local `quiet light` run at the fixed tests:
-test_http_upstream passed (11.6 s), test_relay_service passed (123.9 s).
-Queued at 0ef266b3: A3 fixed side 261124-102825-ffc13c; A3 fails-without 261124-102832-d10575 at
-04b424d0 (0ef266b3 with the five fix files at main: the revert mutant); suite 261124-102840-e72d93;
-CI on the pushed branch. The earlier fails-without 261124-033951-a94472 used the older test.
+Round 3 (lead's ruling: the authority regression is this quest's). Done locally, not queued:
+- dec62ada: service.cc's owner loop counts a W5 next looked at for the current applied index as
+  parked (`frames_busy` false, its poll/deadline into `frames_until`), so the owner sleeps until its
+  health turn, a deadline or a publish; unlooked nexts and nexts waiting for history keep 1 ms.
+- fddecc70: tests/detent_relay/test_relay_idle.py (single voter + relay at 250 ms; over 2 s at rest
+  authority turns <= 60/s and relay syncs <= 1; a publish wakes the relay within 2 s). At fddecc70
+  (no authority fix) it should fail on turns (~780/s per A1 981777): the fails-without.
+- test_relay_service: waits for the wake write's seal before stopping A and B (a local failure:
+  "relay a fetched again after a restart", 2 files of the late seal).
+Local `quiet light` at dec62ada: test_relay_idle passed ("authority 4.5 owner turns/s, relay 0
+syncs in 2 s"; "the relay synced after 259 ms"), test_relay_service, test_http_upstream,
+test_authority_frames_service, test_authority_idle_wake, test_delivery_namespace_session,
+test_namespace_coordinator passed.
+
+Earlier rounds: A3 903054 and suite ce2080 failed on test bugs (restarted A at an older seal; the
+wake write before the busy probe), fixed in 0ef266b3. Jobs 261124-102825-ffc13c, -102832-d10575,
+-102840-e72d93 ran at 0ef266b3, before the authority fix: superseded, not evidence.
 
 ## Design (sent to the lead as msg-310)
 
@@ -42,19 +42,17 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Read the jobs; Result: idle CPU per relay and authority in core-seconds a day and watts, latency
-   p50/p99 against the bands; paste the Evidence table; a correctness review.
+1. When split-detent lands: merge main, move dec62ada's edit to the split file holding the owner
+   loop (likely service_runtime.cc; the lead widens the set), run the targeted tests locally.
+2. Queue once on that final code: A3 (test_http_upstream), A3 fails-without (revert mutant),
+   test_relay_idle and its fails-without (a mutant with the authority edit reverted), the suite
+   (A5), push for CI, and one exclusive A1 rerun (idle relay + authority, interleaved with main)
+   with its A/A band. A2 needs no rerun unless the A1 row moves the wake path's numbers.
+3. Result: net cores and watts across relay + authority; Evidence; ready for review.
 
 ## Blocked on
 
-The lead: A1's authority regression. A parked next spins the authority's owner loop (~780 turns/s,
-+3.65% of a core), more than the relay saves (1.04%). The cause is in src/detent_authority/
-service.cc (a parked frames task counts as transient, 1 ms turns), outside this set. Options:
-1. A quest (loop-idle-waits' shape) that wakes parked frames tasks on apply or their deadline;
-   this quest lands after it, and A1's authority row is rerun then (needs your go). Recommended:
-   agents parked at the authority pay the same spin today.
-2. Widen this set to service.cc and fix it here (high risk, authority loop).
-3. Land as is: relay -1.04% each, authority +3.65% while any relay or agent parks.
+split-detent landing (the lead's sequencing): it moves service.cc's owner loop to another file.
 
 ## Evidence
 
