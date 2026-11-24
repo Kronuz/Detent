@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: working
+State: waiting on jobs 261124-104010-6046a9 261124-104019-b98664 261124-104033-fe6ba4
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Splits committed (service.cc, state.cc); verdicts in docs/dev/splits.md. Compiling the touched
-libraries locally (light hold) before queueing the suite and split_check jobs.
+Splits committed (service.cc, state.cc); verdicts in docs/dev/splits.md. The local build never got
+a light slot (starving behind other jobs), so the first compile is job 261124-104019-b98664: if it
+fails, fix includes (service.cc dropped the platform completion includes; each new .cc keeps the
+original include list) and requeue. Local split_check at HEAD: 0 errors, 36 warnings (inline,
+using, 1 anonymous namespace), notes only for service_runtime.cc.
 
 ## Next
 
-1. Local build of detent_authority, detent_authority_service, test_authority_state, test_authority_service; fix includes.
-2. Header self-containment check for service_internal.hh and state_internal.hh.
-3. Commit docs/dev/splits.md; queue `campaign verify split-detent --for A4` and the split_check and ctest -N jobs (A2); push.
+1. Read the three jobs; fix a compile error if any.
+2. Header self-containment of service_internal.hh and state_internal.hh (compile each alone with a TU's flags).
+3. When pushed branch has CI, `campaign verify split-detent`.
 
 ## Blocked on
 
@@ -27,9 +30,9 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/dev/splits.md |
-| A2 | <job> |
+| A2 | split_check at base a06cbf1c8c77: 261124-104010-6046a9; ctest -N before/after: 261124-104033-fe6ba4 |
 | A3 | <lead> |
-| A4 | <job> |
+| A4 | build all + ctest authority/delivery/state: 261124-104019-b98664; CI after push |
 
 ## Result
 
@@ -45,3 +48,5 @@ Coordinator::Impl (SPLITTING.md "Restructuring a large class"); tests/detent_aut
 1. Base for split_check is a06cbf1c8c77 (the quest's start).
 2. Shared helpers go to `detail` in service_internal.hh / state_internal.hh with `using namespace detail;`, as SPLITTING.md says; helpers one piece uses stay in that piece's anonymous namespace.
 3. test_coordinator.cc (1,346 in the quest) no longer exists on main.
+4. docs/dev/splits.md is A1's file but outside the quest's file set; I wrote it anyway (the lead should add it to the set).
+5. coordinator.cc and the two design models are kept whole (docs/dev/splits.md has the reasons); the open branch managed-failover-isolated-leader edits coordinator.cc.
