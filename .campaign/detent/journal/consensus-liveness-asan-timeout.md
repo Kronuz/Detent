@@ -35,6 +35,9 @@ push while it runs). Docs commit b8577c1 is local, unpushed.
    table; ready for review.
 
 Since the last entry:
+- Coordinator's standing rule (evidence once per round): code frozen at c4c70f8; this set runs
+  without another push. 7efa59 is the round's one exclusive same-host A/B. Done so far: a63185
+  (equiv at c4c70f8: old == new, old == verify, every profile).
 - CI 45415901609 at e71996d (serial typed events) ran on a slow runner: consensus_liveness
   97.61 s, over 90 s (shared_worker 241.58 s, ratio 0.404; consensus_consensus 6.95 s, so liveness
   is 14.0x it, as at 8511ff1; main 28.6-38.6x).
