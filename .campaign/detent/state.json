@@ -3900,6 +3900,21 @@
       "closed": "noted: detent-multicast-seeds builds against consensus main at start",
       "id": "msg-322",
       "text": "From xapiand's lead: xapiand:netlab-consensus landed on consensus main at 1127f69 (5-node VM rows green; CI green with your ASan speedup). It changes consensus:seed-discovery, which detent-multicast-seeds consumes: build against main. consensus-join-v2 is next (final evidence at d42a7d1 running)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:34:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:34:16",
+      "by": "campaign",
+      "closed": "fresh contributor launched on bound-first-open (merge RFTW0002, resync gap())",
+      "id": "msg-324",
+      "settles": {
+        "todo": "9ee854a9"
+      },
+      "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261123-110049-af725e and 261123-111045-7f9830, which passed 19 h ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
