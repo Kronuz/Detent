@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-175720-145715 261123-175722-b26bcf 261123-175723-de3cb2 261123-175725-7fad98 261123-175727-3d4b80 261123-175759-67f119 and CI runs 45308791726 (CI), 45308791259 (Docs) at `Detent:8d61d548`
+State: waiting on jobs 261123-200442-1898b2 261123-200445-c50712 261123-200445-a58f5d 261123-200445-4a0de1 261123-200448-f006cc 261123-200500-f13c52 261123-200502-4fbd30 and CI at `Detent:109f51ae`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,36 +9,35 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 after the correctness review (CHANGES at `Detent:e30799b8`), at `Detent:8d61d548`:
-`Detent:407e4410` (per-namespace reader core, F1/F2, D150), `Detent:55b49db4` (Docs gate, F3, F7,
-F11), `Detent:e1a45597` (F6, F8, F10), `Detent:ae68d8f7` (writer builder lifetime),
-`Detent:8d61d548` (T2 benchmark). Pushed. Local (Release, macOS): reader, testing, bindings, CLI,
-installed-component tests and `test_reader_switch` pass; `check_docs.py` "33 gaps, 33 listed, 0
-unlisted, 0 stale"; `run_e2e.py --list` no MISSING.
+Fix round 1, second pass, at `Detent:109f51ae` (main merged `Detent:57cbd641`, pushed).
+Results at `Detent:8d61d548` (the lead's msg): review probe 261123-175725-7fad98 passed, T2
+261123-175759-67f119 passed, fails-without 261123-175727-3d4b80 failed as required, A10 grep
+261123-175722-13a7f9 passed, Docs 45308791259 green. Failures and fixes:
+- bindings 261123-175722-b26bcf and CI `bindings-*`: `detent get` exit 127; `test_reader_scenarios`
+  now depends on `detent-reader` (`Detent:109f51ae`). `detent_python_test` timed out at 120 s at
+  load ~32 (22 s at light load); bound 300 s.
+- CI `ci / macos-x86_64`: `test_reader_switch` parks, line 387 (`seen == pinned_rev`): when the
+  refusals' 8 ms backoff runs out before the released reader resumes, its stale lookup refreshes and
+  answers `rev` (D4). The lookup path is the same at `Detent:e30799b8`; the check takes either.
+  Local: parks 30 of 30 alone, 90 of 90 six-way parallel. `test_authority_frames_service` (409
+  session_busy) is not this quest's.
+- native 261123-175720-145715: `test_reader_switch`, `test_agent_store_crash` timed out at load
+  ~32; rerun alone 261123-200502-4fbd30. `test_relay_service` is the lead's (port-reuse A/B).
+- A13 261123-175723-de3cb2 hit 30 min building: split, build under `--build`, 261123-200500-f13c52.
+Local after the merge: reader, testing, bindings, CLI, installed tests pass (26 of 26);
+`check_docs.py` 0 unlisted, 0 stale; `run_e2e.py --list` no MISSING.
 
 ## Next
 
-1. Read the jobs: native gate 261123-175720-145715 (A1-A4, A6-A8, A18, A19, A21); bindings
-   261123-175722-b26bcf (A2-A5, A12, A20, A21's Python/Rust); A10 grep 261123-175722-13a7f9 passed; A13
-   261123-175723-de3cb2; review probe 261123-175725-7fad98 (A21: the website's pages on an agent store,
-   `get` against main `Detent:6acfb0e9`); fails-without at the one-entry core 261123-175727-3d4b80
-   (mutant `refs/mutants/legacy-h/a21-one-entry-core`, `Detent:43c6e350` = head + e30799b8's
-   `src/detent_reader/core.cc`); T2 timing 261123-175759-67f119 (strict).
-2. CI runs 45308791726, 45308791259 at `Detent:8d61d548`: `ci:linux-asan-ubsan`, `ci:linux-tsan`
-   (A9), `ci:ci` and the Docs workflow (A22).
-3. Evidence table from `campaign brief`; T2 numbers into Result and `docs/mechanisms/reader-core.md`;
-   ready for review.
-
-Done at `Detent:9ab80296`: native rerun 261123-141425-73c546 passed (A1-A4, A6-A8, A18, A19).
+1. Read: native 261123-200442-1898b2; bindings 261123-200445-c50712; review probe
+   261123-200445-a58f5d; T2 261123-200445-4a0de1; fails-without 261123-200448-f006cc (mutant
+   `Detent:816cbf23`, `refs/mutants/legacy-h/a21-one-entry-core`); A13 261123-200500-f13c52; switch and
+   store-crash alone 261123-200502-4fbd30; CI at `Detent:109f51ae` (A9, A22, `ci:ci`).
+2. Evidence table from `campaign brief`; T2 numbers into Result and reader-core.md; ready for review.
 
 ## Blocked on
 
-Nothing blocks the work. msg-284 (to the lead): the fix round changes seven paths outside the file
-set, which `campaign brief` flags: `src/detent_local/generation.cc`,
-`src/detent_local/generation_file_access.hh` (the core's whole-table read and `select_entry`),
-`tests/detent_testing/test_generation_writer.cc` (the C face writes an entry per namespace),
-`tests/docs/check_docs.py`, `tests/docs/docs_exceptions.txt`, `tests/docs/e2e_exceptions.txt`,
-`tests/docs/mutants.py` (A22). Recommend adding them. msg-266 and msg-267 closed earlier.
+Nothing. msg-284 answered: the lead added the seven paths to the file set.
 
 ## Correctness review (legacy-h-correctness.md) findings
 
