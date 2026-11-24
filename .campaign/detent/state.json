@@ -32630,6 +32630,8 @@
       "after": [
         "xapiand:journal-sync-mode"
       ],
+      "base": "fc5c59b492ff8275ab8be4aa9599c6ca2ae97859",
+      "branch": "quest/detent/split-journal",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -32671,6 +32673,7 @@
           ]
         }
       ],
+      "journal": "../Detent-wt/detent/split-journal",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -32679,9 +32682,10 @@
       "reason": "xapiand:journal-sync-mode landed (journal:fc5c59b)",
       "repo": "../journal",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T15:44:59"
+      "updated": "2026-11-24T15:45:05",
+      "worktree": "../journal-wt/detent/split-journal"
     },
     "stage-0-architecture": {
       "accepted": {},
