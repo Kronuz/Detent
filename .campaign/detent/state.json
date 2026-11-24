@@ -7541,12 +7541,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "suite probe 45453078372 ended: shard 2 failed, shard 1 green; contributor resumed",
+      "reason": "ready at consensus:ea48bc8",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T12:21:48",
+      "updated": "2026-11-24T14:14:13",
       "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
     },
     "consensus-follower-read": {
