@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: ready for review (fix round 2 at `Detent:1417f2ad`; jobs 261124-004900-19d2cc 261124-004904-f88615 261124-004922-fda728 261124-004912-db1945 261124-004932-574229 queued; slow-once reruns native)
+State: ready for review (fix round 3, the last (D154), at `Detent:5cc302f8`; jobs 261124-075318-9b7397 261124-075309-3e8f55 261124-075314-c9ce1c 261124-075331-f4ad0a and CI queued)
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,31 +9,42 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 2 (correctness review round 2, CHANGES at `Detent:a9eb4f77`) at `Detent:1417f2ad`,
-origin/main merged (`Detent:c4f30e5c`), pushed:
-- F1 (`Detent:df6a2dc1`): the agent grows `change` (`reserve`, `resize_change`) before it writes and
-  renames `selected`, so the file covers a slot before the table names it.
-- F2 (`Detent:1417f2ad`): a failed attach fails its namespace alone; it keeps its generation and the
-  sequence it failed at; `detent_refresh` returns its status; the others publish. A failed first
-  attach is remembered at the store word, as before.
-- F3 (same commit): a kept generation must sit at the entry's slot.
-- F4: follow-up, not taken (a dropped namespace's generation is held for the handle's life; main's
-  client did the same). Release it at a later refresh, or say in reader-core.md what holds it.
-Tests in `test_reader_core`: `adding_namespace` (the review's `window`: open, refresh, first lookup
-at the `rename table` primitive, by value) and `entry_failure` (`couple`: `t` reads 3, 4 on the
-handle whose `u` cannot attach). Locally each fails at a9eb4f77's file (lines 147, 166) and passes at
-the head; 30 of 30 agent-store, reader, testing, bindings tests pass (store crash 591 s).
-`values`' race now counts 4 attaches (u's fifth publishes alone).
+Fix round 3 (review round 3 F5, CHANGES at `Detent:a9eb4f77`/`Detent:1417f2ad`; PLAN D154 last round;
+D155 keeps reader.md D4) at `Detent:5cc302f8` (origin/main merged, no code change from it), pushed:
+- Lifecycle audit: every transition of a namespace's entry, in
+  `docs/design/client-local-source.md` D7 (copied below), checked against `agent_store.cc` and
+  `core.cc`. No hole beyond F5's; F3's slot check is also covered by the kept generation
+  watching its entry's slot since round 2, and its own test now proves it.
+- F5 (`Detent:021dfa5e`): a dropped namespace watches the store word, not its old slot.
+- D155 documented: guides/python-and-rust.md "When a Publish Can't Be Read"; the Python, Rust and C++
+  references (only refresh reports a namespace that can't attach).
+- F4 stays a follow-up (a dropped namespace's generation is held for the handle's life).
+
+| Transition | The agent bumps | The lookup watches | The lookup answers | Test (`test_reader_core`) |
+| --- | --- | --- | --- | --- |
+| Generation published (the entry names a new generation) | the entry's slot, then the store word | the entry's slot | the new generation, from the lookup after the bump | `per_namespace` (`u` alone moves; `t` answers without a refresh) |
+| Added (a namespace the table did not list) | grows `change`, then the new slot and the store word | before its first attach, the store word | UNAVAILABLE while the table read at the current store word omits it, then the generation; inside the agent's rename window too | `per_namespace` (`v`), `adding_namespace` |
+| Attached (a first lookup) | nothing | the entry's slot, from the sequence loaded before the table | the entry's generation | `per_namespace` |
+| Attach failed (an attached namespace's new generation cannot attach) | as published | the entry's slot, from the sequence it failed at | its last good generation with OK; the handle's other namespaces publish; `detent_refresh` returns the status; it retries when its slot moves or at `detent_refresh` | `entry_failure` |
+| First attach failed | as added or published | the store word it failed at | the failure's status until the store word moves or a `detent_refresh` that does not fail | `refresh_memo`, `values` |
+| Dropped (the table no longer lists it) | its old slot, then the store word | the store word: its old slot is no longer its own | its last generation with OK, held for the handle's life (follow-up F4) | `per_namespace` (`u` stays at 5) |
+| Re-added at a new slot | grows `change`, then the new slot and the store word; never the old slot | the store word until it re-attaches, then the new slot | the re-added generation from the lookup after that publish, then each later publish | `regrow` (listed and unlisted handles, without `detent_refresh`) |
+| Re-added with the same generation id at a new slot | as re-added | the new slot: a kept generation watches its entry's slot | the same generation, then the next publish in the new slot | `readd_same_generation` |
+| Slot reused by another name | the reused slot and the store word | the new name, its entry's slot; the dropped name, the store word | the new name its generation; the dropped name its last one | `slot_reused` |
+
+Tests (`test_reader_core`, by value): `regrow` (F5), `slot_reused`, `readd_same_generation` (F3), with
+round 2's `adding_namespace`, `entry_failure`. Local: 9 of 9 targeted (core, files, scenarios,
+syscalls, switch, generation writer, agent store, Python, Rust). Locally `regrow` fails at
+`Detent:1417f2ad`'s core (line 208); `readd_same_generation` fails with the F3 mutant (line 278);
+`slot_reused` passes at both (no fix: the old slot's bump refreshed).
 
 ## Next
 
-1. Read: fails-without F1 261124-004900-19d2cc (mutant `Detent:57d60a13`,
-   `refs/mutants/legacy-h/r2-f1-change-after-table`), F2 261124-004904-f88615 (`Detent:44457a66`,
-   `r2-f2-all-or-nothing`); targeted run 261124-004922-fda728 (core, scenarios, switch, agent store,
-   store crash); bindings 261124-004912-db1945; review probe rerun 261124-004932-574229.
-2. CI at `Detent:1417f2ad`.
-
-Done at `Detent:a9eb4f77`: native 261123-215328-7c1230 218 of 218; A10 261123-215330-5b6a71.
+1. Read: native 261124-075318-9b7397; fails-without F5 261124-075309-3e8f55 (mutant `Detent:6ea8a1f2`,
+   `refs/mutants/legacy-h/r3-f5-dropped-watches-old-slot`), F3 261124-075314-c9ce1c (`Detent:84c40203`,
+   `r3-f3-kept-watches-old-slot`); bindings 261124-075331-f4ad0a; CI at `Detent:5cc302f8`.
+   Round 2's mutants (F1 261124-004900-19d2cc, F2 261124-004904-f88615) are not rerun: their code is
+   unchanged.
 
 ## Blocked on
 
