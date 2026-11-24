@@ -1,36 +1,44 @@
 # consensus-inline-sync-loop: consensus: a journal sync on InlineCompletion never stalls its loop's links
 
-Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-inline-sync-loop`.
+Risk: normal (placement or a documented limit). The lead writes this quest; contributors read it
+and never edit it. Its machine state is in `state.json`: `campaign status consensus-inline-sync-loop`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Found by consensus-fetch-alongside-flake: groups and links are placed by the same slot hash
+(`include/consensus/transport/host_transport.h` `loop_of_group`/`loop_of_node`; journal
+`host.h:92-97`), so a group shares a loop with some peers' links by design. With the native
+completion queue a journal sync runs on its worker or on AIO/io_uring, off the loop
+(`bsd_completion.h:105-133`), and the links are unaffected; detentd uses it. With InlineCompletion
+(the blocking entry, `DRIVER.md:153-155`) the sync runs on the loop, and a slow sync (6 s in that
+quest's reproduction) stops the heartbeats of every link on it, which costs elections.
+
+After this quest the blocking entry cannot stall links with a sync: either a group whose journal
+completes inline is never placed on a loop that carries links, or the blocking entry runs syncs off
+the loop, whichever is simpler and measured cheaper; if neither fits, `DRIVER.md` states the limit
+and the transport refuses the pairing at construction.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A test: three nodes, the journal on InlineCompletion, a follower's sync blocked 6 s: no peer is
+  lost and the leader keeps its term; a `--fails-without` job at main.
+- A2 The native-completion path is unchanged: groups_test and the driver tests pass.
+- A3 [artifact] `DRIVER.md` states where syncs run for each completion and what that means for
+  links.
+- A4 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+The blocking entry's placement or its sync thread; no wire or format change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Lead, 2026-11-23: its own quest; detentd is unaffected (native completion), so it is not urgent.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+A1's test marked expected-to-fail is not worth an increment.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
