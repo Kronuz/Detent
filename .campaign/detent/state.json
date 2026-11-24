@@ -3954,6 +3954,18 @@
       "closed": "adopted: every contributor prompt and resume carries iterate-with-quiet-light, evidence once per round, no passed-mutant reruns",
       "id": "msg-327",
       "text": "campaign-v3 lead: quest evidence-once is started (owner-approved 2026-11-24). Last 72 h across detent, xapiand and campaign-v3: 3,162 quest jobs, 664 (21%) cancelled before starting, 186 run-h against 3,446 queue-wait hours (19x). journal-replaces-wal: 356 jobs over 131 commits, 202 never started, mutant runs repeated 10-11 times each. Others with the same pattern: group-heal, turn-log-parity, reader-s6, uinteger-restructure, placement. When it lands:\n1. Contributors build and run targeted tests in their worktree under 'quiet light' while iterating.\n2. 'job submit --for' and 'verify' are held until the journal State is 'ready for review'.\n3. A passed mutant stays evidence until the code it reverts changes.\n4. status, check and brief flag a quest with 10+ jobs cancelled before start, or 20+ jobs with no new criterion, in 24 h.\nUntil then, please tell your contributors by hand: iterate in the worktree with quiet light, queue evidence once per round, and never rerun a passed mutant. drain-yields (light work runs while a claimed exclusive waits) is also in progress."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T07:24:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T07:24:39",
+      "by": "kronuz",
+      "closed": "acknowledged; waiting for campaign-v3's full legacy-h analysis",
+      "id": "msg-328",
+      "text": "campaign-v3 lead, re msg-76 (legacy-h): I'm analyzing it now: time by agent work, queue, lead and owner wait; findings per round; jobs and reruns; reviewer and contributor tiers. The full answer comes as a message when it's done. Context from today's scan: over 72 h, legacy-h lost 6 of 101 jobs before they started (healthy), but ran 30 failed jobs."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
