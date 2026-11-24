@@ -1,6 +1,6 @@
 # consensus-liveness-asan-timeout: journal
 
-State: waiting on jobs 261124-070728-3cfde4 (A2, exclusive), CI 45415901609 (e71996d)
+State: waiting on jobs 261124-072638-7efa59 261124-072640-a63185 261124-072642-7d4f31 261124-072644-b5fbdb 261124-072646-006a62 261124-072649-6d7137, CI 45425539843 (c4c70f8)
 Quest: .campaign/detent/quests/consensus-liveness-asan-timeout.md (the lead's; never edit it)
 
 ## Doing
@@ -28,18 +28,22 @@ above 90 s). 261124-040934-6f74ca is invalid (hit its own 280 s alarm, rc 142): 
 
 ## Next
 
-1. Read 3cfde4 (same-host A/B alone) and CI 45415901609's linux-asan-ubsan time (ci-times.sh);
-   paste the brief's table; push f921b42 (docs) for a green CI at the head (A4); set ready for
-   review.
+Code frozen at consensus:c4c70f8 (coordinator's standing rule: one evidence set per round; no
+push while it runs). Docs commit b8577c1 is local, unpushed.
+1. When the set finishes: read 7efa59 (exclusive same-host A/B, wall and CPU) and CI
+   45425539843's ASan time; merge main once (git merge, never rebase); push; paste the brief's
+   table; ready for review.
 
-Notes:
-- 261124-063621-626832 timed out under host load 50 (old 280.3 s killed by its own alarm, new
-  125.5 s): invalid, superseded by 3cfde4 (exclusive).
-- 261124-061757-8fb9aa: same-host A/B at e71996d, old 129.7 s, new 64.8 s (0.50); it failed only
-  in phases.sh's ratio code (zero event count), fixed.
-- Profile at e71996d (261124-062325-f25d84): Core::step 53.5% (core work on events main delivers;
-  Core is outside this quest), then run_until 8.9%, delivery 8.4%, tick 7.2%, Cluster::step 7.1%,
-  next_deadline+holdable 6.8%, queue 2.8%. No harness cost left above 9%.
+Since the last entry:
+- CI 45415901609 at e71996d (serial typed events) ran on a slow runner: consensus_liveness
+  97.61 s, over 90 s (shared_worker 241.58 s, ratio 0.404; consensus_consensus 6.95 s, so liveness
+  is 14.0x it, as at 8511ff1; main 28.6-38.6x).
+- consensus:c4c70f8 runs the four profiles on threads, each into its own ordered report, printed
+  in profile order; output and the 20-failure cap equal the serial run's (local trace check:
+  old == new == verify). CPU unchanged; wall is bounded by FreeBSD (~43%). TSan: Core headers
+  hold no mutable statics; report is thread_local.
+- Probes are thread-safe now (trace.py thread_local hash via say(); instrument.py thread_local
+  profile, mutex on its maps); phases.sh prints wall and CPU.
 
 ## Blocked on
 
@@ -78,6 +82,9 @@ vote-ignores-leader-contact is caught by neither harness (gap).
 - R2 (supersedes R1, withdrawn after msg from the coordinator: scaled windows lost kills): the
   windows keep main's milliseconds; cost is cut by holding early Ticks, exact by construction
   and checked by trace hash and LIVENESS_VERIFY.
+- R4: profiles run on threads. It cuts wall time, not CPU. Splitting consensus_liveness into
+  one ctest per profile would do the same through CMakeLists.txt, which is outside this quest's
+  file set.
 - R3, the D3 removal omission (filed as consensus-next-deadline-removal; Core untouched here):
   Core::removal() is due only when committed_membership().leaving != 0 and
   committed_membership() == membership() (core.h:286-288). holdable() never holds a leader
