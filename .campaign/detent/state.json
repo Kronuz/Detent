@@ -6973,6 +6973,8 @@
       "after": [
         "consensus-simulation-asan-timeout"
       ],
+      "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
+      "branch": "quest/detent/consensus-liveness-asan-timeout",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -6986,6 +6988,7 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-liveness-asan-timeout",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6993,9 +6996,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus_liveness stays well inside its timeout under ASan",
-      "updated": "2026-11-23T20:00:52"
+      "updated": "2026-11-24T01:33:42",
+      "worktree": "../consensus-wt/detent/consensus-liveness-asan-timeout"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
