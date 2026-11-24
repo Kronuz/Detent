@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: waiting on jobs CI 45449779597 (pairing probe), 45453078372 (suite probe), 45448063559 (quest branch)
+State: waiting on jobs 261124-123054-1bea5f 261124-123059-eda87c 261124-123104-84309d 261124-123112-1fc948, CI 45481678940, suite probe 45481730112
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,45 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Cause (suite probe 45453078372, macos-15-intel shard 2, suite 1, 18:31:47; job 138655125896):
+- Host 2's loop 0, which holds both its links to node 1 (loop_of_node(1) = 0), sat 5,221 ms in
+  state U inside __sendto < BIO_write < SSL_write < Connection::flush: an uninterruptible kernel
+  wait in a non-blocking write, sockets empty (sndq 0, windows open, rexmit 0). The sampler
+  itself stalled 1437 -> 5476 ms behind the socket lock. Host 1 heard nothing on either link for
+  its 5 s dead_after and ended both dead (dead 2 at 6378 ms, links still 2/2); host 2 then found
+  them closed (failed 2); the redial made links 3+3. So the third link is the consequence, not a
+  precondition. Every fetch on the Bulk link ended connection_aborted, the 48 MiB one included.
+- Kernel side: 16 KB clusters 425 active of 436 created in that run, against 470-578 of 988 in
+  the passing suites: the jumbo pool had to grow, and XNU's m_clalloc growth sleeps
+  uninterruptibly (groups-upload-loop-stall's XNU reading). Heartbeats were not affected
+  because the case's heartbeats had stopped (beats 14 from 1055 ms on).
+- Same class as groups-upload-loop-stall (U-state write). Not the fetch-alongside stall: there
+  the held loops ran the test's reader (pattern(8 MiB)) with the process stalled 2.6 s.
+- Pairing probe 45449779597: 100 rounds of the rpc_host cases, 0 failures; the whole suite is
+  needed to push the kernel there.
+
+Fix (consensus:22dcba4, ea48bc8): a fetch is a read, so when its connection ends under it
+(any path to Lane::close: dead, stuck, socket/TLS failure, abort for overrun/malformed/
+drain_deadline/reload/remove, a new Bulk link replacing it, a protocol violation) HostTransport
+asks once more on the next connection, same deadline and fetches slot; connection_aborted
+reaches done only when both end; not when the host is stopping (not_connected/not_processed
+paths unchanged). LaneStats::fetches_asked_again counts them. fetch.h and rpc-lane.md say so.
+Test: rpc_host_test fetch case runs fetch-dead after it (and `fetch-dead` alone): host 2's
+reader holds its connection loop 1.5 s against host 1's 1 s dead_after with held/huge/big on
+the link: each asked again, 4 MiB exact, 48 MiB message_size. Mutant (local branch
+mutant/fetch-not-asked-again, 536024a): all three end "Software caused connection abort",
+exactly CI's line. Local: rpc_host cases 14/14.
+Not fixed: the kernel's 5 s write. Option for the lead: cap TLS records below 16 KB
+(SSL_CTX_set_max_send_fragment) so loopback sends use 4 KB clusters; unmeasured.
+
+Queued: 261124-123054-1bea5f (A1 fails-without at 536024a), 261124-123059-eda87c (A1
+fetch-dead x20 at ea48bc8), 261124-123104-84309d (A2 fetch x200 beside 4 burners), suite
+261124-123112-1fc948; CI 45481678940 at ea48bc8; suite probe 45481730112 (probe branch rebased
+on ea48bc8 at 1427d38, 2 x 120 min of suites on macos-15-intel).
+
+msg-1: done: probe branch, CI reproduction (45453078372), cause named above, fixed in the file
+set; counters land with the fix, not alone.
 
 Probe results so far:
 - 45449779597 (cd844d4, rpc_host cases under ctest --parallel 2, fetch beside stalled-peer as
@@ -106,6 +145,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
+- The fix is at the fetch, not the dead rule: dead_after correctly ends a link whose peer is
+  silent 5 s; a read survives it by asking once more. Once, not until the deadline, so a peer
+  that kills every link costs at most two reads.
+- fetch-dead rides the fetch ctest entry (CMakeLists.txt is outside the file set); `fetch-dead`
+  runs alone for its control.
 - Diagnostic counters instead of a fix: no cause to fix is evidenced yet, and the oversize path
   is sound; HostTransportStats gains dead/stuck/failed (link ends, not a contract change).
 - ConnectionEnd unchanged (connection_test asserts a stuck end is `failed`); Connection::stuck()
