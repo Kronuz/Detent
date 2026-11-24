@@ -1,12 +1,111 @@
 # authority-pages-design review: design
 
-Commit: Detent:65576604291cf2552abb38d123e06141ed0285ce
+Commit: Detent:28ca4c31de0cbdcccf40ac98405c75ff7530be3c
 Verdict: CHANGES
-Date: 2026-11-23
+Date: 2026-11-24 (re-review; round 1 at Detent:65576604 below)
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+## Re-review at Detent:28ca4c31
+
+Every round-1 finding is fixed, and the numbers the doc cites match their jobs. What blocks now is
+the mechanism the fix round added: the root entry, the split answer and the window rule have no
+lifecycle, and one rule in it, the relay's answer to its own divergence, reopens Limit 1 exactly
+where the root should close it. All six blocking findings are text in the doc, each with the test
+the implementation quest that owns it must carry. The owner's decisions (D156, D157) stand; none of
+these findings reopens the choice of option 2.
+
+### Evidence I relied on
+
+- I re-read the summary lines of every job the doc's new rows cite (script
+  `.scratch/detent/review-authority-pages-design-design/summaries.py`): steady and burst lag
+  `261123-193520-a9b30c`, `261123-193523-d6ce25`; window `261123-193525-e60802`,
+  `261123-193528-1675da`; exclusive `261123-193531-962367`; paced pairs `261123-193517-519b4d`
+  (exclusive), `261123-193507-f0eafa`, `261123-193510-65f196`, `261123-193513-95a0ae` (strict).
+  Every cell of the LAG, WINDOW and paced tables matches: 1.34 / 1.75 cores, p99 328.1 / 564.2 ms,
+  max 502.4 / 737.2 ms, the burst's worst second 669.9 ms; windows 6.2 / 3.3 s on four threads
+  (`caught_up_ms` 6,203.8 / 3,345.3), 2.7 / 2.1 s on ten exclusive, peak RSS 995 / 1,185 MB; pairs
+  pool -0.2 [-1.2, 0.7], aa -0.2 [-1.1, 0.7], write +37.1 [34.8, 39.4], none at 462 tx/s.
+- The eight reruns at Detent:b5ce810d (`261124-104556-e167d6` to `261124-104600-0c7e60`) ended
+  cancelled (e167d6 in its build, exit 143), so none produced a number to compare.
+- PLAN D156 and D157 match the doc's Decision section.
+
+### Round-1 findings
+
+| ID | Fixed | Where, and what shows it |
+|---|---|---|
+| F1 | yes | "Commit latency and elections": the first rows' 0.09-0.23 seal/s is stated and their deltas are not used; the paced rows hold 0.91 seal/s median against an A/A arm; persisted pages are ruled out on +37.1 ms [34.8, 39.4] (`519b4d`), clear of the band, with both strict medians agreeing (+39.9, +40.2); `24d1dd` cited for saturation. Verified in the jobs. |
+| F2 | yes | "After a leader change": the window measured end to end (`e60802`, `1675da`, `962367`), RSS per pool size, the two agent rules and Limit 1's wording under each. Verified. |
+| F3 | yes, with R1 | "Where the root comes from": a row per path, roots as log entries (answers followers and unrooted positions), relays never fill the root from their own build, the threat model stated and decided (D157). Its "differs" cell is R1. |
+| F4 | yes | Pass-through specified, priced and deferred; the authority serves records and roots, not pages (priced at about 500 MB at 5M); (b) restated as an added cost; Q4's row consistent with it. |
+| F5 | yes | "What it changes": Limit 1, D1, D4, D6, D7, Q4, D34 (reason now the service loop), D133 with `namespace_relay.cc:414,426` and `coordinator.cc:683-692`, D145. |
+| F6 | yes | Coalescing paragraph, LAG table, pool bounded at four threads. |
+| F7 | yes | 971-2,650 ms over four jobs. |
+| F8 | partly | Strict ranges stated beside every exclusive CPU number; the exclusive reruns at the final head were cancelled before running. Non-blocking, as before. |
+| F9-F11 | yes | Line 52, Decision option 5 and alternative 3, Limits 4. |
+
+### Option 2's lifecycle
+
+The doc has no lifecycle table for the decided mechanism. This is it, per namespace, with the doc's
+answer or the finding that names the gap. Roles: F follower, LC leader cold-building, LS leader
+passing, LB leader behind (a round longer than its interval).
+
+| State | changes commit at p | pass interval | root built for p | root entry committed | leader change | agent's check fails |
+|---|---|---|---|---|---|---|
+| F | applies them; no pages | none | none | applies it into history; serves it under D145 | elected: becomes LC from its state at a committed position c (snapshot and input: R2) | not involved |
+| LC | commits continue; changes after c wait for the first pass (doc) | no pass until the cold build ends (doc) | the cold build is the base, not a root; the first pass after it gives the first root, 2.1-6.2 s (doc) | an entry of the old leader that commits in this term is accepted: roots are of committed prefixes, so deterministic (doc, line 162; not said for this case) | stepped down mid-build: R3 | agents in the window publish unverified and check at the first root (doc, rule 2) |
+| LS | queued per namespace (doc) | one pass per namespace with pending changes (doc); order when passes outrun four threads: N2 | handed to the loop and proposed as one entry per round: the handoff is R2 | relays forward it, a relay checks its own build at p (doc); on a mismatch it strips the root: R1 | stepped down: pool, head and uncommitted entries: R3 | refuses, asks a repair; what stays visible and from whom it repairs: R4 |
+| LB | coalesced into the next pass (doc) | the interval stretches to the pass time (implied by "turns excess load into root lag") | as LS | as LS | as LS | as LS |
+| any | | | | an entry not committed at a term change: no root at p, the next pass names a later position (doc) | | no root reaches the agent for longer than the lag bound: R5 |
+
+Every cell that names R2-R5 is an event the four quests must handle and the doc leaves to them. The
+root entry's own place in history, which three of the four quests consume, is R6.
+
+### What I checked myself
+
+- `261124-105108-776fa1` (light, at `28ca4c31`, `many-namespaces.sh`): root lag and pool CPU for 5M
+  keys over 10, 100 and 1,000 namespaces, four threads, 250 ms passes, 2,000 changes/s. Passes
+  1,037 / 11,003 / 51,822 (1,727 a second at 1,000), pass p50 52.8 / 4.8 / 1.0 ms over 52 / 5 / 1
+  changes; cores 1.84 / 1.90 / 1.89; lag p99 1,073 / 643 / 453 ms, max 1,722 / 932 / 786 ms; peak RSS
+  881 / 564 / 558 MB. Light reads high (the 10-namespace row's p99 is 328 ms strict in `a9b30c`), but
+  the shape holds: more, smaller namespaces cost about the same CPU and no more lag, because a pass's
+  floor shrinks with the tree (1.0 ms at 5,000 keys).
+- The doc's idle rows, for comparison: 16 changes over ten 500,000-key namespaces cost 33.8 ms of CPU
+  (`261123-073248-5fdf61`, strict), 3.4 ms per namespace pass.
+- The relay's answer path (`namespace_relay.cc:380-430`) and the agent's records check
+  (`coordinator.cc:683-692`, which throws and requests a full copy on a mismatch and publishes
+  nothing for that namespace in the cycle), and dense-distribution D1, D6, D7 and D9.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R1 | yes | defect | A relay that detects its own divergence strips the root. The table's relay row says that when its build at p differs from the authority's root "it serves that namespace as records with no root", and the agent row publishes a zero root "as today, unverified". So the one case the root exists for, a relay whose mirrored records are wrong, is the case where agents below it stop checking: they publish the relay's wrong records unverified until the relay's rebuild finishes, and an agent's repair from that relay arrives the same way. Forwarding the root is never worse: if the relay's records are right (a builder bug), agents building them pass the check; if they are wrong, agents refuse them. | doc line 107-108; `coordinator.cc:683-692` | A relay forwards the authority's root in every frame whose target is a rooted position, whatever its own build says, and on a mismatch refuses its pages there, counts it, and rebuilds; or it stops answering that namespace until rebuilt. Test (relay-authority-root, agent-root-check): a relay whose mirror applies one record wrong still sends the authority's root, and the agent refuses the state and publishes nothing for that namespace; a mutant that strips the root lets the agent publish. |
+| R2 | yes | gap | The pool's threading against the service loop and journal is not specified. The doc says "off the service loop" and "below the service loop's priority" only. Unstated: what the pool reads (the applied state at a committed position, by a `persistent_map` snapshot or a copy of each pass's changes) and who encodes the records body the builder consumes (the harness encodes it; the cold encode at 5M took 581-1,760 ms, `519b4d` and `5fdf61` `cold` lines, so it cannot run on the loop); how a built root returns to the loop to be proposed (the node admits one proposal per service call, journal ruling 10) and what the loop does when the proposal fails; and what the pool pins in memory between passes. Limits 4 says contention with apply is not modeled; the design has to say what there is to contend for. | doc lines 20, 105, 166, Limits 4; `state.hh` (`persistent_map.hh`) | One paragraph naming the input (snapshot at the applied index, per-namespace change lists since the last pass), where the encode runs, the output path (a queue the loop drains once per turn into one proposal per round), and the memory each holds. Test (authority-builder-pool): deterministic interleavings of apply, pass and proposal under TSan, and a service-loop gap bound with the pool cold-building (the paced row's `worst_service_gap_ms`). |
+| R3 | yes | gap | Leader change is specified only for the new leader. A leader that steps down mid-pass or mid-cold-build: does the pool stop, is the head (135-243 MB, 1.0-1.2 GB during a cold build) dropped or kept applying for a re-election, and what happens to its root results not yet proposed? The window table assumes one clean election; repeated elections (flapping, a leader restart loop) each pay the cold build and its peak RSS, and a deposed leader still building competes with the new one on a shared host. | doc lines 116-130, 159 | Add the step-down row: cancel the pool at the role change, drop results not yet proposed, free the head (or keep it, priced), and say what bounds repeated cold builds. Test (authority-builder-pool): step down during a cold build and during a pass; no root entry is proposed after the step-down and the memory returns. |
+| R4 | yes | gap | "Agent's check fails" stops at "else asks a repair". Under rule 2 the agent has already published the unverified state r_prev→h it now finds wrong; the doc does not say what stays visible (that state, or a regression to the last verified one), where the repair comes from (D9's "one other source", or the same relay, which serves the same records), or what the agent does when every source fails. "Bounds how long a relay's wrong state can stand before every agent below it refuses it" is true of new publications only: the values already published stay until a repair succeeds. | doc lines 108, 135-137; dense-distribution D9 (`:244`) | State the agent's rule: it keeps its published state (no position regression), counts the failure, takes the full copy from another source per D9, and reports the namespace unverified until one passes; restate Limit 1's row as detection, not retraction. Test (agent-root-check): a records frame whose build misses its root publishes nothing, keeps the prior generation, and repairs from the second source. |
+| R5 | yes | gap | Nothing bounds how long an agent goes without a root. The delay "at most the root lag" assumes a root reaches it; a relay whose mirror drops or mis-files root entries (a bug in its mirror, inside D157's threat model) sends zero roots forever and every agent below it publishes unverified, silently. The leader's root-lag metric cannot see it. | doc lines 108, 135, 160, 180 | An agent-side rule: positions or time since the last verified root past a bound (a multiple of the window, e.g. 10 s) is reported in health and makes the agent ask another source. Test (agent-root-check): a relay that strips roots trips the bound. |
+| R6 | yes | gap | The root entry's contract is not stated, and three quests consume it before authority-root-entries lands. {n, incarnation, p, root} is given, not: whether it takes a position in the namespace's history (and so counts toward the 2,048-change seal and roll-ups), how it rides W6 frames, blocks and the base a relay mirrors, whether the latest root per namespace survives a snapshot install or a cut (a follower after a snapshot otherwise has none until the next round), and what a relay or agent does with an entry for a stale incarnation or a position older than one it holds. This is history format, the most expensive piece of option 2 to reverse. | doc lines 105, 192-195; quest file's Contracts section (empty) | State the contract in the doc (or as the quest file's Contracts, which the lead writes) and order relay-authority-root and agent-root-check after it. Test (authority-root-entries): a root entry round-trips through history, a roll-up and a snapshot install, and does not change any namespace's seal boundaries. |
+| N1 | no | gap | The decided pool was never run beside the journal. The paced pool arm built once per seal on ten threads (0.72-0.76 core); the decided shape spends 1.34-1.75 cores. Limits 7 says so, but the Recommendation ("leaves group commit p50 where it was: the pool's paired delta is -0.2 ms"), Decision option 2 ("no commit latency outside the A/A band") and D156's reason attribute that delta to the decided shape. `24d1dd` bounds it from above only coarsely (strict, -5 to +21 ms). | doc lines 166, 205, 216; `519b4d` block lines (`arm":"pool"`, 50 builds per 5 seals) | Say "a builder at 0.72-0.76 core" where the delta is quoted, and give authority-builder-pool a criterion: the paced row at four threads and 250 ms, exclusive, inside the A/A band. |
+| N2 | no | gap | The rows price ten namespaces; the doc gives no scheduling rule for when passes outrun four threads (fair order across namespaces, the interval as a minimum), and `state.hh` allows 4,096. My probe found no cliff up to 1,000: 1,727 passes a second at 1.0 ms p50 each, 1.89 cores and lag p99 453 ms under light, against 1.84 cores and 1,073 ms for ten in the same job. So this is a missing rule, not a missing cost. | `261124-105108-776fa1`; doc line 65-79 | One sentence on the order and the interval as a minimum; the 1,000-namespace row (strict) in authority-builder-pool. |
+| N3 | no | gap | "Builds at rooted positions" (D7's row) does not say whether a relay builds at rooted positions instead of at its head, or both. Instead of is the cheap reading and fits the split answer (r→h goes as records); both doubles relay builds at the root cadence, four per second per touched namespace. Either changes the relay's build cadence, which the doc does not price. | doc lines 107, 184 | One sentence: relays build at rooted positions, not at head, and their cost follows the LAG table's pool rows. |
+| N4 | no | nit | "Twice the peak RSS" for ten threads against four is 1.7-1.9 times (1,883 / 1,000 MB, 1,939 / 1,132 MB). | `a9b30c`, `d6ce25` | "1.7-1.9 times". |
+
+### Not run
+
+- The eight reruns at Detent:b5ce810d were cancelled before running; whether a number moves at the
+  final head is unknown, and F8's exclusive reruns are still owed. The doc's rows are at
+  Detent:7a4d6f8 and earlier; the last main merge changed src in detent_local, detent_reader and
+  detent_testing (journal), which those reruns were to cover.
+- No strict or exclusive probe (the brief allowed light only), so no rerun of the decided pool beside
+  the journal (N1).
+- No model or test of the lifecycle above: R1-R6 are read from the doc and the landed code, not run.
+- Reviewer ran as a subagent of the lead, not a session titled `detent · reviewer
+  authority-pages-design design`.
+
+## Round 1 at Detent:65576604 (2026-11-23, CHANGES)
 
 The direction holds: an authority-built root is the only option that closes Limit 1 for agents
 taking pages, the build belongs off the service loop (inline stalls it in every job), and pages in
@@ -14,7 +113,7 @@ memory are simpler than persisted ones. What does not hold yet is the doc's acco
 costs at rc3 load and after an election, which serving paths actually carry the authority's root,
 and what the decision rows become. Those are text and measurement fixes, not a re-plan.
 
-## Evidence I relied on
+### Evidence I relied on
 
 - Seal rows: `261122-210428-976f07`, `261122-210429-1ed7a8` (exclusive, `bf55a09`), strict reruns
   `261123-103432-c20472`, `261123-103435-b1e0ae`, `261123-103438-3b96b1`, `261123-102616-53d93e`,
@@ -25,7 +124,7 @@ and what the decision rows become. Those are text and measurement fixes, not a r
   computed correctly from them. What they measure is the subject of F1.
 - The NoChange fix and its fails-without pair (`261123-102550-885bdd`, `261123-102546-6e81cf`).
 
-## What I checked myself
+### What I checked myself
 
 Scripts under `/Users/kronuz/code/Kronuz/Detent/.scratch/detent/review-authority-pages/`:
 `bench/probe_bench.cc` is the quest's harness plus `coldpool` (a cold build on N threads) and
@@ -51,7 +150,7 @@ namespace while the arm runs); `build.sh` builds it against `$JOB_SRC`; `probe.s
   12.04 s wall with sync); nine strict (`b1e0ae`, `5fdf61`, `3b96b1`, and the `cold` and
   `cold-write` lines of the four 5M commit jobs): 11.1-20.1 s CPU, 11.5-36.2 s wall.
 
-## Findings
+### Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
@@ -67,7 +166,7 @@ namespace while the arm runs); `build.sh` builds it against `$JOB_SRC`; `probe.s
 | F10 | no | gap | (d)'s dismissal rests on 119 s for a cold agent to check pages, from SHA-256 without SHA-NI; a faster XOF or SHA extensions change it several times over. Limits 4 notes the construction; the decision request does not. | doc lines 91, 121 | One line in the decision request. |
 | F11 | no | gap | The builder in the commit rows reads its own corpus, not the authority's applied records, so contention between the builder and apply or history for those records is not modeled. | `authority_pages_bench.cc:617-660` | A line in Limits. |
 
-## Not run
+### Not run
 
 - No exclusive rerun of the seal rows at head; the decisive per-seal CPU (604.8 ms) and cold build
   (9.0 s) remain one exclusive job each (F8).
