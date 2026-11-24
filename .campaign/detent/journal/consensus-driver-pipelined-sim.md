@@ -15,6 +15,10 @@ queued. Next after they finish: paste `campaign brief`'s table, push, set ready 
 
 ## Next
 
+0. Lead's msg (coordinator): A/B jobs, strict, CI default driver phase (SIM_DRIVER_SEEDS=20, 3000 steps), interleaved
+   main 54c6599 / head: bceda5 93b7d7 081013 191418 6f75bf 13d657 (ids 261124-0214..); ASan head timing job below.
+   Say in Result: A2 met by `overlap`; the counter proves A1; five batching mutants survive (Core re-check).
+
 1. Read the jobs; if all pass, paste the Evidence table, fill Result, push, State "ready for review".
 
 ## Blocked on
