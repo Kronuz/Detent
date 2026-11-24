@@ -7803,7 +7803,8 @@
     "consensus-rpc-host-stream-gap": {
       "accepted": {},
       "after": [
-        "consensus-fetch-alongside-flake"
+        "consensus-fetch-alongside-flake",
+        "xapiand:consensus-join-v2"
       ],
       "base": "54c659977c529f8ec04e8b460346bb5a5dd282d6",
       "branch": "quest/detent/consensus-rpc-host-stream-gap",
@@ -7829,11 +7830,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "xapiand msg-302: consensus-join-v2 changes node-admission and is security-reviewed; land after it",
       "repo": "../consensus",
       "risk": "normal",
       "status": "active",
       "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
-      "updated": "2026-11-24T01:33:37",
+      "updated": "2026-11-24T01:34:26",
       "worktree": "../consensus-wt/detent/consensus-rpc-host-stream-gap"
     },
     "consensus-sanitizer-ci-time": {
