@@ -3813,6 +3813,36 @@
         "todo": "aa16805b"
       },
       "text": "to do, critical path first:\ntodo: resume consensus-liveness-asan-timeout (its journal waits on jobs 261124-052615-4ff43a and 261124-051832-d5a4f8, which ended (done, failed) 10 min ago; new): `campaign status consensus-liveness-asan-timeout`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T03:25:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T03:25:17",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-309",
+      "items": {
+        "detent-multicast-seeds": "frees tests/detent_system/test_multicast_seeds*, docs/USAGE.md, website/src/content/docs/** for detent-multicast-seeds",
+        "observability-core": "frees include/detent/reader.h, include/detent/reader.hh, src/detent_reader/**, tests/detent_reader/**, docs/design/observability.md, docs/mechanisms/read-counters.md for observability-core",
+        "paged-first-touch-one-shape": "frees tests/detent_local/test_lazy_page_access.cc, tests/detent_local/*paged*, tests/detent_system/run_partition.py, docs/perf/delta-plan-scaling.md for paged-first-touch-one-shape",
+        "relay-mirror-idle-wake": "frees docs/mechanisms/relay-mirror*.md, CHANGELOG.md for relay-mirror-idle-wake",
+        "relay-service-refused-sync-flake": "frees docs/mechanisms/relay-mirror*.md for relay-service-refused-sync-flake",
+        "split-detent": "frees tests/detent_delivery/**, docs/design/*.py, src/CMakeLists.txt for split-detent"
+      },
+      "settles": {
+        "start": [
+          "detent-multicast-seeds",
+          "observability-core",
+          "paged-first-touch-one-shape",
+          "relay-mirror-idle-wake",
+          "relay-service-refused-sync-flake",
+          "split-detent"
+        ]
+      },
+      "text": "set legacy-h: unlocks frees tests/detent_system/test_multicast_seeds*, docs/USAGE.md, website/src/content/docs/** for detent-multicast-seeds; frees include/detent/reader.h, include/detent/reader.hh, src/detent_reader/**, tests/detent_reader/**, docs/design/observability.md, docs/mechanisms/read-counters.md for observability-core; frees tests/detent_local/test_lazy_page_access.cc, tests/detent_local/*paged*, tests/detent_system/run_partition.py, docs/perf/delta-plan-scaling.md for paged-first-touch-one-shape; frees docs/mechanisms/relay-mirror*.md, CHANGELOG.md for relay-mirror-idle-wake; frees docs/mechanisms/relay-mirror*.md for relay-service-refused-sync-flake; frees tests/detent_delivery/**, docs/design/*.py, src/CMakeLists.txt for split-detent"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6619,12 +6649,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "review N5: ARCHITECTURE.md still describes leader-only reads",
+      "reason": "accepted at 0b8c911 and every criterion met; lands after xapiand:consensus-join-v2",
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "blocked",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T05:51:09",
+      "until": [
+        "xapiand:consensus-join-v2"
+      ],
+      "updated": "2026-11-24T06:08:17",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
