@@ -4021,6 +4021,30 @@
       "closed": "relayed to the owner; legacy-h round 3 already runs table-first; its re-review will cover the whole mechanism at effort max",
       "id": "msg-331",
       "text": "campaign-v3 lead, answer to msg-76 (legacy-h). Measured unless marked \"inferred\". Data and scripts: ~/.scratch/campaign-v3/2026-11-24-legacy-h/.\n\nCorrections first:\n1. Start: legacy-h started 11-23 10:17:40 (detent:c637e07f). 11-22 22:04 is a bulk check edit (detent:7d232301).\n2. Owner wait: 5.13 h (asked 02:14:55, answered 07:22:39), not 7 h.\n3. Round 3: the same Opus 5.5 high contributor, resumed, not a stronger tier.\n\nWhere 21.2 h went (start to 07:28):\n1. Owner wait: 5.1 h (24%).\n2. Contributor working: 5.0 h (24%).\n3. Jobs running: 4.3 h (20%).\n4. Only queued jobs: 4.3 h (20%).\n5. Reviewer working: 1.6 h (7%).\n6. Lead and CI: 0.9 h (4%). The lead acted within 1-2 minutes of every hand-back; 32 minutes was a lost macOS CI runner.\n\nBy phase:\n1. Fix round 1: 7.15 h, three full evidence passes and 2.98 h with only queued jobs.\n2. Fix round 2: 1.55 h, about 12 minutes of contributor work.\n\nRounds: design 12 findings, r0 15, r1 4, r2 1. All were real and reproduced. F5 was not new: it was in r1's code (a9eb4f77), and r1's own readd probe failed on it. r1 filed that failure as non-blocking F3 (\"the agent cannot reach this today\"), and the update at 02:00 repeated it. r2 traced it to F5's cause. That misattribution cost a whole round plus the owner wait.\n\nJobs: 103 jobs, 7 cancelled before start (6.8%, healthy), 9.2 job-hours running against 39.7 queued. About 16 queued job-hours were avoidable:\n1. 16 jobs submitted at daeca859 before the build was green: 15 failed after waiting 8.2 job-hours, for 4 minutes of running.\n2. 13 still-valid mutants rerun at e30799b8: 7.4 job-hours queued.\n3. A duplicate native suite.\nInferred: only about 0.6 h of that was on the critical path.\n\nHypotheses:\n1. Stronger model needed: NOT SUPPORTED. All six agents ran Opus 5.5 (high; r0 at max), and every review found real defects. The miss was a misattribution, not a capability gap.\n2. Agents stop at the first defect: SUPPORTED, as scoping. Fix briefs named findings only (\"fix F1, F2; F3 only if trivial\"), and re-reviews were diff-scoped (\"review only git diff a9eb4f77 1417f2ad\"). Round 1 built a new per-namespace state machine (A21) inside a fix round, with no lifecycle table and no design check.\n3. More jobs than needed: PARTLY. About 16 of 39.7 queued job-hours were avoidable, but they cost about 0.6 h of critical path.\n4. Iteration too slow: SUPPORTED. Jobs take 41% of the wall clock against 31% for agents; fix round 1 took 7.15 h; the round cap added 5.1 h overnight for an answer of \"go with your recommendations\".\n\nWhat changes in the skill (campaign-v3 work):\n1. Already in flight, quest evidence-once:\n   - Contributors iterate in their worktree under quiet light; evidence queues once per round, when the State says ready for review. This covers the jobs submitted before a green build.\n   - A passed mutant stays evidence until the code it reverts changes.\n   - drain-yields cuts the queue wait.\n2. New, quest review-sweeps, starting now:\n   - A fix round that adds a mechanism or state machine starts with a states x events lifecycle table, design-checked before code.\n   - Each finding's fix sweeps its class: every transition gets a value-checking test.\n   - A reviewer's failing probe stays blocking until it is root-caused to a finding with a fails-without. \"Unreachable\" must be shown by a run, and the lead never relabels it.\n   - Once a finding lands in a lifecycle, the re-review covers the whole mechanism, not the diff.\n   - Critical reviews run at effort max.\n3. Tiers: no model change. The evidence doesn't support one.\n4. The round cap: whether a third round in the same mechanism may run without parking for the owner is a skill-rule change. I am asking German in campaign-v3's session; tell him that in yours."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:30:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:30:27",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-323",
+      "items": {
+        "journal-bound-first-open": "journal-bound-first-open (until journal-turn-sector-checks met: `campaign set journal-bound-first-open status=active`)",
+        "journal-open-single-read": "frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read",
+        "split-journal": "frees test/**, CMakeLists.txt for split-journal"
+      },
+      "settles": {
+        "start": [
+          "journal-bound-first-open",
+          "journal-open-single-read",
+          "split-journal"
+        ]
+      },
+      "text": "journal-turn-sector-checks landed: unlocks journal-bound-first-open (until journal-turn-sector-checks met: `campaign set journal-bound-first-open status=active`); frees include/journal/turn_log.h, test/lost_bound_test.cc, bench/** for journal-open-single-read; frees test/**, CMakeLists.txt for split-journal"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6861,19 +6885,56 @@
         "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/consensus-follower-read",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T07:38:34",
+          "ci": {
+            "carried": true,
+            "commit": "0b8c911460ff778ac564561c8e52b764f5c54dc6",
+            "runs": [
+              45394693963
+            ]
+          },
+          "commit": "37966262d8f81d93ffc0e35094342e97f1a77343",
+          "criteria": {
+            "A1": "261124-064746-d301e5 (passed at 9a840daec5c5; only 1 merge from main since, none touching its files), 261124-064748-6fed46 (passed at 9a840daec5c5; only 1 merge from main since, none touching its files); fails without: 261124-022336-337103, 261124-022339-c81897, 261124-022342-175f5a, 261124-022346-dcf92d, 261124-022350-7f7c21, 261124-022354-8dbf8a, 261124-022418-57781f, 261124-022426-5d0874, 261124-044549-28af93, 261124-044552-e472bc, 261124-044555-0e35a4, 261124-044557-b70cd2, 261124-044559-d35d51, 261124-044602-c4a84d, 261124-044617-6cb4c7, 261124-044622-65c96c, 261124-044625-3aa7e1",
+            "A2": "261124-064748-6fed46 (passed at 9a840daec5c5; only 1 merge from main since, none touching its files); fails without: 261124-022358-7ae2c2, 261124-044604-d19c7e",
+            "A3": "261124-064748-6fed46 (passed at 9a840daec5c5; only 1 merge from main since, none touching its files); fails without: 261124-022402-acefff, 261124-022406-48b968, 261124-022410-d8cba0, 261124-022414-e779c8, 261124-022422-fbfaaf, 261124-044607-fc2b43, 261124-044609-1df389, 261124-044611-744e09, 261124-044614-fd3b26, 261124-044619-9bf8aa",
+            "A4": "261124-064748-73f93e (passed at 9a840daec5c5; only 1 merge from main since, none touching its files); fails without: 261124-022430-586762, 261124-044628-2ed859",
+            "A5": "[artifact] `docs/mechanisms/follower-read.md`: \"A follower answers a `Read` only at an index its leader confirmed current with a quorum\"; suite 261124-064746-d301e5 (163 of 163 at 0b8c911); TSan and CI: CI run 45394693963 at 0b8c911, every job green (linux-asan-ubsan, linux-tsan, linux gcc/clang/arm64, macOS x86_64/arm64, FreeBSD). CI at 49deff5 (run 45374547236): linux-tsan passed; linux-asan-ubsan timed out on consensus_follower_read (fixed at 0b8c911); macos-x86_64 failed consensus_transport_rpc_host_fetch, which also fails on main at 512e3ef (run 45366654906): pre-existing"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "9a840daec5c53bd9d868a1f0b22ea68944111b4f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-064746-d301e5",
+              "level": "light",
+              "seconds": 1331.6,
+              "state": "done",
+              "what": "consensus-follower-read check suite at 9a840daec5c5"
+            }
+          ],
+          "final": true,
+          "from": "c363ad4492a22c346ea139379e740697f4690ba3",
+          "reason": "",
+          "tested": "37966262d8f81d93ffc0e35094342e97f1a77343"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "xapiand:consensus-join-v2 landed (consensus:5e22cf0)",
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A follower asks its leader to confirm a read index (ReadIndex forwarding)",
-      "updated": "2026-11-24T06:47:26",
+      "updated": "2026-11-24T07:38:45",
       "worktree": "../consensus-wt/detent/consensus-follower-read"
     },
     "consensus-full-window-stall": {
