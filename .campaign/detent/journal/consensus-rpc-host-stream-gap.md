@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: waiting on CI of consensus:0e000db (A4); then ready for review
+State: waiting on jobs 261124-033248-45a895 261124-033251-9931b1 261124-033255-d1fab5 261124-033258-c0b16a 261124-033301-bd7ae6 and CI of consensus:0d5f362 (A4); then ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -54,3 +54,4 @@ stream row. Review F1-F3 folded in (consensus:0e000db): the stream waits for its
 - Review findings F1-F3 (Detent:1480fcad), consensus:0e000db: F1 the stream posts a heartbeat after the call and waits until every posted one arrived (Control is in order) before reading the gap; F2 `Lag::stop()` joins the sampler and returns its worst, read once after each case's last beat (group-full, stream, fetch, call-full); F3 call-full takes `1000 + lag`. F2 needed `Lag` in test/transport/rpc_hosts.h (not in the file set; Lag's only user is rpc_host_test.cc, the edit is additive).
 - Mutant fails-without: build.sh/patch.py copied from the review dir into ~/.scratch/detent/consensus-rpc-host-stream-gap/; mutant.sh holds Control 1,500 and 2,000 ms with no probe tail; job 261124-032545-3c3ebf passes when both fail at the fix.
 - Evidence rows to cite after the jobs: A1 261124-032555-cf6897; A2 261124-032548-9e4ff0, fails without 261124-032545-3c3ebf; A3 261124-032552-5023a3; A4 CI at 0e000db.
+- F4 (Detent:5a71c17e), consensus:0d5f362: the stream case requires the tail wait to succeed (`arrived` joins `ok`). Mutant drop.sh (patch.py MUTANT_MODE=drop: Control frames dropped after the call starts) fails at the fix: job 261124-033248-45a895. Jobs at 0d5f362: A1 261124-033301-bd7ae6; A2 261124-033255-d1fab5, fails without 261124-033248-45a895 (drop) and 261124-033251-9931b1 (delay 1,500/2,000 ms); A3 261124-033258-c0b16a; A4 CI at 0d5f362.
