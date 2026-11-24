@@ -11866,14 +11866,16 @@
       "landed": [],
       "lenses": [],
       "milestone": "",
-      "needs": [],
+      "needs": [
+        "legacy-h"
+      ],
       "provides": [],
-      "reason": "xapiand msg-304: join-v2 changes seeds_test and the join/hello path",
+      "reason": "shares source files with legacy-h, which is parked only for the owner's fix-round decision",
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Detent nodes find seeds by multicast on one network, with no flags, through consensus's shared seed source",
-      "updated": "2026-11-24T02:20:30"
+      "updated": "2026-11-24T03:25:52"
     },
     "detent-on-drivers": {
       "accepted": {},
