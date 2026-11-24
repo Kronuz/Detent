@@ -8128,7 +8128,26 @@
       "worktree": ""
     },
     "consensus-seeds-rate-flake": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T05:14:58",
+          "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+          "blobs": {
+            "test/transport/seeds_test.cc": "100644:1a8656e5b693606058a1576b38510ae1729f1916"
+          },
+          "by": "review",
+          "commit": "a2f6eb33b65879ff61f7b5f0d96169ba68933e29",
+          "criteria": "40a8096a75813a4b",
+          "diffs": {
+            "test/transport/seeds_test.cc": "5617d07c6afb0b10"
+          },
+          "findings": {},
+          "note": "",
+          "review": "a65b4596aaff87396644aea061938bc226f35006",
+          "reviewed": "a2f6eb33b65879ff61f7b5f0d96169ba68933e29",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "xapiand:consensus-join-v2",
         "consensus-rpc-host-stream-gap"
@@ -8151,7 +8170,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -8159,7 +8180,7 @@
       "risk": "normal",
       "status": "review",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T05:02:52",
+      "updated": "2026-11-24T05:14:58",
       "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
