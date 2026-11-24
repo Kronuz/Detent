@@ -8089,6 +8089,8 @@
       "after": [
         "xapiand:consensus-join-v2"
       ],
+      "base": "512e3ef46c9d17f55d725de33cd808e6264144d2",
+      "branch": "quest/detent/consensus-seeds-rate-flake",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -8103,6 +8105,7 @@
         "src/transport/seed*",
         "include/consensus/transport/seed*"
       ],
+      "journal": "../Detent-wt/detent/consensus-seeds-rate-flake",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8110,9 +8113,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "seeds_rate: a rate check's 90-250 ms gap bound fails on a stalled CI runner",
-      "updated": "2026-11-24T04:11:04"
+      "updated": "2026-11-24T04:12:39",
+      "worktree": "../consensus-wt/detent/consensus-seeds-rate-flake"
     },
     "consensus-simulation-asan-timeout": {
       "accepted": {
