@@ -32912,15 +32912,12 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "design accepted (D145); code waits on consensus-follower-read, restart-capacity and server-composition-adoption",
+      "reason": "consensus-follower-read landed (consensus:3796626)",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Voters serve history only after a leader-confirmed read",
-      "until": [
-        "consensus-follower-read"
-      ],
-      "updated": "2026-11-21T22:31:04",
+      "updated": "2026-11-24T07:40:05",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
