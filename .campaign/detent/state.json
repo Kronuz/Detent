@@ -15669,15 +15669,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "merge main after RFTW0002, resync gap(), fix host.h's RFTW0001 comments",
+      "reason": "journal-turn-sector-checks landed (journal:4eb8165)",
       "repo": "../journal",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "The lost bound survives a power cut during the first open",
-      "until": [
-        "journal-turn-sector-checks"
-      ],
-      "updated": "2026-11-23T16:47:36",
+      "updated": "2026-11-24T06:31:20",
       "worktree": "../journal-wt/detent/journal-bound-first-open"
     },
     "journal-close-in-doubt": {
