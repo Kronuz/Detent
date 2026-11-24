@@ -61,6 +61,17 @@ Pending.
 
 ## Rulings I made
 
+- R2 (supersedes R1, withdrawn after msg from the coordinator: scaled windows lost kills): the
+  windows keep main's milliseconds; cost is cut by holding early Ticks, exact by construction
+  and checked by trace hash and LIVENESS_VERIFY.
+- R3, the D3 removal omission (filed as consensus-next-deadline-removal; Core untouched here):
+  Core::removal() is due only when committed_membership().leaving != 0 and
+  committed_membership() == membership() (core.h:286-288). holdable() never holds a leader
+  whose membership() has `leaving` set or differs from its committed membership, nor a witness
+  leader, so a leader with a removal due always has its Tick stepped. When
+  consensus-next-deadline-removal lands, holdable() can drop to `votes_in(...)` and the
+  verify run shows whether it is exact.
+
 - R1: idle windows (heal isolation, lone isolation and settle, witness settle, removed-voter
   return) scale with election_max; deadlines (commit_one's 20 s/30 s, transfer's 10 s) and every
   asserted bound stay in absolute ms, unchanged. The default profile's run is unchanged.
