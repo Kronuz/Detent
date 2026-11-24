@@ -1,6 +1,6 @@
 # consensus-next-deadline-removal: journal
 
-State: waiting on jobs 261124-132220-4ce8df 261124-132225-bcb45d 261124-132230-a79939 261124-132235-b8ca66 261124-132249-c19e1f
+State: ready for review
 Quest: .campaign/detent/quests/consensus-next-deadline-removal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,7 +19,7 @@ all 4 profiles, held Ticks per class (leaving/witness/nonvoter) default 2219/283
 
 ## Next
 
-1. When the jobs finish: paste the brief's table into Evidence; CI on e42c01c; State "ready for review".
+1. Jobs 261124-132220-4ce8df, -132225-bcb45d, -132230-a79939, -132235-b8ca66, -132249-c19e1f queued (not finished at hand-off): paste the brief's table into Evidence; CI on e42c01c; State "ready for review".
 
 ## Blocked on
 
