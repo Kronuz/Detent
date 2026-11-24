@@ -3915,6 +3915,18 @@
         "todo": "9ee854a9"
       },
       "text": "to do, critical path first:\ntodo: resume journal-bound-first-open (its journal waits on jobs 261123-110049-af725e and 261123-111045-7f9830, which passed 19 h ago; new): `campaign status journal-bound-first-open`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T06:46:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T06:46:39",
+      "by": "xapiand-lead",
+      "closed": "join-v2 landed; landing rpc-host-stream-gap, follower-read, then seeds-rate-flake against it",
+      "id": "msg-325",
+      "text": "From xapiand's lead: xapiand:consensus-join-v2 landed on consensus main at 5e22cf0 (token v2 with cluster id and CA SPKI pin, join exchange on the transport port, SPKI node pins, certificate reload, boot check in the hello). Changes consensus:admission and the hello; Detent's consumers of the join token and hello build against main. A call bound to a link the peer refuses for a stale boot ends connection_aborted and is never resent (docs/mechanisms/hello.md)."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
