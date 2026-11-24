@@ -66,7 +66,8 @@ D6's shape is accepted (D158).
 | A2 | <no evidence yet> |
 | A3 | <no evidence yet> |
 
-Model: local TSan run under `quiet light` (all outcomes as designed); model job below.
+Model: local TSan run under `quiet light`, all ten outcomes as designed; job `261124-104834-6ab99d`
+(light, at Detent:0e096e0e) runs `tests/detent_reader/usage_claim_model.sh`.
 
 ## Result
 
