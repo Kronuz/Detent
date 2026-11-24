@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-144444-2c2f0f 261123-144446-b837dd (A1) 261123-144447-4a796a 261123-144457-e9b628 261123-144458-6bbac6 261123-144500-9735b9 261123-144501-6e9104 261123-144502-8eb91d 261123-144504-9accef 261123-144506-f72452 (A3) 261123-144511-1ff0d9 (A2)
+State: waiting on jobs 261123-175259-d3dd57 (A1 x96 at 24 with the answer-time distribution) 261123-175619-13aea1 261123-175626-e51c59 (test_relay_service x48 at 8 parallel at main 11b8d2a3 and at the head, same build) 261123-144511-1ff0d9 (A2, failed; rerun after the fix)
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -56,6 +56,17 @@ exception group; a load flake of the old reserve-and-release harness, not read f
   logs): "managed agent 0 did not converge", "unreconciled producer 1 request after thirty
   seconds" in test_system_managed_*, test_authority_multivoter, test_relay_service. Observation,
   not this quest's (A3 asks for no EADDRINUSE).
+
+## Round 4 (fresh contributor)
+
+- 2c2f0f: the harness's lag was 0.0 s because HostLag times a thread of the harness itself; the stand-in
+  is another process. The failure's own ps/lsof: the stand-in R, 00:20, no output, and lsof showing it
+  LISTENing only by the time ps/lsof ran (the 20 s poll had just ended): it came up late, it did not
+  fail to bind. `python3 -c pass` x96 at once takes 1.3 s here (probe, idle host), so the exec alone
+  does not explain 20 s; d3dd57 prints each restart's answer time to see the tail (756d2c3c).
+- 1ff0d9's test_relay_service failure (relay C, 404 on /v2/history/file) is not a bind error. It also
+  fails in A3 shards 1,2,3,4,7 (about 5 of 21 runs under -j8 load, e.g. 144457-e9b628). A/B at main
+  vs the head: 13aea1 (main) and e51c59 (head), 48 runs each at 8 parallel.
 
 ## Next
 
