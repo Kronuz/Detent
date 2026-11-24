@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: blocked on lead: msg-376 (Blocked on 1-3); waiting on jobs 261124-144100-b5ba51, 261124-144143-080cef, 261124-144154-201723 and CI
+State: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, "Design: table pages") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,30 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on the lead's rulings (msg-376) and on jobs at `Detent:3a2eec05` (main merged):
-- 261124-144100-b5ba51: A1 profile rerun at head (strict), the after-profile.
-- 261124-144143-080cef: gate `measure stopped` at head against main (strict screen, not A2).
-- 261124-144154-201723: `reader_bench_ab.sh` at head against main (strict).
-- CI on the pushed branch: A3 (`campaign verify` queued nothing locally; the gate reads CI).
-Local scratch: `.scratch/fr/out` (gate builds of main and branch), `.scratch/main-tree` (a
-detached main worktree for local screens; remove with `git worktree remove`), `.scratch/fr/ab.sh`.
+Changes 2 and 4 landed on the branch (`Detent:dee58172`, `Detent:9c8a44ee`) with their test
+updates; test_local_trusted_paths, test_local_read_counters (counters on) and test_reader_core
+pass locally. The table-pages design is committed (`Detent:aacf37cf`); code waits for its check.
+Jobs: 261124-144100-b5ba51 (A1 rerun at `Detent:3a2eec05`, running), 261124-144154-201723
+(reader_bench A/B at `Detent:3a2eec05`, queued; the hot path has not changed since). Cancelled
+261124-144143-080cef (a screen of code since replaced).
 
 ## Next
 
-1. Record the three jobs above and CI.
-2. On the lead's rulings: apply `.scratch/fr/change2-walk-precheck.patch` and
-   `.scratch/fr/change4-image-once.patch` with their test updates, screen each, push.
-3. Then queue A2: `first-read-gate.sh measure` exclusive, stopped and running, one job each, at
-   the final head; record the ids.
+1. On the design check and widening: code layout 3 (store_table.cc codec, a paged table view with
+   per-page marks, core.cc's `Table` on it), a table-pages test, LOCAL_IMAGE_FORMAT.md.
+2. Raise generation_writer.cc's generation limit; un-skip the running 1,000-namespace cell.
+3. Screen against main; then queue A2 (exclusive, stopped and running) at the final head, rerun
+   A1 and reader_bench there, `campaign verify --for A3`, push.
+
+## Messages
+
+- msg-1 (lead, Blocked on 1-3): (1) option a taken: design section and lifecycle rows in
+  docs/perf/first-read-1ms.md "Design: table pages" (`Detent:aacf37cf`); files outside the set it
+  touches are listed there and in State. (2) changes 2 and 4 committed with their test updates
+  (`Detent:dee58172`, `Detent:9c8a44ee`). (3) generation_writer.cc: next step, after the table code.
+- msg-2 (lead, sha256 AVX2): measured once, strict screen, branch at the pin against sha256 main:
+  1,000 ns 1,505 to 1,252 us median (-303, floor 265); 1 ns -19 (floor 67). Recorded in
+  docs/perf/first-read-1ms.md "sha256 main". Option a stays the fix.
 
 ## Blocked on
 

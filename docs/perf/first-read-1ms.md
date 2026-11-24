@@ -58,6 +58,20 @@ main. Two changes, together, median p50 ns (strict beside light holds, 6 pairs):
 2. `Detent:d20bbadb` checks a matching leaf's key kind on the looked-up key in place, instead of
    zero-filling and copying a 202-byte key at every leaf.
 
+## sha256 main (AVX2 kernel)
+
+Detent pins sha256 at `sha256:f24692f`, before its AVX2 kernel (`sha256:07cdc83`). The branch built
+against sha256 main (`FETCHCONTENT_SOURCE_DIR_SHA256`) and against the pin, strict screen, six
+pairs of 200 reads, publisher stopped, medians in us:
+
+| Cell | pin | sha256 main | paired diff (floor) |
+|---|---|---|---|
+| 1 namespace | 653 | 651 | -19 (67) |
+| 1,000 namespaces | 1,505 | 1,252 | -303 (265) |
+
+The kernel takes about a fifth off the whole-table hash; the 1,000-namespace cell stays above 1 ms
+until the table is verified per page.
+
 ## Design: table pages (layout 3)
 
 A first read verifies only the table bytes it reads, as a first lookup verifies only the trie pages
