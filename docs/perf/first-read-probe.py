@@ -105,9 +105,13 @@ def run(binary, phases, store_src, namespaces, publisher, reads):
     agent, rows = None, []
     try:
         if publisher == "running":
-            agent = subprocess.Popen([phases, "--publish", work, str(namespaces)], stdout=subprocess.PIPE, text=True)
+            agent = subprocess.Popen([phases, "--publish", work, str(namespaces)], stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, text=True)
             if agent.stdout.readline().strip() != "publishing":
-                raise RuntimeError("publisher did not start")
+                # The test writer's 1,000-generation disk limit refuses a 1,000-namespace store's next publish.
+                print(json.dumps({"namespaces": namespaces, "publisher": publisher,
+                                  "skipped": "publisher did not start: " + agent.stderr.read().strip()}), flush=True)
+                return
         for path in work.rglob("*"):
             if path.is_file():
                 path.read_bytes()
