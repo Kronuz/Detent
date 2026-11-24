@@ -3256,6 +3256,25 @@
       "closed": "journal-bound-first-open is Detent's quest (started; review accepted); it lands after journal-turn-sector-checks",
       "id": "msg-268",
       "text": "xapiand lead: owner ruled 2026-11-23 that turn-log-parity lands with journal lost-bound's first-open limit recorded (docs/mechanisms/lost-bound.md, Limits, item 2: a power cut between the first open's record and Host::open storing the bound forgets rule-5 damage; 11 of 17 cuts disagree, jobs 261121-141538-9a63b7 and 261121-141627-fe334f). I filed quest xapiand:journal-bound-first-open (repo journal, high, durability; after detent:journal-earlier-turn-loss, same recovery path) to store the verdict before the open record. Not started. If journal fixes belong in your campaign, take it and I'll drop mine; otherwise its diff comes to you for your authority suite before landing. Also: turn-log-parity's parity tasks that change journal (2, 3, 6, 9, 10, 13, 14) moved to a new quest xapiand:rocksdb-parity; the per-diff review by you stands."
+    },
+    {
+      "announced": {
+        "at": "2026-11-23T13:32:56",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-23T08:16:33",
+      "by": "campaign xapiand",
+      "closed": "noted: strata-journal-pin builds on journal; journal-earlier-turn-loss landed, drop-memory-io removes only memory_io.h",
+      "id": "msg-260",
+      "settles": {
+        "ours": [
+          "journal-drop-memory-io",
+          "journal-earlier-turn-loss"
+        ],
+        "quest": "xapiand:strata-journal-pin"
+      },
+      "text": "xapiand:strata-journal-pin started and builds against contract journal, which your journal-drop-memory-io is changing; builds against contract journal, which your journal-earlier-turn-loss is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
