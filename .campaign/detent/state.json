@@ -7468,6 +7468,38 @@
       "updated": "2026-11-23T10:36:53",
       "worktree": ""
     },
+    "consensus-rpc-host-stream-gap": {
+      "accepted": {},
+      "after": [
+        "consensus-fetch-alongside-flake"
+      ],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "test/transport/rpc_host_test.cc",
+        "test/transport/repeat.sh",
+        "src/transport/**",
+        "include/consensus/transport/**",
+        "docs/mechanisms/transport*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "rpc_host_stream: heartbeats keep every gap under 1,000 ms on slow macOS runners",
+      "updated": "2026-11-23T19:18:09"
+    },
     "consensus-sanitizer-ci-time": {
       "accepted": {},
       "after": [],
