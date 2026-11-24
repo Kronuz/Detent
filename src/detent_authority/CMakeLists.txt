@@ -16,7 +16,7 @@ if(DETENT_BUILD_AUTHORITY)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)
-  add_library(detent_authority_service service.cc layout_export.cc)
+  add_library(detent_authority_service service.cc service_options.cc service_runtime.cc layout_export.cc)
   target_link_libraries(detent_authority_service PUBLIC detent::authority_node detent::authority_export detent::distribution_http
     detent::relay_layout)
 endif()
