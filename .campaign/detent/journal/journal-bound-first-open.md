@@ -62,7 +62,7 @@ Nothing (the open-cost ruling: remove the second read; done in round 3).
 | Criterion | Evidence |
 |---|---|
 | A1 | <CI suite at head; `lost_bound_test first_open`> |
-| A2 | <261123-110049-af725e> |
+| A2 | 261124-113919-ce832d (fails without: mutant journal:b7d73c1 fails 11 of 17 cuts) |
 | A3 | `docs/mechanisms/lost-bound.md`: "the shard, the state byte's `bounded_state` bit, then 8 bytes after the base). The verdict is stored" |
 
 Jobs examined: 261121-141538-9a63b7 and 261121-141627-fe334f (xapiand review probe, 11 of 17
