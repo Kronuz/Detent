@@ -1,6 +1,6 @@
 # consensus-rpc-host-stream-gap: journal
 
-State: ready for review
+State: waiting on jobs 261124-032545-3c3ebf 261124-032548-9e4ff0 261124-032552-5023a3 261124-032555-cf6897 and CI of consensus:0e000db (A4); then ready for review
 Quest: .campaign/detent/quests/consensus-rpc-host-stream-gap.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -51,3 +51,6 @@ stream row. Open: groups_test.cc:586 `beats_2.worst < 1000` has no lag allowance
 
 - Lag allowance, not a wider base bound: one shape with fetch and group-full.
 - A1's reproduction is SIGSTOP at 7 offsets (scripts in ~/.scratch/detent/consensus-rpc-host-stream-gap/), since load alone did not starve a 16-core host.
+- Review findings F1-F3 (Detent:1480fcad), consensus:0e000db: F1 the stream posts a heartbeat after the call and waits until every posted one arrived (Control is in order) before reading the gap; F2 `Lag::stop()` joins the sampler and returns its worst, read once after each case's last beat (group-full, stream, fetch, call-full); F3 call-full takes `1000 + lag`. F2 needed `Lag` in test/transport/rpc_hosts.h (not in the file set; Lag's only user is rpc_host_test.cc, the edit is additive).
+- Mutant fails-without: build.sh/patch.py copied from the review dir into ~/.scratch/detent/consensus-rpc-host-stream-gap/; mutant.sh holds Control 1,500 and 2,000 ms with no probe tail; job 261124-032545-3c3ebf passes when both fail at the fix.
+- Evidence rows to cite after the jobs: A1 261124-032555-cf6897; A2 261124-032548-9e4ff0, fails without 261124-032545-3c3ebf; A3 261124-032552-5023a3; A4 CI at 0e000db.
