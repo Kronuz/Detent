@@ -1,6 +1,6 @@
 # system-failover-port-reuse: journal
 
-State: waiting on jobs 261123-214439-4186e2 (relay A/B at main) 261123-214441-dbd78a (relay A/B at the quest) 261123-214456-71425f 261123-214456-0a6354 261123-214457-1bdfdf 261123-214457-795dc3 261123-214458-c5db97 261123-214458-ed6203 261123-214458-bc803e 261123-214459-82d6a4 (A3 grep and shards at 31b34432) 261123-214459-12724c (A2 suite at 31b34432); A1 passed: 261123-181552-9c6cf3
+State: ready for review
 Quest: .campaign/detent/quests/system-failover-port-reuse.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -99,11 +99,13 @@ exception group; a load flake of the old reserve-and-release harness, not read f
      deterministic test fails without this fix (a collision needs another process on ::1 and the
      number); evidence is the 7 shards x 3 rounds, which must show no bind error.
 
+- Lead's last message: suite 12724c, grep 71425f and the 7 shards passed at 31b34432. The relay A/B
+  (4186e2, dbd78a) timed out and is dropped: the relay C 404 flake is the lead's own quest,
+  relay-service-refused-sync-flake. A1 rerun at 3983c4bc: 8b5f10.
+
 ## Next
 
-1. Read 2c2f0f (A1 at 24 parallel) and the shards' failure lists; then when the jobs named in State pass (A1 stress x48 at 8 parallel, 261123-100829-0846b2, passed),
-   fill Evidence and Result, set State "ready for review". A shard over 10 min: resplit with fewer
-   repeats.
+None: ready for review (main moved by 24 files; the lead merges it).
 
 ## Blocked on
 
@@ -112,11 +114,27 @@ one line, because A3 forbids its reserve-and-release; the lead may revert it if 
 
 ## Evidence
 
-(see the table `campaign brief` prints; pasted when every criterion is met)
+| Criterion | Evidence |
+|---|---|
+| A1 | 261123-234818-8b5f10; fails without: 261122-215002-2b7198, 261123-110507-e20eab |
+| A3 | 261123-214456-71425f, 261123-214456-0a6354, 261123-214457-1bdfdf, 261123-214457-795dc3, 261123-214458-c5db97, 261123-214458-ed6203, 261123-214458-bc803e, 261123-214459-82d6a4; fails without: 261123-100834-000cbb |
+| A2 | 261123-214459-12724c |
 
 ## Result
 
-Not ready.
+- Cause: a gap between choosing a test port and the daemon binding it, and a restarted member's port held
+  by another process. Fixed by `tests/support/ports.py` `lease_ports` (flock-ed ports below the
+  ephemeral ranges, one helper for every test) and a bounded restart retry in `Authority.restart_member`.
+- A1 loop (test_restart_rebind, 288 runs at 24 parallel beside 6-8 light holds): all pass; 864 restarts
+  answered with median 1.24 s, p90 1.72 s, max 2.70 s (8b5f10; 9c6cf3 max 3.61 s), against max 18.7 s
+  before the fix. The late answers were never the bind: the stand-in's `#!/bin/sh` wrapper script took
+  up to 18 s to exec at 24 parallel (bind to first answer 0.06 s); the member is now started as a command.
+- A3: no reserve-and-release of a port in tests/ (grep), 7 shards x 3 rounds of the ten tests under
+  ctest -j8 with no EADDRINUSE, after test_localhost_dial's [::1] port came from the lease
+  (`lease_ports(1, "::")`; shard 4 had hit Errno 48 there).
+- A2: suite 221/221 at 31b34432 (12724c). Observed, not this quest's: test_reader_switch timeout at
+  509d3ef8 (legacy-h); relay C refused-sync 404 flake (quest relay-service-refused-sync-flake); load
+  timeouts of the managed and multivoter tests under -j8.
 
 ## Rulings I made
 
