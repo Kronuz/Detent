@@ -1,6 +1,6 @@
 # legacy-h: journal
 
-State: waiting on jobs 261123-175720-145715 261123-175722-b26bcf 261123-175722-13a7f9 261123-175723-de3cb2 261123-175725-7fad98 261123-175727-3d4b80 261123-175759-67f119 and CI runs 45308791726, 45308791259 at `Detent:8d61d548`
+State: waiting on jobs 261123-175720-145715 261123-175722-b26bcf 261123-175723-de3cb2 261123-175725-7fad98 261123-175727-3d4b80 261123-175759-67f119 and CI runs 45308791726 (CI), 45308791259 (Docs) at `Detent:8d61d548`
 Quest: .campaign/detent/quests/legacy-h.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,7 +19,7 @@ unlisted, 0 stale"; `run_e2e.py --list` no MISSING.
 ## Next
 
 1. Read the jobs: native gate 261123-175720-145715 (A1-A4, A6-A8, A18, A19, A21); bindings
-   261123-175722-b26bcf (A2-A5, A12, A20, A21's Python/Rust); A10 grep 261123-175722-13a7f9; A13
+   261123-175722-b26bcf (A2-A5, A12, A20, A21's Python/Rust); A10 grep 261123-175722-13a7f9 passed; A13
    261123-175723-de3cb2; review probe 261123-175725-7fad98 (A21: the website's pages on an agent store,
    `get` against main `Detent:6acfb0e9`); fails-without at the one-entry core 261123-175727-3d4b80
    (mutant `refs/mutants/legacy-h/a21-one-entry-core`, `Detent:43c6e350` = head + e30799b8's
