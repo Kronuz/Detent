@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(os.environ.get("DETENT_DOCS_ROOT") or Path(__file__).resolve().parents[2])
-DOCS = ROOT / "website" / "src" / "content" / "docs"
+DOCS = ROOT / "site" / "src" / "content" / "docs"
 SRC = ROOT / "src"
 DAEMON = SRC / "detent_authority" / "main.cc"
 INCLUDE = ROOT / "include"

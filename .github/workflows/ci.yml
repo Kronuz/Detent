@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
-    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md', '.campaign/**']
+    paths-ignore: ['docs/**', 'site/**', 'diagrams/**', '**/*.md', '.campaign/**']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -97,7 +97,7 @@ jobs:
             echo '::error::the offload, deferred-reply or user_data path is back'
             exit 1
           fi
-          if git grep -nE -- '--workers|DETENT_AUTHORITY_WORKERS' -- src/detent_authority website docs/USAGE.md; then
+          if git grep -nE -- '--workers|DETENT_AUTHORITY_WORKERS' -- src/detent_authority site docs/USAGE.md; then
             echo '::error::the removed detent-authority worker option is documented or parsed again'
             exit 1
           fi
