@@ -1,6 +1,6 @@
 # consensus-simulation-asan-timeout: journal
 
-State: waiting on jobs 261123-120158-c6e7a8 261123-120851-a1e636 261123-120853-0b47e0 261123-120854-b69029 261123-120855-c2ed8d 261123-120857-272231 261123-120859-a03833 261123-120900-0d6648
+State: waiting on jobs 261123-164555-fab10d 261123-164556-ea8620 261123-164611-b61059 261123-164613-bc5203 261123-164638-102d1c 261123-164640-63086e 261123-164642-b0667c 261123-164644-7f8b53 261123-164646-e01d38 261123-164648-db8cb5 261123-164651-246bb9 261123-164655-774a2b 261123-164659-f34d60
 Quest: .campaign/detent/quests/consensus-simulation-asan-timeout.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,38 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs queued (scripts in consensus worktree .scratch/asan-timeout/):
-- A1 261123-120158-c6e7a8: strict A/B main vs fix (asan-ab.sh): driver seed 16 alone, 17, default.
-- A2 261123-120851-a1e636: default run at the fix under 150 s (half the TIMEOUT) on this
-  host, which ran main at 373 s vs CI's typical 170 s (>= 2x slower than CI typical).
-- A2 --fails-without 261123-120853-0b47e0: the same bound at main 531b655.
-- A3 261123-120854-b69029 261123-120855-c2ed8d 261123-120857-272231 261123-120859-a03833
-  261123-120900-0d6648: 5 shards x 10 runs (5 parallel x 2), limit 200 s.
-- Pushed quest branch at consensus:b5e1d47 for ci:linux-asan-ubsan, ci:ci (A4).
+Round 2 (session 2), at consensus:cbe0522 (main 3aa1355 merged in, clean). Scripts in the
+consensus worktree's .scratch/asan-timeout/; asan-time.sh now reports wall and CPU seconds and,
+with CAP=1, kills the run at its limit.
+- A1 one arm per job: main 261123-164611-b61059, fix 261123-164613-bc5203 (driver seed 16 alone,
+  seed 17 alone; asan-seeds.sh).
+- A2 at the fix 261123-164555-fab10d (under 150 s); --fails-without at main 261123-164556-ea8620
+  (CAP=1: killed at 150 s, so it never waits main's ~370 s out).
+- A3 9 shards x 6 runs (3 at once x 2 rounds), limit 200 s: 261123-164638-102d1c
+  261123-164640-63086e 261123-164642-b0667c 261123-164644-7f8b53 261123-164646-e01d38
+  261123-164648-db8cb5 261123-164651-246bb9 261123-164655-774a2b 261123-164659-f34d60.
+- A4: `campaign verify --for A4` queued; branch pushed at cbe0522 for ci:linux-asan-ubsan, ci:ci.
+
+Round 1 jobs (at b5e1d47, now other code): A1 261123-120158-c6e7a8 and A2 --fails-without
+261123-120853-0b47e0 hit the 10-minute cap (main's ASan run beside light holds); A2
+261123-120851-a1e636 passed (123.6 s); A3 shards b69029 c2ed8d 272231 a03833 passed (max 168.7 s),
+0d6648 failed (round 1: five copies 247.3-250.3 s, round 2: 165.7-168.7 s). c6e7a8's finished
+lines: seed 16 alone main 195.8 s vs fix 27.5 s; seed 17 main 18.6 s vs fix 31.1 s.
 
 ## Findings
+
+- Shard times are not comparable to CI's 170 s: CI is about 2.2x faster than this host. Same
+  runner class, CI ASan job: main consensus:df4f8f8 171.45 s (run 45204437379) vs fix b5e1d47
+  57.38 s (run 45256348228, job 137979080621), neighbours equal (liveness 81.46 vs 81.66 s):
+  the fix cuts CI time 3.0x, to 19% of the 300 s TIMEOUT, and back to the 58 s before 8780e44.
+  Locally one run alone is 123.6 s (a1e636) vs main's 373 s (probe-main.txt).
+- Shards ran 5 ASan copies at once; on macOS a strict hold shares the cores with light holds
+  (quiet.py: Macs can't split cores), so five copies plus 6-15 light holds stretch 124 s to
+  148-169 s. The 250 s round is load, not a seed: the default run is deterministic (same seeds in
+  every copy), all five copies of that round took 247-250 s and the same binary's next round
+  165.7-168.7 s. Round 2 shards record CPU seconds to show it: flat CPU, moving wall.
+- What remains at the fix (full-1000.txt trace): 20 driver seeds of ~3 s run + 0.3-3.5 s heal
+  each, no idle stretches; the rest is the core seeds' steps. No single cost dominates.
 
 - Not a hang. The failing CI logs show no progress line (stdout fully buffered; the test
   printed nothing before the kill). 46 ASan runs on 2026-11-21..23 fall into runner classes:
