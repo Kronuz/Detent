@@ -53,11 +53,19 @@ path (`--dense=PATH`, `$JOB_REF_DENSE`, pinned at `Detent:28d3ed9`), and
 they are found. Neither is C or C++, so `split_check.py` cannot prove a split moved code only. They
 are design records, edited only with their design.
 
-## Not in this quest's file set
+### `tests/detent_authority/test_state.cc` (1,084 lines)
 
-`tests/detent_authority/test_state.cc` (1,084 lines) is over 1,000 lines and outside the files this
-quest may edit. `tests/detent_delivery/test_coordinator.cc`, once 1,346 lines, no longer exists; the
-largest test there is `test_pages_coordinator.cc` at 514 lines.
+One test program (`test_authority_state`, one `ctest` entry) whose `main` runs its topic
+functions in order over shared builders (`context`, `open`, `transaction`, `throws`, `refusal`,
+`replay`). The topics run 40 to 115 lines each
+and the file is 84 lines over the threshold. A split by topic would turn each anonymous-namespace
+function into an external one with a prototype, add a support header, and leave pieces of 100 to 300
+lines that nobody opens alone: it would move code without making any piece easier to work on.
+
+## Gone
+
+`tests/detent_delivery/test_coordinator.cc`, once 1,346 lines, no longer exists; the largest test in
+that directory is `test_pages_coordinator.cc` at 514 lines.
 
 ## Non-moves
 

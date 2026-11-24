@@ -48,5 +48,5 @@ Coordinator::Impl (SPLITTING.md "Restructuring a large class"); tests/detent_aut
 1. Base for split_check is a06cbf1c8c77 (the quest's start).
 2. Shared helpers go to `detail` in service_internal.hh / state_internal.hh with `using namespace detail;`, as SPLITTING.md says; helpers one piece uses stay in that piece's anonymous namespace.
 3. test_coordinator.cc (1,346 in the quest) no longer exists on main.
-4. docs/dev/splits.md is A1's file but outside the quest's file set; I wrote it anyway (the lead should add it to the set).
+4. The lead widened the file set with docs/dev/splits.md and test_state.cc (msg). test_state.cc is kept whole: one test program, topic functions of 40-115 lines over shared builders, 84 lines over the threshold; a split would only externalize anonymous-namespace functions (verdict in splits.md). splits.md notes test_coordinator.cc is gone. The relay-mirror-idle-wake quest will edit the loop in service_runtime.cc; moved verbatim, behavior untouched.
 5. coordinator.cc and the two design models are kept whole (docs/dev/splits.md has the reasons); the open branch managed-failover-isolated-leader edits coordinator.cc.
