@@ -6880,6 +6880,37 @@
       "updated": "2026-11-16T21:41:06",
       "worktree": ""
     },
+    "consensus-fetch-oversize-abort": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/transport/**",
+        "include/consensus/transport/**",
+        "test/transport/rpc_host_test.cc",
+        "test/transport/rpc_hosts.h",
+        "docs/mechanisms/rpc*.md",
+        "docs/mechanisms/transport*.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "/Users/kronuz/code/Kronuz/consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
+      "updated": "2026-11-24T08:12:15"
+    },
     "consensus-follower-read": {
       "accepted": {
         "correctness": {
