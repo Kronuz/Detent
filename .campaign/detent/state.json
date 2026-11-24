@@ -6730,6 +6730,20 @@
       ],
       "landed": [],
       "lenses": [],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-24T06:34:08",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "at": "2026-11-24T06:34:08",
+          "by": "lead",
+          "closed": "moved: the rpc_host_fetch macOS failure is consensus-fetch-oversize-abort's",
+          "id": "msg-1",
+          "text": "Another macOS CI occurrence: consensus run 45407143806 at consensus:8f21d10 (driver-pipelined-sim, no transport change), macos-x86_64: rpc_host_fetch 'heartbeats' longest gap 4976 ms of 1104 allowed' with 16 MiB in 7526 ms; the Lag sampler saw ~104 ms, so the loop itself was not stalled by the host"
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -6737,7 +6751,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T03:28:09"
+      "updated": "2026-11-24T08:13:27"
     },
     "consensus-fetch-lane": {
       "accepted": {
