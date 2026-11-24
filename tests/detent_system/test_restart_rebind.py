@@ -13,20 +13,23 @@ binds the way detent-authority does and serves TLS health.
 
 from __future__ import annotations
 
-import time
-
-BEGAN = time.time()
-
+import argparse
+import asyncio
 import json
+import random
 import socket
 import socketserver
 import ssl
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# The harness (asyncio, authority, runtime) is imported by `rounds` and `main` only: the stand-in
-# daemon, started twenty times a run, imports just what it serves with.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from authority import Authority
+from runtime import Actors, Evidence
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -61,7 +64,6 @@ def serve(arguments: list[str]) -> int:
         Path(arguments[arguments.index("--authority") + 1]).read_text()
     )
     port = int(arguments[arguments.index("--port") + 1])
-    print(f"stand-in: script began at {BEGAN:.3f}", flush=True)
     print(f"stand-in: interpreter up at {time.time():.3f}", flush=True)
     # A reverse lookup of the bound address can stall a CI runner for longer than the test waits.
     socket.getfqdn = lambda *_: time.sleep(60)  # type: ignore[assignment]
@@ -70,7 +72,6 @@ def serve(arguments: list[str]) -> int:
     except OSError as error:
         print(f"detent-authority: bind: {error.strerror}", flush=True)
         return 1
-    print(f"stand-in: bound at {time.time():.3f}", flush=True)
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     tls_files = configuration["publisher_tls"]
     tls.load_cert_chain(tls_files["certificate"], tls_files["key"])
@@ -78,7 +79,6 @@ def serve(arguments: list[str]) -> int:
     server.socket = tls.wrap_socket(
         server.socket, server_side=True, do_handshake_on_connect=False
     )
-    print(f"stand-in: serving at {time.time():.3f}", flush=True)
     server.serve_forever()
     return 0
 
@@ -88,14 +88,6 @@ def progress(message: str) -> None:
 
 
 async def rounds(certificates: Path, scratch: Path) -> None:
-    import asyncio
-    import random
-    import threading
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from authority import Authority
-    from runtime import Actors, Evidence
-
     scratch.mkdir(parents=True, exist_ok=True)
     binary = scratch / "detent-authority"
     binary.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{__file__}" --serve "$@"\n')
@@ -118,15 +110,15 @@ async def rounds(certificates: Path, scratch: Path) -> None:
             progress(f"restarting member {index}, port squatted for {hold:.2f} s")
             began = time.monotonic()
             await authority.restart_member(index)
-            progress(f"member {index} answering {time.monotonic() - began:.2f} s after restart")
+            progress(
+                f"member {index} answering {time.monotonic() - began:.2f} s after restart"
+            )
             status, _ = await authority.request(index, "/v1/health")
             assert status == 200, f"member {index} answered {status}"
     print("3 kills with the port squatted: every member rebound")
 
 
 async def bounded(certificates: Path, scratch: Path, seconds: float) -> None:
-    import asyncio
-
     task = asyncio.create_task(rounds(certificates, scratch))
     done, _ = await asyncio.wait({task}, timeout=seconds)
     if not done:
@@ -143,9 +135,6 @@ async def bounded(certificates: Path, scratch: Path, seconds: float) -> None:
 def main() -> int:
     if "--serve" in sys.argv:
         return serve(sys.argv[2:])
-    import argparse
-    import asyncio
-
     parser = argparse.ArgumentParser()
     parser.add_argument("certificates", type=Path)
     parser.add_argument("scratch", type=Path)
