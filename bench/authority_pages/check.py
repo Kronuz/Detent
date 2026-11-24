@@ -3,10 +3,15 @@
 check.py seals NAMESPACES SEALS < lines
 check.py commit ARM... < lines
 check.py combine LOG...
+check.py paced RATE < lines
+check.py pairs LOG...
+check.py lag < lines
 
 `combine` reads one commit job's log per LOG (one rotation of the arms each) and prints, per arm, the
 median and min-max over jobs of its group commit p50, and of its paired delta against the none run of
-the same job.
+the same job. `pairs` reads paced logs and prints, per arm, its block p50 minus the mean of the two
+none blocks beside it: median, mean with a 95% interval, and min-max, beside the A/A arm's (aa, a none
+block labelled apart). An arm differs from none only when its interval clears the A/A band.
 """
 
 from __future__ import annotations
@@ -26,6 +31,9 @@ def main() -> None:
     if mode == "combine":
         combine(sys.argv[2:])
         return
+    if mode == "pairs":
+        pairs(sys.argv[2:])
+        return
     rows = [json.loads(line) for line in sys.stdin if line.startswith("{")]
     steps: dict[str, list[dict[str, object]]] = {}
     for row in rows:
@@ -43,6 +51,12 @@ def main() -> None:
         if int(summary["written_per_seal"]) <= 0:
             fail("seals wrote no pages")
         print(json.dumps({"cold": cold, "summary": summary}))
+        return
+    if mode == "paced":
+        check_paced(rows, float(sys.argv[2]))
+        return
+    if mode == "lag":
+        check_lag(steps)
         return
     named = sys.argv[2:]
     runs = steps.get("run", [])
@@ -110,6 +124,105 @@ def combine(logs: list[str]) -> None:
             "delta_ms_p50_range": [min(deltas[arm]), max(deltas[arm])],
         }
     print(json.dumps(summary, indent=1))
+
+
+OTHERS = ["thread", "pool", "write", "aa"]
+
+
+def check_paced(rows: list[dict[str, object]], rate: float) -> None:
+    blocks = [r for r in rows if r.get("step") == "block"]
+    if not blocks or len(blocks) % 8:
+        fail(f"{len(blocks)} blocks, not whole rounds of 8")
+    for b in blocks:
+        rnd, slot, arm = int(b["round"]), int(b["slot"]), str(b["arm"])
+        want = "none" if slot % 2 == 0 else OTHERS[(slot // 2 + rnd) % 4]
+        if arm != want:
+            fail(f"round {rnd} slot {slot} ran {arm}, not {want}")
+        seals, builds = int(b["seals"]), int(b["builds"])
+        if seals < 1:
+            fail(f"round {rnd} slot {slot}: no authority seal")
+        if arm in ("none", "aa") and builds:
+            fail(f"{arm} built pages")
+        if arm in ("thread", "pool", "write") and builds < seals:
+            fail(f"{arm} round {rnd}: {builds} builds for {seals} seals")
+        if arm == "write" and int(b["pages_written"]) <= 0:
+            fail("arm write wrote no pages")
+    rates = [float(b["tx_per_s"]) for b in blocks]
+    print(
+        json.dumps(
+            {
+                "blocks": len(blocks),
+                "rate": rate,
+                "tx_per_s_median": statistics.median(rates),
+                "tx_per_s_range": [min(rates), max(rates)],
+                "pairs": paired(blocks),
+            }
+        )
+    )
+
+
+def deltas_of(blocks: list[dict[str, object]]) -> dict[str, list[float]]:
+    deltas: dict[str, list[float]] = {}
+    for j, b in enumerate(blocks):
+        if b["arm"] == "none":
+            continue
+        beside = [
+            float(blocks[k]["group_ms_p50"])
+            for k in (j - 1, j + 1)
+            if 0 <= k < len(blocks) and blocks[k]["arm"] == "none"
+        ]
+        deltas.setdefault(str(b["arm"]), []).append(
+            float(b["group_ms_p50"]) - sum(beside) / len(beside)
+        )
+    return deltas
+
+
+def stats(d: list[float]) -> dict[str, object]:
+    mean = statistics.fmean(d)
+    half = 1.96 * statistics.stdev(d) / len(d) ** 0.5 if len(d) > 1 else None
+    return {
+        "n": len(d),
+        "median": round(statistics.median(d), 1),
+        "mean": round(mean, 1),
+        "ci95": None
+        if half is None
+        else [round(mean - half, 1), round(mean + half, 1)],
+        "range": [round(min(d), 1), round(max(d), 1)],
+    }
+
+
+def paired(blocks: list[dict[str, object]]) -> dict[str, object]:
+    return {arm: stats(d) for arm, d in deltas_of(blocks).items()}
+
+
+def pairs(logs: list[str]) -> None:
+    """Pairs within each log, then pools every log's pairs per arm."""
+    pooled: dict[str, list[float]] = {}
+    per_log = {}
+    for log in logs:
+        with open(log) as lines:
+            blocks = [
+                json.loads(line) for line in lines if line.startswith('{"step":"block"')
+            ]
+        deltas = deltas_of(blocks)
+        per_log[log] = {arm: stats(d) for arm, d in deltas.items()}
+        for arm, d in deltas.items():
+            pooled.setdefault(arm, []).extend(d)
+    print(
+        json.dumps(
+            {"logs": per_log, "pooled": {arm: stats(d) for arm, d in pooled.items()}},
+            indent=1,
+        )
+    )
+
+
+def check_lag(steps: dict[str, list[dict[str, object]]]) -> None:
+    for summary in steps["summary"]:
+        if int(summary["arrived"]) <= 0 or int(summary["passes"]) <= 0:
+            fail("no change arrived or no pass ran")
+        if summary["start"] == "cold" and float(summary["caught_up_ms"]) <= 0:
+            fail("a cold start never caught up")
+        print(json.dumps(summary))
 
 
 if __name__ == "__main__":
