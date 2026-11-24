@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261123-164944-8f37e3 261123-164928-adf267
+State: waiting on jobs 261123-165613-3cde33 and the 14 rows under Next
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -42,6 +42,10 @@ rule (20.5 s CPU in 120 s, the mirror polls every 10 ms); now 0.1 s per half-sec
 Note: a resubmit at a new commit returned the failed 68ee44 (identity covers row.sh, not boot.py);
 --force gave 8f37e3.
 
+Probes at b0e09b72 select (light, indicative): 261123-164944-8f37e3 fresh 100K warm agent 1.42 s,
+cold relay-start-to-selected 2.33 s; 261123-164928-adf267 old 100K warm 1.18 s, relay ready 1.35 s,
+settled 3.5 s, agent 7 files, 4 device flushes, 0.18 MB in. Old fixtures work: no reseed.
+
 Earlier rounds (history):
 
 Harness in docs/measurements/warm-relay-agent-boot/ (boot.py one run warm|cold; row.sh in-job
@@ -54,10 +58,8 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-1. Probes at b0e09b72: 261123-164944-8f37e3 (fresh 100000-mirror, warm+cold) and
-   261123-164928-adf267 (old 100000-main, warm). Both select: resubmit the 14 rows on the old
-   fixtures (no reseed). Only the fresh one: reseed 1M (light) and 5M (--long "5M seed takes
-   ~4,700 s") first.
+1. Rows at 3f0a5b59, exclusive, forced (campaign reuse bug, lead's msg), one mode per job:
+   261123-165617-0de0e5, -165620-51800c, -165624-e3b117, -165628-f15efc, -165631-3bc1e4, -165634-7ba37a, -165638-b3fd52, -165643-4f1b40, -165646-b31273, -165649-7c0f14, -165653-3ebe6a, -165656-0c6a5e (100K/1M, after adf267), -165700-7beee0, -165703-83f18d (5M warm, cold, after 3cde33). 5M gated by light probe 261123-165613-3cde33 (old fixture, fixed code).
 2. When the rows finish: tabulate, commit the rows file, rewrite docs/perf/warm-relay-agent-boot.md
    for the mirror relay with the bundle-relay rows at 3a57661b as the before, then ready for review.
 
@@ -73,7 +75,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261123-142309-4755f7, -142315-5d9d85, -142322-7fc115, -142327-c26a47, -142332-844c26, -142337-6f5b0b, -142341-8b6e26, -142346-eaa46d, -142350-34cc60, -142354-d2245b, -142359-6c39a3, -142404-b2697f, -142408-98fe9f, -142412-9734c4 (exclusive at 0a247a7e). Superseded: 261122-211123-e68717, 261122-211123-7d24e2, 261122-211124-af8242 (timeout: the harness waited for a log line main removed) |
+| A1 | pending: 261123-165617-0de0e5, -165620-51800c, -165624-e3b117, -165628-f15efc, -165631-3bc1e4, -165634-7ba37a, -165638-b3fd52, -165643-4f1b40, -165646-b31273, -165649-7c0f14, -165653-3ebe6a, -165656-0c6a5e (100K/1M, after adf267), -165700-7beee0, -165703-83f18d (5M warm, cold, after 3cde33) (exclusive at 3f0a5b59, forced) |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-131bde6.jsonl |
 | Suite | 261120-144425-4edf28 (exit 0 at 131bde6); CI run 44831410902 at 131bde6, all jobs green incl. macos-arm64 (D57); later commits are docs-only, paths-ignored by CI |
 
