@@ -1,6 +1,6 @@
 # consensus-recovered-over-limit-start: journal
 
-State: fixing F1, F3
+State: ready for review (fix round 1 at consensus:53c8146; jobs queued; pushed)
 Quest: .campaign/detent/quests/consensus-recovered-over-limit-start.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 (review .campaign/detent/reviews/consensus-recovered-over-limit-start-correctness.md):
-F1 table and deadlines.md rewritten by mode; F3 `owned` case (sync reclaim branch); F2 is
-journal-recovery-refill, pointed at from row 2.
+Fix round 1 done at consensus:53c8146 (review consensus-recovered-over-limit-start-correctness.md):
+F1 table and deadlines.md by mode; F3 `owned`; F2 pointed at journal-recovery-refill (row 2).
 
 ## Next
 
-1. Build and run `owned` locally under quiet light; then the mutant commit, jobs, push.
+1. Read jobs 261124-204309-3eda32, 261124-204312-01c44d, 261124-204315-ae3e15,
+   261124-204318-1b1244, suite 261124-204331-0201ac and CI; re-review.
 
 ## Table (A1): how recovery leaves a store above its control headroom
 
@@ -68,12 +68,24 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | this journal's table |
-| A2 | reclaims 261124-201345-5a60e2; refuses 261124-201348-90beab; fails-without at consensus:0cf87ca (main's worker.h and driver.h, `over_headroom`'s name only): reclaims 261124-201346-931ecd, refuses 261124-201349-16891d. Local Release at d03a71b: reclaims 17 checks, refuses 12, 0 failures; at the mutant both fail "the open completes: never, within 200 ms". |
-| A3 | [artifact] docs/mechanisms/deadlines.md, "A recovered store over its control headroom" |
-| A4 | suite 261124-201351-4ac6e5; CI on the push |
+| A1 | this journal's table (fix round 1: rows by mode, F1) |
+| A2 | at consensus:53c8146: reclaims 261124-204315-ae3e15, refuses 261124-204318-1b1244, owned 261124-204309-3eda32; fails-without: owned at consensus:073e643 (53c8146 with 0cf87ca's worker.h and driver.h; local branch scratch/over-limit-mutant-2) 261124-204312-01c44d; reclaims and refuses at 0cf87ca 261124-201346-931ecd, 261124-201349-16891d (round 0, code unchanged since). Local Release at 53c8146: owned 7 checks, reclaims 17, refuses 12, 0 failures; at the mutant owned fails "the first refused turn reclaims instead of answering Pressure" and "one step per directory entry ...: 0". |
+| A3 | [artifact] docs/mechanisms/deadlines.md, "A recovered store over its control headroom" (rewritten by mode, F1) |
+| A4 | suite `campaign verify` 261124-204331-0201ac at 53c8146; CI on the push of 53c8146 |
 
-Cancelled: `campaign verify` suite 261124-201423-0b9b78 (30 min), the same command as 261124-201351-4ac6e5 at the 45 minutes the lead asked for; the gate's check suite may need `campaign verify` to adopt the 45-minute one.
+Round 0 at d03a71b: reclaims 261124-201345-5a60e2, refuses 261124-201348-90beab; suite
+261124-201351-4ac6e5 (was running at the fix commit; headers unchanged since, left to finish).
+
+## Findings folded in (round 1)
+
+- F1 (blocking, A1 table and docs wrong about modes): class is every row's mode claim and the
+  summary. Rewrote each row for Driver (Host) and owned stores against driver.h:202, worker.h:117-124,
+  journal.h:136, store.h:78; deadlines.md section and the test's header and `reclaims` comments
+  match. No code test (A1 is a manual row); the claims the tests pin: `refuses` and `reclaims`
+  reach the Driver only with a lowered limit (row 1, row 1 + 4), `owned` pins the owned row
+  (Pressure after a pass, never fenced, Start admitted).
+- F3 (sync reclaim branch untested): `owned` case, fails without (261124-204312-01c44d).
+- F2: its own quest, journal-recovery-refill; the table's row 2 points at it.
 
 ## Result
 
@@ -81,17 +93,19 @@ Before Start, `Worker::run_one` turns a Pressure turn into a reclaim step (`IOPe
 `Maintenance` sync) until a reclaim pass completes (`reclaimed_`, also set by maintenance's passes);
 `started_` is set when a Start is admitted. `Driver::step` fences a group whose turn before Start is
 Pressure with `over_headroom` ("storage above its control headroom at start"), so the open fails with
-`fenced` and the Sink hears `Fenced` with that reason. Measured (test/recovered_over_limit_test.cc,
-lone voter, 512 KiB published checkpoint, 114-byte pre-Start pack): `reclaims`, a killed checkpoint's
-640 KiB staged image over `hard` = published + 324 KiB: reclaimed, the open completes, the group leads
-and commits; `refuses`, `hard` = published + pack - 1: the open fails by name within 200 ms and the
-store keeps its two artifacts. At main both opens never complete. Local neighbours: driver_pressure 25
-checks, worker 96196 checks, 0 failures.
+`fenced` and the Sink hears `Fenced` with that reason. A Driver group is a Host group, so only a
+limit lowered between runs reaches the fence; an owned Worker's host sees Pressure after a pass.
+Measured (test/recovered_over_limit_test.cc): `reclaims`, lone voter, 512 KiB published checkpoint
+(524576 bytes), a killed checkpoint's 655428 staged bytes over `hard` 856352: reclaimed, the open
+completes, the group leads and commits; `refuses`, `hard` = published + pack (114) - 1: the open
+fails by name within 200 ms and the store keeps its two artifacts; `owned`, an owned sync Worker
+with 65782 bytes in 3 files recovered with `hard` = used: 4 reclaim steps (scan 1), then Pressure,
+nothing fenced or removed, Start admitted. At main the Driver opens never complete and the owned
+Worker answers Pressure at once (0 steps).
 
 Files: include/consensus/worker.h, include/consensus/driver.h, test/recovered_over_limit_test.cc
-(ctest consensus_recovered_over_limit_{reclaims,refuses}), CMakeLists.txt, docs/mechanisms/deadlines.md.
-
-Left open for the lead: the refill-order note under the table (journal's admission, not this file set).
+(ctest consensus_recovered_over_limit_{reclaims,refuses,owned}), CMakeLists.txt,
+docs/mechanisms/deadlines.md.
 
 ## Rulings I made
 
@@ -107,3 +121,5 @@ Left open for the lead: the refill-order note under the table (journal's admissi
    after recovery examined every file against the same roots.
 5. The fails-without commit consensus:0cf87ca (local branch scratch/over-limit-mutant, never pushed)
    keeps `over_headroom`'s declaration so the test compiles against main's behavior.
+6. Round 1: the gate suite runs through `campaign verify` (261124-204331-0201ac), once, rather than a
+   separate 45-minute job; the round-0 suite at d03a71b was running, not queued, so I left it.
