@@ -5255,6 +5255,21 @@
         "todo": "33d11aa9"
       },
       "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:18:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:18:32",
+      "by": "campaign",
+      "closed": "pin-wave's contributor is live, waiting on library CI (faultlab 1ac0b17, journal f66c16e, consensus 770db9a); relay-mirror's design check answered as msg-1 and its contributor resumed",
+      "id": "msg-414",
+      "settles": {
+        "todo": "618165bc"
+      },
+      "text": "to do, critical path first:\ntodo: resume pin-wave (nothing moved it for 64 min: working: cascade round 2 (faultlab 1ac0b17 CI, journal f66c16e and consensus 770db9a pushed); new): `campaign status pin-wave`, or park it with a reason\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; listed 5 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
