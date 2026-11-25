@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code)
+State: working (fix round 3, V5: R3-1 find cost; R3-2, R3-4, R3-5, R3-6)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,34 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Fix round 3 (review Round 3, CHANGES at `Detent:28a8d276`), under V5: table first, class sweep.
+
+### `find` cases (V5 table, before any code)
+
+Every `find` a reader makes, 1,000 entries; ns a lookup. Main is `StoreTable::find` on the decoded
+table (main verifies the whole table at open: `selected` 1,837 us of A1's profile). Head is
+`Detent:28a8d276`. "hot" is a marked page (verified, offsets kept); "cold" is a page's first touch
+(hash and checks; with no account every reach is cold). Strict 261124-221108-47be0b (medians of 10
+pairs) where it exists; the rest is a light screen at `Detent:28a8d276` (extended
+table_find_bench: 255-byte names, cold), to be replaced by the strict A/B.
+
+| Width | Name | Path | Page | Main | Head | Head - main (floor) | Source |
+|---|---|---|---|---|---|---|---|
+| 16 | present | paged | hot | 176.3 | 153.8 | within (0.87x) | 47be0b |
+| 16 | absent | paged | hot | 182.2 | 179.4 | within (0.98x) | 47be0b |
+| 40 | present | paged | hot | 152.3 | 173.8 | +16.5 (6.6): R3-1 | 47be0b |
+| 40 | absent | paged | hot | 143.1 | 191.7 | +36.9 (25.3): R3-1 | 47be0b |
+| 255 | present | paged | hot | 279 | 283 | screen | light |
+| 255 | absent | paged | hot | 274 | 318 | screen (+44) | light |
+| 16/40/255 | either | paged | cold | (at open) | 20,400-23,000 | page hash, once a page | light |
+| 16 | either | decoded | - | 176.3/182.2 | 172.8/174.7 | same code as main | 47be0b |
+| 40 | either | decoded | - | 152.3/143.1 | 155.5/157.1 | same code as main | 47be0b |
+| 255 | either | decoded | - | 279/274 | same code | - | light |
+
+The decoded path (`StoreTable::find`) is the agent's and `decode()`'s, the same code at both commits.
+The cold row is the first-touch hash the design moves from the open (A2's cells measure it end to
+end); its find part is the hot path's search plus `check`.
 
 Fix round 2 finished at `Detent:28a8d276` (code); jobs queued there (Evidence).
 - R2-1 `Detent:a3da0693`: `reader_bench_ab.sh build` copies both binaries after `mkdir -p
