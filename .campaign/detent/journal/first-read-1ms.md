@@ -36,7 +36,8 @@ Fix round 2 finished at `Detent:28a8d276` (code); jobs queued there (Evidence).
 - R2-5: the old cells aafc88 (running), 891b76, 7e39f4 cancelled (gate code changed); four cells
   requeued at the head.
 - R2-4 / CI: pushed at the head; macos-x86_64 at `Detent:9cc06bc9` ran its Test step 58 min with
-  no log (run 45541685998, warm-relay's the same); result at this head in Evidence.
+  no log (run 45541685998, warm-relay's the same). Pushed `Detent:c75d6215` (code as at
+  28a8d276): CI run 45558888521 queued; its macos-x86_64 result is not in yet (the lead reads it).
 
 Fix round 1 finished at `Detent:47216200` (code); jobs queued there (Evidence).
 - C2 `Detent:91a03ba0`, `Detent:b8bd0b69`, `Detent:47216200`: the verified page index as designed.
