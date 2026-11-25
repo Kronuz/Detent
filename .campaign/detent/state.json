@@ -8805,21 +8805,56 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T16:58:26",
+          "ci": {
+            "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+            "runs": [
+              45499830987
+            ]
+          },
+          "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "criteria": {
+            "A1": "261124-141928-74e621; fails without: 261124-132225-bcb45d, 261124-141933-6502f0",
+            "A2": "261124-141928-74e621; fails without: 261124-132225-bcb45d, 261124-141933-6502f0",
+            "A3": "261124-141938-899225; fails without: 261124-132235-b8ca66",
+            "A4": "261124-141955-da2268"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-141955-da2268",
+              "level": "light",
+              "seconds": 1529.2,
+              "state": "done",
+              "what": "consensus-next-deadline-removal check suite at fcf7f66ef064"
+            }
+          ],
+          "final": true,
+          "from": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "reason": "",
+          "tested": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at consensus:d9c7747",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T15:35:24",
-      "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
+      "updated": "2026-11-24T16:58:34",
+      "worktree": ""
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
