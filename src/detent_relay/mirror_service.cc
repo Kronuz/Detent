@@ -361,7 +361,8 @@ struct MirrorService::Impl {
 	void run() {
 		builder = std::thread([this] { build_loop(); });
 		try {
-			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
+			auto io = std::make_shared<kronuz::io::completion::PosixIO>(
+				options.directory, kronuz::io::completion::PosixIOOptions{kronuz::io::completion::FlushMode::full}, 0644);
 			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
 						  [this](std::function<void()> task) {
 							  std::lock_guard lock(mutex);
