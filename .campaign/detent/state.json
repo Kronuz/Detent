@@ -19531,6 +19531,42 @@
       "updated": "2026-11-21T07:20:20",
       "worktree": ""
     },
+    "journal-recovery-refill": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "journal:admission"
+      ],
+      "files": [
+        "include/journal/admission.h",
+        "include/journal/admission/**",
+        "src/admission*.cc",
+        "test/admission*",
+        "test/admission/**",
+        "docs/mechanisms/admission*.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "planned",
+      "title": "a crash never wedges an owned store: recovery refills replacement before it can fund a checkpoint",
+      "updated": "2026-11-24T20:31:13"
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
