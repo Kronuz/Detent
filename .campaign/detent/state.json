@@ -32024,12 +32024,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "seal stamp (docs/mechanisms/relay-mirror-seal-stamp.md) lives in the session record; closes the seal-between-sync-and-park miss CI showed",
+      "reason": "V5: fourth failing round in the wait mechanism (R4-1, a late seal 204 read as idle); the owner decides the next shape",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "blocked",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T23:12:13",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-25T00:32:43",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
