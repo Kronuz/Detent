@@ -23,7 +23,8 @@ struct RecordTesting {
 	static void install(void (*)(std::string_view name, void *), void *) noexcept;
 };
 void record_opened(std::string_view name) noexcept;
-// Why a record descriptor fails the owner, link, mode and extent checks, or null; fills `info`.
+// Why a store file's descriptor fails the owner, link, mode, extent and ACL checks, or null; fills
+// `info`. Every file the store reads or maps passes it on the descriptor it reads.
 inline const char *generation_file_refusal(int fd, struct stat &info, uid_t owner, std::uint64_t length) {
 	return fd < 0 || ::fstat(fd, &info) != 0 ? "unreadable"
 	       : !S_ISREG(info.st_mode)           ? "not a regular file"
@@ -31,7 +32,8 @@ inline const char *generation_file_refusal(int fd, struct stat &info, uid_t owne
 	       : info.st_nlink != 1               ? "link count"
 	       : (info.st_mode & 0022)            ? "group or other write"
 	       : info.st_size < 0 || std::uint64_t(info.st_size) != length ? "size"
-	                                                                    : nullptr;
+	       : !internal::mode_only_acl(fd)     ? "ACL"
+	                                          : nullptr;
 }
 [[noreturn]] inline void refuse_generation_file(const char *refused, const struct stat &info) {
 	throw std::runtime_error(std::string("invalid local generation descriptor: ") + refused + " (links " +
@@ -69,8 +71,8 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 // when the image it names is gone, so the table moved on and the caller reads it again.
 struct Selected {
 	Descriptor descriptor;
-	// The image select_entry read, when its file's ACL is mode-only too: attach checks it, not reads it again.
-	std::optional<std::array<char, paged::root_bytes>> image;
+	// The image select_entry read: attach checks it, not reads it again.
+	std::array<char, paged::root_bytes> image{};
 };
 // The table entry `name` (D8), or the table's only entry when `name` is empty.
 std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});

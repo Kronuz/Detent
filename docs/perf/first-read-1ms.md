@@ -78,16 +78,22 @@ A first read verifies only the table bytes it reads, as a first lookup verifies 
 it reaches: per-page SHA-256 digests chained to one table digest, and a verified mark per page.
 
 Layout. `selected` keeps its magic `DTTABLE1`; `agent_store_layout` becomes 3 (a layout-2 table is
-`LayoutRefused`, D43). The 64-byte header adds the page count and `slots` (the highest entry slot
-plus one) to today's fields. The index follows: per page, its SHA-256 and its last entry's name
+`LayoutRefused`, D43). The 72-byte header adds the page count and `slots` (the highest entry slot
+plus one) to layout 2's fields. The index follows: per page, its SHA-256 and its last entry's name
 (length byte, bytes). The table digest, SHA-256 of the header and index, follows the index. Then
 the pages: 4,096 bytes each, the last one shorter; each holds whole entries in name order, today's
 entry encoding, and zero padding to its end. A 1,000-namespace table is 35 pages and a 1.6 KB index.
 
 What the digest commits to. The table digest covers the header and the index, so it commits to
 every page through the page's digest and to the name range each page holds through the last names.
-`selected` stays the store's trust root: its owner, mode and ACL checks are unchanged, and nothing
-outside it names the table digest.
+`selected` stays the store's trust root, and nothing outside it names the table digest: its
+descriptor passes the owner, link, mode and ACL checks of every store file before it is mapped
+("Store file checks" below).
+
+Older layouts. A read takes the magic and the layout before any size rule, since each layout has its
+own. Layouts 1 and 2 have a 64-byte header and one trailing digest of the whole table, so their
+smallest table, the empty one, is 96 bytes. A whole table of either is `LayoutRefused`, the empty one
+included; one shorter than 96 bytes or with a digest that differs is damage (`TableRefused`).
 
 What a read hashes. Opening a table reads the file, checks the header and the table digest, and
 decodes the index: about 2 KB hashed for 1,000 namespaces. `find(name)` binary-searches the last
@@ -113,7 +119,14 @@ whole read still fences the store on any damage.
 The marks are the trie's `VerifiedPages`: a table page starts at a multiple of 4,096 bytes in the pages
 region, an aligned start it records as it records trie page starts, accounted to the reader's
 mapping ledger. A marked page skips only its hash; its entries are still bounded and checked on
-every reach. Two threads that first touch a page together both hash it; both marks agree.
+every reach. Two threads that first touch a page together both hash it; both marks agree
+(`test_table_pages` `concurrent_first_touch`).
+
+Marks and the mapping rely on `selected` never changing after its rename: the agent writes a new
+table only under a `.tmp-` name and renames it over `selected`, and the checks below leave only the
+owner or root able to write the mapped inode. An in-place write or truncation by them is outside the
+model: on macOS a private mapping kept the bytes first mapped, and on Linux a truncation raises
+SIGBUS in the reader (security review N1).
 
 In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
 is remembered for the store word (D4): namespaces already attached keep answering, and a new one
@@ -123,7 +136,35 @@ index and its marks live as long as the reader core's `Table` (shared by its vie
 Files outside this quest's set that the format touches: `src/detent_reader/core.cc`,
 `docs/LOCAL_IMAGE_FORMAT.md`, `tests/detent_local/CMakeLists.txt`,
 `tests/detent_reader/test_reader_core.cc` and `tests/detent_agent/test_agent_store.cc` (its pinned
-generation name includes the store layout, and its codec checks re-sign a trailing digest).
+generation name includes the store layout, and its codec checks re-sign a trailing digest). The
+system and delivery tests parse `selected` in Python: `tests/detent_delivery/verify_local_format.py`,
+`tests/detent_system/managed.py` and `tests/detent_system/test_restart_capacity.py`.
+
+## Store file checks
+
+Every file the store reads or maps is checked on the descriptor it reads, by one helper,
+`generation_file_refusal` (`src/detent_local/generation_file_access.hh`): a regular file, owned by
+the publisher, one link, no group or other write, the expected size, and an ACL that grants nothing
+beyond the mode. Directories pass the trust walk's rule (no group or other write, deny-only ACL).
+
+| File | Read by | Check on the read descriptor |
+|---|---|---|
+| `selected` | reader open and switch (`read_table`), recovery, agent open | the helper, then mapped |
+| `.image` | reader attach (`select_entry`), recovery (mapped) | the helper |
+| `.read` | reader attach (`record`), trusted restart (`open_record`) | the helper |
+| `.lease` | reader attach, recovery | the helper |
+| `.live` | trusted restart (`open_record`) | the helper |
+| `.owner` | recovery and trusted restart | the helper |
+| `segment-*.pack` | reader first touch (`lazy_page_access`), recovery (`SegmentMapping`) | the helper, then mapped |
+| `change` | reader (`ChangeMapping::open`), agent (`ChangeWriter`) | owner, link, mode and ACL; its size is its own rule |
+| store directory | reader trust walk, recovery opens (`store_directory`) | no group or other write, deny-only ACL |
+| packs, scrubbed | `PackScrub` | none: it hashes the bytes against the owner record and trusts nothing it reads |
+
+The agent's own reads of its store (`AgentStore` through `PosixIO`) read files it wrote, in the
+directory it provisioned, and verify each against the table; a reader never trusts them.
+`test_reader_core` `acl_grants` grants `everyone allow write` on each kind of file and on the
+directory, and checks the reader and the recovery refuse each one they read and read again once the
+grant is gone.
 
 ## What is left
 

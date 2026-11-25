@@ -37,7 +37,6 @@ template <std::size_t N> std::array<char, N> record(int directory, std::string_v
 			throw GenerationUnavailable("publisher has not prepared a selected generation");
 		if (!checked_or_unlinked(file.fd, owner, N))
 			continue;
-		require(internal::mode_only_acl(file.fd));
 		std::array<char, N> bytes{};
 		read_generation_record(file.fd, bytes);
 		return bytes;
@@ -86,7 +85,6 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     if (file.fd < 0 && errno == ENOENT)
         return false;
     check_generation_file(file.fd, publisher, reader_metadata_bytes);
-    require(internal::mode_only_acl(file.fd));
     std::array<char, reader_metadata_bytes> bytes{};
     read_generation_record(file.fd, bytes);
     decode_reader_metadata(bytes);
@@ -122,7 +120,6 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 			continue;
 		if (!checked_or_unlinked(lease.fd, publisher, 0))
 			continue; // collected between the open and the check
-		require(internal::mode_only_acl(lease.fd));
 		int locked;
 		do {
 			locked = ::flock(lease.fd, LOCK_SH | LOCK_NB);
@@ -144,9 +141,7 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		if (held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			continue;
 		require(descriptor.length == paged::root_bytes);
-		const auto image = table->image ? *table->image
-		                                : record<paged::root_bytes>(directory, GenerationName(descriptor.generation,
-		                                                                                      GenerationFile::Image).view(), publisher);
+		const auto &image = table->image;
 		require(checksum(image) == descriptor.checksum);
 		const auto root = paged::decode_root(image, paged_format_limits());
 		require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);

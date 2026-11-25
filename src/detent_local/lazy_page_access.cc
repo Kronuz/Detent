@@ -160,8 +160,6 @@ struct PageTable::State {
 			throw ReadSourceFailure("local pack has an invalid extent");
 		const auto length = static_cast<std::size_t>(held.st_size);
 		check_generation_file(payload.fd, publisher, length);
-		if (!internal::mode_only_acl(payload.fd))
-			throw ReadSourceFailure("segment payload has an unsafe ACL");
 		if ((raced = admit(identity, probe, length)))
 			return {};
 		Mapping mapped;

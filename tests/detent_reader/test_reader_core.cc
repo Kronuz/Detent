@@ -1,6 +1,7 @@
 // The reader core's C ABI and C++ header (reader.md D1, D2, D4, D7; docs/mechanisms/reader-core.md).
 #include "detent/reader.hh"
 #include "detent_local/agent_store.hh"
+#include "detent_local/generation.hh"
 #include "detent_local/store_table.hh"
 #include "detent_testing/generation_writer.hh"
 #include "change_file.hh"
@@ -19,6 +20,7 @@
 #include <iostream>
 #include <string>
 #include <fcntl.h>
+#include <spawn.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -767,6 +769,93 @@ void values(const std::filesystem::path &root) {
 	std::filesystem::remove(root / "fifth.read");
 	CHECK(t::stats(r.handle).generations == 2);
 }
+#ifdef __APPLE__
+extern "C" char **environ;
+// Grants `everyone allow write` on `path` through its ACL, or removes every ACL entry (chmod +a, -N).
+void grant(const std::filesystem::path &path, bool on) {
+	std::string a = "chmod", b = on ? "+a" : "-N", c = "everyone allow write", d = path.string();
+	std::vector<char *> argv{a.data(), b.data()};
+	if (on)
+		argv.push_back(c.data());
+	argv.push_back(d.data());
+	argv.push_back(nullptr);
+	pid_t child = 0;
+	CHECK(::posix_spawn(&child, "/bin/chmod", nullptr, nullptr, argv.data(), environ) == 0);
+	int status = 0;
+	while (::waitpid(child, &status, 0) < 0)
+		CHECK(errno == EINTR);
+	CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+}
+// The store's files named `kind`: "selected", "change", a suffix such as ".image", or "" for the directory.
+std::vector<std::filesystem::path> files_of(const std::filesystem::path &store, std::string_view kind) {
+	if (kind.empty())
+		return {store};
+	std::vector<std::filesystem::path> out;
+	for (const auto &entry : std::filesystem::directory_iterator(store)) {
+		const auto name = entry.path().filename().string();
+		if (kind.front() == '.' ? name.ends_with(kind) && !name.starts_with(".tmp-") : name == kind)
+			out.push_back(entry.path());
+	}
+	CHECK(!out.empty());
+	return out;
+}
+// A file the store reads or maps with an ACL write grant is refused on the descriptor read, like a
+// group or other write bit: the reader's open and first lookup, and the recovery's open.
+void acl_grants(const std::filesystem::path &root) {
+	const auto store = root / "acl-reader", whole = root / "acl-recovery";
+	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
+	detent::testing::GenerationWriter one(whole, detent::testing::GenerationWriter::Layout::OneEntry);
+	CHECK(writer.publish_json(knobs(1)) == 1 && one.publish_json(knobs(1)) == 1);
+	const auto reads = [&] {
+		Opened r(store);
+		std::int64_t out = 0;
+		return r.status == DETENT_OK && detent_get(r.handle, S("t:rev"), none, none, -7, &out) == DETENT_OK && out == 1;
+	};
+	const auto recovers = [&] {
+		try {
+			return detent::local::recover_generation(whole).descriptor().cursor.position == 1;
+		} catch (const std::exception &) {
+			return false;
+		}
+	};
+	// The one helper every store file's check goes through.
+	{
+		const auto record = files_of(store, ".read").front();
+		struct stat info{};
+		CHECK(::stat(record.c_str(), &info) == 0);
+		x::RecoveryFile fd(::open(record.c_str(), O_RDONLY | O_CLOEXEC));
+		CHECK(!x::generation_file_refusal(fd.fd, info, ::getuid(), std::uint64_t(info.st_size)));
+		grant(record, true);
+		const auto refused = x::generation_file_refusal(fd.fd, info, ::getuid(), std::uint64_t(info.st_size));
+		CHECK(refused && std::string_view(refused) == "ACL");
+		grant(record, false);
+	}
+	CHECK(reads() && recovers());
+	// Each kind of file each path reads: `selected`, `.image`, `.lease` and packs by both; `change` and
+	// `.read` by the reader; `.owner` by the recovery; the directory by both (the walk and the open).
+	const struct {
+		std::string_view kind;
+		bool reader, recovery;
+	} kinds[] = {{"selected", true, true}, {".image", true, true}, {".lease", true, true}, {".pack", true, true},
+	             {"change", true, false},  {".read", true, false}, {".owner", false, true}, {"", true, true}};
+	for (const auto &kind : kinds) {
+		std::vector<std::filesystem::path> granted;
+		for (const auto &[path, used] : {std::pair{store, kind.reader}, std::pair{whole, kind.recovery}})
+			if (used)
+				for (auto &file : files_of(path, kind.kind))
+					granted.push_back(std::move(file));
+		for (const auto &file : granted)
+			grant(file, true);
+		if (kind.reader && reads())
+			throw std::runtime_error("the reader accepted an ACL grant on " + std::string(kind.kind));
+		if (kind.recovery && recovers())
+			throw std::runtime_error("the recovery accepted an ACL grant on " + std::string(kind.kind));
+		for (const auto &file : granted)
+			grant(file, false);
+		CHECK(reads() && recovers());
+	}
+}
+#endif
 void wrapper(const std::filesystem::path &root) {
 	const auto store = root / "wrapper";
 	detent::testing::GenerationWriter writer(store, detent::testing::GenerationWriter::Layout::PerNamespace);
@@ -894,6 +983,9 @@ int main() {
 	values(root);
 	wrapper(root);
 	opens(root);
+#ifdef __APPLE__
+	acl_grants(root);
+#endif
 	std::cout << "ok\n";
 	return 0;
 }

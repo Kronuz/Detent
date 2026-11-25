@@ -1,5 +1,6 @@
 #include "segment_mapping.hh"
 #include "detent_local/paged_layout.hh"
+#include "generation_file_access.hh"
 #include "generation_mapping.hh"
 #include <limits>
 #include <stdexcept>
@@ -11,9 +12,7 @@ namespace detent::local::detail {
 namespace {
 SegmentFileIdentity inspect_mapping_file(int fd, uid_t owner, std::size_t length) {
 	struct stat info{};
-	if (fd < 0 || ::fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != owner ||
-	    info.st_nlink != 1 || (info.st_mode & 0022) || info.st_size < 0 ||
-	    std::uint64_t(info.st_size) != length)
+	if (generation_file_refusal(fd, info, owner, length))
 		throw std::invalid_argument("invalid immutable segment file");
 	return {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)};
 }

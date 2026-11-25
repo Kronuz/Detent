@@ -51,6 +51,12 @@ std::size_t mapping_capacity(std::uint64_t length) {
 	require(length <= std::numeric_limits<std::size_t>::max() - (bytes - 1));
 	return ((static_cast<std::size_t>(length) + bytes - 1) / bytes) * bytes;
 }
+// The store directory's descriptor: a directory with no group or other write and no ACL grant, as the
+// reader's trust walk requires of each directory it walks.
+bool store_directory(int fd, struct stat &info) {
+	return fd >= 0 && ::fstat(fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022) &&
+	       internal::acceptable_acl(fd, internal::AclPolicy::DenialsAllowed);
+}
 void trusted_file(int fd, uid_t owner, std::uint64_t length) {
 	detail::check_generation_file(fd, owner, length);
 }
@@ -145,8 +151,7 @@ std::optional<detail::Selected> detail::select_entry(int directory, uid_t owner,
 	read_record(image.fd, prefix);
 	DETENT_COUNT(record_opens, 1);
 	detail::Selected selected;
-	if (internal::mode_only_acl(image.fd))
-		selected.image = prefix;
+	selected.image = prefix;
 	auto &descriptor = selected.descriptor;
 	// A whole root of an older format: its digest is the entry's and its magic an older root's.
 	const auto digit = [&](std::size_t at) { return prefix[at] >= '0' && prefix[at] <= '9'; };
@@ -197,7 +202,7 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 std::vector<std::pair<std::string, Descriptor>> read_generation_selections(const std::filesystem::path &directory) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
-	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
+	require(store_directory(dir.fd, info));
 	const auto read = read_table(dir.fd, info.st_uid, table_bytes(1u << 20));
 	require(read.has_value());
 	StoreTable table;
@@ -227,7 +232,7 @@ detail::Selected selection_of(int directory, uid_t owner, std::string_view name)
 GenerationSelection read_generation_selection(const std::filesystem::path &directory, std::string_view name) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
-	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
+	require(store_directory(dir.fd, info));
 	return {selection_of(dir.fd, info.st_uid, name).descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 }
 RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesystem::path &directory,
@@ -238,8 +243,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_selected(const std::filesyst
 	for (unsigned attempt = 0; attempt < 3; ++attempt) {
 		File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 		struct stat info{};
-		require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) &&
-				!(info.st_mode & 0022));
+		require(store_directory(dir.fd, info));
 		const auto selected = detail::read_selected(dir.fd, info.st_uid, paged_context.name);
 		if (!selected)
 			continue;
@@ -337,8 +341,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 		}
 		dir->fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 		struct stat directory_info{};
-		require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
-				!(directory_info.st_mode & 0022));
+		require(store_directory(dir->fd, directory_info));
 		for (unsigned attempt = 0; attempt < (context.admission ? 1u : 3u); ++attempt) {
 			const auto selected = detail::read_selected(dir->fd, directory_info.st_uid, context.name);
 			if (!selected) {
