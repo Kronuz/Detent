@@ -35103,7 +35103,6 @@
         "src/detent_authority/**",
         "include/detent_authority/**",
         "tests/detent_relay/**",
-        "tests/detent_authority/**",
         "docs/status/namespace-s8.md",
         "site/src/content/docs/reference/http-api/authority.md",
         "docs/USAGE.md",
@@ -35122,7 +35121,7 @@
         "detent-refuse-old-format"
       ],
       "provides": [],
-      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "reason": "blocked on server-composition-adoption and has no code yet; releases tests/detent_authority/** so pin-wave can link faultlab; restored when it resumes",
       "repo": ".",
       "risk": "high",
       "status": "blocked",
@@ -35130,7 +35129,7 @@
       "until": [
         "server-composition-adoption"
       ],
-      "updated": "2026-11-24T12:40:08",
+      "updated": "2026-11-24T20:18:55",
       "worktree": "../Detent-wt/detent/voter-read-freshness"
     },
     "w2-leftovers": {
