@@ -1,6 +1,6 @@
 # split-detent: journal
 
-State: waiting on jobs 261124-130138-b44ae2 261124-130141-2b5161 261124-130144-82572f 261124-130148-82971a 261124-130151-a63f81 261124-130156-8e3551 261124-125750-094de0 261124-125737-1d97f0, and CI
+State: waiting on jobs 261124-163504-d828ec 261124-163509-8a377b 261124-163515-7a21e0 261124-163520-fb800b 261124-163525-786dd8 261124-163531-c6ce31, and CI
 Quest: .campaign/detent/quests/split-detent.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,9 +17,19 @@ fails, fix includes (service.cc dropped the platform completion includes; each n
 original include list) and requeue. Local split_check at HEAD: 0 errors, 36 warnings (inline,
 using, 1 anonymous namespace), notes only for service_runtime.cc.
 
+## Fix round 3 (a7d28d73)
+
+1. a63f81: history-not-gated and layouts-no-enable did not apply. Main had already changed that code (history_reply takes held_file; the leader proposes EnablePositions as it leads, so history_wanted is gone): they were stale on main too, not only after the move. Repointed: history-not-gated puts `true ||` before `serving()` at the history route; layouts-no-enable (its premise is gone) stops the leader from proposing the enabling entry (`&& false`). Both pass `git apply --check` at the head.
+2. 8e3551: its three mutants were killed; the exit 1 came from the job's own pattern check: `return leader_known &&$` (also in revert_followup_check.sh no-leader) no longer matches since leader_alive continues with `trusting()`; the mode had been broken on main too. Pattern now `return leader_known && trusting()`; the no-leader mode runs as its own job fb800b.
+3. restart_wake: 1d97f0 discarded ctest's output, and the machine's load was 140-215 on 16 CPUs while I tried to rerun it, so no local run started (quiet holds light runs above load 32). The test asserts stop under 200 ms and start under 1 s, wall-clock; its code is untouched by the split (moved verbatim, same loop). The x100 jobs print the failing iteration's output and the load at that moment; main's tree is source-identical to 31d9d0e (only campaign files since). Counts below when they end; a failure whose message is a stop/start time bound under load is load, not the split.
+
+## Jobs at a7d28d73
+
+suite d828ec; relay mutants 8a377b; history mutants 7a21e0; no-leader check fb800b; restart_wake x100 head 786dd8, main (31d9d0e4) c6ce31.
+
 ## Next
 
-1. Read the three jobs; fix a compile error if any.
+1. Read the six jobs above; on a restart_wake failure, compare the counts and the printed iteration output.
 2. Header self-containment of service_internal.hh and state_internal.hh (compile each alone with a TU's flags).
 3. When pushed branch has CI, `campaign verify split-detent`.
 
