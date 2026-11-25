@@ -5270,6 +5270,221 @@
         "todo": "618165bc"
       },
       "text": "to do, critical path first:\ntodo: resume pin-wave (nothing moved it for 64 min: working: cascade round 2 (faultlab 1ac0b17 CI, journal f66c16e and consensus 770db9a pushed); new): `campaign status pin-wave`, or park it with a reason\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; listed 5 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:39:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:39:35",
+      "by": "campaign",
+      "closed": "answered as relay-mirror-idle-wake msg-1; its contributor is building the stamp (journal not yet updated)",
+      "id": "msg-415",
+      "settles": {
+        "todo": "6d886de6"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; listed 26 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:44:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:44:53",
+      "by": "campaign",
+      "closed": "answered on record; widened; contributor resumed",
+      "id": "msg-416",
+      "settles": {
+        "todo": "247f446d"
+      },
+      "text": "to do, critical path first:\ntodo: answer pin-wave (its journal waits on the lead: blocked on lead: widen tests/detent_relay/CMakeLists.txt for A4 (Blocked on 1); waiting on jobs 261124-234152-ea3a2e 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; it asks: 1. tests/detent_relay/CMakeLists.txt (outside the set) needs one token: line 51, `target_link_libraries(test_relay_chain PRIVATE detent::relay_mirror detent_authority_service faultlab::faultlab)`. test_relay_chain includes cluster_harness.hh, which includes faultlab/faultfs.h since the faultfs port\u2026; new): `campaign status pin-wave`, answer it (`campaign message pin-wave TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:50:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:50:09",
+      "by": "campaign",
+      "closed": "set to review; correctness reviewer launched",
+      "id": "msg-417",
+      "settles": {
+        "todo": "d3e31f77"
+      },
+      "text": "to do, critical path first:\ntodo: review pin-wave (its journal says ready for review; jobs at Detent:0b8a0df9 queued: A4 native 261124-234933-d07efb, pins 261124-234933-f5eec6, A5 w5 261124-234929-bde848; A6 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; CI at the pushed head; then launch its correctness review; new): `campaign set pin-wave status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:24:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:24:35",
+      "by": "campaign xapiand",
+      "closed": "consensus-fetch-alongside-loop-stall changes only test/transport/groups_test.cc and rpc_host_test.cc; no API or contract (group-last included) changes",
+      "id": "msg-418",
+      "settles": {
+        "ours": [
+          "consensus-fetch-alongside-loop-stall"
+        ],
+        "quest": "xapiand:strata-journal-behind"
+      },
+      "text": "xapiand:strata-journal-behind started and builds against contract consensus:group-last, which your consensus-fetch-alongside-loop-stall is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:42:51",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:42:51",
+      "by": "campaign",
+      "closed": "widened benchmarks/read_response_bench.cc; contributor resumed to commit the fixture fix and requeue",
+      "id": "msg-419",
+      "settles": {
+        "todo": "6cc462ab"
+      },
+      "text": "to do, critical path first:\ntodo: finish pin-wave (its journal waits on the lead: blocked on lead: widen benchmarks/read_response_bench.cc for F2 (Blocked on 1); waiting on jobs 261125-003938-bb7451 261125-003938-7435c8; to land: criteria without evidence at 021598283204: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:09:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:09:18",
+      "by": "campaign",
+      "closed": "evidence reruns queued at the merged head 217481b (cb3ac9, caeef6, 204d0b, be04ab, 31ff7e, e0d10a; suite 880546); the lead updates the journal rows when they end",
+      "id": "msg-420",
+      "settles": {
+        "todo": "8d946872"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-fetch-alongside-loop-stall (nothing moved it for 2 h: ready for review (correctness CHANGES F1-F3 folded in at consensus:0d8263d; jobs queued: 261124-232245-034e6c 261124-232249-6e4d93 261124-232254-7d11cf 261124-232254-6b4d7b 261124-232255-8bc466 261124-232255-0a3ff3 261124-232300-fe7353; CI 45567716437); to land: criteria without evidence at 217481b63fbf: A1-A4 (`campaign status consensus-fetch-alongside-loop-stall` lists them); new): `campaign status consensus-fetch-alongside-loop-stall`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:01:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:01:06",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-407",
+      "items": {
+        "driver-pipeline": "driver-pipeline"
+      },
+      "settles": {
+        "start": [
+          "driver-pipeline"
+        ]
+      },
+      "text": "consensus-driver-pipelined-sim landed: unlocks driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:27:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:27:38",
+      "by": "xapiand-lead",
+      "closed": "relayed to the consensus-inline-sync-loop contributor: keep GroupState.last = worker last_index() after recover; awaiting Xapiand's exact pre-Start check shape",
+      "id": "msg-422",
+      "text": "From xapiand-lead, re detent:consensus-inline-sync-loop touching consensus:group-last: strata-journal-behind reads Driver::state(id)->last right after recover() returns and treats it as the recovered log end. Please keep that meaning (last = the worker's last_index(), set once recover returns). Heads-up: its redesign (after review CHANGES) may ask consensus for one more API, a check before Start appends the new-term NoOp; I will message you with the exact shape before opening that quest."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:45:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:45:58",
+      "by": "campaign",
+      "closed": "round-2 review running; verify queued at 50b92513; A6 get row and pins jobs pending",
+      "id": "msg-423",
+      "settles": {
+        "todo": "1bfce092"
+      },
+      "text": "to do, critical path first:\ntodo: finish pin-wave (nothing moved it for 63 min: ready for review; waiting on jobs 261125-004218-16986b 261125-004223-19cd2c 261125-004230-dc7d45 (native reruns at the round end); to land: criteria without evidence at 50b925131d0b: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T02:49:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T02:49:05",
+      "by": "campaign",
+      "closed": "all evidence jobs at 28a8d276 are done exit 0 (C2 strict find/warm, A2 cells); security R3 approved; correctness round 3 at max is still running and decides the landing",
+      "id": "msg-424",
+      "settles": {
+        "todo": "1d77eafd"
+      },
+      "text": "to do, critical path first:\ntodo: finish first-read-1ms (nothing moved it for 5 h: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code); to land: criteria without evidence at 0c2d13c419e8: A1-A3 (`campaign status first-read-1ms` lists them); new): `campaign status first-read-1ms`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:15:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:15:12",
+      "by": "campaign",
+      "closed": "stale: the journal's ready-for-review predates D163; the wire seal stamp round is in progress and its contributor sets ready for review when done",
+      "id": "msg-425",
+      "settles": {
+        "todo": "71ffaa4a"
+      },
+      "text": "to do, critical path first:\ntodo: review relay-mirror-idle-wake (its journal says ready for review; then launch its correctness review; new): `campaign set relay-mirror-idle-wake status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:20:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:20:21",
+      "by": "campaign",
+      "closed": "answered: widened to the next body's files and the W5 spec; D164 rules agents send 2^64-1; contributor resumed",
+      "id": "msg-426",
+      "settles": {
+        "todo": "c3e58f6f"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp; it asks: Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes that body is outside the set. Needed: - include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc (parse the required `seal` on next). - include/detent_deliv\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:46",
+      "by": "xapiand-lead",
+      "closed": "answered xapiand: order after inline-sync-loop (shares docs/DRIVER.md only); Detent calls Worker::recover, not Driver::recover",
+      "id": "msg-427",
+      "text": "From xapiand-lead: quest consensus-recover-gate (xapiand) changes consensus::Driver::recover: a new parameter std::vector<LogBoundary> accept; once the log is recovered (and closed applied) and before Start, a group whose log retains none of them (Core::retains_suffix) fences with recover_refused : fenced { LogBoundary base; Index last; Membership membership; } and nothing that changes consensus state runs. Empty accept = no gate. Full shape: strata docs/design/journal-binding.md, Contracts, on quest/xapiand/strata-journal-behind. Files: driver.h, worker.h, core.h, test/driver_*, test/worker_*, docs/DRIVER.md. Your consensus-inline-sync-loop is open on the driver: say whether to order this after it, or if the shape conflicts with Detent's callers."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:52",
+      "by": "campaign xapiand",
+      "closed": "same answer as msg-427: xapiand orders consensus-recover-gate after consensus-inline-sync-loop",
+      "id": "msg-428",
+      "settles": {
+        "ours": [
+          "consensus-inline-sync-loop"
+        ],
+        "quest": "xapiand:consensus-recover-gate"
+      },
+      "text": "xapiand:consensus-recover-gate started and may change files your consensus-inline-sync-loop changes (order them with --after xapiand:consensus-recover-gate, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7955,7 +8170,28 @@
       "worktree": ""
     },
     "consensus-fetch-alongside-loop-stall": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T01:26:13",
+          "base": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
+          "blobs": {
+            "test/transport/groups_test.cc": "100644:c78bc93c9385737c3a39b758a46665b16af242b2",
+            "test/transport/rpc_host_test.cc": "100644:5169ada64c634904c60d33ecd020fe08ab726f7f"
+          },
+          "by": "review",
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": "c1e2ca780113e119",
+          "diffs": {
+            "test/transport/groups_test.cc": "7953d68a3408d6fb",
+            "test/transport/rpc_host_test.cc": "f95dc74ccb0fb5c9"
+          },
+          "findings": {},
+          "note": "",
+          "review": "4ffcac226441fb87a670025490c5185971130edc",
+          "reviewed": "0d8263dea24c1caf65be5381ff59c4749979c440",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "xapiand:consensus-join-v2"
       ],
@@ -7977,9 +8213,45 @@
         "docs/mechanisms/transport*.md",
         "test/transport/rpc_host_test.cc"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-alongside-loop-stall",
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-25T01:27:01",
+          "ci": {
+            "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+            "runs": [
+              45577085586
+            ]
+          },
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": {
+            "A1": "manual (who: the lead, 2026-11-25; checked: the reproductions run on pre-fix code by design. groups job ...232245-034e6c at consensus:43ebf5f, the reader still building on the loop, gave CI's link signature; rpc_host jobs ...215634-5e9c39 and ...215638-369ffc at consensus:ee77b26 gave 1537 and 3552 ms gaps against CI's 1564 and 3746-3765 ms with no link ended. At the fix the same knobs no longer stall the loop (reruns ...cb3ac9 and ...caeef6 do not reproduce). rpc_host stays not root-caused, F3)",
+            "A2": "261125-003208-be04ab, 261125-003215-e0d10a; fails without: 261124-212704-2b98ad, 261124-215649-56b54a, 261124-232249-6e4d93",
+            "A3": "261125-003205-204d0b, 261125-003211-31ff7e",
+            "A4": "261125-003148-880546"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-003148-880546",
+              "level": "light",
+              "seconds": 1185.5,
+              "state": "done",
+              "what": "consensus-fetch-alongside-loop-stall check suite at 217481b63fbf"
+            }
+          ],
+          "final": true,
+          "from": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
+          "reason": "",
+          "tested": "217481b63fbf465d82164ee967664d1d1b3f81e8"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
       "messages": [
         {
           "announced": {
@@ -7999,10 +8271,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T22:00:12",
-      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
+      "updated": "2026-11-25T01:27:03",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -8692,11 +8964,40 @@
       "worktree": ""
     },
     "consensus-inline-sync-loop": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T03:16:39",
+          "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "blobs": {
+            "bench/netlab/node.cc": "100644:d38ed955f6ba47facf9fbfd90e4c01e3390433d3",
+            "docs/DRIVER.md": "100644:b10b47c745ad7dc907e2b164f487b63991c3895d",
+            "docs/mechanisms/host-transport.md": "100644:9eef39cde0b6adc992f237709d9a11dae310285f",
+            "test/transport/groups_test.cc": "100644:48f8d055f4fbebe149acc08a1c4c1edfa0fcf59c",
+            "test/transport/mutant_commit.py": "100755:96e67254ce72183e933cfb6875eef616c8e4283a"
+          },
+          "by": "review",
+          "commit": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "criteria": "abb9ffcfaf0ee7bf",
+          "diffs": {
+            "bench/netlab/node.cc": "0aad5fa753bb3501",
+            "docs/DRIVER.md": "28c65db95debba57",
+            "docs/mechanisms/host-transport.md": "2e59948bf2cbc4e2",
+            "test/transport/groups_test.cc": "40be8b73092366c0",
+            "test/transport/mutant_commit.py": "7e9d5c5a48ff3e19"
+          },
+          "findings": {},
+          "note": "",
+          "review": "0641b887e03d65283b33fbcaa061fae0efcff721",
+          "reviewed": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-fetch-alongside-flake",
         "consensus-rpc-host-stream-gap"
       ],
+      "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+      "branch": "quest/detent/consensus-inline-sync-loop",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -8708,20 +9009,26 @@
       "consumes": [],
       "files": [
         "include/consensus/transport/host_transport.h",
-        "DRIVER.md",
+        "docs/DRIVER.md",
         "docs/mechanisms/**",
-        "test/transport/**"
+        "test/transport/**",
+        "bench/netlab/**"
       ],
+      "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review F5: netlab pairs InlineCompletion with HostTransport, the pairing DRIVER.md now rules out; it moves to the native completion like detentd and the tests (one shape)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-23T19:57:28"
+      "updated": "2026-11-25T03:16:39",
+      "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
       "accepted": {},
@@ -29770,7 +30077,10 @@
         "tests/detent_authority/test_history_power_cut.cc",
         "tests/detent_authority/test_history_transport.cc",
         "tests/detent_authority/test_namespace_power_cut.cc",
-        "tests/detent_authority/CMakeLists.txt"
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_relay/CMakeLists.txt",
+        "tools/w5/**",
+        "benchmarks/read_response_bench.cc"
       ],
       "history": [
         {
@@ -29890,12 +30200,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "journal removed memory_io.h; nine authority test targets link faultlab",
+      "reason": "A6's get row: the bench's fixture overflows the 16,384-byte definition bound since one-knob-type's 8-byte overrides (broken on main too); key padding fixes the fixture, not the bound",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T20:18:59",
+      "updated": "2026-11-25T00:40:52",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
@@ -31928,7 +32238,22 @@
         "include/detent_delivery/client.hh",
         "tests/detent_delivery/test_client*.cc",
         "src/detent_authority/namespace_sessions.hh",
-        "src/detent_authority/namespace_sessions.cc"
+        "src/detent_authority/namespace_sessions.cc",
+        "include/detent_distribution_http/session_request.hh",
+        "src/detent_distribution_http/session_request.cc",
+        "include/detent_delivery/namespace_session.hh",
+        "src/detent_delivery/namespace_session.cc",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_authority/service.hh",
+        "src/detent_relay/service.cc",
+        "tests/detent_delivery/test_namespace_session.cc",
+        "tests/detent_delivery/test_session_request.cc",
+        "tests/detent_delivery/namespace_server_fixture.hh",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_distribution_ownership.cc",
+        "tests/detent_system/run_trust_negatives.py",
+        "docs/status/namespace-s6.md",
+        "docs/SUBSCRIPTIONS_ARCHITECTURE.md"
       ],
       "landed": [],
       "lenses": [
@@ -31937,12 +32262,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "seal stamp (docs/mechanisms/relay-mirror-seal-stamp.md) lives in the session record; closes the seal-between-sync-and-park miss CI showed",
+      "reason": "D163: the seal field on next reaches every file that parses, builds, copies or writes a next body, and the W5 spec",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T23:12:13",
+      "updated": "2026-11-25T03:17:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {

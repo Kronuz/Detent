@@ -29,6 +29,7 @@ changed or a deadline passes, with no sync-latency regression.
   timed); a change wakes it; an upstream restart or failure reconnects with the existing backoff.
   A `--fails-without` job at main for the first.
 - A4 [artifact] the relay mirror mechanism doc states how the mirror waits and what wakes it.
+- A6 [decision] D163: the seal stamp is on the wire. Each next names the last seal the relay saw; the upstream answers a newer seal at once from the request alone, with no per-session seal state left in the upstream. Evidence: review R4-1's seal_late_park hook test and seal_window run against a real authority pass at the fix, each with a `--fails-without` job at the reviewed head (Detent:13707337), and A1 and A2 rerun at the final head.
 - A5 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts

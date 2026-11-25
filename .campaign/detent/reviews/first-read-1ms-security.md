@@ -149,3 +149,44 @@ The round-1 scripts were adapted to `TableEntryView`. `probe_reader.cc` also gai
 - Linux and FreeBSD.
 - CI at 9cc06bc9 (`macos-arm64` running).
 - The A2 gates (queued).
+
+## Round 3
+
+Commit: Detent:28a8d276 (the head Detent:c125fd9e changes only docs/perf)
+Verdict: APPROVE
+Date: 2026-11-25
+
+### Evidence I relied on
+
+- 261124-221122-a481db: `test_agent_store` with `acl_grants` passes at Detent:28a8d276.
+- 261124-221125-540805: the mutant at Detent:f495c19b swaps `slurp`'s helper call for the old
+  owner/link/mode check. The test fails for an ACL reason, not a build one. Its log reads
+  `test_agent_store: ACL grants accepted: .image .read .live selected reused`, with exit 1 and
+  the build `|| exit 127` guard not taken.
+
+### What I checked myself
+
+Read every agent-side file access at Detent:28a8d276 (agent_store.cc, disk_store.cc,
+change_file.cc).
+
+- `slurp` now opens with `O_NOFOLLOW` and applies `generation_file_refusal`, owner `geteuid()`,
+  on the descriptor it `pread`s. It serves:
+  - the `.image`, `.read` and `.live` reads in `verify` (agent_store.cc:159-161);
+  - the open's `selected` (agent_store.cc:230);
+  - the reached-name reuse (agent_store.cc:399);
+  - the held generation's `.live` (agent_store.cc:541).
+- `change` keeps its own owner/link/mode/ACL rule.
+- The agent opens leases through completion's `PosixIO` (agent_store.cc:360, :535) only to take
+  an exclusive lease. It reads no bytes from them.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R1 | no | gap | Fixed: the agent's `verify` and its other reads go through the helper. | 261124-221122-a481db; mutant 261124-221125-540805 | Done |
+| R3 | no | nit | One agent read still escapes the helper. `DiskStore` open reads `selected` through completion's `open_existing_read_only`, which checks owner, link and mode but not ACL, to take the store's profile (disk_store.cc:495-506). Nothing it reads survives a refusal. `AgentStore`'s open then reads `selected` again through the helper, and that read refuses a grant (`acl_grants`, "selected") and requires the same profile (agent_store.cc:230-234). | disk_store.cc:495; agent_store.cc:230 | Optional: take the profile from `AgentStore`'s own helper read, so the one check is the only one. |
+
+### Not run
+
+My round-2 probes again, since the round-3 change touches only agent-side `slurp`. CI at
+Detent:c125fd9e. Linux and FreeBSD.

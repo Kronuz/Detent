@@ -81,3 +81,42 @@ Scripts are in `Detent/.scratch/detent/review-consensus-fetch-alongside-loop-sta
 - No local TSan; CI's linux-tsan is green at this commit.
 - No probe of host 1's requester-side copy under a knob (F3).
 - Session: a subagent of the lead, not a titled `detent · reviewer` session.
+
+## Round 2
+
+Commit: consensus:0d8263d
+Verdict: APPROVE
+Date: 2026-11-25
+
+Reviewed consensus:4fa72a5..0d8263d. The test changes are consensus:019f63c, 4898f1c and 0d8263d.
+The merge from main (e17d9d8) brings the Driver simulation, which is outside this lens.
+
+Evidence: A1 261124-232245-034e6c passed at consensus:10747e0 plus the dump change. Run 1's dump
+suspended the process 6,877 ms and no link ended; run 2's dump took 6 ms and showed 4 peers gone
+and 3 calls ended connection_aborted, with 2 threads in the reader. Other jobs at consensus:0d8263d:
+
+- Groups A2: 7d11cf.
+- Groups A3: 6b4d7b, 0 of 25 failed.
+- rpc_host A2: 8bc466 ("the 16 MiB again exact yes").
+- rpc_host A3: 0a3ff3, 0 of 25 failed.
+- F2 fails-without: 6e4d93 ("again exact NO FAILED").
+- Suite: fe7353.
+
+CI 45567716437 is green on every Linux and FreeBSD job, linux-tsan included. macos-x86_64 and
+macos-arm64 were still running when I wrote this, and A4 needs them green at the landed commit.
+
+- F1 closed. Stalls keeps any nap that overlaps a dump in `dump_stall` (an even or odd counter
+  around `system()`), and the case prints both values. The signature reruns a run only when the
+  dump suspended the process 1 s or more and no link ended. Probe e201f1 showed that a suspended
+  process keeps its links. Every other miss, including a passing case, fails at once, so the rerun
+  hides only the dump's own effect, at most 3 runs.
+- F2 closed. slow_ok compares bytes with `expected.substr(0, 4 << 20)`. A second "big" is served
+  from the ready queue and must arrive exact, and 6e4d93 shows the moved-from mutant fails.
+- F3 recorded as not root-caused, as asked. F4 is assigned to rc1-integration.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1 | no | nit | The case's bound no longer counts a dump's suspension (`stalled` excludes `dump_stall`), so a commit that spans a multi-second dump is no longer allowed for it. That is a new way for the diagnostic itself to fail a run. Not reproduced: with a 1.7 s sync firing the dump, 4 of 4 runs passed at the fix (one dump of 6,041 ms) and 4 of 4 at 4fa72a5. | 261124-232514-900e48, 261124-232517-9e036e (`slow-sync-dump.sh`) | Optional: add `dump_stall` to the bound's host time while keeping it apart in the print, or skip the dump when the process itself stalled. |
+| R2-2 | no | nit | F5 (lost-update `worst`, and LoopLags probing nothing while it dumps) and F6 stand as written. | round 1 | As in round 1. |
+
+Not run: macOS CI at consensus:0d8263d (still running), and the Driver simulation merged from main.
