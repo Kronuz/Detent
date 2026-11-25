@@ -29785,7 +29785,9 @@
         "tests/detent_authority/test_history_power_cut.cc",
         "tests/detent_authority/test_history_transport.cc",
         "tests/detent_authority/test_namespace_power_cut.cc",
-        "tests/detent_authority/CMakeLists.txt"
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_relay/CMakeLists.txt",
+        "tools/w5/**"
       ],
       "history": [
         {
@@ -29905,12 +29907,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "journal removed memory_io.h; nine authority test targets link faultlab",
+      "reason": "test_relay_chain links faultlab after journal removed memory_io.h; tools/w5 (A5's differ) no longer builds on main (detent_local/builder.hh is gone) and must for A5",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T20:18:59",
+      "updated": "2026-11-24T23:43:31",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
