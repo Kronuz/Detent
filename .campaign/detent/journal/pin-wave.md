@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: working
+State: waiting on jobs: cascade L2 CI (task 45531185813, term-color 45531190808, repr 45531194490, sha256 45531199999, hashes 45531138947); build probe 261124-181616-ba7156
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,7 +28,10 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. L2 CI (background wait), ff mains, then L3, L4, L5.
+1. L2 CI: `.scratch/pin-wave/bin/wait_ci.sh REPO=SHA ...` (or ci.sh). When every job is green,
+   fast-forward each main: `GH_TOKEN=$(gh auth token --user Kronuz) git -C .scratch/pin-wave/cascade/R
+   push origin quest/detent/pin-wave:main`; then `bin/repin.sh $PWD/.scratch/pin-wave/cascade/R`
+   for L3 (reactor, completion, strings, enum-reflection, logger), and so on.
 2. Pin Detent to the cascaded heads; `pins` gate (A1).
 3. Keep-going build job 261124-175149-a51919 (pins at the pre-cascade heads) lists what breaks.
 4. A5 trace, A6 A/B, A7 CHANGELOG, A8 DEPENDENCIES.md.
@@ -69,8 +72,22 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ### Cascade
 
-| Repo | Pin moves | Commit | CI |
-|---|---|---|---|
+Heads before the cascade, CI green (latest run per workflow at the head): wheel 075a40a #45040570944,
+workpool bdf8932 #45040663845, static-string a99260d #45037446607, char-classify ee25a41 #44770293049,
+constexpr-phf 58653a7 #45033506993, endian 5634a08 #44788033295, split 1fc9c33 #45037160963,
+metrics 4cd64db #44927897459, allocators ae775ab #44763564672, radix-router 67454c7 #44935362952,
+compressors 54dd2f0 #44771163868, crc32c 52889db #44775302241, faultlab 83fbde7 #45451339080,
+atomic-shared-ptr ff50fae #44763580466, flat-map 06fc29e #41853472641, random db90603 #44936014336
+(MSVC #45466487251), strict-stox aebfcd9 #45454496449, varint efed272 #45040473588. journal a1d039a
+and consensus fcf7f66 had runs in progress (they move in the cascade).
+
+| Level | Repo | Pin moves | Commit | CI (branch run) | main |
+|---|---|---|---|---|---|
+| L2 | task | wheel bfd72bc -> 075a40a | task:477a7d3 | 45531185813 running | not yet |
+| L2 | term-color | static-string 7eaa8f9 -> a99260d | term-color:898710b | 45531190808 queued | not yet |
+| L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 queued | not yet |
+| L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 queued | not yet |
+| L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 queued | not yet |
 
 ## Result
 
