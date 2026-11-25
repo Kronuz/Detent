@@ -1,6 +1,6 @@
 # consensus-driver-pressure-rearm: journal
 
-State: waiting on jobs 261124-172806-e68a0a 261124-172810-68a7c2 261124-172812-a595f1 261124-172820-a9d732
+State: ready for review (jobs queued at consensus:c724c58; pushed)
 Quest: .campaign/detent/quests/consensus-driver-pressure-rearm.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code pushed at consensus:e61ac8f (branch quest/detent/consensus-driver-pressure-rearm). Waiting on the jobs below; CI follows the push.
+Review N1 (lead's ruling), N2, N3 folded in at consensus:c724c58; jobs queued, CI on the push.
 
 ## Next
 
-1. When the jobs pass: record the ids in Evidence; check CI; ready for review.
+1. Read the jobs and CI; land.
 
 ## Table: how a Tick is refused, and what wakes the Driver
 
@@ -46,27 +46,32 @@ Nothing.
 
 ## Evidence
 
+Final head consensus:c724c58. Local Debug: all four cases, 25 checks, 0 failures.
+
 | Criterion | Evidence |
 |---|---|
-| A1 | jobs 261124-172806-e68a0a (`driver_pressure_test hold` at the fix) and 261124-172810-68a7c2 (`--fails-without` at f5069e0, main's driver.h with the test). Local Debug: fix 100 arms in 100 ms, 0 in the past; main's driver.h 1000 arms, 1000 in the past. |
-| A2 | job 261124-172812-a595f1 (`driver_pressure_test clears`): after 20 ms held, the permits drop and one retry_ns pass later the refused Tick pre-voted exactly once (0 before). Passes at main too: it guards that the floor delays nothing beyond one retry_ns. |
-| A3 | [artifact] docs/mechanisms/deadlines.md, "What the Driver re-arms" (consensus:e61ac8f) |
-| A4 | suite job 261124-172820-a9d732; CI on the pushed branch |
+| A1 | hold 261124-180700-10aa9c; fails-without 261124-180734-8b1fb2 (main's driver.h, mutant3). N1 pair: ahead 261124-180709-310fda, rest 261124-180713-57d06f; fails-without at e61ac8f's rule 261124-180717-874feb (ahead), 261124-180721-a113e5 (rest). |
+| A2 | clears 261124-180704-d1df01 |
+| A3 | [artifact] docs/mechanisms/deadlines.md, "What the Driver re-arms" |
+| A4 | suite 261124-180739-63d36e; CI on the push |
+
+Superseded and cancelled by the new head: 261124-172806-e68a0a, 261124-172810-68a7c2, 261124-172812-a595f1 (passed at e61ac8f), suite 261124-172820-a9d732.
+
+Review findings: N1 narrowed (`g.pressured && at <= now` only; ahead/maximum armed as they stand), tests ahead and rest. N2 doc reworded ("a turn the Worker ends with Pressure", "followed by a step"). N3 `pressured` cleared in the fence catch. N4 kept.
 
 ## Result
 
-Driver::arm() re-arms a group whose last turn was Pressure retry_ns (1 ms) ahead instead of at Core's past
-clock: 1 step per retry_ns, not per wheel pass (100 ms: 100 steps against 1000, none in the past). Core,
+Driver::arm() re-arms a group whose last turn was Pressure and whose deadline is behind the clock retry_ns (1 ms) ahead instead of at that past clock; a deadline ahead or `maximum` is armed as it stands: 1 step per retry_ns, not per wheel pass (100 ms: 100 steps against 1000, none in the past). Core,
 Worker and next_deadline() are unchanged. Files: include/consensus/driver.h, test/driver_pressure_test.cc
 (cases hold, clears; ctest consensus_driver_pressure_hold/clears), CMakeLists.txt, docs/mechanisms/deadlines.md.
 
 Left open for the lead:
 1. A pressured Worker is nearly unreachable through the Driver: in shared (Host) mode `used` counts artifacts only, and a created pool is never clawed back, so Tick Pressure needs outstanding permits (an install's cutover permit) or a recovery census over the pool. The test holds four Control tickets through `-fno-access-control` (test TU only) and reaches Driver::groups_ and Worker::store_.
-2. At recovery with `used` above `hard - control_pool`, Driver::admit's pre-Start Tick is pressured and the group never starts; with the rule above it now polls at retry_ns, which does not fix a pool that cannot clear on its own.
+2. At recovery with `used` above `hard - control_pool`, Driver::admit's pre-Start Tick is pressured and the group never starts (unchanged; sleeps, no poll).
 
 ## Rulings I made
 
 1. Floor is the existing retry_ns (1 ms), not an escalating back-off: one rule with refused inputs (`waiting`), and A2 wants the retry within one wheel pass.
-2. A Pressure turn also files retry_ns ahead when Core's deadline is later (or `maximum`): the refused work is retried, not only the deadline.
+2. (Superseded by review N1) only a deadline behind the clock gets retry_ns.
 3. The test uses `-fno-access-control` on its own source to hold Control permits on the Worker's Store: no other way to hold a pool for an interval and release it through the Driver's API.
 4. The fails-without commit f5069e0 (local branch scratch/pressure-rearm-mutant, never pushed) is the head with main's driver.h.
