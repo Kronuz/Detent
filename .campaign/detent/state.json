@@ -5558,6 +5558,21 @@
         ]
       },
       "text": "consensus-fetch-alongside-loop-stall landed: unlocks frees include/consensus/transport/host_transport.h, docs/mechanisms/**, test/transport/** for consensus-inline-sync-loop; frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete; frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets; frees include/consensus/**, test/** for split-consensus; driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:01:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:01:16",
+      "by": "campaign",
+      "closed": "relay-mirror widened to reply_pump and resumed; inline-sync-loop answered as its msg-1 and waits on CI 45609770275; multi-voter parked until relay-mirror lands (B2 resolved); server-composition-adoption resumed by a contributor",
+      "id": "msg-433",
+      "settles": {
+        "todo": "7e940a3e"
+      },
+      "text": "to do, critical path first:\ntodo: resume server-composition-adoption (its journal waits on jobs 261123-085359-8c5054, which passed 44 h ago; new): `campaign status server-composition-adoption`, read them, or park it with a reason\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: reply_pump.{hh,cc} for D165's 204 header; it asks: Lead: D165's 204 carries a header, and both upstreams write a next's 204 through `distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers. Needed, outside the set: include/detent_distribution_http/reply_pump.hh and src/detent_distribution_http/reply_pump.cc.\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 58 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason\ntodo: answer multi-voter-idle-wake (its journal waits on the lead: blocked on lead: B1 resolved (consensus:a068ba0 has PeerOptions::wake); B2 (pin wave) and B3 (service.cc held) stop the work; it asks: B1: resolved at consensus:a068ba0 (consensus-peers-wake, checked 2026-11-22). `PeerOptions::wake` (include/consensus/transport/peers.h:52-56), a `std::function<void()>`, runs on the executor from Peers' own completions when owner work waits: a Control input for admit(), a Bulk frame or written snap\u2026; new): `campaign status multi-voter-idle-wake`, answer it (`campaign message multi-voter-idle-wake TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
