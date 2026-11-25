@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: working: http and faultlab CI (45550470867, 45552204645), then Detent pins and A1, A4-A6
+State: waiting on jobs 261124-212116-6ccb33 261124-212116-9e90c2 261124-212150-61e8ff 261124-212152-a42d7d 261124-212154-1bc905 261124-212156-8c8c7c 261124-212158-4ce02b 261124-212200-05c6c6 261124-212201-b6e738 261124-212204-29d0cd; library CI http 45550470867, faultlab 45552204645
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,25 +28,21 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Library CI: `sh .scratch/pin-wave/bin/wait_ci.sh reactor=d28e5e024b64f2fd706b44fa628741d5700a925b
-   journal=72bbc890ee2cadd5984db771f614a480bf38255b http-parser=38950a00039b2779cbe0e330041df222f1e13e47`;
-   green: fast-forward each main (`GH_TOKEN=$(gh auth token --user Kronuz) git -C
-   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`), fill the cascade table.
-   Red: root-cause as for reactor (ruling 11).
-2. L5 http: `sh .scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/http` (radix-router,
-   http-parser, compressors, task, reactor), its CI, fast-forward. consensus last, when the lead
-   says consensus-recovered-over-limit-start landed (Blocked on 1).
-3. Pin Detent's cmake/dependencies.json to the cascaded heads (reactor, journal, http-parser, http,
-   consensus); `pins` gate (A1).
-4. At the final head, queue once: `campaign verify pin-wave` (A1, A4); A5 w5 job
-   `docs/perf/pin-wave-w5.sh .scratch/w5` with `--ref OLD=18c5bd23` (light); A5 syscall job
-   `docs/perf/pin-wave-syscalls/run.sh 560c288b40ba55a8d42ff048bcb1c7eaa3624645 <completion head>
-   .scratch/sys` (light); A6: build job `docs/perf/pin-wave-ab.sh build ~/.scratch/detent/pin-wave-ab`
-   (light, --ref OLD=18c5bd23), then rows durable, update, get, reader, first-read
-   (`row KIND ~/.scratch/detent/pin-wave-ab ROUNDS`, strict, 10 min, --after the build), A/A each.
-5. A7 CHANGELOG (each library old -> new pin; the TLS factory cap: a relay configured above 1024
-   connections now admits its configured count, ruling 9; FlushMode::full; faultfs; reactor's
-   posted arm), A8 docs/DEPENDENCIES.md and DEPENDENCY_UPGRADES.md with the final pins; push.
+1. Jobs at Detent:d2031ebc (pushed for CI): native 261124-212116-6ccb33 (A4), pins
+   261124-212116-9e90c2 (A1: expected red on consensus's five declares and faultlab's two until
+   they re-pin, rulings 13-14); A5 w5 261124-212150-61e8ff, A5 syscalls 261124-212152-a42d7d; A6
+   build 261124-212154-1bc905, rows durable 261124-212156-8c8c7c (5 rounds), update
+   261124-212158-4ce02b, get 261124-212200-05c6c6, reader 261124-212201-b6e738, first-read
+   261124-212204-29d0cd (8 rounds each, strict, 10 min). Read each into docs/perf/pin-wave.md
+   (A5 w5 and A6 sections) and the Evidence table. A 124 row: rerun with fewer rounds.
+2. Library CI: `sh .scratch/pin-wave/bin/wait_ci.sh http=24d24168aa110bf8dcc6167e1f2e0afc3c5fc277
+   faultlab=535f606e5f0779fafa990ab030c44b14985d9a48`; green: fast-forward both mains. Then
+   `sh .scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/journal` (faultlab -> 535f606),
+   its CI, fast-forward. Detent already pins http 24d2416 (on http's quest branch until then).
+3. When the lead says consensus-recovered-over-limit-start landed: repin consensus (task,
+   completion, journal, reactor, faultlab to heads), its CI, fast-forward; Detent pins consensus,
+   journal and faultlab at those heads (CHANGELOG rows for faultlab, journal, consensus); rerun
+   `campaign verify pin-wave` (A1, A4); push.
 
 ## Blocked on
 
@@ -58,14 +54,14 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: cascade |
+| A1 | pins 261124-212116-9e90c2 at Detent:d2031ebc (consensus and faultlab declares remain, rulings 13-14) |
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
-| A4 | pending |
-| A5 | trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | pending |
-| A7 | pending |
-| A8 | pending |
+| A4 | native 261124-212116-6ccb33 at Detent:d2031ebc; asan, tsan: CI at d2031ebc |
+| A5 | jobs 261124-212150-61e8ff (w5), 261124-212152-a42d7d (syscalls) at Detent:d2031ebc. Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
+| A6 | build 261124-212154-1bc905; rows 261124-212156-8c8c7c, 261124-212158-4ce02b, 261124-212200-05c6c6, 261124-212201-b6e738, 261124-212204-29d0cd |
+| A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
+| A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
 ### Cascade
 
