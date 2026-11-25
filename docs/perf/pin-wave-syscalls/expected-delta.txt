@@ -1,0 +1,16 @@
+-SYS barrier one/a
++SYS full one/a
+-SYS barrier one/owner.lock
++SYS full one/owner.lock
+-SYS barrier one/b
++SYS full one/b
+-SYS barrier one/a
++SYS full one/a
++SYS fsync one/a
+-SYS barrier one/a
++SYS full one/a
++SYS fsync one/a
+-SYS barrier one/a
++SYS full one/a
+-SYS barrier state/one
++SYS full state/one
