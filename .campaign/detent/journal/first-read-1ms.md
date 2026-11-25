@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: blocked on lead: design check of the lifecycle table (C2, docs/perf/first-read-1ms.md "Verified page index") and widening run_relay_pages.py, dense_reader_measure.py (msg-398); C1, C3, C4 committed at `Detent:08cca469`; waiting on jobs 261124-182421-35bcef 261124-182431-301852 261124-182433-9d39d1 261124-182435-760c57
+State: ready for review
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,28 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Fix round 1 finished at `Detent:b8bd0b69` (code); jobs queued at the final head (Evidence).
+- C2 `Detent:91a03ba0`, `Detent:b8bd0b69`: the verified page index as designed. `PagedTable::check` is
+  the one page walk (hash unless marked, every entry check, offsets out); with an account it stores
+  count and offsets (atomic uint16, `page_index` = 30 a page, ledger-allocated beside the marks)
+  relaxed, then sets the mark (release). `find` on a marked page reads them after the mark's acquire,
+  binary-searches comparing names in place (one three-way compare a step), decodes only the match
+  with `read_entry` (no re-check). Unmarked reach: a local index. Tests: test_table_pages
+  `page_index` (every entry and in-page unlisted name on marked pages, hashing nothing; 8 threads x
+  50 rounds first touching together; without an account, each reach hashing). Mutants C2a (offsets
+  not kept), C2b (short local index). Bench: `benchmarks/table_find_bench.cc`,
+  `reader_bench_ab.sh find`. Screen (light, 3 runs, 1,000 entries), ns, head paged vs main decoded:
+  16-byte present 179-193 vs 157-169, absent 168-190 vs 162-191; 40-byte present 218-251 vs
+  142-150, absent 170-193 vs 141-158 (before the index: 4,800-12,500). Profile (`sample`, 40-byte):
+  absent is memcmp and the two binary searches (the same compares main makes); present adds
+  malloc/free of the 40-byte name (15% of samples) and the entry decode: returning a `TableEntry`
+  by value is what remains over main's pointer.
+- msg-4 widening `Detent:16edb38a`: run_relay_pages.py and dense_reader_measure.py read `selected`
+  through `table_entries`. dense_reader_measure's four identity arguments were raw offsets of an
+  older table ([72,152)); mixed_oracle reads them as cluster, group, restore_epoch and scope, which
+  no `selected` layout since 2 carries. Moved byte for byte onto the entry's fields; the tool was
+  already stale on main (not in the suite; the lead's if it matters).
 
 Security review round 1 at `Detent:e52669a7` (.campaign/detent/reviews/first-read-1ms-security.md),
 on main merged at `Detent:f35ad03a`:
@@ -42,15 +64,14 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Next
 
-1. On the design check: build C2 (offsets kept with the marks; `find` binary-searches them), measure
-   warm lookups and a verified-page `find` against main's `StoreTable::find` in reader_bench.
-2. On widening: apply `.scratch/py-layout3/relay-dense.patch` (test_system_relay_pages passed with it
-   locally, the file restored after).
-3. Then, at the final head: mutants M1, M3-M8, M12, M9 (`.scratch/mutants.py` makes them), A1, A2
-   (fixed gate, exclusive, four cells), the new tests with their fails-without, and the suite; push.
+1. Review of fix round 1 at the final head; fold findings by id.
 
 ## Messages
 
+- msg-4 (lead: C2 checked; target main's warm find; widened two Python tools): C2 built as
+  written, measured as interleaved strict pairs at main and the head (Evidence); the Python tools
+  moved (`Detent:16edb38a`). Over main's band where it remains: see Doing (present lookups of
+  names past the string's inline size).
 - Correctness review (CHANGES at `Detent:e52669a7`, .campaign/detent/reviews/first-read-1ms-correctness.md),
   folded in by id:
   - C1 `Detent:fd01d67f`: the gate fails a cell unless its pooled branch p99 is below 1 ms, the
@@ -89,10 +110,7 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Blocked on
 
-1. Lead: design check of the C2 lifecycle table (docs/perf/first-read-1ms.md "Verified page index").
-   Recommendation: accept; the offsets are written before the release mark and read after its acquire.
-2. Lead (msg-398): widen tests/detent_system/run_relay_pages.py and dense_reader_measure.py (patch
-   ready), and docs/mechanisms/read-counters.md for N3 if wanted here.
+Nothing.
 
 ## Evidence
 
@@ -169,6 +187,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
+- R8 (C2): a marked page's match is decoded by `read_entry` without re-checking, as the design's
+  "what a marked page does not re-check" says; `take_entry` (checks plus `read_entry`) stays the one
+  checked decoder. `find` keeps returning `std::optional<TableEntry>`; a lookup API returning a view
+  would close the 40-byte present gap but changes the reader core's callers (not done).
+- R9 (dense_reader_measure): moved byte for byte, not reinterpreted (see Doing).
 - R5 (S2 shape): the ACL check lives in `generation_file_refusal`, the one owner/link/mode/size
   check, not beside each caller; `Selected::image` is always the bytes `select_entry` read, since an
   ACL grant now refuses there. Error type on the reader path moves from `ReadSourceFailure` to the
