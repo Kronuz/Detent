@@ -4986,6 +4986,21 @@
       "id": "msg-392",
       "notice": "skill installed 823373be53343c6291bff552aabc822f8156461c",
       "text": "campaign skill: agent-campaign:823373b installed here, 6 commits: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:50:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:50:52",
+      "by": "campaign",
+      "closed": "CI red at ce981be (linux-tsan fetch-gone, linux-gcc admission boot, macos-x86_64 heartbeat gap); fresh contributor fixing and merging main",
+      "id": "msg-394",
+      "settles": {
+        "todo": "4cbf5f92"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-fetch-oversize-abort (nothing moved it for 2 h: ready for review (waiting on jobs 261124-165220-e84fc9, 261124-165224-4e171d and CI 45521429248); to land: main changed 6 files since quest/detent/consensus-fetch-oversize-abort branched (e.g. CMakeLists.txt): merge main into it (`campaign land consensus-fetch-oversize-abort --merge-main`); new): `campaign land consensus-fetch-oversize-abort --merge-main`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
