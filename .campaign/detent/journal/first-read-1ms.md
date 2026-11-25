@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review (CI's 8 Python-parser tests wait on Blocked on 1, msg-393); security round 1 (S1, S2, N2, N3) committed at `Detent:c7e76dc4`, waiting on jobs 261124-181946-72ca5d 261124-181949-2a042b 261124-181951-354d25 261124-181953-053301 (A2), 261124-181954-a10813 (A1), 261124-182004-2d9ab9 261124-182028-2aaa10 261124-182029-549081 (tests, fails-without) and CI
+State: blocked on lead: design check of the lifecycle table (C2, docs/perf/first-read-1ms.md "Verified page index") and widening run_relay_pages.py, dense_reader_measure.py (msg-398); C1, C3, C4 committed at `Detent:08cca469`; waiting on jobs 261124-182421-35bcef 261124-182431-301852 261124-182433-9d39d1 261124-182435-760c57
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -42,9 +42,32 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Next
 
-Read the jobs at `Detent:244990b9` (Evidence) and CI; fold in the correctness review's findings.
+1. On the design check: build C2 (offsets kept with the marks; `find` binary-searches them), measure
+   warm lookups and a verified-page `find` against main's `StoreTable::find` in reader_bench.
+2. On widening: apply `.scratch/py-layout3/relay-dense.patch` (test_system_relay_pages passed with it
+   locally, the file restored after).
+3. Then, at the final head: mutants M1, M3-M8, M12, M9 (`.scratch/mutants.py` makes them), A1, A2
+   (fixed gate, exclusive, four cells), the new tests with their fails-without, and the suite; push.
 
 ## Messages
+
+- Correctness review (CHANGES at `Detent:e52669a7`, .campaign/detent/reviews/first-read-1ms-correctness.md),
+  folded in by id:
+  - C1 `Detent:fd01d67f`: the gate fails a cell unless its pooled branch p99 is below 1 ms, the
+    refused-main cell included; vs main is a second line and a `within_main` field per cell.
+  - C2: a new mechanism, so its lifecycle table first (`Detent:08cca469`); code after the design check.
+  - C3 `Detent:ed6f9ce5`: test_table_pages `cross_page`, one re-signed value test per check (M7
+    duplicate name across pages, M8 short body, M12 index order, M1 count, M3 slots, M4 entry slot,
+    M5 page end, M6 padding). Mutant runs wait for the final head (C2 rewrites `walk`).
+  - C4 `Detent:ed6f9ce5`: test_reader_core `damaged_attached` (mutant M9 at the final head).
+  - N1 done (comment). N2 done (three stale sections). N3: docs/mechanisms/read-counters.md is outside
+    the files (msg-398). N4, N5, N7: none (optional or by design). N6: branch-alone kept for the running
+    1,000 cell. N8: `publish` already checks a new table starts unmarked; left as is.
+  Local: test_local_table_pages and test_reader_core pass at `Detent:08cca469`.
+- msg-393 follow-up: two more layout-2 parsers outside the files (run_relay_pages.py, which fails
+  test_system_relay_pages, and dense_reader_measure.py); asked in msg-398. Locally at
+  `Detent:244990b9` the other seven of the eight CI failures pass (test_managed_delivery_process,
+  test_system_managed_authority_failover, partition, all-down, no-quorum, relay, relay_ipv6).
 
 - msg-393 (to the lead; widened with one change, one parser): done in `Detent:244990b9`, see Doing.
   The parser lives in verify_local_format.py, the dependency-free module, and managed.py imports it
@@ -66,7 +89,10 @@ Read the jobs at `Detent:244990b9` (Evidence) and CI; fold in the correctness re
 
 ## Blocked on
 
-Nothing.
+1. Lead: design check of the C2 lifecycle table (docs/perf/first-read-1ms.md "Verified page index").
+   Recommendation: accept; the offsets are written before the release mark and read after its acquire.
+2. Lead (msg-398): widen tests/detent_system/run_relay_pages.py and dense_reader_measure.py (patch
+   ready), and docs/mechanisms/read-counters.md for N3 if wanted here.
 
 ## Evidence
 
