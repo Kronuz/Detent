@@ -1,14 +1,15 @@
-// Wire frames of the distribution layer (raw and zstd) and local images built from the benchmark corpus, written
-// to the directory given as argv[1] so the old and the new build's files can be compared byte for byte. The
-// fixtures are those of tests/detent_distribution/test_encoded_update.cc.
+// Wire frames of the distribution layer (raw and zstd) and paged local images (root and segments) built from the
+// benchmark corpus, written to the directory given as argv[1] so the old and the new build's files can be compared
+// byte for byte. The fixtures are those of tests/detent_distribution/test_encoded_update.cc.
 #include "common.hh"
 #include "detent_distribution/encoded_update.hh"
 #include "detent_distribution/framing.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/update_cache.hh"
-#include "detent_local/builder.hh"
-#include "detent_local/reader.hh"
 #include "local_corpus.hh"
+#include "paged_snapshot_builder.hh"
+#include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -101,9 +102,11 @@ std::string snapshot() {
 		std::snprintf(key, sizeof(key), "app:%030u", i);
 		m::string(out, key);
 		m::unsigned_integer(out, 42);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
+		m::array(out, 4); // [default, no percentage, no rollout value, no overrides]
 		m::signed_integer(out, i);
+		out.push_back('\xc0');
+		out.push_back('\xc0');
+		m::array(out, 0);
 	}
 	return out;
 }
@@ -202,16 +205,29 @@ int main(int argc, char **argv) {
 				d::WorkBudget b{8192, 128};
 				decoder.feed(input, b);
 			}
-			auto source = std::make_shared<d::ValidatedSnapshot>(decoder.finish());
-			l::GenerationId generation;
+			auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+			l::GenerationId generation{};
 			generation.fill('a');
-			l::ImageBuilder builder(source, generation);
+			l::detail::PagedSnapshotBuilder builder(source, generation);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
 			}
-			auto bytes = builder.bytes();
-			save(directory, "image-" + std::to_string(count) + ".bin", std::string_view(bytes->data(), bytes->size()));
+			auto image = builder.take();
+			const auto label = "image-" + std::to_string(count);
+			auto root = image.bytes();
+			save(directory, label + ".root", std::string_view(root->data(), root->size()));
+			std::vector<const l::detail::BuiltSegment *> segments;
+			for (const auto &s : image.segments())
+				segments.push_back(&s);
+			std::sort(segments.begin(), segments.end(), [](const auto *a, const auto *b) {
+				return std::memcmp(a->ownership.segment.data(), b->ownership.segment.data(), 16) < 0;
+			});
+			for (std::size_t i = 0; i < segments.size(); ++i)
+				save(directory, label + "-segment-" + std::to_string(i) + ".bin",
+					 std::string_view(segments[i]->bytes->data(), segments[i]->bytes->size()));
+			for (l::ValidationBudget b; !builder.discard(b);)
+				b = {};
 		}
 		return 0;
 	} catch (const std::exception &e) {

@@ -94,13 +94,17 @@ endif()
 if(DETENT_BUILD_AUTHORITY OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(http_lib)
 endif()
-# completion's driver runs on task; journal and consensus fetch the same completion.
+# completion loads first, with its asio driver: journal, which consensus loads, sets COMPLETION_ASIO OFF.
 set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
 if(DETENT_BUILD_AUTHORITY)
   set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(consensus)
+  FetchContent_MakeAvailable(completion consensus)
 elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(completion)
+endif()
+# faultlab's faultfs: the crash model the authority's power-cut and in-memory cluster tests run on.
+if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_TESTS)
+  FetchContent_MakeAvailable(faultlab)
 endif()
 
 FetchContent_MakeAvailable(detent_logger)

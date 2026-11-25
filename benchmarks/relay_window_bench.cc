@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
 		for (const auto &name : names)
 			every.push_back({name, std::nullopt, true});
 		const std::vector<r::Position> first{every.front()};
-		r::NamespaceRelay relay(std::make_shared<c::PosixIO>(dir, 0644), cluster, up);
+		r::NamespaceRelay relay(std::make_shared<c::PosixIO>(dir, c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 		relay.sync(names);
 		std::printf("%zu namespaces of %zu keys; start: heap %.0f MB, resident %.0f MB, peak %.0f MB\n", spaces, keys, heap_mb(), resident_mb(),
 					peak_mb());

@@ -225,8 +225,8 @@ void full_copy(const std::filesystem::path &scratch) {
 	up.create("app", 3000);
 	up.create("beta", 40);
 	const std::vector<std::string> names{"app", "beta"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "pages", 0644), cluster, up);
-	r::NamespaceRelay plain(std::make_shared<c::PosixIO>(scratch / "plain", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "pages", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
+	r::NamespaceRelay plain(std::make_shared<c::PosixIO>(scratch / "plain", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	plain.sync(names);
 	const std::vector<r::Position> records{{"app", std::nullopt, false}, {"beta", std::nullopt, false}};
@@ -267,7 +267,7 @@ void deltas(const std::filesystem::path &scratch) {
 	Upstream up;
 	up.create("app", 45000); // two segments: a clustered rewrite leaves one
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "deltas", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "deltas", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	std::vector<std::shared_ptr<const r::Generation>> builds;
 	std::vector<std::unique_ptr<Received>> held;
 	// A cold reader gets the canonical copy, at s, and starts the build at the head. An agent that
@@ -356,7 +356,7 @@ void incremental(const std::filesystem::path &scratch) {
 	Upstream up;
 	up.create("app", 3000);
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "incremental", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "incremental", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	auto base = reference_build(relay, "app");
 	std::vector<std::size_t> scattered, clustered;
@@ -422,7 +422,7 @@ void answer_owns(const std::filesystem::path &scratch) {
 		for (auto &task : now)
 			task();
 	};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "owns", 0644), cluster, up, {},
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "owns", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up, {},
 							[&](std::function<void()> task) {
 								run_queued();
 								queued.push_back(std::move(task));
@@ -463,8 +463,8 @@ void resume_and_roots(const std::filesystem::path &scratch) {
 	Upstream up;
 	up.create("app", 3000);
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "resume", 0644), cluster, up);
-	r::NamespaceRelay plain(std::make_shared<c::PosixIO>(scratch / "resume-plain", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "resume", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
+	r::NamespaceRelay plain(std::make_shared<c::PosixIO>(scratch / "resume-plain", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	plain.sync(names);
 	const auto whole = decode(answer(relay, {{"app", std::nullopt, true}}));
@@ -505,7 +505,7 @@ void repair_floor(const std::filesystem::path &scratch) {
 	Upstream up;
 	up.create("app", 3000);
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "repair", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "repair", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	const auto cold = decode(answer(relay, {{"app", std::nullopt, true}}));
 	check(cold.size() == 1 && cold[0].kind == d::FrameKind::Pages);
@@ -538,7 +538,7 @@ void large_base(const std::filesystem::path &scratch) {
 	constexpr std::size_t keys = 500001;
 	up.create("app", keys);
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "large", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "large", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	const auto records = decode(answer(relay, {{"app", std::nullopt, false}}));
 	check(records.size() == 1 && records[0].kind == d::FrameKind::FullCopy && records[0].records == keys);
@@ -553,7 +553,7 @@ void mirror_refuses(const std::filesystem::path &scratch) {
 	Upstream up;
 	up.create("app", 10);
 	const std::vector<std::string> names{"app"};
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "refuses", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "refuses", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	const auto head = *relay.head("app");
 	up.send_pages = true;
@@ -667,7 +667,7 @@ void compressed_answer(const std::filesystem::path &scratch) {
 	up.create("app", keys);
 	const std::vector<std::string> names{"app"};
 	prepare(scratch / "uncompressed");
-	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "uncompressed", 0644), cluster, up);
+	r::NamespaceRelay relay(std::make_shared<c::PosixIO>(scratch / "uncompressed", c::PosixIOOptions{c::FlushMode::full}, 0644), cluster, up);
 	relay.sync(names);
 	const auto raw = answer(relay, {{"app", std::nullopt, false}}).size();
 	prepare(scratch / "compressed");

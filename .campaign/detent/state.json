@@ -5104,6 +5104,505 @@
         "todo": "0d18bc86"
       },
       "text": "to do, critical path first:\ntodo: answer pin-wave (its journal waits on the lead: blocked on lead: reactor L3 CI red (reactor_lag on every job, run 45541868647); tests/detent_authority/CMakeLists.txt; consensus CMakeLists.txt hold; it asks: 0. reactor (L3): its repin moves only task 18eb516 -> 477a7d3, and CI run 45541868647 fails reactor_lag on every job (macOS arm64/x86_64, Linux gcc/clang/arm64, ASan/UBSan, TSan, FreeBSD) with the same five checks, all in the manual-clock sections ([F] on task::inline_scheduler and the busy manual\u2026; new): `campaign status pin-wave`, answer it (`campaign message pin-wave TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T20:59:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T20:59:31",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-403",
+      "items": {
+        "consensus-driver-pipelined-sim": "consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met: `campaign set consensus-driver-pipelined-sim status=active`)",
+        "consensus-fetch-alongside-loop-stall": "frees include/consensus/transport/**, docs/mechanisms/transport*.md for consensus-fetch-alongside-loop-stall"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-pipelined-sim",
+          "consensus-fetch-alongside-loop-stall"
+        ]
+      },
+      "text": "consensus-fetch-oversize-abort landed: unlocks consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met: `campaign set consensus-driver-pipelined-sim status=active`); frees include/consensus/transport/**, docs/mechanisms/transport*.md for consensus-fetch-alongside-loop-stall"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:00:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:00:03",
+      "by": "campaign",
+      "closed": "pipelined-sim unparked and merged; loop-stall started",
+      "id": "msg-404",
+      "settles": {
+        "todo": "21130dab"
+      },
+      "text": "to do, critical path first:\ntodo: unpark consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met; new): `campaign set consensus-driver-pipelined-sim status=active`, or park it again with a reason\ntodo: start consensus-fetch-alongside-loop-stall (launchable; new): `campaign start consensus-fetch-alongside-loop-stall`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:05:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:05:43",
+      "by": "campaign",
+      "closed": "its correctness review was accepted earlier; only A3 (green macOS CI) remains, CI 45550615396 running at the merged head",
+      "id": "msg-405",
+      "settles": {
+        "todo": "215589dd"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; new): `campaign set consensus-driver-pipelined-sim status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:37:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:37:22",
+      "by": "campaign",
+      "closed": "set to review; its correctness review is already accepted, it waits only on CI 45550615396 for A3",
+      "id": "msg-406",
+      "settles": {
+        "todo": "fa2aeaa9"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; listed 32 min): `campaign set consensus-driver-pipelined-sim status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:04:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:04:27",
+      "by": "campaign",
+      "closed": "parked until pin-wave's consensus repin reaches consensus main: driver-pipeline holds consensus CMakeLists.txt, where pin-wave's consensus pins live; not on the RC path",
+      "id": "msg-408",
+      "settles": {
+        "todo": "e8b90b21"
+      },
+      "text": "to do, critical path first:\ntodo: start driver-pipeline (launchable; new): `campaign start driver-pipeline`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:06:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:06:11",
+      "by": "xapiand-lead",
+      "closed": "taken into D162: the tracked new/delete multi-thread row joins the A/B",
+      "id": "msg-409",
+      "text": "msg-368 answer from xapiand-lead: Xapiand uses allocators only through global new/delete when built with TRACKED_MEM (ALLOCATORS_TRACKED_MEM, off by default; CMakeLists.txt:879-880), plus allocators::total_allocated() for one metric (src/manager.cc:1330). No other hot path of ours calls allocators directly, so D162's A/B of allocators' benches plus the accounting hot paths covers us; add one row only if cheap: the global operator new/delete pair under ALLOCATORS_TRACKED_MEM with many small allocations from several threads (our request path's pattern). No objection to one non-template body."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:36:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:36:08",
+      "by": "campaign",
+      "closed": "driver-pipeline now needs pin-wave (recorded)",
+      "id": "msg-410",
+      "settles": {
+        "todo": "484dc9a3"
+      },
+      "text": "to do, critical path first:\ntodo: start driver-pipeline (launchable; listed 32 min): `campaign start driver-pipeline`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:48:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:48:13",
+      "by": "xapiand-lead",
+      "closed": "answered xapiand: no active holder of driver.h; pin-wave's consensus repin noted",
+      "id": "msg-411",
+      "text": "From xapiand-lead: heads-up on consensus. Quest consensus-group-last (xapiand) adds one field,  (the worker's last_index()), to consensus::Driver::GroupState so strata can refuse a group whose journal is older than its index (journal-replaces-wal durability finding S1). No behavior change, no new call. It lands on consensus main after its build-test and CI; say if Detent has a quest holding include/consensus/driver.h I should order it after."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:02:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:02:40",
+      "by": "campaign",
+      "closed": "a fresh contributor is on it: sanitizer CI failures (test_http_upstream:761, readiness_pressure) and requeueing A1-A3, A5 at the final head",
+      "id": "msg-412",
+      "settles": {
+        "todo": "dedbef6c"
+      },
+      "text": "to do, critical path first:\ntodo: finish relay-mirror-idle-wake (nothing moved it for 3 h: ready for review; to land: criteria without evidence at 6f58aa77ad02: A1-A3, A5 (`campaign status relay-mirror-idle-wake` lists them); new): `campaign status relay-mirror-idle-wake`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:13:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:13:17",
+      "by": "campaign",
+      "closed": "answered on record; contributor resumed",
+      "id": "msg-413",
+      "settles": {
+        "todo": "33d11aa9"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:18:32",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:18:32",
+      "by": "campaign",
+      "closed": "pin-wave's contributor is live, waiting on library CI (faultlab 1ac0b17, journal f66c16e, consensus 770db9a); relay-mirror's design check answered as msg-1 and its contributor resumed",
+      "id": "msg-414",
+      "settles": {
+        "todo": "618165bc"
+      },
+      "text": "to do, critical path first:\ntodo: resume pin-wave (nothing moved it for 64 min: working: cascade round 2 (faultlab 1ac0b17 CI, journal f66c16e and consensus 770db9a pushed); new): `campaign status pin-wave`, or park it with a reason\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; listed 5 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:39:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:39:35",
+      "by": "campaign",
+      "closed": "answered as relay-mirror-idle-wake msg-1; its contributor is building the stamp (journal not yet updated)",
+      "id": "msg-415",
+      "settles": {
+        "todo": "6d886de6"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; listed 26 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:44:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:44:53",
+      "by": "campaign",
+      "closed": "answered on record; widened; contributor resumed",
+      "id": "msg-416",
+      "settles": {
+        "todo": "247f446d"
+      },
+      "text": "to do, critical path first:\ntodo: answer pin-wave (its journal waits on the lead: blocked on lead: widen tests/detent_relay/CMakeLists.txt for A4 (Blocked on 1); waiting on jobs 261124-234152-ea3a2e 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; it asks: 1. tests/detent_relay/CMakeLists.txt (outside the set) needs one token: line 51, `target_link_libraries(test_relay_chain PRIVATE detent::relay_mirror detent_authority_service faultlab::faultlab)`. test_relay_chain includes cluster_harness.hh, which includes faultlab/faultfs.h since the faultfs port\u2026; new): `campaign status pin-wave`, answer it (`campaign message pin-wave TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:50:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:50:09",
+      "by": "campaign",
+      "closed": "set to review; correctness reviewer launched",
+      "id": "msg-417",
+      "settles": {
+        "todo": "d3e31f77"
+      },
+      "text": "to do, critical path first:\ntodo: review pin-wave (its journal says ready for review; jobs at Detent:0b8a0df9 queued: A4 native 261124-234933-d07efb, pins 261124-234933-f5eec6, A5 w5 261124-234929-bde848; A6 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; CI at the pushed head; then launch its correctness review; new): `campaign set pin-wave status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:24:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:24:35",
+      "by": "campaign xapiand",
+      "closed": "consensus-fetch-alongside-loop-stall changes only test/transport/groups_test.cc and rpc_host_test.cc; no API or contract (group-last included) changes",
+      "id": "msg-418",
+      "settles": {
+        "ours": [
+          "consensus-fetch-alongside-loop-stall"
+        ],
+        "quest": "xapiand:strata-journal-behind"
+      },
+      "text": "xapiand:strata-journal-behind started and builds against contract consensus:group-last, which your consensus-fetch-alongside-loop-stall is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:42:51",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:42:51",
+      "by": "campaign",
+      "closed": "widened benchmarks/read_response_bench.cc; contributor resumed to commit the fixture fix and requeue",
+      "id": "msg-419",
+      "settles": {
+        "todo": "6cc462ab"
+      },
+      "text": "to do, critical path first:\ntodo: finish pin-wave (its journal waits on the lead: blocked on lead: widen benchmarks/read_response_bench.cc for F2 (Blocked on 1); waiting on jobs 261125-003938-bb7451 261125-003938-7435c8; to land: criteria without evidence at 021598283204: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:09:18",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:09:18",
+      "by": "campaign",
+      "closed": "evidence reruns queued at the merged head 217481b (cb3ac9, caeef6, 204d0b, be04ab, 31ff7e, e0d10a; suite 880546); the lead updates the journal rows when they end",
+      "id": "msg-420",
+      "settles": {
+        "todo": "8d946872"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-fetch-alongside-loop-stall (nothing moved it for 2 h: ready for review (correctness CHANGES F1-F3 folded in at consensus:0d8263d; jobs queued: 261124-232245-034e6c 261124-232249-6e4d93 261124-232254-7d11cf 261124-232254-6b4d7b 261124-232255-8bc466 261124-232255-0a3ff3 261124-232300-fe7353; CI 45567716437); to land: criteria without evidence at 217481b63fbf: A1-A4 (`campaign status consensus-fetch-alongside-loop-stall` lists them); new): `campaign status consensus-fetch-alongside-loop-stall`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:01:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:01:06",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-407",
+      "items": {
+        "driver-pipeline": "driver-pipeline"
+      },
+      "settles": {
+        "start": [
+          "driver-pipeline"
+        ]
+      },
+      "text": "consensus-driver-pipelined-sim landed: unlocks driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:27:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:27:38",
+      "by": "xapiand-lead",
+      "closed": "relayed to the consensus-inline-sync-loop contributor: keep GroupState.last = worker last_index() after recover; awaiting Xapiand's exact pre-Start check shape",
+      "id": "msg-422",
+      "text": "From xapiand-lead, re detent:consensus-inline-sync-loop touching consensus:group-last: strata-journal-behind reads Driver::state(id)->last right after recover() returns and treats it as the recovered log end. Please keep that meaning (last = the worker's last_index(), set once recover returns). Heads-up: its redesign (after review CHANGES) may ask consensus for one more API, a check before Start appends the new-term NoOp; I will message you with the exact shape before opening that quest."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:45:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:45:58",
+      "by": "campaign",
+      "closed": "round-2 review running; verify queued at 50b92513; A6 get row and pins jobs pending",
+      "id": "msg-423",
+      "settles": {
+        "todo": "1bfce092"
+      },
+      "text": "to do, critical path first:\ntodo: finish pin-wave (nothing moved it for 63 min: ready for review; waiting on jobs 261125-004218-16986b 261125-004223-19cd2c 261125-004230-dc7d45 (native reruns at the round end); to land: criteria without evidence at 50b925131d0b: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T02:49:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T02:49:05",
+      "by": "campaign",
+      "closed": "all evidence jobs at 28a8d276 are done exit 0 (C2 strict find/warm, A2 cells); security R3 approved; correctness round 3 at max is still running and decides the landing",
+      "id": "msg-424",
+      "settles": {
+        "todo": "1d77eafd"
+      },
+      "text": "to do, critical path first:\ntodo: finish first-read-1ms (nothing moved it for 5 h: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code); to land: criteria without evidence at 0c2d13c419e8: A1-A3 (`campaign status first-read-1ms` lists them); new): `campaign status first-read-1ms`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:15:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:15:12",
+      "by": "campaign",
+      "closed": "stale: the journal's ready-for-review predates D163; the wire seal stamp round is in progress and its contributor sets ready for review when done",
+      "id": "msg-425",
+      "settles": {
+        "todo": "71ffaa4a"
+      },
+      "text": "to do, critical path first:\ntodo: review relay-mirror-idle-wake (its journal says ready for review; then launch its correctness review; new): `campaign set relay-mirror-idle-wake status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:20:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:20:21",
+      "by": "campaign",
+      "closed": "answered: widened to the next body's files and the W5 spec; D164 rules agents send 2^64-1; contributor resumed",
+      "id": "msg-426",
+      "settles": {
+        "todo": "c3e58f6f"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp; it asks: Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes that body is outside the set. Needed: - include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc (parse the required `seal` on next). - include/detent_deliv\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:46",
+      "by": "xapiand-lead",
+      "closed": "answered xapiand: order after inline-sync-loop (shares docs/DRIVER.md only); Detent calls Worker::recover, not Driver::recover",
+      "id": "msg-427",
+      "text": "From xapiand-lead: quest consensus-recover-gate (xapiand) changes consensus::Driver::recover: a new parameter std::vector<LogBoundary> accept; once the log is recovered (and closed applied) and before Start, a group whose log retains none of them (Core::retains_suffix) fences with recover_refused : fenced { LogBoundary base; Index last; Membership membership; } and nothing that changes consensus state runs. Empty accept = no gate. Full shape: strata docs/design/journal-binding.md, Contracts, on quest/xapiand/strata-journal-behind. Files: driver.h, worker.h, core.h, test/driver_*, test/worker_*, docs/DRIVER.md. Your consensus-inline-sync-loop is open on the driver: say whether to order this after it, or if the shape conflicts with Detent's callers."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:52",
+      "by": "campaign xapiand",
+      "closed": "same answer as msg-427: xapiand orders consensus-recover-gate after consensus-inline-sync-loop",
+      "id": "msg-428",
+      "settles": {
+        "ours": [
+          "consensus-inline-sync-loop"
+        ],
+        "quest": "xapiand:consensus-recover-gate"
+      },
+      "text": "xapiand:consensus-recover-gate started and may change files your consensus-inline-sync-loop changes (order them with --after xapiand:consensus-recover-gate, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:51:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:51:42",
+      "by": "campaign",
+      "closed": "A1-A6 met; A4's CI is red: macos-x86_64 aborted groups fetch-alongside-consensus (node 3 loop 3 not turned for 1515 ms) on the rerun; sent back to the contributor",
+      "id": "msg-429",
+      "settles": {
+        "todo": "3968a62b"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-inline-sync-loop (nothing moved it for 86 min: ready for review (fix round 1; jobs queued: 261125-022317-c35d52 261125-022319-78e2a5 261125-022321-d39023 261125-022322-8743dc 261125-022324-925f03 261125-022326-2ffaad 261125-022327-3106af 261125-022329-f14798 261125-022338-e1ff83 261125-022340-33344a; CI 45594592100); to land: criteria without evidence at 9f1419472e00: A1-A2, A4-A6 (`campaign status consensus-inline-sync-loop` lists them); new): `campaign status consensus-inline-sync-loop`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T04:02:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T04:02:23",
+      "by": "campaign",
+      "closed": "pre-existing on main (CI 45542770252 at c724c58, verified); follow-up quest consensus-macos-x86-loop-kernel-wait; land after b2fa03b's jobs and CI, --no-ci only if macos-x86_64 alone is red with this signature",
+      "id": "msg-430",
+      "settles": {
+        "todo": "63b281c5"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; new): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T04:34:02",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T04:34:01",
+      "by": "campaign",
+      "closed": "answered on the quest's record",
+      "id": "msg-431",
+      "settles": {
+        "todo": "6765a831"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 32 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:27:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:27:03",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-421",
+      "items": {
+        "consensus-inline-sync-loop": "frees include/consensus/transport/host_transport.h, docs/mechanisms/**, test/transport/** for consensus-inline-sync-loop",
+        "consensus-replica-delete": "frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete",
+        "consensus-transport-budgets": "frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets",
+        "driver-pipeline": "driver-pipeline",
+        "split-consensus": "frees include/consensus/**, test/** for split-consensus"
+      },
+      "settles": {
+        "start": [
+          "consensus-inline-sync-loop",
+          "consensus-replica-delete",
+          "consensus-transport-budgets",
+          "driver-pipeline",
+          "split-consensus"
+        ]
+      },
+      "text": "consensus-fetch-alongside-loop-stall landed: unlocks frees include/consensus/transport/host_transport.h, docs/mechanisms/**, test/transport/** for consensus-inline-sync-loop; frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete; frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets; frees include/consensus/**, test/** for split-consensus; driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:01:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:01:16",
+      "by": "campaign",
+      "closed": "relay-mirror widened to reply_pump and resumed; inline-sync-loop answered as its msg-1 and waits on CI 45609770275; multi-voter parked until relay-mirror lands (B2 resolved); server-composition-adoption resumed by a contributor",
+      "id": "msg-433",
+      "settles": {
+        "todo": "7e940a3e"
+      },
+      "text": "to do, critical path first:\ntodo: resume server-composition-adoption (its journal waits on jobs 261123-085359-8c5054, which passed 44 h ago; new): `campaign status server-composition-adoption`, read them, or park it with a reason\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: reply_pump.{hh,cc} for D165's 204 header; it asks: Lead: D165's 204 carries a header, and both upstreams write a next's 204 through `distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers. Needed, outside the set: include/detent_distribution_http/reply_pump.hh and src/detent_distribution_http/reply_pump.cc.\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 58 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason\ntodo: answer multi-voter-idle-wake (its journal waits on the lead: blocked on lead: B1 resolved (consensus:a068ba0 has PeerOptions::wake); B2 (pin wave) and B3 (service.cc held) stop the work; it asks: B1: resolved at consensus:a068ba0 (consensus-peers-wake, checked 2026-11-22). `PeerOptions::wake` (include/consensus/transport/peers.h:52-56), a `std::function<void()>`, runs on the executor from Peers' own completions when owner work waits: a Control input for admit(), a Bulk frame or written snap\u2026; new): `campaign status multi-voter-idle-wake`, answer it (`campaign message multi-voter-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:06:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:06:09",
+      "by": "campaign",
+      "closed": "both answered and their contributors resumed: relay-mirror widened to reply_pump; inline-sync-loop sent R3-F1 (root-cause the leader's term loss); journals update when they report",
+      "id": "msg-434",
+      "settles": {
+        "todo": "55683761"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: reply_pump.{hh,cc} for D165's 204 header; it asks: Lead: D165's 204 carries a header, and both upstreams write a next's 204 through `distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers. Needed, outside the set: include/detent_distribution_http/reply_pump.hh and src/detent_distribution_http/reply_pump.cc.\u2026; listed 5 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 63 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:11:41",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:11:41",
+      "by": "campaign",
+      "closed": "answered (quest msg-1, R3-F1 sent); its contributor is working and rewrites the Blocked on when it reports",
+      "id": "msg-435",
+      "settles": {
+        "todo": "45d61503"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 69 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7229,25 +7728,57 @@
         "docs/mechanisms/simulation.md"
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T22:01:00",
+          "ci": {
+            "carried": true,
+            "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+            "runs": [
+              45550615396
+            ]
+          },
+          "commit": "b4516ee01e41e8d14afa1d7b26a5720ced39b557",
+          "criteria": {
+            "A1": "261124-054533-5b8358 (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054538-eaf00b (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054541-b8f48a (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054535-246acf (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files)",
+            "A2": "261124-054533-5b8358 (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files); fails without: 261124-020921-0e0ba5, 261124-020925-4954e1, 261124-052358-086ed2, 261124-054544-8ae5fe",
+            "A3": "`ci:ci`: CI run 45550615396 at 977b94e, green on every job (macos-x86_64 included)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "be18ad93cf5205abe56cea54973e1ca69a7674a7",
+          "reason": "",
+          "tested": "b4516ee01e41e8d14afa1d7b26a5720ced39b557"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-driver-flow",
         "consensus-simulation-asan-timeout"
       ],
       "provides": [],
-      "reason": "accepted; A3 needs green macOS CI, red on main's rpc_host_fetch defect, which consensus-fetch-oversize-abort fixes",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "blocked",
+      "status": "landed",
       "title": "The driver simulation runs pipelined appends end to end",
-      "until": [
-        "consensus-fetch-oversize-abort"
-      ],
-      "updated": "2026-11-24T08:42:12",
+      "updated": "2026-11-24T22:01:06",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-driver-pressure-rearm": {
@@ -7757,10 +8288,33 @@
       "worktree": ""
     },
     "consensus-fetch-alongside-loop-stall": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T01:26:13",
+          "base": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
+          "blobs": {
+            "test/transport/groups_test.cc": "100644:c78bc93c9385737c3a39b758a46665b16af242b2",
+            "test/transport/rpc_host_test.cc": "100644:5169ada64c634904c60d33ecd020fe08ab726f7f"
+          },
+          "by": "review",
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": "c1e2ca780113e119",
+          "diffs": {
+            "test/transport/groups_test.cc": "7953d68a3408d6fb",
+            "test/transport/rpc_host_test.cc": "f95dc74ccb0fb5c9"
+          },
+          "findings": {},
+          "note": "",
+          "review": "4ffcac226441fb87a670025490c5185971130edc",
+          "reviewed": "0d8263dea24c1caf65be5381ff59c4749979c440",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "xapiand:consensus-join-v2"
       ],
+      "base": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+      "branch": "quest/detent/consensus-fetch-alongside-loop-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -7774,10 +8328,48 @@
         "src/transport/**",
         "include/consensus/transport/**",
         "test/transport/groups_test.cc",
-        "docs/mechanisms/transport*.md"
+        "docs/mechanisms/transport*.md",
+        "test/transport/rpc_host_test.cc"
       ],
-      "landed": [],
-      "lenses": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-25T01:27:01",
+          "ci": {
+            "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+            "runs": [
+              45577085586
+            ]
+          },
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": {
+            "A1": "manual (who: the lead, 2026-11-25; checked: the reproductions run on pre-fix code by design. groups job ...232245-034e6c at consensus:43ebf5f, the reader still building on the loop, gave CI's link signature; rpc_host jobs ...215634-5e9c39 and ...215638-369ffc at consensus:ee77b26 gave 1537 and 3552 ms gaps against CI's 1564 and 3746-3765 ms with no link ended. At the fix the same knobs no longer stall the loop (reruns ...cb3ac9 and ...caeef6 do not reproduce). rpc_host stays not root-caused, F3)",
+            "A2": "261125-003208-be04ab, 261125-003215-e0d10a; fails without: 261124-212704-2b98ad, 261124-215649-56b54a, 261124-232249-6e4d93",
+            "A3": "261125-003205-204d0b, 261125-003211-31ff7e",
+            "A4": "261125-003148-880546"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-003148-880546",
+              "level": "light",
+              "seconds": 1185.5,
+              "state": "done",
+              "what": "consensus-fetch-alongside-loop-stall check suite at 217481b63fbf"
+            }
+          ],
+          "final": true,
+          "from": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
+          "reason": "",
+          "tested": "217481b63fbf465d82164ee967664d1d1b3f81e8"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
       "messages": [
         {
           "announced": {
@@ -7797,9 +8389,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "landed",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T08:13:27"
+      "updated": "2026-11-25T01:27:03",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
@@ -8020,19 +8613,68 @@
         "docs/mechanisms/rpc*.md",
         "docs/mechanisms/transport*.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-oversize-abort",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T20:59:27",
+          "ci": {
+            "carried": true,
+            "commit": "afe0d312c3c6a636d8330d491b609c629d0e08b2",
+            "runs": [
+              45537067121
+            ]
+          },
+          "commit": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+          "criteria": {
+            "A1": "261124-190014-9de627 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190016-5b17fc (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190018-dd2ea2 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190020-ce04d3 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190023-427796 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190021-1c07c7 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190013-3f0e24 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190025-62d7c8 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files); fails without: 261124-123054-1bea5f, 261124-151258-073436, 261124-151300-44e305, 261124-151302-d24b61, 261124-151304-e49b9a, 261124-151306-086ff4, 261124-165224-4e171d, 261124-190037-d07256, 261124-190039-182c0d, 261124-190041-99193f, 261124-190042-eb913a, 261124-190044-61b5b9, 261124-190046-870cce, 261124-190048-2689f9, 261124-190051-bc3346",
+            "A2": "261124-190103-461c74 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files)",
+            "A3": "[artifact] docs/mechanisms/rpc-lane.md: the fetch bullet and \"A fetch whose connection ends\" (two tables: each way a connection ends x the redial's outcome, the caller's code and time), consensus:afec3fe, 87cb821",
+            "A4": "261124-190605-a9d260 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190107-8ece74 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "afe0d312c3c6a636d8330d491b609c629d0e08b2",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-190605-a9d260",
+              "level": "light",
+              "seconds": 1277.2,
+              "state": "done",
+              "what": "consensus-fetch-oversize-abort check suite at afe0d312c3c6"
+            }
+          ],
+          "final": true,
+          "from": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "reason": "",
+          "tested": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d"
+        }
+      ],
       "lenses": [],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-24T09:24:45",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "a3ccfe230a2b",
+          "at": "2026-11-24T09:24:45",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Lead ruling: reproduce on CI's macos-x86_64 with a probe branch looping rpc_host_fetch, plus the d659f76 counters; name why the Bulk link stalls, then fix it. Quest file re-scoped (Outcome). No quarantine, and no landing of counters alone."
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at consensus:ea48bc8",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T14:14:13",
-      "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
+      "updated": "2026-11-24T20:59:31",
+      "worktree": ""
     },
     "consensus-follower-read": {
       "accepted": {
@@ -8440,11 +9082,40 @@
       "worktree": ""
     },
     "consensus-inline-sync-loop": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T03:16:39",
+          "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "blobs": {
+            "bench/netlab/node.cc": "100644:d38ed955f6ba47facf9fbfd90e4c01e3390433d3",
+            "docs/DRIVER.md": "100644:b10b47c745ad7dc907e2b164f487b63991c3895d",
+            "docs/mechanisms/host-transport.md": "100644:9eef39cde0b6adc992f237709d9a11dae310285f",
+            "test/transport/groups_test.cc": "100644:48f8d055f4fbebe149acc08a1c4c1edfa0fcf59c",
+            "test/transport/mutant_commit.py": "100755:96e67254ce72183e933cfb6875eef616c8e4283a"
+          },
+          "by": "review",
+          "commit": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "criteria": "abb9ffcfaf0ee7bf",
+          "diffs": {
+            "bench/netlab/node.cc": "0aad5fa753bb3501",
+            "docs/DRIVER.md": "28c65db95debba57",
+            "docs/mechanisms/host-transport.md": "2e59948bf2cbc4e2",
+            "test/transport/groups_test.cc": "40be8b73092366c0",
+            "test/transport/mutant_commit.py": "7e9d5c5a48ff3e19"
+          },
+          "findings": {},
+          "note": "",
+          "review": "0641b887e03d65283b33fbcaa061fae0efcff721",
+          "reviewed": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-fetch-alongside-flake",
         "consensus-rpc-host-stream-gap"
       ],
+      "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+      "branch": "quest/detent/consensus-inline-sync-loop",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -8456,20 +9127,40 @@
       "consumes": [],
       "files": [
         "include/consensus/transport/host_transport.h",
-        "DRIVER.md",
+        "docs/DRIVER.md",
         "docs/mechanisms/**",
-        "test/transport/**"
+        "test/transport/**",
+        "bench/netlab/**"
       ],
+      "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-25T04:34:33",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "at": "2026-11-25T04:34:33",
+          "by": "lead",
+          "closed": "the lead's own answer; acted on at landing",
+          "id": "msg-1",
+          "text": "Lead: the macos-x86_64 stall is pre-existing (verified on main, CI 45542770252 at c724c58) and goes to follow-up quest consensus-macos-x86-loop-kernel-wait. This quest lands after b2fa03b's jobs pass; with --no-ci only if macos-x86_64 alone is red with this signature in CI 45609770275. slow-sync running inside the driver ctest entry is fine. netlab's startup failure on macOS is pre-existing, and the lead tracks it."
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "review F5: netlab pairs InlineCompletion with HostTransport, the pairing DRIVER.md now rules out; it moves to the native completion like detentd and the tests (one shape)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-23T19:57:28"
+      "updated": "2026-11-25T05:03:23",
+      "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
       "accepted": {},
@@ -8917,6 +9608,33 @@
       "title": "consensus_liveness stays well inside its timeout under ASan",
       "updated": "2026-11-24T12:44:09",
       "worktree": ""
+    },
+    "consensus-macos-x86-loop-kernel-wait": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups fetch-alongside: a loop stuck in a kernel wait for 1.5 s on macOS x86 CI",
+      "updated": "2026-11-25T04:02:37"
     },
     "consensus-mutants-per-test": {
       "accepted": {},
@@ -9709,7 +10427,34 @@
       "worktree": ""
     },
     "consensus-recovered-over-limit-start": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T21:20:38",
+          "base": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "blobs": {
+            "CMakeLists.txt": "100644:3298f2c721a0cf97beb127f64a20898ef474fafb",
+            "docs/mechanisms/deadlines.md": "100644:ee282ff1b1dcc43686af5cc077cb1d506119a421",
+            "include/consensus/driver.h": "100644:7cea55f7ea6e9f21a04e15bb797b0d934d9af708",
+            "include/consensus/worker.h": "100644:2c9b438e02260158138e6398bde0e6c9e0a2e0c7",
+            "test/recovered_over_limit_test.cc": "100644:6af9542fa7b9ee554a3747103fd510a2d1e4bda7"
+          },
+          "by": "review",
+          "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+          "criteria": "4cdc7cf529161c03",
+          "diffs": {
+            "CMakeLists.txt": "94e258c48aabf540",
+            "docs/mechanisms/deadlines.md": "64c7cb60d24939d7",
+            "include/consensus/driver.h": "5f390a18c663d987",
+            "include/consensus/worker.h": "ab4a8ee33fc26b3b",
+            "test/recovered_over_limit_test.cc": "c48629814c5bc81b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "fb99d7a4e8c926b816aa2cd7a4c38c7c6f9c6262",
+          "reviewed": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-pressure-rearm"
       ],
@@ -9731,20 +10476,56 @@
         "docs/mechanisms/deadlines.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/consensus-recovered-over-limit-start",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T21:22:09",
+          "ci": {
+            "carried": true,
+            "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+            "runs": [
+              45548717537
+            ]
+          },
+          "commit": "be18ad93cf5205abe56cea54973e1ca69a7674a7",
+          "criteria": {
+            "A1": "this journal's table (fix round 1: rows by mode, F1)",
+            "A2": "261124-204315-ae3e15 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files), 261124-204318-1b1244 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files), 261124-204309-3eda32 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files); fails without: 261124-201346-931ecd, 261124-201349-16891d, 261124-204312-01c44d",
+            "A3": "[artifact] docs/mechanisms/deadlines.md, \"A recovered store over its control headroom\" (rewritten by mode, F1)",
+            "A4": "261124-204331-0201ac (passed at 53c8146d3b48; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-204331-0201ac",
+              "level": "light",
+              "seconds": 916.4,
+              "state": "done",
+              "what": "consensus-recovered-over-limit-start check suite at 53c8146d3b48"
+            }
+          ],
+          "final": true,
+          "from": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+          "reason": "",
+          "tested": "be18ad93cf5205abe56cea54973e1ca69a7674a7"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
-      "updated": "2026-11-24T20:15:23",
-      "worktree": "../consensus-wt/detent/consensus-recovered-over-limit-start"
+      "updated": "2026-11-24T21:22:13",
+      "worktree": ""
     },
     "consensus-replica-delete": {
       "accepted": {},
@@ -14896,15 +15677,15 @@
       ],
       "milestone": "",
       "needs": [
-        "consensus-driver-pipelined-sim"
+        "pin-wave"
       ],
       "provides": [],
-      "reason": "shares driver files with consensus-driver-pipelined-sim and consensus-follower-read; starts after the sim lands",
+      "reason": "pin-wave's consensus pins live in consensus CMakeLists.txt, which driver-pipeline would hold; not on the RC path",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-24T01:34:50"
+      "updated": "2026-11-24T22:36:15"
     },
     "driver-witness-removal-sink": {
       "accepted": {
@@ -15646,12 +16427,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "two more Python tools parse selected; they move to the one shared layout-3 reader",
+      "reason": "D166: the owner ruled the absent-name target",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T19:06:33",
+      "updated": "2026-11-25T05:54:02",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
@@ -19531,6 +20312,106 @@
       "updated": "2026-11-21T07:20:20",
       "worktree": ""
     },
+    "journal-recovery-refill": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T21:45:50",
+          "base": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "blobs": {
+            "docs/mechanisms/admission.md": "100644:839f74e45a38df0ce28b2ef34ab74a57e84d89de",
+            "include/journal/admission.h": "100644:9078cfa4b868b5d28a4ad2a09f5b76757455c778",
+            "test/admission_mutants.py": "100755:4200a8e4e9e50869ae2fbc2da323d2522f11764d",
+            "test/admission_test.cc": "100644:4fb942b5253afe1bc2be27082c15a9a8a3c60cf1"
+          },
+          "by": "review",
+          "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "criteria": "96416d5d49fa57c7",
+          "diffs": {
+            "docs/mechanisms/admission.md": "d8fa371c1fec763c",
+            "include/journal/admission.h": "7d82f42a00dfa646",
+            "test/admission_mutants.py": "609af627dcef04a2",
+            "test/admission_test.cc": "a69162b7695f6226"
+          },
+          "findings": {},
+          "note": "",
+          "review": "c3fb2c477ec45536a2856db81ca4386a7908b568",
+          "reviewed": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+      "branch": "quest/detent/journal-recovery-refill",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "journal:admission"
+      ],
+      "files": [
+        "include/journal/admission.h",
+        "include/journal/admission/**",
+        "src/admission*.cc",
+        "test/admission*",
+        "test/admission/**",
+        "docs/mechanisms/admission*.md",
+        "CMakeLists.txt"
+      ],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T21:56:10",
+          "ci": {
+            "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+            "runs": [
+              45554113724
+            ]
+          },
+          "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "criteria": {
+            "A1": "this table and the rule above",
+            "A2": "261124-213010-aaea95, 261124-213014-836945, 261124-213017-d8c48c; fails without: 261124-204700-cfc2f7, 261124-213022-4bd2fc, 261124-213026-23aa96, 261124-213029-039f92, 261124-213033-a6b133, 261124-213037-283680",
+            "A3": "journal `docs/mechanisms/admission.md` (Recovery: the rule and its event table), at a6fff53",
+            "A4": "261124-213046-c80acd"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-213046-c80acd",
+              "level": "light",
+              "seconds": 64.4,
+              "state": "done",
+              "what": "journal-recovery-refill check suite at 46a7a31177cd"
+            }
+          ],
+          "final": true,
+          "from": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "reason": "",
+          "tested": "46a7a31177cddf4e16007ecb42ec55246323987a"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../journal",
+      "risk": "high",
+      "status": "landed",
+      "title": "a crash never wedges an owned store: recovery refills replacement before it can fund a checkpoint",
+      "updated": "2026-11-24T21:56:23",
+      "worktree": ""
+    },
     "journal-reopen-closed": {
       "accepted": {
         "durability": {
@@ -22910,15 +23791,16 @@
       ],
       "milestone": "M2 Integration (RC-1)",
       "needs": [
-        "pin-wave"
+        "pin-wave",
+        "resource-adoption"
       ],
       "provides": [],
-      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
+      "reason": "msgpack and resource-adoption both rewrite src/detent_distribution/**: serial",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
-      "updated": "2026-11-24T14:21:40"
+      "updated": "2026-11-25T05:00:19"
     },
     "multi-voter-idle-wake": {
       "accepted": {},
@@ -22977,15 +23859,15 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "B1 resolved (consensus:a068ba0 PeerOptions::wake); B2 the consensus bump moves task and completion too, so it rides pin-wave; B3 service.cc is held by restart-capacity (server-composition-adoption already lands after this quest)",
+      "reason": "B3: service.cc is held by relay-mirror-idle-wake",
       "repo": ".",
       "risk": "high",
       "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
       "until": [
-        "pin-wave"
+        "relay-mirror-idle-wake"
       ],
-      "updated": "2026-11-22T21:36:39",
+      "updated": "2026-11-25T05:01:31",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
@@ -28783,6 +29665,38 @@
       "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
       "updated": "2026-11-20T06:56:03"
     },
+    "paged-find-absent-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/store_table.cc",
+        "src/detent_local/paged_table*",
+        "include/detent_local/paged_table*",
+        "benchmarks/table_find*",
+        "docs/perf/first-read-1ms.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "first-read-1ms"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The paged table's absent find matches main's on names without a shared prefix",
+      "updated": "2026-11-25T05:53:57"
+    },
     "paged-first-touch-one-shape": {
       "accepted": {},
       "after": [
@@ -29124,6 +30038,8 @@
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
+      "base": "a8bf087a2a89d1836c5da65a81cb74490e53ea7e",
+      "branch": "quest/detent/persistent-map-adoption",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -29159,7 +30075,10 @@
         "docs/EXTRACTION_CHECKLIST.md",
         "src/detent_authority/CMakeLists.txt",
         "src/detent_authority/persistent_map.hh",
-        "tests/detent_authority/**"
+        "src/detent_authority/state.hh",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_authority/test_persistent_map*.cc",
+        "tests/detent_authority/test_namespace_positions.cc"
       ],
       "history": [
         {
@@ -29273,15 +30192,154 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
+      "reason": "started by force: RC-1 critical path. Overlaps are the shared dependency-registration files with resource-adoption (CMakeLists.txt, cmake/dependencies.json, docs/EXTRACTION_CHECKLIST.md: one line each), tests/detent_authority/CMakeLists.txt with server-composition-adoption (one test entry), and voter-read-freshness's broad src/detent_authority/** while it is blocked; each merges main before landing",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "EX-4: the authority's ordered map from persistent-map",
-      "updated": "2026-11-24T14:21:45"
+      "updated": "2026-11-25T05:00:03",
+      "worktree": "../Detent-wt/detent/persistent-map-adoption"
     },
     "pin-wave": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T03:58:21",
+          "base": "18c5bd23ff2435c523c23142e0e76ac9dac809df",
+          "blobs": {
+            "CHANGELOG.md": "100644:5826f4fa837907685301fb4a6fc9c207b6ad51b4",
+            "CMakeLists.txt": "100644:31e77d4abfae608d1c08f8df67e39c64d500a0a1",
+            "benchmarks/detent_authority_durable_bench.cc": "100644:d1aff68564da7d3cf60609ce7a80e6e963f23141",
+            "benchmarks/read_response_bench.cc": "100644:8c2c163cf609dd2223a363fae0b0db3d0ab41c89",
+            "benchmarks/relay_window_bench.cc": "100644:5becd7ac1df59ae43a8254a5f3b8e83bd0f02f18",
+            "cmake/dependencies.json": "100644:fbe2ced1812addfdfc6bc670ba0905ea73e3716c",
+            "docs/DEPENDENCIES.md": "100644:2536e4ff67d5b331202e713a10c06a9438c48bd3",
+            "docs/DEPENDENCY_UPGRADES.md": "100644:35205cbb5ddb3100c37e5e2286d7bc6d734bf771",
+            "docs/SHARED_LIBRARY_DECISIONS.md": "100644:0c5399a77d71fdfe862685c6056567c4ca949c2a",
+            "docs/perf/pin-wave-ab.sh": "100755:d053997192b0fcc14c1cafc9299d08c25b4241cd",
+            "docs/perf/pin-wave-syscalls/CMakeLists.txt": "100644:32fbe95e213d35a72413842d7ec498f73f9293bd",
+            "docs/perf/pin-wave-syscalls/expected-delta.txt": "100644:f0863bcadf64923f7e1d8ad7b65160021cea0564",
+            "docs/perf/pin-wave-syscalls/interpose.c": "100644:6b0ba420a89580bc5d5972cf519d70223648fd3e",
+            "docs/perf/pin-wave-syscalls/oracle_scenario.cc": "100644:3b8b2d667d064f2bdecef3d407ba43a1f3415583",
+            "docs/perf/pin-wave-syscalls/run.sh": "100755:818f914ce5b7f1b0846ab8d5bae20d3dccdd27fe",
+            "docs/perf/pin-wave-w5.sh": "100755:7f78aebb68afc26bce09c8bef74405750d1c1664",
+            "docs/perf/pin-wave.md": "100644:0846aa4fd7f1c614d2e0cfc7dfbb076e334e5387",
+            "src/detent_authority/main.cc": "100644:5617c35566112ba10aeab9e8b1937bbdfcc64374",
+            "src/detent_authority/service_runtime.cc": "100644:e6de75758d6789635c07435d9bbbb6ebf05794ab",
+            "src/detent_local/disk_store.cc": "100644:e805361b51adda3f8ccb797bbdd76f0bc551771b",
+            "src/detent_relay/host.cc": "100644:35284ff9f1edf318514047e506044d2df3511b10",
+            "src/detent_relay/mirror_service.cc": "100644:a60753a30c71376ad343b063cdc628eec8e64dc9",
+            "tests/detent_agent/test_agent_store.cc": "100644:c810cf9d29458effa92207e48b5210b3c71033b4",
+            "tests/detent_agent/test_agent_store_crash.cc": "100644:2d7f494a5926d5026f2ddd43d3a09767f40bd9a1",
+            "tests/detent_authority/CMakeLists.txt": "100644:e581885ce12cc414d19ad7b24b00f9015c33437b",
+            "tests/detent_authority/cluster_harness.hh": "100644:c484a76013864ae5611ffb55c0bcdf6a9e9be605",
+            "tests/detent_authority/offline_runtime.hh": "100644:6b61cdfd5dfda88471cc6da4425e04b0e17dbfa1",
+            "tests/detent_authority/test_distribution_ownership.cc": "100644:8d243c351176640f60894e4f34c71de4b76742ac",
+            "tests/detent_authority/test_distribution_service.cc": "100644:a7db7e57f163f1adb2f12ebb434a77bff1de2d20",
+            "tests/detent_authority/test_frames_service.cc": "100644:94b8c14648219905a058bed7aac40b3c84d5a424",
+            "tests/detent_authority/test_history_large_base.cc": "100644:63e0bf17c97cb482d01f8475fa57da46f04513f3",
+            "tests/detent_authority/test_history_names.cc": "100644:52615d4c50216971ecd67c8c3d067d7bf7377991",
+            "tests/detent_authority/test_history_power_cut.cc": "100644:564f651b80ce924439adea0233a01a78e55689b9",
+            "tests/detent_authority/test_history_transport.cc": "100644:c31b81d228b7b4ca685d0f56c1b63b31417f3480",
+            "tests/detent_authority/test_namespace_power_cut.cc": "100644:ec43493c6facfd42f9a1d25e06a05d4d881b04cb",
+            "tests/detent_authority/test_node.cc": "100644:a0b9334ecd36554c1e5e211672a369ff7087a7fc",
+            "tests/detent_authority/test_process.cc": "100644:040854e800a09d73df330afaa099271a1b5536a9",
+            "tests/detent_authority/test_service_wire.cc": "100644:f36ffd19a62398f8b95355b22f501db5893ed2f8",
+            "tests/detent_authority/test_transport_https.cc": "100644:0e326ab526a7b328a18e19ad697b0d00aaa1b1c9",
+            "tests/detent_authority/test_transport_peers.cc": "100644:d72b635de8c8835e46f2a4caedb225fd67cb25b1",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "100644:2a26b82b086f30a52b4ca6ce3d9fc56197b0e757",
+            "tests/detent_relay/CMakeLists.txt": "100644:b365a1aacfcec1f9fe00e124639cb7d3503a55b5",
+            "tests/detent_relay/mirror_fixture.hh": "100644:63b71ba908d9ce44884a7aa1fce697c326add012",
+            "tests/detent_relay/mutants/build-on-mirror-thread.patch": "100644:18622d078fc43bfa6e438ebbe2aa36f83dccca2a",
+            "tests/detent_relay/test_http_upstream.cc": "100644:52c32e236b05cda7c36020872b66e4630b4a89ac",
+            "tests/detent_relay/test_relay_chain.cc": "100644:9624604c9367e7c98cf77052048827416b17b713",
+            "tests/detent_relay/test_relay_mirror_crash.cc": "100644:789051cbee70fba7a497317d6b522d1da091cf29",
+            "tests/detent_relay/test_relay_pages.cc": "100644:fe301377a0604eceda3f2ba236c7959b44421529",
+            "tools/w5/slow_flush.c": "100644:240bd98df797eb39fd52a0f2b3d8ac0e83c8f5cc",
+            "tools/w5/slow_flush_get.sh": "100755:c2c140641c55553424c1f88ea800d868fe7f375e",
+            "tools/w5/w5_store.cc": "100644:e28161123c236c5704481968053a1fa9a698d4f7"
+          },
+          "by": "review",
+          "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+          "criteria": "5fb498444016d58e",
+          "diffs": {
+            "": "ec92040b48bb86b1",
+            "CHANGELOG.md": "c03770b48d5ce848",
+            "CMakeLists.txt": "a52c27b0bb4cef90",
+            "benchmarks/detent_authority_durable_bench.cc": "037e5bc4e167e882",
+            "benchmarks/read_response_bench.cc": "ea31ddb4384d0223",
+            "benchmarks/relay_window_bench.cc": "7ad2a17c189711b0",
+            "cmake/dependencies.json": "8b765ffe670fec94",
+            "docs/DEPENDENCIES.md": "9080427e2a550e25",
+            "docs/DEPENDENCY_UPGRADES.md": "6142bd5614be52e5",
+            "docs/SHARED_LIBRARY_DECISIONS.md": "6530bf79bf21b3a9",
+            "docs/perf/pin-wave-ab.sh": "d9729307e4766cdd",
+            "docs/perf/pin-wave-syscalls/CMakeLists.txt": "961ec44970c604ef",
+            "docs/perf/pin-wave-syscalls/expected-delta.txt": "723e15dbb4c5043f",
+            "docs/perf/pin-wave-syscalls/interpose.c": "cff4fdbb0c809c46",
+            "docs/perf/pin-wave-syscalls/oracle_scenario.cc": "28eaabb92e7632ea",
+            "docs/perf/pin-wave-syscalls/run.sh": "23cde7f5914445bf",
+            "docs/perf/pin-wave-w5.sh": "0dee22bea4aee051",
+            "docs/perf/pin-wave.md": "7c1db12429ec5af3",
+            "src/detent_authority/main.cc": "f717e28f38896de3",
+            "src/detent_authority/service_runtime.cc": "fe879a5852c93dfa",
+            "src/detent_local/disk_store.cc": "d1924a4048b04ac0",
+            "src/detent_relay/host.cc": "3a12a1a1fb73184a",
+            "src/detent_relay/mirror_service.cc": "2cccea88c7a10e0a",
+            "tests/detent_agent/test_agent_store.cc": "f63e75d716e9b370",
+            "tests/detent_agent/test_agent_store_crash.cc": "866dfd9a54647e14",
+            "tests/detent_authority/CMakeLists.txt": "c6f7cb99a035df52",
+            "tests/detent_authority/cluster_harness.hh": "987769d25fbd004a",
+            "tests/detent_authority/offline_runtime.hh": "10530f49dcc2ca38",
+            "tests/detent_authority/test_distribution_ownership.cc": "98da4d89b99c235b",
+            "tests/detent_authority/test_distribution_service.cc": "87fa0bc7e8d4c96a",
+            "tests/detent_authority/test_frames_service.cc": "3d2e17c7f68fef8b",
+            "tests/detent_authority/test_history_large_base.cc": "d47498faeac26d48",
+            "tests/detent_authority/test_history_names.cc": "9f6c6de9d513bac5",
+            "tests/detent_authority/test_history_power_cut.cc": "ff96c7ff3fb59fab",
+            "tests/detent_authority/test_history_transport.cc": "ff09dfd4e2b71354",
+            "tests/detent_authority/test_namespace_power_cut.cc": "edf03c8b35642b74",
+            "tests/detent_authority/test_node.cc": "3d67d24775f1ff5d",
+            "tests/detent_authority/test_process.cc": "783c43ddceea0ca9",
+            "tests/detent_authority/test_service_wire.cc": "01ec44f8771b3195",
+            "tests/detent_authority/test_transport_https.cc": "dfe6ddc0f03e7f65",
+            "tests/detent_authority/test_transport_peers.cc": "d3d444eed2340684",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "a4412752f04104f5",
+            "tests/detent_relay/CMakeLists.txt": "c598dd5bc358597e",
+            "tests/detent_relay/mirror_fixture.hh": "40bbf8ea7d185438",
+            "tests/detent_relay/mutants/build-on-mirror-thread.patch": "9b3a93cc17f5ecfa",
+            "tests/detent_relay/test_http_upstream.cc": "943ecae17298ef13",
+            "tests/detent_relay/test_relay_chain.cc": "d985a540c4b67d1d",
+            "tests/detent_relay/test_relay_mirror_crash.cc": "89bb87994bd9d9ea",
+            "tests/detent_relay/test_relay_pages.cc": "aad39e51289b61b8",
+            "tools/w5/slow_flush.c": "90fb765583a47ca9",
+            "tools/w5/slow_flush_get.sh": "7affcc46141acb82",
+            "tools/w5/w5_store.cc": "490620aa29356d81"
+          },
+          "findings": {
+            "R2-1": {
+              "jobs": [
+                {
+                  "cmd": "docs/perf/pin-wave-ab.sh row get /Users/kronuz/.scratch/detent/pin-wave-ab 4",
+                  "commit": "9931c6531d779e264ea7d50c6c377f6f2e87eb89",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261125-032006-cda6ba",
+                  "level": "strict",
+                  "seconds": 326.3,
+                  "state": "done",
+                  "what": "A6 get row with A/A, 4 rounds, at the deadline fix"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "d8890fd814c8806478b4a1b5cd06d01674a7495a",
+          "reviewed": "68398f85a68bfefce948d41018cd9badefaef8ba",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "18c5bd23ff2435c523c23142e0e76ac9dac809df",
       "branch": "quest/detent/pin-wave",
@@ -29355,7 +30413,10 @@
         "tests/detent_authority/test_history_power_cut.cc",
         "tests/detent_authority/test_history_transport.cc",
         "tests/detent_authority/test_namespace_power_cut.cc",
-        "tests/detent_authority/CMakeLists.txt"
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_relay/CMakeLists.txt",
+        "tools/w5/**",
+        "benchmarks/read_response_bench.cc"
       ],
       "history": [
         {
@@ -29460,9 +30521,84 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-25T04:57:53",
+          "ci": {
+            "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+            "runs": [
+              45603512329
+            ]
+          },
+          "commit": "dbd4d4f7370a6bfe425f04784af700b2a169e900",
+          "criteria": {
+            "A1": "pins 261124-234152-d6560c at Detent:75bb4ac1: 30 libraries, 41 shared declarations, 0 mismatches; rerun 261124-234933-f5eec6 at Detent:0b8a0df9 queued",
+            "A2": "heads' CI listed in the cascade table below",
+            "A3": "docs/SHARED_LIBRARY_DECISIONS.md \"The November pin wave\"; asked msg-358",
+            "A4": "261125-043742-6f6410, 261125-032009-b3f010",
+            "A5": "261125-035853-4966da, 261125-035849-03bf36",
+            "A6": "261125-031958-0624b3, 261125-031956-84f5ff, 261125-032006-cda6ba; fails without: 261125-025801-21c94b",
+            "A7": "CHANGELOG.md \"Pins: the November wave\" (Detent:d2031ebc; operator-visible results per library commit, Detent:a45ad238): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions",
+            "A8": "docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md \"The November pin wave\" (Detent:d2031ebc)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "369d3b77aafaec01c4302cb98241de5feefd430d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-043742-6f6410",
+              "level": "light",
+              "seconds": 698.7,
+              "state": "done",
+              "what": "pin-wave check native at 369d3b77aafa"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "9931c6531d779e264ea7d50c6c377f6f2e87eb89",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-032009-b3f010",
+              "level": "none",
+              "seconds": 3.5,
+              "state": "done",
+              "what": "pin-wave check pins at 9931c6531d77"
+            },
+            {
+              "check": "asan",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+              "state": "done"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "84c4137bc40ff46dced8064a6c9ba019795644d0",
+          "reason": "",
+          "tested": "63537ac243307a2616c5a8c2581d37a481f17c05"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-24T23:44:57",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "dbd4d4f7370a",
+          "at": "2026-11-24T23:44:57",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Lead: widened tests/detent_relay/CMakeLists.txt and tools/w5/** (A4's link, A5's differ); a fresh contributor finishes both."
+        }
       ],
       "milestone": "N2 Handoff follow-ups",
       "needs": [
@@ -29475,13 +30611,13 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "journal removed memory_io.h; nine authority test targets link faultlab",
+      "reason": "A6's get row: the bench's fixture overflows the 16,384-byte definition bound since one-knob-type's 8-byte overrides (broken on main too); key padding fixes the fixture, not the bound",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T20:18:59",
-      "worktree": "../Detent-wt/detent/pin-wave"
+      "updated": "2026-11-25T05:49:32",
+      "worktree": ""
     },
     "post-w2": {
       "accepted": {},
@@ -31511,7 +32647,26 @@
         "src/detent_authority/service_internal.hh",
         "src/detent_delivery/client.cc",
         "include/detent_delivery/client.hh",
-        "tests/detent_delivery/test_client*.cc"
+        "tests/detent_delivery/test_client*.cc",
+        "src/detent_authority/namespace_sessions.hh",
+        "src/detent_authority/namespace_sessions.cc",
+        "include/detent_distribution_http/session_request.hh",
+        "src/detent_distribution_http/session_request.cc",
+        "include/detent_delivery/namespace_session.hh",
+        "src/detent_delivery/namespace_session.cc",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_authority/service.hh",
+        "src/detent_relay/service.cc",
+        "tests/detent_delivery/test_namespace_session.cc",
+        "tests/detent_delivery/test_session_request.cc",
+        "tests/detent_delivery/namespace_server_fixture.hh",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_distribution_ownership.cc",
+        "tests/detent_system/run_trust_negatives.py",
+        "docs/status/namespace-s6.md",
+        "docs/SUBSCRIPTIONS_ARCHITECTURE.md",
+        "include/detent_distribution_http/reply_pump.hh",
+        "src/detent_distribution_http/reply_pump.cc"
       ],
       "landed": [],
       "lenses": [
@@ -31520,13 +32675,39 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "this quest's new 503 not_ready reaches agents, whose client reads it as AdmissionFull and retries the same voter instead of rotating (review round 2 note); the client maps it",
+      "reason": "D165: the 204 carries the upstream's seal in a header, sent by reply_pump's send_control",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T20:00:39",
+      "updated": "2026-11-25T05:01:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
+    },
+    "relay-service-layouts-base-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_relay/test_relay_service.py"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "test_relay_service: the layouts sometimes never reach a base (:790)",
+      "updated": "2026-11-25T04:38:16"
     },
     "relay-service-refused-sync-flake": {
       "accepted": {},
@@ -31922,7 +33103,8 @@
         "src/detent_distribution/**",
         "tests/detent_delivery/CMakeLists.txt",
         "tests/detent_local/snapshot_fixture.hh",
-        "tests/detent_local/test_paged_segment_collection.cc"
+        "tests/detent_local/test_paged_segment_collection.cc",
+        "tests/detent_reader/CMakeLists.txt"
       ],
       "history": [
         {
@@ -32032,17 +33214,16 @@
         "correctness"
       ],
       "milestone": "M2 Integration (RC-1)",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
-      "reason": "Parked since 2026-11-02 for the handoff's order; waits for the lead's ruling on the allocators change and the macos-arm64 variant-13 fix (resource-adoption ledger)",
+      "reason": "test_reader_switch links detent::resources once the ledger headers alias allocators' ReservationBook",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "EX-1: one resource-accounting implementation in allocators",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-22T22:05:37"
+      "updated": "2026-11-25T05:55:51"
     },
     "restart-capacity": {
       "accepted": {
@@ -32848,15 +34029,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "reason": "pin-wave landed",
       "repo": ".",
       "risk": "normal",
-      "status": "blocked",
+      "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "until": [
-        "pin-wave"
-      ],
-      "updated": "2026-11-24T12:39:57",
+      "updated": "2026-11-25T04:58:43",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {

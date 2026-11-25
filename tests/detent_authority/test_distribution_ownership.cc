@@ -142,7 +142,7 @@ std::uint64_t seed_checkpoint(const a::ServiceOptions &options, std::size_t coun
 	const auto image = state.checkpoint();
 	std::filesystem::create_directory(options.directory);
 	std::filesystem::permissions(options.directory, std::filesystem::perms::owner_all);
-	kronuz::journal::PosixIO io(options.directory);
+	kronuz::journal::PosixIO io(options.directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 	kronuz::journal::Store store(io, options.node.storage, 64 * 1024 * 1024);
 	kronuz::journal::Identity identity{};
 	identity[0] = 's';

@@ -49,7 +49,7 @@ std::filesystem::path fresh(const std::string &name) {
 	return path;
 }
 std::unique_ptr<l::AgentStore> open(const std::filesystem::path &root) {
-	return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, 0644), l::AgentStore::Options{profile});
+	return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644), l::AgentStore::Options{profile});
 }
 std::array<l::PreparedGeneration, 1> one(const Generation &g) { return {g.prepared}; }
 ino_t inode(const std::filesystem::path &path) {
@@ -449,7 +449,7 @@ int passing_fcntl(int fd, int command) { return ::fcntl(fd, command); }
 void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync, &passing_fcntl); }
 #elif defined(__linux__)
 int passing_writeback(int) { return 0; }
-void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync, &passing_writeback); }
+void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync, nullptr, &passing_writeback); }
 #else
 void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync); }
 #endif
@@ -458,7 +458,7 @@ void failed_sync() {
 	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
 	const auto pack = root / std::string(l::detail::SegmentNames(a.prepared.segments[0].id).payload_name());
 	{
-		auto io = std::make_shared<c::PosixIO>(root, 0644);
+		auto io = std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644);
 		fail_syncs(*io);
 		l::AgentStore store(io, {profile});
 		// The pack's `.tmp-` inode is the one linked at its name; fail its fsync when it comes.

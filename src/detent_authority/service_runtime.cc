@@ -583,7 +583,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		check(!node_options.scheduling.async_storage && !node_options.scheduling.async_appends,
 			  "native completion storage is unavailable on this platform");
 #endif
-		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
+		constexpr kronuz::journal::PosixIOOptions full_flush{kronuz::journal::FlushMode::full};
+		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory, full_flush),
 											node_options);
 		auto &node = *owned_node;
 		// With peers, history fetches what it lacks from them and serves them its files (D91).
@@ -595,11 +596,11 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					others.push_back(voter);
 			peer_history = std::make_shared<PeerHistory>(io.get_executor(), std::move(others), peer_options->fetches,
 														 std::chrono::milliseconds(200));
-			peer_options->reader = history_reader(std::make_shared<kronuz::journal::PosixIO>(history_directory),
+			peer_options->reader = history_reader(std::make_shared<kronuz::journal::PosixIO>(history_directory, full_flush),
 												  peer_options->fetch_bytes);
-			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory), peer_history->fetch());
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory, full_flush), peer_history->fetch());
 		} else {
-			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory));
+			node.attach_history(std::make_shared<kronuz::journal::PosixIO>(history_directory, full_flush));
 		}
 		history = std::allocate_shared<ChangeHistory>(
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
