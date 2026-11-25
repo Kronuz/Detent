@@ -9470,6 +9470,40 @@
       "updated": "2026-11-21T08:22:39",
       "worktree": ""
     },
+    "consensus-recovered-over-limit-start": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-pressure-rearm"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/driver.h",
+        "test/recovered_over_limit_test.cc",
+        "docs/mechanisms/deadlines.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
+      "updated": "2026-11-24T17:31:31"
+    },
     "consensus-replica-delete": {
       "accepted": {},
       "after": [
