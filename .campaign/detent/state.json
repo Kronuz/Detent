@@ -4893,6 +4893,26 @@
         "todo": "e70d24f9"
       },
       "text": "to do, critical path first:\ntodo: review first-read-1ms (its journal says ready for review; waiting on jobs 261124-155135-e8bc6d, 261124-155138-5da24c, 261124-155140-00faf4, 261124-155142-9a0f4d (A2), 261124-155155-541c14 (A1), 261124-155200-b45b23 (reader_bench), 261124-155204-3e4aa2 (mutant) and CI; the suite needs Blocked on 1; then launch its security and correctness review; new): `campaign set first-read-1ms status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T16:58:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T16:58:35",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-388",
+      "items": {
+        "consensus-driver-pressure-rearm": "frees CMakeLists.txt, docs/mechanisms/deadlines.md for consensus-driver-pressure-rearm"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-pressure-rearm"
+        ]
+      },
+      "text": "consensus-next-deadline-removal landed: unlocks frees CMakeLists.txt, docs/mechanisms/deadlines.md for consensus-driver-pressure-rearm"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7044,6 +7064,8 @@
       "after": [
         "consensus-next-deadline-removal"
       ],
+      "base": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+      "branch": "quest/detent/consensus-driver-pressure-rearm",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -7059,6 +7081,7 @@
         "CMakeLists.txt",
         "docs/mechanisms/deadlines.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-pressure-rearm",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -7066,9 +7089,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T14:20:39"
+      "updated": "2026-11-24T16:59:15",
+      "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
     },
     "consensus-drop-memory-io-include": {
       "accepted": {},
