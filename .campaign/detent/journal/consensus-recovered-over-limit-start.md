@@ -1,6 +1,6 @@
 # consensus-recovered-over-limit-start: journal
 
-State: ready for review (jobs queued at consensus:d03a71b; pushed)
+State: fixing F1, F3
 Quest: .campaign/detent/quests/consensus-recovered-over-limit-start.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,54 +9,56 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Final head consensus:d03a71b; A2 pair, fails-without pair and suite queued; branch pushed for CI.
+Fix round 1 (review .campaign/detent/reviews/consensus-recovered-over-limit-start-correctness.md):
+F1 table and deadlines.md rewritten by mode; F3 `owned` case (sync reclaim branch); F2 is
+journal-recovery-refill, pointed at from row 2.
 
 ## Next
 
-1. Read jobs 261124-201345-5a60e2, 261124-201346-931ecd, 261124-201348-90beab, 261124-201349-16891d,
-   261124-201351-4ac6e5 and CI; correctness review.
+1. Build and run `owned` locally under quiet light; then the mutant commit, jobs, push.
 
 ## Table (A1): how recovery leaves a store above its control headroom
 
 Journal Admission (journal:9e11713 admission.h) refills the control pool first, then the replacement
 pool, from `free = hard - used - outstanding - pools`. A recovered store's census sets `used`; with
 `used > hard - control_pool`, control gets `hard - used` (short of the pool) and replacement gets
-nothing. The Driver's pre-Start Tick reserves the campaign pack (3 Control appends) and is refused
-when the short pool cannot fund it. Before Start the Driver admits nothing, so `foreground_` stays
-0, maintenance (reclaim) never falls due, and the pool never changes: a refusal is permanent.
-`used` counts the group's files: the owned store's whole directory; a shared (Host) group's
-artifacts only (its batches go to the turn log, reserved but never charged).
+nothing. Before Start nothing is admitted, so `foreground_` stays 0, maintenance (reclaim) never
+falls due, and the pool never changes on its own.
 
-| Way recovery lands above `hard - control_pool` | Mode | What frees it | Needs a started group? |
-|---|---|---|---|
-| Lowered `hard` or raised `control_pool` between runs (GroupOptions are per open) | both | only what reclaim finds; live data needs compaction | reclaim no; compaction yes, and it cannot be funded (below) |
-| Control appends drained the pool at the limit before the crash (a Control append settles its bytes into `used`; refill finds `free` 0) | owned only (shared appends charge nothing) | compaction: a checkpoint, then reclaim of the old generation | yes, and unfundable: a checkpoint needs a Replacement permit, and replacement refills only after a whole control pool |
-| Crash after a checkpoint's publication, before reclaim of the superseded generation and artifacts | both (shared: only with a lowered limit, since the publication's peak was funded under a whole control pool) | reclaim | no |
-| Kill or crash mid-checkpoint or mid-install: staged artifacts and pending manifests (funded by an outstanding Replacement permit, counted as `used` by the census) | both | reclaim (v2 artifact ownership header, written at create, is enough to match) | no |
-| Replay growth | both | n/a: replay only reads; the census runs after recovery; a torn tail's truncation only shrinks; the one write recovery queues is the bootstrap's initialization record, a Control append before Start (same rule) | n/a |
+Two modes, checked against the code. A Driver group is always a Host group (driver.h:202
+`open` builds the Host `Worker`; worker.h:117-124 forces async storage). A Host group's appends
+reserve `payload + 1` and add nothing (journal:9e11713 journal.h:136 `append_plan` when `shared()`;
+settled at store.h:78), so `used` counts its artifacts only and its control pool is whole whenever
+no permit is held. An owned store's Control appends settle their bytes into `used` (its whole
+directory); no Driver hosts an owned store.
 
-| What frees space | Needs a started group? | Today, before Start |
+| Way recovery lands above `hard - control_pool` | Driver (Host) group | Owned store (Worker host) | What frees it | Needs a started group? |
+|---|---|---|---|---|
+| 1. Lowered `hard` or raised `control_pool` between runs (limits are per open) | the only way in: reclaim pass, then the open completes if the pack fits (`reclaims`) or fails with `fenced(over_headroom)` (`refuses`) | reaches it: one reclaim pass, then Pressure, never fenced (`owned`); Start is still admitted | reclaim, of crash leftovers only (rows 3-4); live data needs compaction | reclaim no; compaction yes, and unfundable (replacement empty) |
+| 2. Control appends drained the pool at the limit before the crash | never: Host appends add nothing, so its control pool is whole with no permit held | reaches it: one pass, then Pressure, never fenced. Detent's authority turns once (`service`, service_runtime.cc:871) and submits Start (node.cc:208), which plans no appends, so it starts | compaction: a checkpoint, then reclaim of the old generation | yes; and recovery's refill order can leave the replacement pool too short for any checkpoint even when control is whole: journal-recovery-refill (review F2) |
+| 3. Crash after a checkpoint's publication, before reclaim of the superseded generation and artifacts | only on top of row 1: the publication's peak was funded under a whole control pool | only on top of rows 1-2, for the same reason | reclaim, before Start | no |
+| 4. Kill or crash mid-checkpoint or mid-install: staged artifacts, pending manifests (funded by an outstanding Replacement permit; the census counts them as `used`) | only on top of row 1 (`reclaims` is row 1 plus row 4) | only on top of rows 1-2 | reclaim (the v2 artifact ownership header, written at create, is enough to match) | no |
+| 5. Replay growth | none: replay only reads; the census runs after recovery; a torn tail's truncation only shrinks | the same; the one write recovery queues is the bootstrap's initialization record, a Control append before Start | n/a | n/a |
+
+| What frees space | Needs a started group? | Before Start |
 |---|---|---|
-| Reclaim (`Store::reclaim_step` / `begin_reclaim`): removes every file unreachable from the frontier's roots, credits `used`, refills | no: Store only | never runs (maintenance is due after `foreground_burst` admitted events; none before Start) |
-| Compaction (checkpoint publication, then reclaim) | yes (the Driver admits checkpoint calls once started) and a Replacement permit | unfundable while the control pool is short |
+| Reclaim (`Store::reclaim_step` / `begin_reclaim`): removes every file unreachable from the frontier's roots, credits `used`, refills | no: Store only | runs at a refused turn, until one pass completes (this quest) |
+| Compaction (checkpoint publication, then reclaim) | yes (checkpoint calls are admitted once started) and a Replacement permit | unfundable while the control pool is short |
 | Snapshot install from a leader | yes, and a Replacement permit | the same |
 | Retirement (Core's `retire_log`) | frees Core's charged log, not storage | n/a |
 | Close / host retirement | frees nothing in place | n/a |
 
-Rule: recovery frees what it can, then fails loudly. Before Start, a Worker turn refused with Pressure
-runs a reclaim step instead, until one whole reclaim pass has completed (roots cannot change before
-Start, so any completed pass examined every file). A Pressure turn after that is final: the Driver
-fences the group with `over_headroom`, so the open fails with `fenced` naming it. A started group could
-not do better: with the control pool short, replacement is empty (no checkpoint, no install), Normal
-is refused (`normal_ready` needs whole pools), and Control appends only add.
-Every store that opens today still opens: one whose pre-Start turn is funded never reaches the rule.
-The ones it changes never started today (the open hung): rows 3-4 now start, rows 1-2 fail by name.
-At the Worker level nothing new refuses: a Worker host's pre-Start turn reclaims instead of Pressure.
-
-Adjacent, for the lead (journal's refill order, outside this file set): recovery refills control
-before replacement, so a store recovered with `hard - control_pool - replacement_pool < used <=
-hard - control_pool` starts with a whole control pool and a short replacement pool: it cannot fund
-a checkpoint until reclaim credits space, though before the crash its replacement pool was whole.
+Rule: recovery frees what it can, then the Driver fails the open by name. Before Start, a Worker
+turn refused with Pressure runs a reclaim step instead (`IOPending` async, `Maintenance` sync),
+until one whole reclaim pass has completed (roots cannot change before Start, so any completed pass
+examined every file). For a Driver group a Pressure turn after that is final: the Driver fences the
+group with `over_headroom`, so the open fails with `fenced` naming it. A started group could not do
+better: with the control pool short, replacement is empty (no checkpoint, no install), Normal is
+refused (`normal_ready` needs whole pools), and Control appends only add. An owned Worker's host
+sees Pressure after the pass, never a fence, and decides.
+Every store that opens at main still opens: one whose pre-Start turn is funded never reaches the
+rule. A Driver group reaches it only through row 1: it starts when reclaiming rows 3-4's leftovers
+funds the pack (`reclaims`), and fails by name otherwise (`refuses`); at main both opens hung.
 
 ## Blocked on
 
