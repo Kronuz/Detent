@@ -16427,15 +16427,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "V5: round 4 fails in the paged find's cost (R4-1, absent short random names 1.08-1.16x main); the owner decides",
+      "reason": "D166: the owner ruled the absent-name target",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-25T03:59:42",
+      "updated": "2026-11-25T05:54:02",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
