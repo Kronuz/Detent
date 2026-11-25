@@ -200,3 +200,59 @@ in round 1, where I called the tightening right. Main's failure does not cover t
 | R3-F1 | yes | defect | fetch-alongside's `leads = kept \|\| stalled >= 1'000` fails when the leader's own journal operation is slow: 6,055 ms on node 3 (leader) cost term 1, with loops at most 148 ms late, 0 peers gone, 16 of 16 exact and the commits timely. Main's rule passes the same numbers. | CI 45609770275 macos-x86_64; groups_test.cc:2890-2891. | Allow the term when the leader's group's longest journal operation is at least 1,000 ms (a follower's slow sync must still keep it, A1). Test: FETCH_ALONGSIDE_SLOW_SYNC applied to the leader passes at the fix and fails with today's rule (`--fails-without`); macOS CI then reruns. |
 | R3-N1 | no | nit | The diagnostics change adds no mechanism and changes no bound. | `git diff 9f14194 b2fa03b`. | None. |
 | R3-N2 | no | gap | Should a leader keep heartbeating while its own sync is out (6 s on that runner's disk)? That is Driver behavior and the owner's call, a follow-up quest. It is not consensus-macos-x86-loop-kernel-wait, whose failure mode (loops held, peers gone) did not occur here. | As above. | Owner's call. |
+
+## Round 4
+
+Commit: consensus:624bebe
+Verdict: CHANGES
+Date: 2026-11-25
+
+### Evidence I relied on
+
+- 261125-051305-f2273d (fetch-alongside-leader-sync at 624bebe). The leader's next sync is held
+  6,000 ms, and its operation took 6,024 ms. Node 1 lost term 1 at 6,214 ms. Every loop on all
+  three nodes turned within 2 ms, 0 peers gone, 16 of 16 exact, commits timely (6,158 of
+  8,045 ms). Then "no, allowed", and the case passes.
+- 261125-051306-10a35a (fails without, consensus:b8420d8 = 624bebe with only `leads` back at
+  round 2's rule, checked with `git diff`): the same numbers, "NO", the assert, exit 134. It fails
+  for the leader-sync reason alone.
+- CI 45621393108 at 624bebe: linux-tsan, asan-ubsan, freebsd, linux gcc/clang/arm64 and
+  macos-arm64 are green. Their `groups_driver` entry runs slow-sync, so A1 still holds with the
+  narrowed injection (below). macos-x86_64 was still running when I wrote this. The suite job
+  261125-051315-1359b6 was still queued (machine queue); I did not wait for it, and CI covers the
+  same ctest entries.
+
+### What I checked
+
+- Is this designed? core.h:718-720 drives on a Tick only `if (started_ && !busy())`. A busy Core
+  sends nothing on a Tick: no heartbeat, no append. ARCHITECTURE.md:9 says "while storage is
+  pending, time continues to advance", and that a matching completion drives leader replication.
+  Line 19 says "only one storage batch is outstanding". Line 65 says pending persistence prevents
+  the Tick and the Worker keeps timer debt. docs/mechanisms/deadlines.md's `busy()` row says "a
+  busy Core refuses or holds". So the documents make it designed, but by implication: none of
+  them said a leader's sync longer than the election timeout costs its term. DRIVER.md now says
+  so. That is accurate, and it is the first place it is stated.
+- A1's guarantee. `slow_sync` is unchanged: a follower's 6 s sync must keep the term, with no
+  excuse. In fetch-alongside, `leads = kept || stalled >= 1'000 || led >= 1'000`, where `led` is
+  the leader's own longest journal operation on the group's loop. A follower's slow sync (the
+  FETCH_ALONGSIDE_SLOW_SYNC knob) leaves `led` short, so it must still keep the term. Kept.
+- `SlowQueue` now holds only a Turn-lane `SyncData` completion (groups_test.cc:1093-1097), where
+  before it held any next completion. That matches "a slow sync", and CI's driver entry shows
+  slow-sync still holds its 6 s.
+- The case is not in the suite: CMakeLists.txt:371 lists `fetch-alongside-consensus` but not
+  `fetch-alongside-leader-sync`, and no other entry calls `fetch_alongside(6'000)`. CMakeLists is
+  outside the file set (R4-F1).
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R4-F1 | yes | gap | R3-F1's regression case, fetch-alongside-leader-sync, has no ctest entry, so neither the suite nor CI runs it. Only the job ran it once. Proof standard 2 asks for the fix's failing test in the suite. | CMakeLists.txt:371; groups_test.cc:3271-3272. | Add `fetch-alongside-leader-sync` to the ctest list (the lead widens the file set to CMakeLists.txt), or have the `fetch-alongside-consensus` entry run it after the default case, as `driver` runs slow-sync. Either is confirmed when the suite shows it passing. |
+| R3-F1 | no | defect | Closed: the leader's own slow sync excuses the term, a follower's does not. It is reproduced deterministically and has a fails-without. | 261125-051305-f2273d, 261125-051306-10a35a. | Done. |
+| R4-N1 | no | nit | `led` is the leader's longest operation over the whole case, so one slow leader sync excuses a term loss with any cause in that run. The other checks (exact fetches, timely commits) still catch a link stall. | groups_test.cc:2904-2905. | Optional: excuse only a term loss inside the slow operation's window. |
+| R4-N2 | no | gap | For the owner, before release: one leader sync longer than the 1,000 ms election timeout costs the leader its term on any completion. CI's macOS x86 runner showed 4.7-6.1 s F_FULLFSYNCs. It is designed (one persistence at a time; a busy Core does not drive) but was never stated as an availability property until this DRIVER.md text. | core.h:718-720; DRIVER.md:350-357; CI 45609770275. | Owner's call: accept and document it in the release notes, or a follow-up to let a leader heartbeat while its own persist is out. |
+
+### Not run
+
+- The suite job 261125-051315-1359b6 (queued) and CI macos-x86_64 at 624bebe (running): their
+  results are not in this round.
