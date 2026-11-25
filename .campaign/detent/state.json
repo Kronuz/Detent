@@ -32573,7 +32573,9 @@
         "tests/detent_authority/test_distribution_ownership.cc",
         "tests/detent_system/run_trust_negatives.py",
         "docs/status/namespace-s6.md",
-        "docs/SUBSCRIPTIONS_ARCHITECTURE.md"
+        "docs/SUBSCRIPTIONS_ARCHITECTURE.md",
+        "include/detent_distribution_http/reply_pump.hh",
+        "src/detent_distribution_http/reply_pump.cc"
       ],
       "landed": [],
       "lenses": [
@@ -32582,11 +32584,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "D165: the 204 carries the upstream's seal in a header, sent by reply_pump's send_control",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-25T03:44:24",
+      "updated": "2026-11-25T05:01:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-layouts-base-flake": {
