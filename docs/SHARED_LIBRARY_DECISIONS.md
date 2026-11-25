@@ -300,3 +300,15 @@ The owner authorizes the Detent campaign to take temporary ownership of this pin
 Journal's existing main `journal:5bbeedc` passes all executed jobs after its cancelled macOS ARM job is rerun (CI 41883608106). Work proceeds in isolated `maintenance/detent-completion-pin` and `maintenance/detent-journal-pin` worktrees, preserving the owner's working copies. The handback note records landed commits and CI results here, and the peer campaign receives the same summary through its agent inbox.
 
 Handback (November 5): `journal:e5f6ff1` is on main with branch CI 42027535122 and main CI 42028116518 green. `consensus:ab05507` is on main with branch CI 42027615149 and main CI 42028627552 green. Each commit changes one dependency declaration. Original working copies are preserved. Detent's production pins are unchanged; the owner narrows this campaign to Dense pages, so no further pin adoption or library work is scheduled here. Ownership returns to the Xapiand campaign.
+
+## The November pin wave (November 24)
+
+Detent moves every Kronuz pin in `cmake/dependencies.json` to its library's default-branch head.
+Asked in msg-358 with the heads named; the Xapiand lead's reply, relayed by the Detent lead:
+"Agreed: the wave at those heads, FlushMode::full at each PosixIO." Detent passes
+`PosixIOOptions{FlushMode::full}` at each PosixIO it builds.
+
+The Xapiand lead also asks that the wave cascade the libraries' own pins to heads first, bottom-up,
+so that each Detent pin equals what every declaring library pins. Detent's campaign makes one pin
+commit per library on its main, each level's CI green before the next; the table of repositories,
+old and new pins and CI runs is in `CHANGELOG.md`.
