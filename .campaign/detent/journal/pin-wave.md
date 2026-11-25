@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs: cascade L2 CI (task 45531185813, term-color 45531190808, repr 45531194490, sha256 45531199999, hashes 45531138947); build probe 261124-181616-ba7156
+State: waiting on jobs: cascade L2 CI (task 45531185813, term-color 45531190808, repr 45531194490, sha256 45531199999, hashes 45531138947, all on macOS runners); build probe 261124-182953-399223
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,34 +28,30 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. L2 CI: `.scratch/pin-wave/bin/wait_ci.sh REPO=SHA ...` (or ci.sh). When every job is green,
-   fast-forward each main: `GH_TOKEN=$(gh auth token --user Kronuz) git -C .scratch/pin-wave/cascade/R
-   push origin quest/detent/pin-wave:main`; then `bin/repin.sh $PWD/.scratch/pin-wave/cascade/R`
-   for L3 (reactor, completion, strings, enum-reflection, logger), and so on.
+1. L2 CI green: fast-forward each main (`GH_TOKEN=$(gh auth token --user Kronuz) git -C
+   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`), record runs in the table;
+   then `.scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/R` for L3 (reactor,
+   completion, strings, enum-reflection, logger), L4 (journal, http-parser), L5 (http; consensus
+   after consensus-driver-pressure-rearm lands, lead ruling 3). A red head: stop at that level.
 2. Pin Detent to the cascaded heads; `pins` gate (A1).
-3. Keep-going build job 261124-175149-a51919 (pins at the pre-cascade heads) lists what breaks.
-4. A5 trace, A6 A/B, A7 CHANGELOG, A8 DEPENDENCIES.md.
+3. Read probe 261124-182953-399223 (keep-going build at e2b15b06) for breaks beyond FlushMode.
+4. At the final head, queue once: `campaign verify pin-wave` (A1, A4); A5 w5 job
+   `docs/perf/pin-wave-w5.sh .scratch/w5` with `--ref OLD=18c5bd23` (light); A5 syscall job
+   `docs/perf/pin-wave-syscalls/run.sh 560c288b40ba55a8d42ff048bcb1c7eaa3624645 <completion head>
+   .scratch/sys` (light); A6: build job `docs/perf/pin-wave-ab.sh build ~/.scratch/detent/pin-wave-ab`
+   (light, --ref OLD=18c5bd23), then rows durable, update, get, reader, first-read
+   (`row KIND ~/.scratch/detent/pin-wave-ab ROUNDS`, strict, 10 min, --after the build).
+5. A7 CHANGELOG, A8 docs/DEPENDENCIES.md and DEPENDENCY_UPGRADES.md with the final pins.
 
 ## Blocked on
 
-1. completion b4600a8 makes PosixIOOptions required at every PosixIO constructor (`PosixIOOptions{}`
-   does not compile). Outside this file set: ~45 constructions in tests/ (detent_agent,
-   detent_authority, detent_relay), 2 in benchmarks/ (detent_authority_durable_bench.cc:62,
-   relay_window_bench.cc:139), ~15 in docs/design/async-drivers-bench/. The native gate builds
-   tests and benchmarks, so it cannot pass until the lead adds them to the file set (or a
-   quest holding them makes the edit). Recommendation: add tests/**, benchmarks/** PosixIO
-   lines to pin-wave's set; FlushMode::full at each.
-2. Lead's note (2026-11-22): load completion before consensus in CMakeLists.txt (journal's plain
-   `set(COMPLETION_ASIO OFF)` still at journal a1d039a). CMakeLists.txt is outside the set.
-3. FlushMode::full is not Detent's old behavior on macOS: its ordering barriers become full
-   flushes (A5 (a)); plain would weaken File::sync to fsync. Full is the stronger superset; A6
-   measures the cost. Lead's call whether that stands (recommendation: keep full; record it).
-4. Top-level CMakeLists.txt: configure fails at the heads (job 261124-175149-a51919:
-   `completion::asio` not found, src/CMakeLists.txt:69, src/detent_authority/CMakeLists.txt:27)
-   until completion loads before consensus. Probe job 261124-181616-ba7156 applies that edit
-   in its checkout and builds with -k 0 to list every other break.
-5. consensus-driver-pressure-rearm (review) holds consensus CMakeLists.txt; its branch adds
-   lines but changes no GIT_TAG. The consensus pin commit (L5) is held for the lead's word.
+1. Linux only: completion b4600a8's `replace_sync_calls` on Linux takes (fsync, fdatasync,
+   writeback); two files outside the set still pass two and will not compile on Linux CI:
+   tests/detent_relay/test_relay_mirror_crash.cc:114-115 and
+   tests/detent_local/test_paged_publication_artifacts.cc:161. The fix is one `nullptr,` each (the
+   real fdatasync, unseamed as at the old pin), as done in test_agent_store.cc and
+   test_agent_store_crash.cc. Lead: widen the set by those two lines.
+2. consensus repin (L5) waits for consensus-driver-pressure-rearm to land (lead ruling 3).
 
 ## Evidence
 
@@ -95,6 +91,10 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 
 ## Rulings I made
 
+0. Lead rulings (relayed 2026-11-24): file set widened by CMakeLists.txt and 17 test and benchmark
+   files; FlushMode::full everywhere for this wave, its macOS cost recorded (A5 doc) and measured
+   (A6 durable row decides a follow-up for the refetchable stores); consensus waits for rearm.
+
 1. service_runtime.cc builds four PosixIOs (586, 598, 600, 602), not one: all four take one
    `constexpr PosixIOOptions full_flush{FlushMode::full}`, a single added line and one token
    per site.
@@ -103,5 +103,11 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    journal's crc32c): the pins gate compares commits exactly.
 3. faultlab's own pins (completion, journal) stay: journal pins faultlab, so moving faultlab
    would cycle; faultlab is not in Detent's manifest. consensus's faultlab pin moves to head.
+5. Linux `replace_sync_calls` gained an fdatasync seam (completion:5942250); the agent store tests
+   pass nullptr there (the real call, as the old pin made it unseamed), one token per call, in
+   test_agent_store.cc (held by first-read-1ms) as the same class as the FlushMode token.
+6. The A6 and A5 old arm is the quest base 18c5bd23: main since then changed only campaign files.
+7. Linux syscall trace not run: no Linux host here (docker daemon down) and the CI workflow is
+   outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
    main fast-forwards to that same commit once green, so main never carries a red pin.
