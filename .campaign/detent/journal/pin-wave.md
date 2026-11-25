@@ -51,17 +51,6 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Blocked on
 
-0. reactor (L3): its repin moves only task 18eb516 -> 477a7d3, and CI run 45541868647 fails
-   reactor_lag on every job (macOS arm64/x86_64, Linux gcc/clang/arm64, ASan/UBSan, TSan, FreeBSD)
-   with the same five checks, all in the manual-clock sections ([F] on task::inline_scheduler and
-   the busy manual clock): "a wake 700 us past its tick records 700 us", "700 us is in its bucket",
-   "the next wake, aimed at 200 ms, has not run at 199.7 ms", "a wake 200 us past its tick records
-   200 us", "busy, the manual clock wakes the probe once a millisecond". reactor main (01db032,
-   task 18eb516) is green (#44937017380), so the cause is in task 18eb516..477a7d3 (44 commits;
-   candidates: 919d232 sleeps/periodic, 412b2c2 deadline fire behind a cancel). Stopped at L3 as
-   ruled; L4 (journal, http-parser) and L5 wait. Detent's own task pin is 477a7d3 already, so if
-   Detent reads LagProbe on an inline clock it inherits this. Owner of the fix: task or reactor,
-   outside this quest.
 1. consensus repin (L5): rearm landed (consensus:c724c58), but consensus pins in its CMakeLists.txt
    (no cmake/dependencies.json in any library), which consensus-recovered-over-limit-start now
    holds. Options: (a) that quest takes the one-line-per-pin repin into its own commit; (b) the lead
@@ -104,7 +93,7 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 success | fast-forwarded |
 | L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 success | fast-forwarded |
 | L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 success | fast-forwarded |
-| L3 | reactor | task 18eb516 -> 477a7d3 | reactor:40d1461 | 45541868647 FAILURE: reactor_lag on all 8 jobs | not moved |
+| L3 | reactor | task 18eb516 -> 477a7d3; lag test runs the posted arm (ruling 11) | reactor:d28e5e0 (was 40d1461, red #45541868647) | pending | not moved |
 | L3 | completion | metrics 9db73de -> 4cd64db, allocators 07de45d -> ae775ab, task 95798a0 -> 477a7d3 | completion:3061516 | 45541875670 success | fast-forwarded |
 | L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | 45541886004 success | fast-forwarded |
 | L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | 45541892260 success | fast-forwarded |
@@ -151,6 +140,22 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    refused one is tried; the durable state is the same as MemoryIO's throw at operation `cut`. A
    run with the power off treats any exception as the cut (MemoryIO's PowerLoss passed through
    Detent's handlers; faultfs's EIO is a std::system_error they may wrap).
+11. reactor_lag red at reactor:40d1461 is reactor's test, not a task regression. Bisect (local,
+   quiet light, .scratch/pin-wave/reactor-bisect/run2.sh, reactor 40d1461's lag_test): task f51aafb
+   (627aca3's parent; differs from 18eb516 only in README) PASSED; task 627aca3 and a30bb0f FAILED
+   the same five checks, busy 0 wakes; wheel bfd72bc vs 075a40a makes no difference (477a7d3 on
+   bfd72bc fails too). Cause: task:627aca3 gives inline_scheduler a same-thread post_call; it has
+   no runs_here by task's ruling (docs/reviews/cancellation-c2-code.md item 4: an inline drain's
+   honest answer is false), so LagProbe::start()'s `!runs_here() && post_call()` now posts the arm
+   to the clock's next run(), which [F] never called: the probe never armed. task never promised
+   inline_scheduler lacks post_call. Fix in reactor (reactor:d28e5e0, amending the repin into one
+   commit): [F] runs clock.run() after start() and stop(), plus one added check that the arm is
+   filed; no check loosened. reactor_lag.h's start() comment and CHANGELOG 2026-11-24 state the
+   posted arm on a scheduler without runs_here. With the fix: PASSED at task 477a7d3 + wheel
+   075a40a and at task 18eb516 + wheel bfd72bc. Downstream users of inline_scheduler with
+   LagProbe: none in Detent, http, consensus or journal (grep).
+12. repin.sh's pin loop ended on an unmoved last pin with status false, so set -e killed it after
+   sed but before the commit (journal's first run); the loop body now ends with `true`.
 7. Linux syscall trace not run: no Linux host here (docker daemon down) and the CI workflow is
    outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
