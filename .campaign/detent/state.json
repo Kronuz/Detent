@@ -31408,7 +31408,62 @@
       "worktree": ""
     },
     "relay-mirror-idle-wake": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T20:00:39",
+          "base": "2c825a4957bc845875c3763b553fd2b977f0e9e5",
+          "blobs": {
+            "CHANGELOG.md": "100644:d60243c2f6c0b4b4e1447f8876372fbb8a6efd5f",
+            "bench/idle-wakeups/compare.sh": "100755:867e0e5b837eff4abd5487c5452d8e34c3f05a67",
+            "bench/idle-wakeups/idle_loops.py": "100644:b096ee1c5d8fa25b32ae674a26d6857b03901799",
+            "bench/idle-wakeups/relay_latency.py": "100644:40f8b0f190dc8d19374abb602285e3c1155cf62c",
+            "docs/mechanisms/relay-mirror-wait.md": "100644:347c7be834815e7180b4693f81c2cc8944a519ad",
+            "include/detent_relay/http_upstream.hh": "100644:816500b1813925efd2c690ef35bcebbcdcd3c66c",
+            "include/detent_relay/mirror_service.hh": "100644:38030256254480093a60029f2198d7807572421e",
+            "include/detent_relay/namespace_relay.hh": "100644:8fc09b2332766ef8145a69027b32a2c6644a10d6",
+            "src/detent_authority/service_runtime.cc": "100644:80b9505d3e3448139898b0fb7f7b52209c7441f0",
+            "src/detent_delivery/client.cc": "100644:cce514312baad3662edb6950addb9317858f92e7",
+            "src/detent_relay/http_upstream.cc": "100644:d097a7135c3a12665239bee199f51f2b2479ada4",
+            "src/detent_relay/mirror_service.cc": "100644:ca43102d2c76c434e40fd9fce47cb3be73544252",
+            "tests/detent_delivery/test_client_reset.cc": "100644:5da541630dcc0f195c5f2fec002d8e6d65d5200f",
+            "tests/detent_relay/CMakeLists.txt": "100644:f06a8b1fd59d595842bd5b8f964d009eb44a28ea",
+            "tests/detent_relay/relay_probe.cc": "100644:67e56767f70cdb1bacf7513c5c62bda44092ff4d",
+            "tests/detent_relay/test_http_upstream.cc": "100644:882795f7622595e1f2a45dfc5e7961b478842b1f",
+            "tests/detent_relay/test_relay_hung.py": "100644:d32df9a0c53d579891f56d72afb1fcb71ca5bdfe",
+            "tests/detent_relay/test_relay_idle.py": "100644:10ec5039a5b7b7219e336d0bb327c07efe6e0084",
+            "tests/detent_relay/test_relay_service.py": "100644:d56930fd6c3c03a3daa2d625035899cd3167a20a"
+          },
+          "by": "review",
+          "commit": "65a2358240c5f8b5f00084a35eaaf7b953396916",
+          "criteria": "c068d794a5dde82b",
+          "diffs": {
+            "CHANGELOG.md": "26f10503fc46fc25",
+            "bench/idle-wakeups/compare.sh": "0d0ad2c56c52fff0",
+            "bench/idle-wakeups/idle_loops.py": "697ebad4fee3312b",
+            "bench/idle-wakeups/relay_latency.py": "2fd81336cb414c4d",
+            "docs/mechanisms/relay-mirror-wait.md": "d7df57efe0e7b59e",
+            "include/detent_relay/http_upstream.hh": "16b7093f7c635bc1",
+            "include/detent_relay/mirror_service.hh": "7e6d1164bf9b0b29",
+            "include/detent_relay/namespace_relay.hh": "5475b145f6ffe0fe",
+            "src/detent_authority/service_runtime.cc": "0ba3352e47ae1c08",
+            "src/detent_delivery/client.cc": "37abec379f4de6c4",
+            "src/detent_relay/http_upstream.cc": "759bb22c3302334d",
+            "src/detent_relay/mirror_service.cc": "3b2689cb148ad062",
+            "tests/detent_delivery/test_client_reset.cc": "05a30e030cc8959b",
+            "tests/detent_relay/CMakeLists.txt": "3eee293a3cd1d157",
+            "tests/detent_relay/relay_probe.cc": "2587bb15d187baf1",
+            "tests/detent_relay/test_http_upstream.cc": "930b5c3755f79313",
+            "tests/detent_relay/test_relay_hung.py": "3ff9f0b0836f7830",
+            "tests/detent_relay/test_relay_idle.py": "b807838036b78986",
+            "tests/detent_relay/test_relay_service.py": "ee5f55f2243d69e6"
+          },
+          "findings": {},
+          "note": "",
+          "review": "6aad881598b01165c45d9abec63bab3f2b813111",
+          "reviewed": "75021884ad2be0de1960eadc27c4ed7116c3059f",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "split-detent"
       ],
@@ -31454,7 +31509,7 @@
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T19:42:33",
+      "updated": "2026-11-24T20:00:39",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
