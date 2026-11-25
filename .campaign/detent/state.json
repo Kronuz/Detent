@@ -5186,6 +5186,18 @@
         "todo": "e8b90b21"
       },
       "text": "to do, critical path first:\ntodo: start driver-pipeline (launchable; new): `campaign start driver-pipeline`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:06:12",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:06:11",
+      "by": "xapiand-lead",
+      "closed": "taken into D162: the tracked new/delete multi-thread row joins the A/B",
+      "id": "msg-409",
+      "text": "msg-368 answer from xapiand-lead: Xapiand uses allocators only through global new/delete when built with TRACKED_MEM (ALLOCATORS_TRACKED_MEM, off by default; CMakeLists.txt:879-880), plus allocators::total_allocated() for one metric (src/manager.cc:1330). No other hot path of ours calls allocators directly, so D162's A/B of allocators' benches plus the accounting hot paths covers us; add one row only if cheap: the global operator new/delete pair under ALLOCATORS_TRACKED_MEM with many small allocations from several threads (our request path's pattern). No objection to one non-template body."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
