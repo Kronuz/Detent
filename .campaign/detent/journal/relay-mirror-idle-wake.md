@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -84,9 +84,37 @@ code 5f601d6b (main 1daf9756 merged at 516d3460, campaign files only):
   test_client_reset, test_authority_frames_service, test_distribution_session_request,
   test_delivery_*, test_namespace_coordinator, test_agent_catch_up, test_pages_coordinator,
   test_authority_distribution_ownership, test_coordinator_teardown.
+- R4-2: round 3's jobs are superseded (their code is gone); R4-3: the stamp table it names is
+  replaced by the wire table, which has no close column.
 - test_relay_seal_stamp first failed `relay current` (204 after 0.5-0.7 s): the authority sealed
   twice more after the relay matched it (debug .scratch/relay-mirror-idle-wake/dbg). The relay
   steps now start once the authority's seal held 2.5 s and the relay serves it.
+
+Queued once at cb6ce9f2 (code 5f601d6b; .scratch/relay-mirror-idle-wake/submit4.sh, jobs4.txt):
+- test_http_upstream 261125-034204-ec02e4; fails-without wire-older-r 261125-033905-9f2de8,
+  wire-parked-r 261125-033909-b0740b, wire-send-u 261125-033913-7f33b7, wire-zero-m
+  261125-033916-5d9190, wire-open-u 261125-033920-7ad458, paced-off 261125-033924-61e2f5, skip-off
+  261125-033928-c63ca4.
+- test_relay_seal_stamp 261125-034206-861c71; fails-without wire-older-a 261125-033933-ac469a,
+  wire-parked-a 261125-033938-089cd9, wire-current-a 261125-033942-07d53b, wire-agent-a
+  261125-033947-0fc023, wire-copy-a 261125-033951-08b4e5, wire-older-r 261125-033956-509945,
+  wire-parked-r 261125-034000-c4f1aa, wire-current-r 261125-034005-23cdb1, wire-agent-r
+  261125-034011-9f1416, wire-state-r 261125-034016-ed5d3e, wire-copy-r 261125-034021-a78366,
+  stamp-busy-a 261125-034026-72fc8d, stamp-close-a 261125-034031-7e84fc, stamp-busy-r
+  261125-034035-25cad1, stamp-close-r 261125-034041-3fe3b8.
+- test_distribution_session_request 261125-034045-e43fcd, fails-without wire-optional
+  261125-034049-894b17; test_delivery_namespace_session 261125-034052-da3edf, fails-without
+  wire-body 261125-034056-7106ae; test_client_reset 261125-034100-0f3c46, fails-without client-off
+  261125-034104-788931; test_relay_idle 261125-034107-15fd57, test_relay_hung 261125-034111-2412e0,
+  test_relay_cut-off 261125-034114-2c7d46.
+- A6 (R4-1): seal_late_park at 13707337 (reviewer's probe, must fail) 261125-034209-d0d4dc;
+  seal_window at the fix 261125-034212-eaeb52 and at 13707337 (must fail) 261125-034215-62a666
+  (600 ms setup with timeout 2000 over 16 trials, then loopback with timeout 200 over 40).
+- A1 strict 261125-034218-badf25; A2 strict 261125-034220-aef247 (250 ms), 261125-034223-700753
+  (10 ms); all against main 6e2669af (no code change since a0d804bd).
+- A5: the suite reruns at "ready for review" (campaign verify); CI on the pushed branch.
+- Not cancelled (the cancel was refused by my permissions; the lead's): round 3's 26 superseded
+  jobs, 261124-233717-f5e430 through 261124-234020-0cb2a9 (Doing, round 3), fc8eca running.
 
 ### Round 3: the seal stamp (code b76ae636, main a0d804bd merged at 13707337)
 
@@ -267,8 +295,7 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Queue round 4's jobs at the head (.scratch/relay-mirror-idle-wake/submit4.sh), push, record
-   the ids.
+1. Read round 4's jobs (Doing); fill Evidence and Result with A1 and A2 at cb6ce9f2.
 
 ## Blocked on
 
@@ -283,10 +310,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-233918-fc8eca (13707337 vs main a0d804bd), queued; at 75021884 2bfd93 (Doing) |
-| A2 | 261124-233923-494ac5 (250 ms), 261124-233927-d29ae2 (10 ms), queued; 14371c and 702b6d failed on the probe (fixed) |
-| A3 | test_http_upstream 62aab8 (fw f5e430, 7bae55, c02fa6, a95aa5, b457de); test_relay_seal_stamp 86bdee (fw 924fd7, de8d7a, 694f7a, fab66e, d2e0b5, 589a92, 6aa80b, d50bfc, 2443ee, aa3d6e, 8e3455, e40242); test_client_reset 9a08ad (fw de1dba); test_relay_idle d27d26 (fw 8c0429, 4d800e); test_relay_hung c578fd (fw 9e80bf); test_relay_cut-off 6acdab (fw 0d0617); queued; first fails-without 261124-033951-a94472 and 261124-191402-bcf6ff |
+| A1 | 261125-034218-badf25 (cb6ce9f2 vs main), queued; at 75021884 2bfd93 (Doing) |
+| A2 | 261125-034220-aef247 (250 ms), 261125-034223-700753 (10 ms), queued |
+| A3 | Round 4, queued at cb6ce9f2: test_http_upstream ec02e4 (fw 9f2de8, b0740b, 7f33b7, 5d9190, 7ad458, 61e2f5, c63ca4); test_relay_seal_stamp 861c71 (fw ac469a, 089cd9, 07d53b, 0fc023, 08b4e5, 509945, c4f1aa, 23cdb1, 9f1416, ed5d3e, a78366, 72fc8d, 7e84fc, 25cad1, 3fe3b8); parser e43fcd (fw 894b17); body da3edf (fw 7106ae); test_client_reset 0f3c46 (fw 788931); test_relay_idle 15fd57; test_relay_hung 2412e0; test_relay_cut-off 2c7d46; R4-1 d0d4dc, eaeb52, 62a666; first fails-without at main 261124-033951-a94472 and 261124-191402-bcf6ff |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md (voter-state table, the seal stamp table) |
+| A6 | [decision] D163 at 5f601d6b, D164 (agents' 2^64-1): the stamp is the request's `seal`, no session state (Doing, round 4); R4-1 probes: late_park in test_http_upstream 261125-034204-ec02e4, fails-without at 13707337 261125-034209-d0d4dc; seal_window 261125-034212-eaeb52, fails-without at 13707337 261125-034215-62a666; A1 badf25 and A2 aef247, 700753 at the final head, queued |
 | A5 | suite 261124-234020-0cb2a9, queued; CI runs 45569989196 and 45569989739 at 410fb793 (pushed); at 75021884 5f884c passed |
 
 Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
