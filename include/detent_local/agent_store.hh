@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -72,7 +73,9 @@ struct AgentStoreTesting {
 class AgentStore {
   public:
 	struct Options {
-		distribution::Profile profile;
+		// The table's profile; a table of another refuses the store. None takes the table's (a new store's
+		// is the default one).
+		std::optional<distribution::Profile> profile;
 		unsigned mode = 0644; // the PosixIO's artifact mode; `change` takes it too
 		std::uint64_t maximum_segments = 1u << 20;
 	};

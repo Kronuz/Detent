@@ -71,6 +71,7 @@ void AgentStoreTesting::install(void (*hook)(void *, const char *) noexcept, voi
 struct AgentStore::Impl {
 	std::shared_ptr<c::PosixIO> io;
 	Options options;
+	distribution::Profile profile; // the next cycle's: the table's, or adopted
 	std::unique_ptr<c::OwnerLock> lock;
 	std::optional<detail::ChangeWriter> change;
 	StoreTable table;
@@ -231,10 +232,11 @@ struct AgentStore::Impl {
 			if (!bytes)
 				throw StoreRefused("agent store table unreadable");
 			table = decode_table(*bytes);
-			if (table.profile != options.profile)
+			if (options.profile && table.profile != *options.profile)
 				throw StoreRefused("agent store table has another profile");
 		} else
-			table.profile = options.profile;
+			table.profile = options.profile.value_or(distribution::Profile{});
+		profile = table.profile;
 		std::size_t slots = 0;
 		for (const auto &entry : table.entries) {
 			slots = std::max<std::size_t>(slots, std::size_t(entry.slot) + 1);
@@ -268,7 +270,7 @@ void AgentStore::fail(std::string_view name) {
 }
 std::uint64_t AgentStore::change_word(std::size_t index) const noexcept { return impl_->change->word(index); }
 StoreUsage AgentStore::usage() const noexcept { return impl_->usage; }
-void AgentStore::adopt(const distribution::Profile &profile) { impl_->options.profile = profile; }
+void AgentStore::adopt(const distribution::Profile &profile) { impl_->profile = profile; }
 SyncCounters AgentStore::sync_counters() const noexcept { return impl_->synced; }
 
 std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<const PreparedGeneration> cycle,
@@ -289,7 +291,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		std::vector<SegmentId> segments;
 	};
 	// Validation: nothing is written for a cycle whose files disagree with their derived names.
-	if (s.options.profile != s.table.profile)
+	if (s.profile != s.table.profile)
 		for (const auto &entry : s.table.entries)
 			if (std::find(dropped.begin(), dropped.end(), entry.name) == dropped.end() &&
 				std::none_of(cycle.begin(), cycle.end(), [&](const auto &g) { return g.name == entry.name; }))
@@ -305,7 +307,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		b.entry.name = generation.name;
 		b.entry.cursor = generation.cursor;
 		b.entry.ordinal = generation.ordinal;
-		b.entry.generation = derive_generation(s.options.profile, generation.cursor, generation.base, generation.ordinal);
+		b.entry.generation = derive_generation(s.profile, generation.cursor, generation.base, generation.ordinal);
 		b.entry.root_length = generation.image.size();
 		b.entry.root = digest(generation.image);
 		b.entry.read = digest(generation.read);
@@ -433,7 +435,7 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 
 		StoreTable next = s.table;
 		next.sequence = s.table.sequence + 1;
-		next.profile = s.options.profile;
+		next.profile = s.profile;
 		next.directory = directory;
 		std::uint32_t slots = 0;
 		for (const auto &entry : next.entries)

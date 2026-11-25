@@ -228,6 +228,28 @@ void one_directory() {
 	refuses<l::TableRefused>([&] { open(root); });
 }
 
+// The store's profile is its table's: an open naming none takes it and derives the next cycle under it,
+// one naming another refuses the store, and a new store takes the default (correctness review R3-5).
+void table_profile() {
+	const auto root = fresh("profile");
+	const auto opened = [&](std::optional<d::Profile> wanted) {
+		return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, 0644), l::AgentStore::Options{wanted});
+	};
+	d::Profile semantic = profile;
+	semantic.semantic_id = 2;
+	check(opened(std::nullopt)->table().profile == profile);
+	auto store = opened(semantic);
+	const auto a = generation(semantic, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
+	check(store->publish({identity('c'), 2}, one(a)) == 1);
+	store.reset();
+	store = opened(std::nullopt);
+	check(store->table().profile == semantic && store->failed().empty());
+	const auto next = generation(semantic, "alpha", cursor('a', 6), a.id, 0, {}, 1, 'n');
+	check(store->publish({identity('c'), 3}, one(next)) == 2 && l::decode_table(slurp(root / "selected")).profile == semantic);
+	store.reset();
+	refuses<l::StoreRefused>([&] { opened(profile); });
+}
+
 // W11, D8.3-4: files are linked from `.tmp-` names; a name the table reaches is reused when it verifies,
 // any other relinked, and a mismatching name the table reaches is a repair at the next ordinal.
 void publication() {
@@ -570,6 +592,7 @@ int main(int argc, char **argv) {
 		derived_ids();
 		table_codec();
 		one_directory();
+		table_profile();
 		publication();
 		short_change();
 		failed_sync();

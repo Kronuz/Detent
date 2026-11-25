@@ -488,23 +488,9 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 			// Damage is the recovery's below: it fences the store.
 		}
 	}
-	// The store keeps the profile its table holds; a new store takes the default one.
+	// The store keeps the profile its table holds, read by the agent; a new store takes the default one.
 	AgentStore::Options agent{};
 	agent.mode = options.artifact_mode;
-	if (io->inspect_entry("selected")) {
-		const auto file = io->open_existing_read_only("selected");
-		const auto size = file->size();
-		if (size > table_bytes(1u << 20))
-			throw StoreRefused("agent store table unreadable");
-		std::string bytes(size, '\0');
-		for (std::size_t done = 0; done < bytes.size();) {
-			const auto got = file->read_at(done, std::span<char>(bytes).subspan(done));
-			if (!got)
-				throw StoreRefused("agent store table unreadable");
-			done += got;
-		}
-		agent.profile = decode_table(bytes).profile;
-	}
 	core->agent = std::make_unique<AgentStore>(io, agent);
 	core->synced = core->startup_sync = core->agent->sync_counters();
 	core->ledger.initialize(census(core->agent->usage()));
