@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review (jobs queued at `Detent:47216200`, the final code)
+State: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,35 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Fix round 2 finished at `Detent:28a8d276` (code); jobs queued there (Evidence).
+- R2-1 `Detent:a3da0693`: `reader_bench_ab.sh build` copies both binaries after `mkdir -p
+  "$out/$code"`. Checked on a fresh OUT under a light hold (build, `run` 1 pair, `find` 1 pair:
+  exit 0). Light screen, head vs main, ns: find present/absent 16-byte 222/261 vs 260/227, 40-byte
+  266/311 vs 187/198; warm p50 hot 507 vs 711 (1 thread), 735 vs 883 (8). The strict pair at the
+  head is the number that counts: 261124-221108-47be0b (find), -221111-38e2a3 (warm).
+- R2-3 (lead: option a) `Detent:28a8d276`: `measure` fails a cell on either rule: pooled branch
+  p99 at 1 ms or more (A2), or where main ran the paired difference or pooled p99 beyond main's
+  plus their floors (D140, D142). One `verdict()`; each cell line carries `below_1ms` and
+  `within_main`; `first-read-gate.sh selftest` checks it on fixed numbers (7 cells). Mutants G1
+  (no bound) and G2 (no D140) each fail it (locally; jobs in Evidence). first-read-gate.md says
+  both gate.
+- R2-2 `Detent:28a8d276`: the marks paragraph says the hash and entry checks run once, at the
+  first touch, and a marked page answers in place from the kept offsets.
+- Security R1 `Detent:c125fd9e` (agent_store.cc is `src/detent_local`, inside the set): class =
+  every read of the agent's `slurp`: startup `selected`, `verify`'s `.image`, `.read`, `.live`, a
+  reached name a publish reuses, a held generation's `.live` in collection. `slurp` now opens the
+  name under the store directory's descriptor and calls `generation_file_refusal` (agent's euid,
+  the file's size bounded by the caller's limit). Tests: test_agent_store `acl_grants` (macOS):
+  each of `.image`, `.read`, `.live` fails "alpha" at startup and reads again once removed;
+  `selected` refuses the open; a granted reached `.image` refuses reuse (`ReachedNameMismatch`).
+  Mutant A1acl (the old owner/link/mode check without ACL). "Store file checks" lists the agent
+  reads. Local (Release, light): test_agent_store, _crash, catch_up, agent_cli, disk stores,
+  managed reader, table pages, paged recovery, reader core, managed delivery process: 12/12 pass.
+- R2-5: the old cells aafc88 (running), 891b76, 7e39f4 cancelled (gate code changed); four cells
+  requeued at the head.
+- R2-4 / CI: pushed at the head; macos-x86_64 at `Detent:9cc06bc9` ran its Test step 58 min with
+  no log (run 45541685998, warm-relay's the same); result at this head in Evidence.
 
 Fix round 1 finished at `Detent:47216200` (code); jobs queued there (Evidence).
 - C2 `Detent:91a03ba0`, `Detent:b8bd0b69`, `Detent:47216200`: the verified page index as designed.
@@ -64,9 +93,14 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Next
 
-1. Review of fix round 1 at the final head; fold findings by id.
+1. Review of fix round 2 at `Detent:28a8d276`; fold findings by id. Read the four `A16 cell` lines
+   and the C2 pair's `table_find` and `reader_bench` lines into Result when they end.
 
 ## Messages
+
+- Correctness review round 2 (CHANGES at `Detent:9cc06bc9`) and security round 2 (APPROVE), folded
+  by id: R2-1, R2-2, R2-3 (option a, lead's ruling), R2-5, security R1 done (Doing). R2-4: CI
+  rerun by the push (Evidence). R2-6, security R2: none (stated in the design, N1).
 
 - msg-4 (lead: C2 checked; target main's warm find; widened two Python tools): C2 built as
   written, measured as interleaved strict pairs at main and the head (Evidence); the Python tools
@@ -121,11 +155,12 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-193926-75ef7a (strict profile, four cells, at the head); before-profile 261124-134303-81190d (main's reader code): see "Profile (A1)" |
-| A2 | 261124-193929-8a61ac stopped:1, -193933-aafc88 stopped:1000, -193936-891b76 running:1, -193939-7e39f4 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193942-688ac7 (table_find_bench, 10 pairs), 261124-193945-948831 (reader_bench warm, 6 pairs x 1 and 8 threads) |
-| A3 | 261124-193948-acb3a6 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head (`.scratch/mutants-final.txt`): S1 261124-194035-e14cfa, S2 -194041-ed977a, page digest -194044-f809e0, C3 M1 -193951-bcf9aa, M3 -193954-0ee7cd, M4 -193958-5b5a56, M5 -194001-fa68c0, M6 -194004-921017, M7 -194008-5f78a9, M8 -194013-93c0b9, M12 -194017-63c5aa, C2a -194022-3f543c, C2b -194026-24bc4a, C4 M9 -194031-002ccd. Suite: CI macos-arm64 at the pushed head |
+| A1 | 261124-221056-6a4db0 (strict profile, four cells, at `Detent:28a8d276`); before-profile 261124-144100-b5ba51 (replaces 134303-81190d, main's reader code): see "Profile (A1)". Suite: CI macos-arm64 at the pushed head |
+| A2 | Round 2, at `Detent:28a8d276` (gate fails on either rule): exclusive cells 261124-221058-b76dd6 stopped:1, -221101-ac8c51 stopped:1000, -221103-8b1704 running:1, -221106-893160 running:1000. C2 strict pair vs main `Detent:34fe15ad`: -221108-47be0b (find, 10 pairs), -221111-38e2a3 (warm, 6 pairs x 1 and 8 threads). Round 1 (superseded): 261124-193929-8a61ac stopped:1, -193933-aafc88 stopped:1000, -193936-891b76 running:1, -193939-7e39f4 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193942-688ac7 (table_find_bench, 10 pairs), 261124-193945-948831 (reader_bench warm, 6 pairs x 1 and 8 threads) |
+| A3 | Round 2, at `Detent:28a8d276`: test_local_table_pages and test_reader_core 261124-221148-a692ec; gate selftest -221113-4eee87, fails without: G1 -221128-cf14d1, G2 -221131-053a2a (`.scratch/mutants-r2.txt`); test_agent_store `acl_grants` -221122-a481db, fails without: A1acl -221125-540805. Round 1: 261124-193948-acb3a6 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head (`.scratch/mutants-final.txt`): S1 261124-194035-e14cfa, S2 -194041-ed977a, page digest -194044-f809e0, C3 M1 -193951-bcf9aa, M3 -193954-0ee7cd, M4 -193958-5b5a56, M5 -194001-fa68c0, M6 -194004-921017, M7 -194008-5f78a9, M8 -194013-93c0b9, M12 -194017-63c5aa, C2a -194022-3f543c, C2b -194026-24bc4a, C4 M9 -194031-002ccd. Suite: CI macos-arm64 at the pushed head |
 
-Cancelled at older heads (superseded): every job 261124-193020 to -193130 (at `Detent:e719e352`, before the view); 261124-182421-35bcef (A2 stopped:1, was running), 261124-182431-301852, -182433-9d39d1, -182435-760c57 (mutants at `Detent:244990b9`).
+Cancelled at older heads (superseded): 261124-193933-aafc88, -193936-891b76, -193939-7e39f4 (A2 cells at `Detent:47216200`, gate changed); 261124-221147-3bf027 (duplicate of a692ec). Failed (R2-1, the tool's bug): 261124-193942-688ac7, -193945-948831. Examined: review r2 jobs 261124-195252-850b11, -195256-361bfa (failed, the security reviewer's first attempt; its rerun -195512-09902d and -195515-e40ef1 passed), -195304-d1e38c, -214801-af7619.
+ every job 261124-193020 to -193130 (at `Detent:e719e352`, before the view); 261124-182421-35bcef (A2 stopped:1, was running), 261124-182431-301852, -182433-9d39d1, -182435-760c57 (mutants at `Detent:244990b9`).
 Examined: security review jobs 261124-160310-594aee, 261124-164244-e6d442 (S1, S2 FAILs, fixed this
 round), correctness review jobs 261124-160346-d09bca, 261124-164355-085f7f (the reviewer's probes;
 its findings come by message). Superseded at `Detent:e52669a7`: 261124-155453-d2faac (stopped while
@@ -198,8 +233,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
   helper's `runtime_error` for a pack ACL, as for its other refusals; the core maps both to
   `DETENT_SOURCE_FAILURE`.
 - R6 (sweep scope): `change` keeps its own check (owner, link, mode, ACL; its size rule differs);
-  `PackScrub` trusts nothing it reads (hashes against the owner record) and stays unchecked; the
-  agent's own `PosixIO` reads are outside the class (its files, its provisioned directory). ACL tests
+  `PackScrub` trusts nothing it reads (hashes against the owner record) and stays unchecked. The
+  agent's own reads joined the class in round 2 (R10).
+- R10 (security R1): the agent's `slurp` opens with `openat` on the store directory's descriptor
+  instead of completion's `PosixIO` open, so the helper checks the descriptor read without
+  reaching into completion's `detail::PosixFile`; owner is the agent's euid, as its directory
+  check. The held-generation `.live` read in collection has no own test: a refusal there keeps
+  every segment (the conservative side), and it is the same `slurp`.
+- R11 (R2-3): a cell main cannot run (running:1000) has the bound alone; D140 needs main's arm. ACL tests
   are macOS-only (`chmod +a`); Linux ACL grants show in the mode's group bits, FreeBSD not run.
 - R7: test_local_table_pages links `detent::local_publication` (the managed store case) and moves
   under that target's guard with the other publication tests.
