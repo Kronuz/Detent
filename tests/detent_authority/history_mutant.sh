@@ -78,7 +78,7 @@ retry-failed-forever) file=src/detent_authority/peer_history.cc test=test_author
 unchecked-fetch) file=src/detent_authority/history.cc test=test_authority_history_power_cut
 	old='			throw Wanted{{{std::string(name), std::move(good)}}};'
 	new='			throw Wanted{{{std::string(name), [](std::string_view) { return true; }}}};' ;;
-old-fetch-bound) file=src/detent_authority/service.cc test=test_authority_history_large_base
+old-fetch-bound) file=src/detent_authority/service_options.cc test=test_authority_history_large_base
 	old='		peers.fetch_bytes = history::fetch_bytes(o.node.application);'
 	new='' ;;
 accept-low-fetch-bound) file=src/detent_authority/service.cc test=test_authority_history_large_base

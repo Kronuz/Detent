@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-03) how the authority node's retained-state envelope is configured, validated and funded, read from `src/detent_authority/node.cc`, `node.hh` and `service.cc` on `phase/retained-state`.
+> Status: CURRENT (2026-11-03) how the authority node's retained-state envelope is configured, validated and funded, read from `src/detent_authority/node.cc`, `node.hh` and `service_options.cc` on `phase/retained-state`.
 
 # Retained-state envelope
 
@@ -39,4 +39,4 @@ The library defaults the policy to its ceilings (16 GiB of log), which no replac
 
 ## Code
 
-`validate_retained_state`, `validate_replacement_funding` and `validate_node_options` in `src/detent_authority/node.cc`; `NodeOptions::scheduling` in `src/detent_authority/node.hh`; the `retained_state` block in `load_service_options`, `src/detent_authority/service.cc`. Design: [retained-state architecture](../RETAINED_STATE_ARCHITECTURE.md).
+`validate_retained_state`, `validate_replacement_funding` and `validate_node_options` in `src/detent_authority/node.cc`; `NodeOptions::scheduling` in `src/detent_authority/node.hh`; the `retained_state` block in `load_service_options`, `src/detent_authority/service_options.cc`. Design: [retained-state architecture](../RETAINED_STATE_ARCHITECTURE.md).

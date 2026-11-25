@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-18) how `detent-authority` refuses a directory of another storage format, read from `src/detent_authority/service.cc`.
+> Status: CURRENT (2026-11-18) how `detent-authority` refuses a directory of another storage format, read from `src/detent_authority/service_runtime.cc`.
 
 # Format refusal
 
@@ -7,7 +7,7 @@ nonzero with a named error; it does not replay, fence and wait.
 
 ## The stamp
 
-`storage_format` in `service.cc` names the format this build reads and writes. A new authority
+`storage_format` in `service_runtime.cc` names the format this build reads and writes. A new authority
 directory is stamped before its journal exists: the file `format` beside the history files
 (`<directory>.history/format`) holds `detent authority storage format N`, written to a temporary
 file, synced, renamed, and the directory synced. The stamp sits outside the journal directory so

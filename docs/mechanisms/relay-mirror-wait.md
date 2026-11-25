@@ -24,7 +24,7 @@ from its open, and its HTTP deadline is `timeout_ms` plus that wait.
 A parked next costs the authority no turns. Its owner loop marks a next it has looked at for the
 current applied index as parked, not as work in flight, and sleeps until its health turn or the
 next's deadlines; a publish wakes the owner, which re-plans every parked next at the new index
-(`service.cc`, `frames_busy` and `frames_until`). A next it has not looked at, or one waiting for
+(`service_runtime.cc`, `frames_busy` and `frames_until`). A next it has not looked at, or one waiting for
 history to be ready, keeps the 1 ms turn.
 
 The wait runs on its own W5 session at the source the last sync read, so it never makes the

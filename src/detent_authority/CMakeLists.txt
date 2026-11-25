@@ -1,5 +1,5 @@
-add_library(detent_authority state.cc prepared.cc read_reply.cc export_scope.cc export_capture.cc
-  history_format.cc history_layout.cc)
+add_library(detent_authority state.cc state_codec.cc state_application.cc state_administrative.cc state_image.cc
+  prepared.cc read_reply.cc export_scope.cc export_capture.cc history_format.cc history_layout.cc)
 target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(detent_authority PUBLIC detent::detent detent::resources)
 add_library(detent::authority ALIAS detent_authority)
@@ -16,7 +16,7 @@ if(DETENT_BUILD_AUTHORITY)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)
-  add_library(detent_authority_service service.cc layout_export.cc)
+  add_library(detent_authority_service service.cc service_options.cc service_runtime.cc layout_export.cc)
   target_link_libraries(detent_authority_service PUBLIC detent::authority_node detent::authority_export detent::distribution_http
     detent::relay_layout)
 endif()
