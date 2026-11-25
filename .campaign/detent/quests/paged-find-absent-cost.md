@@ -5,16 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+first-read-1ms's review round 4 (R4-1) measured the paged `find` 1.08-1.16x main's warm `StoreTable::find` for absent names in tables whose names share no long prefix (random 4-16 byte names; +4.6 to +13.8 ns in the same binary; jobs 261125-033041-988a22 and 261125-034050-b0e901). D166 accepted up to 1.2x for the release. After this quest the cost is profiled and removed, so absent finds are within main's cost on every shape, or the measured floor of the two-level search is recorded with the profile.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A profile of absent finds on random 16-byte names names the extra cost: a job
+- A2 A strict A/B with an A/A arm across D166's shapes: absent finds within main's floor, or the floor of the two-level search shown and recorded: jobs
+- A3 The suite and CI pass
 
 ## Contracts
 
