@@ -5225,6 +5225,21 @@
       "closed": "answered xapiand: no active holder of driver.h; pin-wave's consensus repin noted",
       "id": "msg-411",
       "text": "From xapiand-lead: heads-up on consensus. Quest consensus-group-last (xapiand) adds one field,  (the worker's last_index()), to consensus::Driver::GroupState so strata can refuse a group whose journal is older than its index (journal-replaces-wal durability finding S1). No behavior change, no new call. It lands on consensus main after its build-test and CI; say if Detent has a quest holding include/consensus/driver.h I should order it after."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:02:40",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:02:40",
+      "by": "campaign",
+      "closed": "a fresh contributor is on it: sanitizer CI failures (test_http_upstream:761, readiness_pressure) and requeueing A1-A3, A5 at the final head",
+      "id": "msg-412",
+      "settles": {
+        "todo": "dedbef6c"
+      },
+      "text": "to do, critical path first:\ntodo: finish relay-mirror-idle-wake (nothing moved it for 3 h: ready for review; to land: criteria without evidence at 6f58aa77ad02: A1-A3, A5 (`campaign status relay-mirror-idle-wake` lists them); new): `campaign status relay-mirror-idle-wake`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
