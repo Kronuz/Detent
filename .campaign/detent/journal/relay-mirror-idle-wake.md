@@ -111,7 +111,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 |---|---|
 | A1 | 261124-195021-2bfd93 (75021884 vs main a69f43a4), band 261124-191512-3908aa; queued |
 | A2 | 261124-195024-14371c (250 ms), 261124-195027-702b6d (10 ms), queued; earlier 3ac6f3, 314fca, band 387342 (80393d76) |
-| A3 | test_http_upstream 93c649 (fw 393865, f72663, 93b926, 4672e0); test_client_reset 3fd12d (fw c8f24b); test_relay_idle 4ef9df (fw 0ce6a0, 70f43b); test_relay_hung 115e1d (fw 4047b1); test_relay_cut-off 196331 (fw 215053); queued |
+| A3 | test_http_upstream 93c649 (fw 261124-191402-bcf6ff, f72663, 93b926, 4672e0); test_client_reset 3fd12d (fw c8f24b); test_relay_idle 4ef9df (fw 0ce6a0, 70f43b); test_relay_hung 115e1d (fw 4047b1); test_relay_cut-off 196331 (fw 215053); queued |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md (voter-state table, seal answer) |
 | A5 | 261124-195030-5f884c queued; CI on 75021884 |
 
