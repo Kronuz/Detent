@@ -1,6 +1,6 @@
 # consensus-fetch-alongside-loop-stall: journal
 
-State: ready for review (jobs queued: 261124-212647-bda88f 261124-212704-2b98ad 261124-212720-d82038 261124-212804-eb47f1 261124-215634-5e9c39 261124-215638-369ffc 261124-215644-81f10e 261124-215646-b613dc 261124-215649-56b54a 261124-215714-ba0954 261124-215716-07805b 261124-215719-47582c 261124-215720-0be582 261124-215723-0d3fbd; CI 45557132080)
+State: ready for review (correctness CHANGES F1-F3 folded in at consensus:0d8263d; jobs queued: 261124-232245-034e6c 261124-232249-6e4d93 261124-232254-7d11cf 261124-232254-6b4d7b 261124-232255-8bc466 261124-232255-0a3ff3 261124-232300-fe7353; CI 45567716437)
 Quest: .campaign/detent/quests/consensus-fetch-alongside-loop-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Both fixes done and pushed (consensus:4fa72a5; CI 45557132080). Commits:
+Both fixes done; review findings F1-F3 folded in and pushed (consensus:0d8263d; CI 45567716437). Commits:
 - consensus:10747e0 FETCH_ALONGSIDE_SLOW_READ=ms (node 2's first two replies that much slower
   to build); LoopLags' 1.5 s dump reads each loop's run state and CPU before and after the
   stacks (thread_cpu_us, shared with LoopProbe).
@@ -21,6 +21,13 @@ Both fixes done and pushed (consensus:4fa72a5; CI 45557132080). Commits:
   each link loop's longest turn until the reply arrived (Turns: a probe posted every 5 ms).
 - consensus:4fa72a5 rpc_host fix, the same shape: replies (big, huge, 5 slow) built before the
   loops start, the reader moves one out, a name past them builds on the loop (counted).
+- consensus:e17d9d8 main b4516ee merged.
+- consensus:019f63c F1: print_stacks marks its window (dumps, odd while one runs); a Stalls nap
+  that overlaps it does not count as the host's stall.
+- consensus:4898f1c F2: rpc_host's 4 MiB replies checked by value against
+  expected.substr(0, 4 << 20); the 16 MiB fetched again after the table, exact.
+- consensus:0d8263d F1: that nap goes to dump_stall, printed beside the stall ("a stack dump,
+  not counted: N ms").
 
 Cause (CI 45372452058, log Detent/.scratch/detent/ci-pipesim/run-45372452058.log):
 - Work on node 2's loops 0 and 1: serving node 3's and node 1's fetches (links to 3 on loop 0,
@@ -51,9 +58,12 @@ rpc_host `fetch` (main's failures: 45366654906 job 138350084469, 45374547236 job
 - Plain, 5 runs each: main+probe: the copy 12-16 ms on host 2's loop; host 2's longest turn
   until arrival 16-38 ms, host 1's 4-21 ms. Fix: 0 replies on the loop; host 2's 6-14 ms, host
   1's 3-8 ms. Gap 106-111 ms both. Fix + knob 3500: passes, host 2's 7 ms.
-- Not proven: which end held in CI (no stack in those logs); the drops count either end's hold.
-  At main the copy is the longest work on either link loop, and removing it cuts host 2's
-  longest turn 2-3x; the residual 6-14 ms is TLS and frame work, not a single bulk handler.
+- NOT ROOT-CAUSED (review F3): CI's logs do not say which end held, and the drops count either
+  end's hold. Host 1's requester also copies in one turn (its unreserved append doubles, up to
+  8 MiB at once; host_transport.h:1486). The jobs show only that a held reader is sufficient
+  for CI's line; lags overlap (main+probe 13-25 ms, fix 3-32 ms, jobs ba0954, 81f10e). The
+  change stands as test hygiene (no 16 MiB build on a link loop); the Turns line names the
+  held end on the next macos-x86_64 failure.
 
 Local (x86_64 i9, CI flags RelWithDebInfo -O2 -g extensive hardening), not jobs:
 - main plain x3: node 2 loops 0/1 13-18 ms, node 3 loops 1/3 10-15 ms (serving), node 1's
@@ -68,7 +78,7 @@ Scripts: ~/.scratch/detent/consensus-fetch-alongside-loop-stall/{signature,lags,
 
 ## Next
 
-1. Lead: read the queued jobs and CI 45557132080 (scripts in ~/.scratch/detent/consensus-fetch-alongside-loop-stall must stay until they run).
+1. Lead: read the queued jobs and CI 45567716437 (scripts in ~/.scratch/detent/consensus-fetch-alongside-loop-stall must stay until they run; mutants 43ebf5f and 864192a are unreferenced commits in the consensus object store).
 
 ## Blocked on
 
@@ -80,14 +90,32 @@ production readers serve large files from memory (peer-fetch.md already says to 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | groups: 261124-212647-bda88f (signature.sh at consensus:10747e0, SLOW_READ=6000: node 2's loops 0/1 held >= 6 s, journal 0/0, stall < 1 s, links gone, 2 threads in serve_fetch's reader). Measurement: lags at main 261124-212720-d82038, at the fix 261124-212804-eb47f1. rpc_host: 261124-215634-5e9c39 (rpc-signature.sh 3500 at ee77b26) and 261124-215638-369ffc (1500): fails on a gap >= the hold, exact, links 2+2, none ended, built on host 2's loop, its longest turn >= the hold. Measurement: lags at main+probe 261124-215714-ba0954, at the fix 261124-215644-81f10e. Cause: Doing |
-| A2 | groups: 261124-215719-47582c (SLOW_READ=6000 passes at 4fa72a5); fails without: 261124-212704-2b98ad (same at 10747e0). rpc_host: 261124-215646-b613dc (SLOW_READ=3500 passes at 4fa72a5); fails without: 261124-215649-56b54a (same at ee77b26). Bounds unchanged: 1af7530 and 4fa72a5 touch no check |
-| A3 | groups 261124-215720-0be582, rpc_host 261124-215716-07805b (25 runs beside 4 burners, strict, at 4fa72a5) |
-| A4 | suite 261124-215723-0d3fbd (campaign verify at 4fa72a5); CI 45557132080 |
+| A1 | groups: 261124-232245-034e6c (signature.sh at consensus:43ebf5f = 10747e0 + 019f63c + 0d8263d, a mutant: reader still builds on the loop, dump kept out of the stall; SLOW_READ=6000; passes on a run with node 2's loops 0/1 held >= 6 s, journal 0/0, stall < 1 s, peers gone and connection_aborted, 2 threads in serve_fetch's reader; reruns a run only when the dump itself suspended >= 1 s, at most 3). Failed before F1: 261124-212647-bda88f. Measurement: lags at main 261124-212720-d82038, at the fix 261124-212804-eb47f1. rpc_host (sufficiency only, not root-caused, F3): 261124-215634-5e9c39, 261124-215638-369ffc at ee77b26; lags 261124-215714-ba0954, 261124-215644-81f10e |
+| A2 | groups: 261124-232254-7d11cf (SLOW_READ=6000 passes at 0d8263d); fails without: 261124-212704-2b98ad (same at 10747e0). rpc_host: 261124-232255-8bc466 (SLOW_READ=3500 passes at 0d8263d); fails without: 261124-215649-56b54a (same at ee77b26). F2: fails without 261124-232249-6e4d93 (plain fetch at consensus:864192a, the head without the reader's pop_back). Bounds unchanged: 1af7530, 4fa72a5, 019f63c, 0d8263d touch no bound; 4898f1c adds checks |
+| A3 | groups 261124-232254-6b4d7b, rpc_host 261124-232255-0a3ff3 (25 runs beside 4 burners, strict, at 0d8263d) |
+| A4 | suite 261124-232300-fe7353 (campaign verify at 0d8263d); CI 45567716437 |
 
+Review probes, not mine: 261124-220716-08aef6 (moved-out mutants; rpc_host missed it, F2),
+261124-222251-e201f1 (dump stall, F1).
 Superseded, not failures: 261124-212651-a6ec88, 261124-212655-c6962c, 261124-212659-d0b200,
-261124-212724-a26bae, 261124-212808-829111, 261124-212812-9fd35e, 261124-212822-225726 (at
-ee78a29 or earlier, replaced), 261124-215641-e3eb98 (replaced by ba0954, its env names it).
+261124-212724-a26bae, 261124-212808-829111, 261124-212812-9fd35e, 261124-212822-225726,
+261124-215641-e3eb98, and the 4fa72a5 runs 261124-215719-47582c, 261124-215720-0be582,
+261124-215646-b613dc, 261124-215716-07805b, 261124-215723-0d3fbd (passed; rerun at 0d8263d).
+
+## Review findings (correctness, CHANGES at 4fa72a5)
+
+- F1 (blocking): class = a diagnostic that changes what the case measures. The dump's `sample`
+  counted as the host's stall (widening the bound and failing the signature's stall check).
+  Locally (signature at 43ebf5f, 9 runs) the dump suspended nothing in 8 (dump nap 4-8 ms,
+  dump 1.5-2 s, 4 peers gone each); in 1 node 2 had 0 peers gone. A suspending dump can let
+  links outlive dead_after: the run now prints it, and the signature reruns only such a run.
+  Every Stalls user goes through print_stacks (report_hang too), so one mark covers them.
+  Test: 261124-232245-034e6c (failed before: bda88f).
+- F2: class = a reply counted, not compared. All of rpc_host fetch's replies now compare by
+  value (big twice, the 4 MiB ones); missing/throws/huge are errors. Test: fails without
+  261124-232249-6e4d93.
+- F3: recorded above as not root-caused; the Result claims only what the jobs show.
+- F4: the lead's (product). F5, F6: nits, not done (the lead listed F1-F4).
 
 ## Result
 
@@ -99,11 +127,13 @@ its fetches go out and the reader moves one out, as docs/mechanisms/peer-fetch.m
 host. Serving loops' longest turn: 10-18 ms at main, 1-4 ms at the fix (lags jobs); with the
 reply 6 s slow to build the fix passes and main fails. Every check and bound unchanged. A CI
 failure now prints each loop's run state and CPU around the stacks. rpc_host `fetch` (main's 3
-macos-x86_64 failures) had the same shape: its reader copied the 16 MiB reply on host 2's loop
-serving host 1; stretching that copy gives CI's line in every field (gap, links 2+2, none
-ended, drops in proportion). Fix (test/transport/rpc_host_test.cc, consensus:4fa72a5), the same
-way: replies built before the loops start, the reader moves one out. Host 2's link loop's
-longest turn: 16-38 ms at main, 6-14 ms at the fix; the slow reply passes. Bounds unchanged.
+macos-x86_64 failures): NOT root-caused. A reader held on host 2's link loop is sufficient for
+CI's line (gap, links 2+2, none ended, drops in proportion), but the logs do not name the held
+end, and host 1's requester also copies in one turn. The change (consensus:4fa72a5, the same way:
+replies built before the loops start, the reader moves one out) stands as hygiene; the case now
+checks every reply by value and fetches the 16 MiB twice, and its Turns line names the held end
+next time. Bounds unchanged. A stack dump's suspension is no longer counted as the host's stall
+(F1) and is printed apart.
 
 ## Rulings I made
 
