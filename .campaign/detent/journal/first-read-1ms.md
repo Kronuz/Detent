@@ -35,16 +35,20 @@ test_local_paged_recovery, test_local_managed_reader, test_agent_store pass.
 
 CI at `Detent:e52669a7` failed the same 8 tests on every platform (test_managed_delivery_process,
 test_system_managed_* x6, test_system_relay_pages): three Python parsers of `selected` read layout 2.
-The layout-3 parsers are written and checked against real tables in
-`.scratch/py-layout3/layout3.patch` (outside the file set; Blocked on 1).
+`Detent:244990b9`: one reader, `table_entries` in tests/detent_delivery/verify_local_format.py
+(table digest, page digests, entry bounds); managed.py imports it, test_restart_capacity uses it
+through managed; HOW_IT_WORKS gives layout-3 sizes. Checked against real layout-3 tables (1 and 70
+entries, a damaged and a truncated one); the eight tests rerun locally (Evidence).
 
 ## Next
 
-1. On widening (msg-393): apply `.scratch/py-layout3/layout3.patch`, fix docs/HOW_IT_WORKS.md:52,
-   commit, push; CI then reruns.
-2. Read A2/A1 and the mutant jobs; fold in the correctness review's findings when they come.
+Read the jobs at `Detent:244990b9` (Evidence) and CI; fold in the correctness review's findings.
 
 ## Messages
+
+- msg-393 (to the lead; widened with one change, one parser): done in `Detent:244990b9`, see Doing.
+  The parser lives in verify_local_format.py, the dependency-free module, and managed.py imports it
+  by the tests' existing `sys.path` pattern (authority.py does it for tests/support).
 
 - msg-3 (lead: design passed, files widened): built per its three conditions. 1: the marks are
   `VerifiedPages` (one line in the design says why it fits). 2: `static_assert(table_entry_bytes(255) <
@@ -62,10 +66,7 @@ The layout-3 parsers are written and checked against real tables in
 
 ## Blocked on
 
-1. Lead (msg-393): widen the files to tests/detent_delivery/verify_local_format.py,
-   tests/detent_system/managed.py, tests/detent_system/test_restart_capacity.py and
-   docs/HOW_IT_WORKS.md. Layout 3 broke their layout-2 parsers (8 CI tests). Recommendation: widen;
-   the patch is ready. Alternative: the lead applies `.scratch/py-layout3/layout3.patch` itself.
+Nothing.
 
 ## Evidence
 
