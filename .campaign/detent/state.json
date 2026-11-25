@@ -29055,6 +29055,8 @@
     "pin-wave": {
       "accepted": {},
       "after": [],
+      "base": "18c5bd23ff2435c523c23142e0e76ac9dac809df",
+      "branch": "quest/detent/pin-wave",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -29214,12 +29216,13 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "completion:b4600a8 makes PosixIOOptions::flush_mode required; Detent's three PosixIO constructions pass FlushMode::full (disk_store.cc:467, mirror_service.cc:364, service_runtime.cc:586)",
+      "reason": "started by force: pin-wave is waited on by 9 quests; its overlaps are one-token or append-only: FlushMode::full at disk_store.cc:467 (first-read-1ms), mirror_service.cc:364 and service_runtime.cc:586 (relay-mirror-idle-wake), a CHANGELOG line and docs/perf rows it adds beside voter-read-freshness and warm-relay-agent-boot; each later merge resolves in a line",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T17:46:03"
+      "updated": "2026-11-24T17:46:15",
+      "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
       "accepted": {},
