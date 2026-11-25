@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import sys
 import time
 from pathlib import Path
 
 from authority import Authority
-from managed import ManagedCohort
+from managed import POSITION_AT, ManagedCohort, table_entries
 from runtime import Actors, Evidence
 from writers import Writers
 
@@ -31,19 +30,15 @@ BATCH = 100  # operations a transaction, within the default 128 mutations
 
 def cursor(generations: Path, name: str) -> tuple[bytes, int]:
     """The cluster and incarnation of `name`'s cursor in the selected table, and its position."""
-    table = (generations / "selected").read_bytes()
-    if table[:8] != b"DTTABLE1" or hashlib.sha256(table[:-32]).digest() != table[-32:]:
+    entries = table_entries((generations / "selected").read_bytes())
+    if entries is None:
         raise RuntimeError("selected table is not a whole DTTABLE1")
-    at = 64
-    for _ in range(int.from_bytes(table[12:16], "big")):
-        length = table[at]
-        if table[at + 1 : at + 1 + length].decode() == name:
-            entry = at + 1 + length
-            return table[entry : entry + 32], int.from_bytes(
-                table[entry + 32 : entry + 40], "big"
-            )
-        at += 137 + length
-    raise RuntimeError(f"no selected entry for {name}")
+    if name not in entries:
+        raise RuntimeError(f"no selected entry for {name}")
+    fields = entries[name]
+    return fields[:POSITION_AT], int.from_bytes(
+        fields[POSITION_AT : POSITION_AT + 8], "big"
+    )
 
 
 def limit(directory: Path, keys: int) -> None:

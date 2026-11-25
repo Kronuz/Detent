@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import struct
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -15,26 +15,21 @@ from capacity import CapacityProfile
 from runtime import Actor, Actors
 from writers import Writers
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "detent_delivery"))
+from verify_local_format import POSITION_AT, table_entries
+
 RELAY_TOKEN = "cd" * 16
 
 
 def table_positions(table: bytes) -> dict[str, int] | None:
-    """Each namespace's W1 position in the agent store's `selected` table (DTTABLE1, D8)."""
-    if (
-        len(table) < 64 + 32
-        or table[:8] != b"DTTABLE1"
-        or hashlib.sha256(table[:-32]).digest() != table[-32:]
-    ):
+    """Each namespace's W1 position in the agent store's `selected` table (D8)."""
+    entries = table_entries(table)
+    if entries is None:
         return None
-    positions: dict[str, int] = {}
-    at = 64
-    for _ in range(int.from_bytes(table[12:16], "big")):
-        length = table[at]
-        name = table[at + 1 : at + 1 + length].decode()
-        position = at + 1 + length + 32
-        positions[name] = int.from_bytes(table[position : position + 8], "big")
-        at += 137 + length
-    return positions
+    return {
+        name: int.from_bytes(fields[POSITION_AT : POSITION_AT + 8], "big")
+        for name, fields in entries.items()
+    }
 
 
 class ManagedCohort:

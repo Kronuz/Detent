@@ -49,7 +49,7 @@ The store is one directory. A *generation* is one complete, immutable copy of th
 | `generation-<id>.read` | Reader metadata (`DTREAD02`): exact counts, bound to the generation and the root checksum, with a trailing SHA-256 | 192 B |
 | `generation-<id>.live` | Per segment, the live page and byte counts; the segment list; the override histogram; a trailing SHA-256 | 1,152 B plus 72 B per segment plus 32 B |
 | `generation-<id>.lease` | Empty; a reader holds it shared while it reads the generation | Empty |
-| `selected` | The table (`DTTABLE1`): the store's profile and, per namespace, its cursor, `change` slot, generation, ordinal, and the SHA-256 of its root and `.read` | 96 B plus 137 B and the name per entry |
+| `selected` | The table (`DTTABLE1`, layout 3): the store's profile and, per namespace, its cursor, `change` slot, generation, ordinal, and the SHA-256 of its root and `.read`, in 4 KB pages each verified when a lookup first reaches it | 104 B, plus 137 B and the name per entry, and 33 B and the last name per page |
 | `change` | Sequence words that tell readers `selected` moved | 8 B per word |
 | `owner.lock` | The agent's exclusive lock | Empty |
 
