@@ -5603,6 +5603,21 @@
         "todo": "45d61503"
       },
       "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 69 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:59:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:59:17",
+      "by": "campaign",
+      "closed": "set review; round 5 review launched",
+      "id": "msg-436",
+      "settles": {
+        "todo": "0df5605f"
+      },
+      "text": "to do, critical path first:\ntodo: review first-read-1ms (its journal says ready for review (fix round 3; code `Detent:d12f2887`; jobs queued there, see Evidence); then launch its security and correctness review; new): `campaign set first-read-1ms status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
