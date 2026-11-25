@@ -4928,6 +4928,26 @@
         "todo": "d40f8561"
       },
       "text": "to do, critical path first:\ntodo: start consensus-driver-pressure-rearm (launchable; new): `campaign start consensus-driver-pressure-rearm`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:45:15",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:45:12",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-389",
+      "items": {
+        "relay-mirror-idle-wake": "relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
+      },
+      "settles": {
+        "start": [
+          "relay-mirror-idle-wake"
+        ]
+      },
+      "text": "split-detent landed: unlocks relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -31166,7 +31186,9 @@
         "bench/idle-wakeups/**",
         "docs/mechanisms/relay-mirror*.md",
         "CHANGELOG.md",
-        "src/detent_authority/service.cc"
+        "src/detent_authority/service.cc",
+        "src/detent_authority/service_runtime.cc",
+        "src/detent_authority/service_internal.hh"
       ],
       "landed": [],
       "lenses": [
@@ -31175,15 +31197,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "waits for split-detent to land, then moves the authority edit to the split file and queues evidence",
+      "reason": "split-detent landed (Detent:a341e8f1): the authority's owner loop moved to service_runtime.cc",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "until": [
-        "split-detent"
-      ],
-      "updated": "2026-11-24T11:54:10",
+      "updated": "2026-11-24T17:45:59",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
