@@ -223,7 +223,8 @@ Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a deci
 checked what), name every job you examined, failures included (`campaign brief` lists failed
 jobs no journal names), and answer each message by its id (msg-N).
 
-Round 3, at `Detent:d12f2887` (queued):
+Round 3, at `Detent:d12f2887` (done: fda3dd, 1267a1 pass; P1, P2 fail at "each key answers as the
+decoded table's find"; L1, L2 fail selftest at their cases; the rest queued, pushed `Detent:cb51340f`):
 - A2: R3-1 find A/B 261125-031218-4505c8 (strict); warm 261125-031221-f08ca9 (strict); A2 cells
   (exclusive) stopped:1 -031224-b0beee, stopped:1000 -031228-873097, running:1 -031230-95829a,
   running:1000 -031233-4a1cfb.
