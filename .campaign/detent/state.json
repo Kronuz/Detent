@@ -16427,12 +16427,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "D166: the owner ruled the absent-name target",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-25T05:54:02",
+      "updated": "2026-11-25T06:02:35",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
