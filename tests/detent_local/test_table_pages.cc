@@ -373,7 +373,8 @@ void shared_prefixes() {
 	for (unsigned round = 0; round != 4; ++round) {
 		std::vector<std::string> names;
 		for (std::size_t i = 0; i < 600; ++i) {
-			auto name = stems[round == 0 ? (i < 5 ? 0 : 2) : next(std::size(stems))]; // round 0: page 0 starts below the prefix
+			// Round 0: the first page starts with names below the later pages' prefix, as long as it.
+			auto name = round ? stems[next(std::size(stems))] : i < 5 ? "a" + std::string(99, 'z') : stems[2];
 			for (auto extra = 1 + next(round == 3 ? 15 : 6); extra && name.size() < 255; --extra)
 				name.push_back("ab\x01\x7f\x80\xff"[next(6)]);
 			names.push_back(name);
@@ -401,11 +402,17 @@ void shared_prefixes() {
 				keys.push_back(name + byte);
 			for (std::size_t cut = name.size() - 1; cut + 1 > 0; cut -= 1 + cut / 4)
 				keys.push_back(name.substr(0, cut));
-			auto bumped = name;
-			if (static_cast<unsigned char>(bumped.back()) < 0xff) {
-				++bumped.back();
-				keys.push_back(bumped);
-			}
+			// One byte up or down at the start, the middle and the end: a name that differs inside a prefix
+			// and shares the rest.
+			for (const auto at : {std::size_t(0), name.size() / 2, name.size() - 1})
+				for (const int step : {-1, 1}) {
+					auto changed = name;
+					const auto byte = static_cast<unsigned char>(changed[at]) + step;
+					if (byte > 0 && byte < 256) {
+						changed[at] = static_cast<char>(byte);
+						keys.push_back(changed);
+					}
+				}
 		}
 		const auto account = std::make_shared<d::StorageLedger>(std::size_t(1) << 30);
 		const l::PagedTable marked(bytes_of(encoded), account), unmarked(bytes_of(encoded));
