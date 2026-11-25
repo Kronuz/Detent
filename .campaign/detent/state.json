@@ -5171,6 +5171,21 @@
         "todo": "fa2aeaa9"
       },
       "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; listed 32 min): `campaign set consensus-driver-pipelined-sim status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:04:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:04:27",
+      "by": "campaign",
+      "closed": "parked until pin-wave's consensus repin reaches consensus main: driver-pipeline holds consensus CMakeLists.txt, where pin-wave's consensus pins live; not on the RC path",
+      "id": "msg-408",
+      "settles": {
+        "todo": "e8b90b21"
+      },
+      "text": "to do, critical path first:\ntodo: start driver-pipeline (launchable; new): `campaign start driver-pipeline`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
