@@ -15401,7 +15401,11 @@
         "tests/detent_local/CMakeLists.txt",
         "tests/detent_reader/test_reader_core.cc",
         "tests/detent_local/test_table_pages.cc",
-        "tests/detent_agent/test_agent_store.cc"
+        "tests/detent_agent/test_agent_store.cc",
+        "tests/detent_delivery/verify_local_format.py",
+        "tests/detent_system/managed.py",
+        "tests/detent_system/test_restart_capacity.py",
+        "docs/HOW_IT_WORKS.md"
       ],
       "history": [
         {
@@ -15456,12 +15460,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "ready at Detent:e52669a7",
+      "reason": "three Python test tools parse selected and must read layout 3; HOW_IT_WORKS describes the table; no active quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T15:55:47",
+      "updated": "2026-11-24T18:21:38",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
