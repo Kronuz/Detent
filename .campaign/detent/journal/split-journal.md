@@ -1,6 +1,6 @@
 # split-journal: journal
 
-State: waiting on jobs 261124-155553-798354 (A2) and CI on quest/detent/split-journal 275d9e7
+State: waiting on jobs 261124-155553-798354 (A2); CI on journal:275d9e7 (pushed)
 Quest: .campaign/detent/quests/split-journal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -41,7 +41,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A1 | `docs/dev/splits.md` (journal:275d9e7): split table, kept-whole table (turn_seal_test.cc), two header candidates outside the file set |
 | A2 | job 261124-155553-798354 (split_check.py --base fc5c59b492ff test); local run at 24b3653: 0 errors, 57 warnings, listed under Rulings |
 | A3 | [manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above |
-| A4 | CI on 275d9e7 (pushed); local: host and journal ctest entries, ctest -N identical (106 tests, ~/.scratch/journal-split/{base,head}-ctest.txt), new headers self-contained (selfcontained.sh -t: 17 ok) |
+| A4 | CI on 275d9e7 (pushed); local: all built journal_host_* and journal_journal ctest entries pass, ctest -N identical (106 tests, ~/.scratch/journal-split/{base,head}-ctest.txt), new headers self-contained (selfcontained.sh -t: 17 ok) |
 
 ## Result
 
