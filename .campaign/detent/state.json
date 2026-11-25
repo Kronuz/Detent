@@ -9172,7 +9172,8 @@
         "docs/DRIVER.md",
         "docs/mechanisms/**",
         "test/transport/**",
-        "bench/netlab/**"
+        "bench/netlab/**",
+        "CMakeLists.txt"
       ],
       "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
@@ -9196,12 +9197,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "review F5: netlab pairs InlineCompletion with HostTransport, the pairing DRIVER.md now rules out; it moves to the native completion like detentd and the tests (one shape)",
+      "reason": "R4-F1: fetch-alongside-leader-sync gets its ctest entry (one word in the groups case list)",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T05:03:23",
+      "updated": "2026-11-25T06:20:50",
       "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
