@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs: cascade L2 CI (task 45531185813, term-color 45531190808, repr 45531194490, sha256 45531199999, hashes 45531138947, all on macOS runners); build probe 261124-182953-399223
+State: waiting on jobs: cascade L3 CI (reactor, completion, strings, enum-reflection, logger at the commits in the cascade table); local port build (quiet light pin-wave-ports)
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,13 +28,16 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. L2 CI green: fast-forward each main (`GH_TOKEN=$(gh auth token --user Kronuz) git -C
-   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`), record runs in the table;
-   then `.scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/R` for L3 (reactor,
-   completion, strings, enum-reflection, logger), L4 (journal, http-parser), L5 (http; consensus
-   after consensus-driver-pressure-rearm lands, lead ruling 3). A red head: stop at that level.
-2. Pin Detent to the cascaded heads; `pins` gate (A1).
-3. Read probe 261124-182953-399223 (keep-going build at e2b15b06) for breaks beyond FlushMode.
+1. L3 CI: `sh .scratch/pin-wave/bin/wait_ci.sh reactor=40d1461f66e62d5189e2406ccb9a0f20b40f184e
+   completion=30615161bebf6adb8297a8a16b338cb1952ce692 strings=d93f2c0f82ce20f9a3a153ecf2b539774da43060
+   enum-reflection=c9a3f04f20ea9fccea9b833cc3cbfd8ae393ce37 logger=65994c94a0dac58827953e7bcfc364b24e868294`;
+   green: fast-forward each main (`GH_TOKEN=$(gh auth token --user Kronuz) git -C
+   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`); then
+   `.scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/R` for L4 (journal, http-parser),
+   then L5 (http; consensus per Blocked on 1). A red head: stop at that level.
+2. Read .scratch/pin-wave/faultfs/run.log (local build and ctest of the ported targets, with the
+   tests CMake patch applied uncommitted); fix what fails.
+3. Pin Detent to the cascaded heads; `pins` gate (A1).
 4. At the final head, queue once: `campaign verify pin-wave` (A1, A4); A5 w5 job
    `docs/perf/pin-wave-w5.sh .scratch/w5` with `--ref OLD=18c5bd23` (light); A5 syscall job
    `docs/perf/pin-wave-syscalls/run.sh 560c288b40ba55a8d42ff048bcb1c7eaa3624645 <completion head>
@@ -45,7 +48,16 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Blocked on
 
-1. consensus repin (L5) waits for consensus-driver-pressure-rearm to land (lead ruling 3).
+1. consensus repin (L5): rearm landed (consensus:c724c58), but consensus pins in its CMakeLists.txt
+   (no cmake/dependencies.json in any library), which consensus-recovered-over-limit-start now
+   holds. Options: (a) that quest takes the one-line-per-pin repin into its own commit; (b) the lead
+   rules the pin lines out of its hold and I repin after it; (c) consensus stays at fcf7f66 for this
+   wave. Recommend (b): the repin touches only the FetchContent_Declare tags.
+2. tests/detent_authority/CMakeLists.txt (held by voter-read-freshness via tests/detent_authority/**):
+   journal's head deletes journal/memory_io.h (journal:9f5e846), so the authority's in-memory tests
+   move to faultlab's faultfs (Detent:8a182163) and nine test targets must link faultlab::faultlab.
+   The patch is ready: .scratch/pin-wave/faultfs/tests-cmake.patch (adds faultlab::faultlab to nine
+   target_link_libraries lines and fixes one comment). Recommend widening pin-wave by that file.
 
 ## Evidence
 
@@ -73,11 +85,16 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 
 | Level | Repo | Pin moves | Commit | CI (branch run) | main |
 |---|---|---|---|---|---|
-| L2 | task | wheel bfd72bc -> 075a40a | task:477a7d3 | 45531185813 running | not yet |
-| L2 | term-color | static-string 7eaa8f9 -> a99260d | term-color:898710b | 45531190808 queued | not yet |
-| L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 queued | not yet |
-| L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 queued | not yet |
-| L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 queued | not yet |
+| L2 | task | wheel bfd72bc -> 075a40a | task:477a7d3 | 45531185813 success | fast-forwarded |
+| L2 | term-color | static-string 7eaa8f9 -> a99260d | term-color:898710b | 45531190808 success | fast-forwarded |
+| L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 success | fast-forwarded |
+| L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 success | fast-forwarded |
+| L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 success | fast-forwarded |
+| L3 | reactor | task 18eb516 -> 477a7d3 | reactor:40d1461 | pushed | not yet |
+| L3 | completion | metrics 9db73de -> 4cd64db, allocators 07de45d -> ae775ab, task 95798a0 -> 477a7d3 | completion:3061516 | pushed | not yet |
+| L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | pushed | not yet |
+| L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | pushed | not yet |
+| L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | pushed | not yet |
 
 ## Result
 
@@ -103,6 +120,21 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 6. The A6 and A5 old arm is the quest base 18c5bd23: main since then changed only campaign files.
 8. Lead widened test_relay_mirror_crash.cc and test_paged_publication_artifacts.cc: one `nullptr,`
    each (Detent:4fd2ab2a).
+9. http::Limits migration (Detent:5515c9f5) keeps every value: in-flight and connection caps,
+   request timeouts (authority's configured timeout, relay 65 s, tests 40 ms), body caps
+   (authority request_bytes, wire test 1 MiB, others the unchanged 16 MiB default), TLS handshake
+   deadline and cap, grace 5 s (unchanged default); idle, header and inactivity set to zero, as
+   they were before http turned them on. No Limits field: the TLS factory's own connection cap
+   (1024 by default), now max_clients alone. Only the relay had it below its service cap, so a relay
+   configured with connections above 1024 now admits that many TLS connections, as configured.
+   The relay keeps refusing a null TLS context (the new constructor would serve plain HTTP).
+   test_transport_https's queue-delay case drives http::detail::serve_tls_connection with a
+   detail::ServiceState: http's own tests do not cover it. Stale comment outside the set:
+   src/detent_authority/service.cc:247 names set_max_body.
+10. faultfs port (Detent:8a182163): powered_off() is true once cut - 1 operations ran, before the
+   refused one is tried; the durable state is the same as MemoryIO's throw at operation `cut`. A
+   run with the power off treats any exception as the cut (MemoryIO's PowerLoss passed through
+   Detent's handlers; faultfs's EIO is a std::system_error they may wrap).
 7. Linux syscall trace not run: no Linux host here (docker daemon down) and the CI workflow is
    outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
