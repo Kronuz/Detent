@@ -35,8 +35,11 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
    .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`); then
    `.scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/R` for L4 (journal, http-parser),
    then L5 (http; consensus per Blocked on 1). A red head: stop at that level.
-2. Read .scratch/pin-wave/faultfs/run.log (local build and ctest of the ported targets, with the
-   tests CMake patch applied uncommitted); fix what fails.
+2. Local check of the ports (quiet light, tests CMake patch applied uncommitted, managed agent
+   OFF): all 16 targets build; 18 of 19 ctest entries pass, the nine faultfs ones included
+   (history_power_cut 50 s, installs 43 s, namespace_power_cut 15 s). test_authority_distribution_service
+   fails at line 94 (base(1) answered Delta, not Snapshot) because its enabling of positions sits
+   under DETENT_TEST_MANAGED_DELIVERY, off in this build; the A1 suite job (full profile) decides.
 3. Pin Detent to the cascaded heads; `pins` gate (A1).
 4. At the final head, queue once: `campaign verify pin-wave` (A1, A4); A5 w5 job
    `docs/perf/pin-wave-w5.sh .scratch/w5` with `--ref OLD=18c5bd23` (light); A5 syscall job
