@@ -32363,9 +32363,11 @@
         "correctness"
       ],
       "milestone": "M2 Integration (RC-1)",
-      "needs": [],
+      "needs": [
+        "pin-wave"
+      ],
       "provides": [],
-      "reason": "Parked since 2026-11-02 for the handoff's order; waits for the lead's ruling on the allocators change and the macos-arm64 variant-13 fix (resource-adoption ledger)",
+      "reason": "D162: restarts from main after pin-wave lands",
       "repo": ".",
       "risk": "high",
       "status": "blocked",
@@ -32373,7 +32375,7 @@
       "until": [
         "owner"
       ],
-      "updated": "2026-11-22T22:05:37"
+      "updated": "2026-11-24T22:05:30"
     },
     "restart-capacity": {
       "accepted": {
