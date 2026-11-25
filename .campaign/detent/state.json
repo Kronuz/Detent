@@ -31378,7 +31378,10 @@
         "CHANGELOG.md",
         "src/detent_authority/service.cc",
         "src/detent_authority/service_runtime.cc",
-        "src/detent_authority/service_internal.hh"
+        "src/detent_authority/service_internal.hh",
+        "src/detent_delivery/client.cc",
+        "include/detent_delivery/client.hh",
+        "tests/detent_delivery/test_client*.cc"
       ],
       "landed": [],
       "lenses": [
@@ -31387,12 +31390,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "ready at Detent:9337f6c9",
+      "reason": "this quest's new 503 not_ready reaches agents, whose client reads it as AdmissionFull and retries the same voter instead of rotating (review round 2 note); the client maps it",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T17:54:37",
+      "updated": "2026-11-24T19:42:33",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
