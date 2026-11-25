@@ -31,6 +31,9 @@ from managed import ManagedCohort
 from runtime import Actors, Evidence
 from writers import Writers
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "detent_delivery"))
+from verify_local_format import GENERATION_AT, table_entries
+
 NAMESPACE = "load0"
 BATCH = 4096
 HASHED = re.compile(rb"hashed \d+ bytes since start: (\d+) to build")
@@ -87,18 +90,14 @@ class Output:
 
 def root(generations: Path, name: str) -> tuple[int, bytes]:
     """The selected generation's position and root-page content entry (DTROOT04 [56,64), [160,208))."""
-    table = (generations / "selected").read_bytes()
-    at = 64
-    for _ in range(int.from_bytes(table[12:16], "big")):
-        length = table[at]
-        if table[at + 1 : at + 1 + length].decode() == name:
-            generation = table[at + 1 + length + 44 : at + 1 + length + 60].hex()
-            image = (generations / f"generation-{generation}.image").read_bytes()
-            if image[:8] != b"DTROOT04":
-                raise RuntimeError("selected root is not DTROOT04")
-            return int.from_bytes(image[56:64], "big"), image[160:208]
-        at += 137 + length
-    raise RuntimeError(f"no selected entry for {name}")
+    entries = table_entries((generations / "selected").read_bytes()) or {}
+    if name not in entries:
+        raise RuntimeError(f"no selected entry for {name}")
+    generation = entries[name][GENERATION_AT : GENERATION_AT + 16].hex()
+    image = (generations / f"generation-{generation}.image").read_bytes()
+    if image[:8] != b"DTROOT04":
+        raise RuntimeError("selected root is not DTROOT04")
+    return int.from_bytes(image[56:64], "big"), image[160:208]
 
 
 def health(context: ssl.SSLContext, address: str, port: int) -> dict[str, Any]:

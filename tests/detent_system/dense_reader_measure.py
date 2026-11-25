@@ -10,9 +10,13 @@ import random
 import statistics
 import struct
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "detent_delivery"))
+from verify_local_format import table_entries
 
 
 def digest(path: Path) -> str:
@@ -149,10 +153,15 @@ def main() -> None:
             for index, name in enumerate(order):
                 root = args.baseline if name == "baseline" else args.candidate
                 store = root / f"store-{size}"
-                selected = (store / "selected").read_bytes()
+                entries = table_entries((store / "selected").read_bytes())
+                if entries is None or len(entries) != 1:
+                    raise SystemExit(
+                        f"{store}: selected is not a whole one-entry table"
+                    )
+                fields = next(iter(entries.values()))
                 identity = [
-                    selected[begin:end].hex()
-                    for begin, end in ((72, 88), (88, 104), (104, 120), (120, 152))
+                    fields[begin:end].hex()
+                    for begin, end in ((0, 16), (16, 32), (32, 48), (48, 80))
                 ]
                 calls = "10000" if args.mode == "smoke" else "1000000"
                 command = [
