@@ -29339,7 +29339,8 @@
         "tests/detent_authority/test_history_large_base.cc",
         "tests/detent_authority/test_history_power_cut.cc",
         "tests/detent_authority/test_history_transport.cc",
-        "tests/detent_authority/test_namespace_power_cut.cc"
+        "tests/detent_authority/test_namespace_power_cut.cc",
+        "tests/detent_authority/CMakeLists.txt"
       ],
       "history": [
         {
@@ -29459,12 +29460,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "http's head replaces the setters and connection factories with http::Limits (http:ff52c35, CHANGELOG); Detent's authority main, relay host and eight authority tests adopt it",
+      "reason": "journal removed memory_io.h; nine authority test targets link faultlab",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T19:41:03",
+      "updated": "2026-11-24T20:18:59",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
