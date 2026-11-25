@@ -7,7 +7,8 @@
 #   pin-wave-ab.sh row KIND OUT ROUNDS   strict, at most ten minutes: one row, saved under
 #       OUT/rows/KIND (or $JOB_OUT/KIND), its report printed.
 # KIND: durable (daemon publish: detent_authority_durable_bench, real fsyncs), update (the authority
-# state machine), get (detent_authority_read_response_bench), reader (reader_bench, warm lookups),
+# state machine), get (detent_authority_read_response_bench, built from this tree's source in both
+# arms, as tools/w5 builds its drivers), reader (reader_bench, warm lookups),
 # first-read (first_read_core: detent_open and the first detent_get of a fresh process, 40 reads a run).
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -18,6 +19,8 @@ build() {
 	local out src arm build
 	mkdir -p "$1" && out=$(cd "$1" && pwd)
 	cat > "$out/targets.cmake" <<EOF
+add_executable(read_response_ab "$root/benchmarks/read_response_bench.cc")
+target_link_libraries(read_response_ab PRIVATE detent_authority_service)
 add_executable(first_read_core "$root/tests/detent_system/first_read_phases.cc")
 target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
 target_link_libraries(first_read_core PRIVATE detent::reader)
@@ -36,10 +39,11 @@ EOF
 			-DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF \
 			-DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON >"$out/$arm/configure.log" || { tail -30 "$out/$arm/configure.log"; return 1; }
 		cmake --build "$build" -j4 --target detent_authority_durable_bench detent_authority_bench \
-			detent_authority_read_response_bench reader_bench first_read_core first_read_phases || return 1
-		for t in detent_authority_durable_bench detent_authority_bench detent_authority_read_response_bench reader_bench; do
+			read_response_ab reader_bench first_read_core first_read_phases || return 1
+		for t in detent_authority_durable_bench detent_authority_bench reader_bench; do
 			cp "$build/benchmarks/$t" "$out/$arm/benchmarks/$t" || return 1
 		done
+		cp "$build/read_response_ab" "$out/$arm/benchmarks/detent_authority_read_response_bench" || return 1
 		cp "$build/first_read_core" "$build/first_read_phases" "$out/$arm/" || return 1
 		"$out/$arm/benchmarks/reader_bench" --store "$out/$arm/reader-store" --generate 10000 || return 1
 		"$out/$arm/first_read_phases" --generate "$out/$arm/first-read-store" 1 10000 > "$out/$arm/first-read-store.json" || return 1
