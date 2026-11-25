@@ -2,6 +2,69 @@
 
 ## Unreleased
 
+### Pins: the November wave
+
+- Every Kronuz pin in `cmake/dependencies.json` moves to its library's default-branch head of
+  2026-11-24, after the libraries' own pins were cascaded to heads bottom-up (one pin commit per
+  library on its main, CI green on every job first; the Xapiand lead's agreement and the cascade
+  rule: [SHARED_LIBRARY_DECISIONS.md](docs/SHARED_LIBRARY_DECISIONS.md#the-november-pin-wave-november-24)).
+
+  | Library | Old pin | New pin | Library pin commit (CI run) |
+  |---|---|---|---|
+  | atomic-shared-ptr | 61299bd | ff50fae | head (44763580466) |
+  | char-classify | 25decb5 | ee25a41 | head (44770293049) |
+  | compressors | 5566260 | 54dd2f0 | head (44771163868) |
+  | constexpr-phf | 4b669b6 | 58653a7 | head (45033506993) |
+  | endian | 6b223e2 | 5634a08 | head (44788033295) |
+  | metrics | 9db73de | 4cd64db | head (44927897459) |
+  | radix-router | e67543d | 67454c7 | head (44935362952) |
+  | random | f8b9348 | db90603 | head (44936014336) |
+  | split | d48a28e | 1fc9c33 | head (45037160963) |
+  | static-string | 7eaa8f9 | a99260d | head (45037446607) |
+  | strict-stox | b846098 | aebfcd9 | head (45454496449) |
+  | varint | 333384e | efed272 | head (45040473588) |
+  | wheel | bfd72bc | 075a40a | head (45040570944) |
+  | workpool | 640c66b | bdf8932 | head (45040663845) |
+  | task | bdafa5f | 477a7d3 | task:477a7d3 (45531185813) |
+  | term-color | 76a400b | 898710b | term-color:898710b (45531190808) |
+  | repr | d2eb895 | 46fc92e | repr:46fc92e (45531194490) |
+  | sha256 | f24692f | e41c586 | sha256:e41c586 (45531199999) |
+  | hashes | 03ab2d6 | bae099b | hashes:bae099b (45531138947) |
+  | reactor | ab69cf2 | d28e5e0 | reactor:d28e5e0 (45547295801) |
+  | completion | 560c288 | 3061516 | completion:3061516 (45541875670) |
+  | strings | 6799a6e | d93f2c0 | strings:d93f2c0 (45541886004) |
+  | enum-reflection | a7202ad | c9a3f04 | enum-reflection:c9a3f04 (45541892260) |
+  | logger | 6e7ab9e | 65994c9 | logger:65994c9 (45541900094) |
+  | journal | e5f6ff1 | 72bbc89 | journal:72bbc89 (45546842361) |
+  | http-parser | fcdad32 | 38950a0 | http-parser:38950a0 (45546809878) |
+  | http | c813531 | 24d2416 | http:24d2416 (45550470867) |
+  | faultlab | (new) | 83fbde7 | head (45451339080) |
+  | consensus | a197efb | c724c58 | head, not yet re-pinned (its pin lines wait for consensus-recovered-over-limit-start) |
+
+- Sections of cpp-libraries' [upgrade guide](https://github.com/Kronuz/cpp-libraries/blob/main/docs/UPGRADING-2026-10.md)
+  acted on: completion (`PosixIOOptions::flush_mode` is required since completion:b4600a8: every
+  PosixIO Detent builds, in the authority, the agent's disk store, the relay's mirror, the tests and
+  the benchmarks, passes `FlushMode::full`; Linux `replace_sync_calls` takes an `fdatasync` seam,
+  which the tests pass as `nullptr`), journal (`journal/memory_io.h` is gone since journal:9f5e846:
+  the authority's in-memory and power-cut tests run on faultlab's faultfs, and nine test targets
+  link `faultlab::faultlab`), http (every service is built from one `http::Limits`).
+- Results that changed: on macOS, `FlushMode::full` issues `F_FULLFSYNC` at every ordering point
+  where the old default issued `F_BARRIERFSYNC`, plus one `fsync` before the `Sync` primitive's
+  `F_FULLFSYNC` (72 calls in the traced open-and-sync scenario, 66 at the old pin; causes
+  completion:5942250 and completion:d5c6fd4); Linux makes the same calls in both modes. The syscall
+  trace, the input-class diffs and the hot-path A/B are in [docs/perf/pin-wave.md](docs/perf/pin-wave.md).
+- The relay's TLS connection cap: http's TLS factory had its own cap of 1024 connections, which no
+  `http::Limits` field carries; services now cap TLS connections at `max_clients` alone. A relay
+  configured with `connections` above 1024 now admits that many TLS connections, as configured;
+  below 1024, and the authority, nothing changes. Every other limit keeps its value (idle, header
+  and inactivity timeouts stay off, as before http enabled them).
+- reactor's `LagProbe::start()` and `stop()` on `task::inline_scheduler` post the arm and the
+  cancel, which run in the scheduler's next `run()` (task:627aca3 gives it `post_call`); Detent
+  runs no probe on an inline scheduler.
+- Owner decisions: `FlushMode::full` at every PosixIO for this wave, its macOS cost measured by the
+  durable A/B row, which decides a follow-up moving the refetchable stores to `plain`; the libraries'
+  pins cascade to heads first; consensus re-pins last, after consensus-recovered-over-limit-start.
+
 ### detent-authority
 
 - The authority daemon `detentd` is renamed `detent-authority`, so the daemons are `detent-authority`,

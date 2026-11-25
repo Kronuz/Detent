@@ -38,7 +38,7 @@
   {
     "name": "detent_logger",
     "repository": "https://github.com/Kronuz/logger.git",
-    "revision": "992f98674de29f02a1616133e244faa2cc0b39b4",
+    "revision": "65994c94a0dac58827953e7bcfc364b24e868294",
     "source_subdir": "."
   },
   {
@@ -56,25 +56,25 @@
   {
     "name": "enum_reflection",
     "repository": "https://github.com/Kronuz/enum-reflection.git",
-    "revision": "0c7f34f01c3c8af53211d338dd20a59f45d905fe",
+    "revision": "c9a3f04f20ea9fccea9b833cc3cbfd8ae393ce37",
     "source_subdir": "."
   },
   {
     "name": "hashes",
     "repository": "https://github.com/Kronuz/hashes.git",
-    "revision": "7165966066a58f009bbbb72ef2a5a98f96c62a47",
+    "revision": "bae099b7abdd1652c95ddca296a128320e5fa64e",
     "source_subdir": "."
   },
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "944e8cfd7a3460e0208c45e43d98beb20054aaee",
+    "revision": "24d24168aa110bf8dcc6167e1f2e0afc3c5fc277",
     "source_subdir": "."
   },
   {
     "name": "http_parser",
     "repository": "https://github.com/Kronuz/http-parser.git",
-    "revision": "a3180d77a619b58abccf963aeaf27a98b25d3c8f",
+    "revision": "38950a00039b2779cbe0e330041df222f1e13e47",
     "source_subdir": "."
   },
   {
@@ -98,13 +98,13 @@
   {
     "name": "reactor",
     "repository": "https://github.com/Kronuz/reactor.git",
-    "revision": "01db032ab007196f306090b8593385e7baa46c38",
+    "revision": "d28e5e024b64f2fd706b44fa628741d5700a925b",
     "source_subdir": "."
   },
   {
     "name": "sha256",
     "repository": "https://github.com/Kronuz/sha256.git",
-    "revision": "3e41a20156fc9ebc38563a610fafd53b4d7218c8",
+    "revision": "e41c58625f9e11dbd245eb27275f4fa9b11d1604",
     "source_subdir": "."
   },
   {
@@ -122,13 +122,13 @@
   {
     "name": "task",
     "repository": "https://github.com/Kronuz/task.git",
-    "revision": "3179d8508a5f4b370c74e4e741b6edd54fe389ea",
+    "revision": "477a7d3f15a8951f2047616b834753177d838a8b",
     "source_subdir": "."
   },
   {
     "name": "term_color",
     "repository": "https://github.com/Kronuz/term-color.git",
-    "revision": "7e76b67ed8d8515b3ac611a93df8de7ca3a755ef",
+    "revision": "898710b4ddf2e9da0734f5c4d5aff112ad439fd9",
     "source_subdir": "."
   },
   {
@@ -152,13 +152,13 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "b4600a82a8d30d4f63541d9c322a4ac5eceaee95",
+    "revision": "30615161bebf6adb8297a8a16b338cb1952ce692",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+    "revision": "72bbc890ee2cadd5984db771f614a480bf38255b",
     "source_subdir": "."
   },
   {
@@ -176,7 +176,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+    "revision": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
     "source_subdir": "."
   },
   {
@@ -194,7 +194,7 @@
   {
     "name": "repr",
     "repository": "https://github.com/Kronuz/repr.git",
-    "revision": "8e85c6bdf116368dfaf98dbc5f4fb94e038445e2",
+    "revision": "46fc92e240356b493d2bc0fcfcf7518b135565bd",
     "source_subdir": "."
   },
   {
@@ -206,7 +206,7 @@
   {
     "name": "strings",
     "repository": "https://github.com/Kronuz/strings.git",
-    "revision": "a9d139d37b0df9369c2dc0d50331c6cd582ad515",
+    "revision": "d93f2c0f82ce20f9a3a153ecf2b539774da43060",
     "source_subdir": "."
   }
 ]

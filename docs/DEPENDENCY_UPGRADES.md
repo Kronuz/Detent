@@ -1,5 +1,21 @@
 # Pending library upgrades
 
+## The November pin wave, November 24
+
+All 30 Kronuz pins in `cmake/dependencies.json` move to their library's default-branch head of
+2026-11-24; faultlab enters the manifest for the authority's faultfs tests.
+
+- **What moved and what it changed:** [CHANGELOG, "Pins: the November wave"](../CHANGELOG.md) has the
+  old and new pin of every library, the library pin commit and its CI run, the sections of the
+  upgrade guide acted on (completion's required `FlushMode`, journal's MemoryIO moving to faultfs,
+  http's `Limits`), the results that changed and the owner decisions.
+- **Evidence:** [docs/perf/pin-wave.md](perf/pin-wave.md) has the syscall trace at the old and new
+  completion, the input-class diffs and the hot-path A/B with an A/A control.
+- **Procedure:** the libraries' own pins cascade to heads bottom-up first, each a pin commit on its
+  main once its CI is green: task, term-color, repr, sha256, hashes; reactor, completion, strings,
+  enum-reflection, logger; journal, http-parser; http; consensus last. Then Detent pins those heads
+  and `pin-check` compares each with every declaring library.
+
 ## M1: every Kronuz pin at its library's head, November 4
 
 All 30 Kronuz pins in `cmake/dependencies.json` equal their library's default-branch head (the manifest had 33 on 2026-11-02, all behind; legacy wave 2 dropped cluster, generation-cache and http-log with the classic distributor, and lru-cache left with the verification cache). The sections below this one describe the October qualification passes against the old pins and are history; the pins they discuss have moved.
