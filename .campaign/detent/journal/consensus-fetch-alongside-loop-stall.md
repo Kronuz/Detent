@@ -1,6 +1,6 @@
 # consensus-fetch-alongside-loop-stall: journal
 
-State: waiting on jobs 261124-212647-bda88f 261124-212704-2b98ad 261124-212720-d82038 261124-212804-eb47f1 261124-212808-829111 261124-212812-9fd35e 261124-212822-225726; CI 45553828878
+State: ready for review (jobs queued: 261124-212647-bda88f 261124-212704-2b98ad 261124-212720-d82038 261124-212804-eb47f1 261124-212808-829111 261124-212812-9fd35e 261124-212822-225726; CI 45553828878)
 Quest: .campaign/detent/quests/consensus-fetch-alongside-loop-stall.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -50,7 +50,7 @@ Scripts: ~/.scratch/detent/consensus-fetch-alongside-loop-stall/{signature,lags,
 
 ## Next
 
-1. Read the jobs and CI 45553828878; fill Evidence; State "ready for review".
+1. Lead: read the queued jobs and CI 45553828878 (all queued at hand-off; scripts in ~/.scratch/detent/consensus-fetch-alongside-loop-stall must stay until they run).
 
 ## Blocked on
 
