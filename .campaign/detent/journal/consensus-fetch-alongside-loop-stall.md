@@ -90,7 +90,7 @@ production readers serve large files from memory (peer-fetch.md already says to 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | manual: the lead read the reproductions, which run on pre-fix code by design: groups 261124-232245-034e6c (consensus:43ebf5f, the reader still building on the loop) gave CI's link signature; rpc_host 261124-215634-5e9c39 and 261124-215638-369ffc (consensus:ee77b26) gave 1537 ms / 3552 ms gaps against CI's 1564 / 3746-3765 ms with no link ended. At the fix the same knobs no longer stall the loop (reruns cb3ac9, caeef6 fail to reproduce). rpc_host stays not root-caused (F3). |
+| A1 | manual (who: the lead, 2026-11-25; checked: the reproductions run on pre-fix code by design. groups job ...232245-034e6c at consensus:43ebf5f, the reader still building on the loop, gave CI's link signature; rpc_host jobs ...215634-5e9c39 and ...215638-369ffc at consensus:ee77b26 gave 1537 and 3552 ms gaps against CI's 1564 and 3746-3765 ms with no link ended. At the fix the same knobs no longer stall the loop (reruns ...cb3ac9 and ...caeef6 do not reproduce). rpc_host stays not root-caused, F3) |
 | A2 | groups: 261124-232254-7d11cf (SLOW_READ=6000 passes at 0d8263d); fails without: 261124-212704-2b98ad (same at 10747e0). rpc_host: 261124-232255-8bc466 (SLOW_READ=3500 passes at 0d8263d); fails without: 261124-215649-56b54a (same at ee77b26). F2: fails without 261124-232249-6e4d93 (plain fetch at consensus:864192a, the head without the reader's pop_back). Bounds unchanged: 1af7530, 4fa72a5, 019f63c, 0d8263d touch no bound; 4898f1c adds checks |
 | A3 | groups 261124-232254-6b4d7b, rpc_host 261124-232255-0a3ff3 (25 runs beside 4 burners, strict, at 0d8263d) |
 | A4 | suite 261124-232300-fe7353 (campaign verify at 0d8263d); CI 45567716437 |
