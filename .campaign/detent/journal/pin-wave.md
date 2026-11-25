@@ -44,7 +44,14 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
    lines to pin-wave's set; FlushMode::full at each.
 2. Lead's note (2026-11-22): load completion before consensus in CMakeLists.txt (journal's plain
    `set(COMPLETION_ASIO OFF)` still at journal a1d039a). CMakeLists.txt is outside the set.
-3. consensus-driver-pressure-rearm (review) holds consensus CMakeLists.txt; its branch adds
+3. FlushMode::full is not Detent's old behavior on macOS: its ordering barriers become full
+   flushes (A5 (a)); plain would weaken File::sync to fsync. Full is the stronger superset; A6
+   measures the cost. Lead's call whether that stands (recommendation: keep full; record it).
+4. Top-level CMakeLists.txt: configure fails at the heads (job 261124-175149-a51919:
+   `completion::asio` not found, src/CMakeLists.txt:69, src/detent_authority/CMakeLists.txt:27)
+   until completion loads before consensus. Probe job 261124-181616-ba7156 applies that edit
+   in its checkout and builds with -k 0 to list every other break.
+5. consensus-driver-pressure-rearm (review) holds consensus CMakeLists.txt; its branch adds
    lines but changes no GIT_TAG. The consensus pin commit (L5) is held for the lead's word.
 
 ## Evidence
@@ -55,7 +62,7 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
 | A4 | pending |
-| A5 | pending |
+| A5 | trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
 | A6 | pending |
 | A7 | pending |
 | A8 | pending |
