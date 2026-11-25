@@ -35,11 +35,11 @@
   | strings | 6799a6e | d93f2c0 | strings:d93f2c0 (45541886004) |
   | enum-reflection | a7202ad | c9a3f04 | enum-reflection:c9a3f04 (45541892260) |
   | logger | 6e7ab9e | 65994c9 | logger:65994c9 (45541900094) |
-  | journal | e5f6ff1 | 72bbc89 | journal:72bbc89 (45546842361) |
+  | journal | e5f6ff1 | f66c16e | journal:f66c16e (45558989609) |
   | http-parser | fcdad32 | 38950a0 | http-parser:38950a0 (45546809878) |
   | http | c813531 | 24d2416 | http:24d2416 (45550470867) |
-  | faultlab | (new) | 83fbde7 | head (45451339080) |
-  | consensus | a197efb | ff87da4 | consensus:ff87da4 (45553333430) |
+  | faultlab | (new) | 1ac0b17 | faultlab:1ac0b17 (45558784182) |
+  | consensus | a197efb | 72cc58d | consensus:72cc58d (45563577936) |
 
 - Sections of cpp-libraries' [upgrade guide](https://github.com/Kronuz/cpp-libraries/blob/main/docs/UPGRADING-2026-10.md)
   acted on: completion (`PosixIOOptions::flush_mode` is required since completion:b4600a8: every
@@ -64,7 +64,9 @@
 - Owner decisions: `FlushMode::full` at every PosixIO for this wave, its macOS cost measured by the
   durable A/B row, which decides a follow-up moving the refetchable stores to `plain`; the libraries'
   pins cascade to heads first; consensus re-pins last, after consensus-recovered-over-limit-start
-  (consensus:be18ad9).
+  and consensus-driver-pipelined-sim (consensus:b4516ee). faultlab, journal and consensus pin each
+  other at these heads; their tests, benchmarks and examples build every PosixIO with
+  `FlushMode::full` as well.
 
 ### detent-authority
 

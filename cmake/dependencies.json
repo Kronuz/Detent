@@ -158,13 +158,13 @@
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "72bbc890ee2cadd5984db771f614a480bf38255b",
+    "revision": "f66c16e48c1b53a433c01917ad4680c79213deff",
     "source_subdir": "."
   },
   {
     "name": "faultlab",
     "repository": "https://github.com/Kronuz/faultlab.git",
-    "revision": "83fbde73c008e15e64ea7aa73c4c3b9b94e0599c",
+    "revision": "1ac0b17a7930a509896983244f9cf3ce5163fb04",
     "source_subdir": "."
   },
   {
@@ -176,7 +176,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "ff87da4b4777339c8e69d7611a12a602c859b64a",
+    "revision": "72cc58d1acba0965fa3ee51aa83a960cc63b98dc",
     "source_subdir": "."
   },
   {
