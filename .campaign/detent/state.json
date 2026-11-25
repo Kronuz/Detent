@@ -7293,9 +7293,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T21:00:03",
+      "updated": "2026-11-24T21:37:29",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-driver-pressure-rearm": {
