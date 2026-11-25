@@ -301,3 +301,148 @@ Scripts are under `.scratch/detent/review-first-read-1ms-correctness/`.
   concurrent first-touch tests.
 - The macOS x86_64 suite (R3-3).
 - The Python tools' layout-3 parser and ACL behavior across file systems: the security reviewer's.
+
+## Round 4
+
+Commit: Detent:d12f2887 (Detent:cb51340f and Detent:c5076eb0 add only the journal)
+Verdict: CHANGES
+Date: 2026-11-25
+
+From a fresh context I re-reviewed the whole mechanism under V5, not the fix diff: `PagedTable`'s
+constructor, `check`, `find` and `decode`, first-touch verification with the marks and the per-page
+offset index, the borrowed `TableEntryView` in the reader core and `generation.cc`, the A2 gate, and
+the store-file checks. This ran as a subagent of the lead, not as a session titled
+`detent · reviewer first-read-1ms correctness`.
+
+Round 3's findings:
+
+- R3-1 is fixed for `table_find_bench`'s names: the paged `find` beats main's at every width
+  (4505c8, below). C2's target still fails for absent names in tables without a long shared
+  prefix: R4-1.
+- R3-2 is fixed. `cell_pass` (first-read-gate.sh 144-154) is the one rule, used by selftest (172),
+  the refused cell (271) and the measured cell (291). L1 (261125-031144-c056ef) and L2
+  (261125-031147-bc9ddd) fail selftest, and the head passes it (261125-031236-1267a1, 10 cases).
+- R3-3 is resolved. Run 45558888521 at Detent:c75d6215 is now green, and run 45602458838 at
+  Detent:cb51340f passes every job, macos-x86_64 included.
+- R3-4 is fixed. Only `MAIN_CANNOT_RUN` (141) takes the bound alone; main refusing any other cell
+  fails it (150, 216), and selftest checks running 1 and stopped 1,000 (167-168).
+- R3-5 is fixed. DiskStore's open no longer reads `selected` through completion (disk_store.cc
+  491-494). The agent takes the profile from the table its helper read and checked (agent_store.cc
+  235-239), and `adopt` sets it (273). `table_profile` (test_agent_store.cc 233) covers taking a
+  profile, deriving under it, and refusing another.
+- R3-6 is fixed for round 2's cells (first-read-gate.md 116-126). This head's cells have not run
+  (Not run).
+
+### Evidence I relied on
+
+- C2's `find`, a strict A/B with an A/A arm (261125-031218-4505c8, 10 rounds; each arm's
+  `commit.txt` names main Detent:34fe15ad, Detent:28a8d276 or the head). `c2_r4.py` recomputes each
+  arm's median and the median paired difference against main's `StoreTable::find`, in ns:
+
+  | Names | Main | Head | Head again | Head minus main (D140 floor) | A/A median (largest) |
+  |---|---|---|---|---|---|
+  | 16 bytes, present | 189.7 | 135.9 | 137.7 | -52.8 (10.1) | -4.5 (16.3) |
+  | 16 bytes, absent | 184.9 | 146.6 | 150.3 | -36.4 (10.7) | -5.2 (58.4) |
+  | 40 bytes, present | 164.8 | 133.0 | 134.5 | -27.5 (8.9) | 3.0 (9.4) |
+  | 40 bytes, absent | 169.8 | 146.0 | 146.9 | -22.9 (11.9) | -1.0 (8.9) |
+  | 255 bytes, present | 310.0 | 147.1 | 148.4 | -162.0 (21.6) | 1.2 (15.1) |
+  | 255 bytes, absent | 301.1 | 150.2 | 154.1 | -150.9 (23.8) | -2.0 (24.9) |
+
+  The head is 0.47-0.86x main at every width, and its own decoded `find` stays within main's (-18.4
+  to +8.4 ns). Detent:28a8d276 took 185.0 and 201.8 ns at 40 bytes, so the fix is what moved it.
+- Warm core lookups (261125-031221-f08ca9, strict, 6 pairs): the head is 0.75-0.86x main at p50
+  and p99, at 1 and 8 threads, hot and scattered.
+- Tests at the head pass (261125-031135-fda3dd): test_local_table_pages with `shared_prefixes`,
+  test_agent_store with `table_profile` and `acl_grants`, and test_reader_core. P1
+  (261125-031138-e7f754) and P2 (261125-031141-283064) fail `shared_prefixes` at "each key answers
+  as the decoded table's find".
+- A1's profile ran at the head (261125-031306-9e9536, strict): the trust walk is the top cost in
+  every cell (253-286 us), then `store_table` (83-120), `change_open` (67-78) and `select_entry`
+  (52-77).
+- CI run 45602458838 at Detent:cb51340f: every job passes, linux-tsan and linux-asan-ubsan included.
+
+### What I checked myself
+
+Scripts are under `.scratch/detent/review-first-read-1ms-correctness/`; its `.purpose` lists
+round 4's.
+
+- The prefix search is correct for every table. Names compare as bytes, so if a <= x <= b and a
+  and b share the prefix Q, x starts with Q: a smaller byte inside Q, or an end inside it, puts x
+  below a, and a larger byte puts it above b. Let the pages' last names be L0 < ... < Ln-1, `shared_`
+  s (store_table.cc 277) and P their first s bytes.
+  - Every Lk starts with P, so `tail(page.last, shared_)` never underflows.
+  - The name's first s bytes against P (343-354): above, the name is above Ln-1 and not listed;
+    below (a smaller byte, or a proper prefix of P), it is below L0 and only page 0 can hold it;
+    equal, last names order past P as they do whole, so `lower_bound` over the tails is the
+    full-name one, and k equal to the page count is not listed.
+  - On page k >= 1, L(k-1) < name <= Lk, and every entry lies in (L(k-1), Lk]: `check` verifies it
+    at the first touch, or before an unmarked page is searched. The name and every entry therefore
+    start with the bytes L(k-1) and Lk share (`Page::shared`, 274), and past them the three-way
+    search orders as the whole-name one (374-386). Page 0 keeps 0, since its entries need not start
+    with P.
+  - The named shapes follow. An empty prefix is the full-name search. A prefix equal to a whole
+    name (L0 = P) has an empty tail. A name shorter than the prefix, or one that diverges inside it,
+    is not listed when above P and goes to page 0's full comparison when below. A page whose own
+    prefix is longer than the table's compares past its own.
+- An oracle of my own (`probe_prefix_find_r4.cc`, `prefix_r4.sh asan`; 261125-032716-ed2883,
+  ASan and UBSan) checks 1,402 tables. Each is encoded at the writer's page breaks (byte-equal to
+  `encode_table`), at one entry a page and at random breaks. Names of 1-4 bytes over {a, b, 0xff}
+  form every subset shape: empty, single entries, chains, one first byte, the prefixes of one name,
+  and 900 random sets. Stems of 2-252 bytes are cut at their end, end - 1, middle or start, plus
+  tails. Keys are every 0-4 byte key over {0x01, a, b, c, 0xff}, every 5-byte key over the names'
+  bytes, cuts, a byte up or down at the edges, extensions, and keys over 255 bytes.
+  - 3,657,622 lookups answer as `StoreTable::find`, marked and unmarked.
+  - 643,646 routes reach exactly the page the full-name search reaches (an unaccounted lookup's
+    `page_verifications` step).
+  - 8,446,718 lookups beside a damaged page answer as decoded, and those routed to it refuse.
+  - 0 failures; test_local_table_pages also passes in that ASan build.
+- Ten mutants of the prefix search and the contributor's P1 and P2 (`mutate_r4.py`,
+  `mutants_r4.sh`; 261125-032719-63a675, Release). The head passes both checks, and each mutant
+  fails both the suite's test_local_table_pages and my oracle:
+
+  | Mutant | Change | Suite fails at | Oracle fails at |
+  |---|---|---|---|
+  | Q1 | a name below the table prefix answers not listed | without an account each reach hashes | key `""` reaches no page; the full-name search reaches one |
+  | Q2 | a page's prefix taken with the next page's last name | first read answers its entry | key `b\xffba` not listed |
+  | Q3 | a page's prefix one byte longer | first read answers its entry | key `a\xffaa` not listed |
+  | Q4 | the table prefix from the first two pages | first read answers its entry | key `abbb` answers `\xffbbb` |
+  | Q5 | the index search is an upper bound | the last page keeps reading | key `a` not listed |
+  | Q6 | a name above the table prefix searches the last page | without an account each reach hashes | key `b\x01` hashes a page the full-name search does not reach |
+  | Q7 | a name past the last page searches the last page | without an account each reach hashes | key `a\x01` hashes a page the full-name search does not reach |
+  | Q8 | the table prefix one byte longer, within the first page's last name | first read answers its entry | key `aaba` answers `\xffaba` |
+  | Q9 | the whole name compared against the table prefix | first read answers its entry | key `a` not listed |
+  | Q10 | a name sharing the table prefix compares past it on its page, page 0 included | each key answers as the decoded table's find | key `aaaa` not listed |
+  | P1 | Detent:0693dda8: no early-out above the prefix | each key answers as the decoded table's find | key `b`, past the last page, refuses on a damaged page 0 |
+  | P2 | Detent:428e2490: every page compares past the table prefix | each key answers as the decoded table's find | key `\x01` answers `a` |
+
+- The rest of the mechanism. From Detent:28a8d276 to the head, `check`, `decode`,
+  verified_pages.hh, core.cc and generation.cc are unchanged; I re-read them, and round 3's
+  row-by-row check of the page index and of every `TableEntryView` holds. The constructor adds only
+  the two prefixes (274, 277), over last names it has already checked in order.
+- C2 on names that do not share `table_find_bench`'s prefix (`find_shapes_r4.cc` and
+  `find_shapes_r4.sh`: strict, 10 rounds of main, the head and the head again, rotating; read with
+  `c2_r4.py` and `same_binary_r4.py`). 261125-033041-988a22 took random [a-z0-9] names and
+  "tNN.sNNN." names (20 tenants of 50 services) at 16, 40 and 255 bytes; 261125-034050-b0e901 took
+  three more tables each of random names at 4, 8 and 16 bytes and of dotted names at 16. Present
+  names are within main in every case and faster within one binary, and so are absent names at
+  random 40 and 255 bytes (0.77x and 0.83x) and dotted 16. The rest is R4-1.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R4-1 | yes | defect | C2's `find` misses its target, main's warm `find` cost at every width (docs/perf/first-read-1ms.md 180), for absent names in tables whose names share no long prefix. On random names of 4, 8 and 16 bytes (10 tables), an absent name takes 121-136 ns against main's `StoreTable::find` at 107-117 (1.08-1.16x). Every table's median paired difference is positive (+3.9 to +19.5 ns), the head-again arm repeats it in each (+6.8 to +16.9), 4 of the 10 exceed D140's floor, and both runs end "C2 NOT within main". In the head's own binary and process, on the same table, the paged `find` minus the decoded one (main's code, unchanged) is +4.6 to +13.8 ns in every table, positive in 8-10 of 10 rounds in each arm, so the cost is the paged path's, not the build's. Dotted names show it within one binary at 40 and 255 bytes (+6.0 to +10.8 ns), inside D140's floor across binaries. Every lookup of an unlisted namespace pays it (`View::listed`); present names are faster everywhere. `table_find_bench`'s names all share "namespace-0...", the shape the R3-1 fix favors; when s is 0 and pages share a byte or two, that fix changes almost nothing, so by the code round 3's `find` had the same cost here (not measured). Root cause not established. | jobs 261125-033041-988a22 and 261125-034050-b0e901 with `c2_r4.py` and `same_binary_r4.py`; store_table.cc 337-387 | Option a (recommended): profile absent finds on random 16-byte names, find the extra 5-14 ns and bring it within main's floor. The test is `find_shapes_r4.sh run OUT` and `find_shapes_r4.sh run OUT 10 1,2,3 4,8,16` within main, and the in-binary difference no longer positive. Option b, if the cost is the two-level search itself: the lead rules C2's target for absent names (for example within 1.2x main), and the design's Measure paragraph names the shapes measured and their ratios. Either way `table_find_bench` gains names without a shared prefix. |
+
+Non-blocking notes:
+
+- `Page` gains `shared` (8 bytes a page) in `pages_`, which stays outside the ledger like the rest
+  of that vector: under 1 KB at 1,000 namespaces.
+
+### Not run
+
+- A2 at this head: its four cells (261125-031224-b0beee, -031228-873097, -031230-95829a and
+  -031233-4a1cfb) were still queued behind other quests' exclusive jobs when I wrote this. A2 and
+  R3-6's Results rest on them.
+- No profile of R4-1's cost, and no end-to-end measure of it through `View::listed`.
+- No local TSan: CI's linux-tsan passed at Detent:cb51340f.
+- The Python tools' layout-3 parser and ACL behavior across file systems: the security reviewer's.
