@@ -23802,15 +23802,12 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "B1 resolved (consensus:a068ba0 PeerOptions::wake); B2 the consensus bump moves task and completion too, so it rides pin-wave; B3 service.cc is held by restart-capacity (server-composition-adoption already lands after this quest)",
+      "reason": "pin-wave landed",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "until": [
-        "pin-wave"
-      ],
-      "updated": "2026-11-22T21:36:39",
+      "updated": "2026-11-25T04:58:41",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
