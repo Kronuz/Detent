@@ -50,11 +50,9 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Blocked on
 
-1. consensus repin (L5): rearm landed (consensus:c724c58), but consensus pins in its CMakeLists.txt
-   (no cmake/dependencies.json in any library), which consensus-recovered-over-limit-start now
-   holds. Options: (a) that quest takes the one-line-per-pin repin into its own commit; (b) the lead
-   rules the pin lines out of its hold and I repin after it; (c) consensus stays at fcf7f66 for this
-   wave. Recommend (b): the repin touches only the FetchContent_Declare tags.
+1. consensus repin (L5): its pins live in its CMakeLists.txt, held by
+   consensus-recovered-over-limit-start (in review). Lead ruling: consensus goes last, after that
+   quest lands; the lead says when.
 
 ## Evidence
 
