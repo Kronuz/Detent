@@ -158,3 +158,71 @@ last good sync, then a sync; a seal means an early 204 and a sync.
 - I read none of the round-2 jobs listed above, including A1 af2c4a and band 3908aa and A2 0afbd5
   and 97c202; all were still queued. I did not rerun test_relay_cut-off locally.
 - The agent-side 503 behavior (R2-2) is from the code only.
+
+## Round 3
+
+Commit: Detent:75021884 (journal Detent:65a23582)
+Verdict: APPROVE
+Date: 2026-11-24
+
+### Scope
+
+I reviewed the diff from 29c32169 to 75021884, which touches 3 source lines:
+- `src/detent_delivery/client.cc`: `not_ready` maps to `Unavailable`.
+- `mirror_service.cc` `watch_loop`: one wait per interval.
+- The tests `test_client_reset`, `failed_wait` and `paced`.
+
+I reran the probes on a copy of the worktree build. `ninja -n` reported no work to do, and the
+worktree head 65a23582 differs from 75021884 only in the journal. The copy is in `r3-build/` and
+the logs are in `r3/`.
+
+### Results
+
+- `two_relays_races.py`: 0 misses in 15 rounds. The slowest change reached a relay in 0.45 s,
+  against 0.87 s at 29c32169. At rest both relays made 0 syncs and the authority made 4.3 turns/s.
+- `hung_follower.py`: 1.15 s.
+- `seal_race.py`: 0 of 40 trials missed the seal.
+
+### The two questions
+
+- **Does the client mapping change any other status's handling?** No. The change adds one string
+  to the `Unavailable` branch (client.cc:47), and every other 503 error and 429 still maps as
+  before. `test_client_reset` pins five of them. `not_ready` is produced in two places:
+  - A W5 next, at service_runtime.cc:1607. This is the case the change is for.
+  - The history routes, at service_runtime.cc:1944. Only the relay reads those, and it does not
+    use this mapping.
+
+  `Unavailable` matters in one place, `unavailable_reset` (coordinator.cc:32). A pooled agent
+  rotates and yields until it has tried every source in a round, then pauses with
+  `next_reconnect_delay` (coordinator.cc:1116-1133). An election in which every voter is not ready
+  therefore costs one round per backoff, not a storm. A single-source agent is unchanged: it
+  pauses as before.
+- **Can pacing delay a real change?** It gates every wait, not only idle re-waits, but it cannot
+  delay a wake past the sync gate. The new wait W2 is asked no sooner than `asked + interval`,
+  where `asked` is when the previous wait W1 started. W1 returned before the sync S1 it woke, so
+  `asked + interval` is before S1's `next_sync`. W2 carries S1's heads as cursors, so a change after
+  S1 answers it the moment it lands, and the sync that follows is already held to `next_sync` by
+  the existing gate. The race probe shows no added latency. A stop interrupts the pacing wait,
+  because `close()` notifies `watch_wake`.
+
+The fails-without mutants are clean one-line reverts, each failing its test for the stated reason
+by construction:
+- aa5ed3f8: client mapping reverted, so the `not_ready` row fails.
+- 079c2f3f: `skip()` removed, so `skips == 1 && seen_skips == 1` fails.
+- 3aeced3f: no interval gate, so B is asked every 200 ms, well above `answered <= 4`.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1, R2-2, R2-3 | — | fixed | Fixed respectively by the pacing, by the mapping, and by `failed_wait`. | Above | — |
+| R3-1 | no | gap | The A3 fails-without job 261124-194933-393865 at mutant 4381a94d (the relay files at main, the tests at 75021884) cannot build. `FailingWait` declares `bool wait(...) override` (test_http_upstream.cc:648), and main's `Upstream` has no `wait`. The runner records it as "its build failed", not as fails-without evidence. A3's fails-without still stands through 261124-191402-bcf6ff (caf12c70, tests at 29c32169) and 261124-033951-a94472. | Code; runner.py:594-598 | Cancel 393865 and rely on bcf6ff. |
+
+### Not run
+
+- I read none of these jobs; all were still queued:
+  - Tests at 75021884: 93c649, 3fd12d, 4ef9df, 115e1d, 196331.
+  - Fails-without: 393865, f72663, 93b926, 4672e0, c8f24b, 0ce6a0, 70f43b, 4047b1, 215053.
+  - Measurements: A1 2bfd93; A2 14371c and 702b6d.
+  - Suite: 5f884c.
+- No agent end-to-end run at a cut-off follower. The mapping and rotation are read from the code.
