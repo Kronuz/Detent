@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 		options.configuration.configuration = options.context.group;
 		options.configuration.local = 1;
 		options.configuration.voters = {1};
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), options);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options);
 		Identity storage{};
 		storage[0] = 'b';
 		node.create(storage);

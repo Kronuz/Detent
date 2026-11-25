@@ -464,7 +464,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		distribution::StorageAllocator<detail::StoreCore>(account), account, options, domain.factory());
 	auto store = std::allocate_shared<DiskStore>(distribution::StorageAllocator<DiskStore>(account),
 												 DiskStore::FactoryTag{}, core);
-	auto io = std::make_shared<c::PosixIO>(directory, options.artifact_mode);
+	auto io = std::make_shared<c::PosixIO>(directory, c::PosixIOOptions{c::FlushMode::full}, options.artifact_mode);
 	if (io_hook)
 		io_hook(*io);
 	struct stat info{};

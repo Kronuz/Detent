@@ -254,7 +254,7 @@ std::filesystem::path prepare(const std::filesystem::path &root) {
 	return root;
 }
 std::shared_ptr<kronuz::io::completion::PosixIO> io_at(const std::filesystem::path &root) {
-	return std::make_shared<kronuz::io::completion::PosixIO>(root, 0644);
+	return std::make_shared<kronuz::io::completion::PosixIO>(root, kronuz::io::completion::PosixIOOptions{kronuz::io::completion::FlushMode::full}, 0644);
 }
 
 // Every store cursor for `name`: none, another incarnation, and each R from 0 to h + 1.
