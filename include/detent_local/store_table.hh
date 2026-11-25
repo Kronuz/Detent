@@ -113,6 +113,7 @@ class PagedTable {
 	struct Page {
 		std::size_t offset, size, index; // the page's bytes; its index record (digest, last name)
 		std::string_view last;
+		std::size_t shared; // the prefix its entries share: the previous page's last name's with `last`
 	};
 	struct State;
 	struct Mapping {
@@ -136,6 +137,7 @@ class PagedTable {
 	distribution::Profile profile_;
 	std::uint32_t slots_ = 0;
 	std::size_t pages_begin_ = 0;
+	std::size_t shared_ = 0; // the prefix every page's last name shares
 	std::array<char, 32> digest_{};
 	std::vector<Page> pages_;
 	std::unique_ptr<State> state_;

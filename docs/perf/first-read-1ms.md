@@ -146,7 +146,7 @@ the marks.
 |---|---|---|---|---|
 | Attach (table read) | header, index | allocated zeroed, with the marks | all clear | after `find` |
 | First touch of a page | the page | written (relaxed) after every check of the page passes | set (release) after the offsets | from the offsets just written |
-| Lookup on a marked page | nothing | read after the mark (acquire) | unchanged | binary search of the offsets comparing names in place; the match is answered in place (`TableEntryView`) |
+| Lookup on a marked page | nothing | read after the mark (acquire) | unchanged | binary search of the offsets comparing names in place, past the page's shared prefix; the match is answered in place (`TableEntryView`) |
 | A corrupt page | the page, on each reach | not written | stays clear | `TableRefused` |
 | Two first touches together | both | both write the same values | the first CAS sets it | each from its own walk |
 | Without an account (no marks) | the page, on each reach | a local array per reach | none | from the local array |
@@ -162,10 +162,22 @@ or none, as main's `StoreTable::find` returns a `const TableEntry *` or null: it
 is valid as long as it. A caller that keeps an entry copies it (`entry()`): the reader core does so
 only when it attaches a new generation.
 
-Measure. `benchmarks/table_find_bench.cc` (a verified-page `PagedTable::find` against main's
-`StoreTable::find`, 1,000 entries of 16- and 40-byte names, present and absent) and `reader_bench`
-warm lookups, main against the head as interleaved strict pairs (`benchmarks/reader_bench_ab.sh
-find|run`). Target: main's warm `find` cost.
+Compares past the shared prefix (correctness review R3-1). Names compare as bytes, so a name between
+two others shares the prefix they share. At the read, each page keeps the prefix its previous page's
+last name shares with its own (`Page::shared`), and the table keeps the one its first and last
+pages' last names share (`shared_`). `find` compares the name's first `shared_` bytes once: below
+them, only the first page can hold it; above, nothing does; equal, the pages' last names are searched
+past them. On the page, every entry lies after the previous page's last name and at most at its own
+(the first touch checked it), so names compare past `Page::shared`. At 40-byte names, before this
+change, `memcmp` took 58% of a paged `find` against 48% of main's (`sample`, light), the cost R3-1
+measured. A lower-bound search on the page (one comparison a step, equality at the end) measured no
+gain over the three-way search and was not kept.
+
+Measure. `benchmarks/table_find_bench.cc` (a verified-page `PagedTable::find`, hot, and a table
+without marks, cold, against main's `StoreTable::find`; 1,000 entries of 16-, 40- and 255-byte names,
+present and absent) and `reader_bench` warm lookups, main against the head as interleaved strict
+pairs (`benchmarks/reader_bench_ab.sh find|run`; `find` adds an earlier commit's arm and the head
+again as an A/A arm). Target: main's warm `find` cost at every width.
 
 In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
 is remembered for the store word (D4): namespaces already attached keep answering, and a new one
@@ -188,7 +200,7 @@ beyond the mode. Directories pass the trust walk's rule (no group or other write
 
 | File | Read by | Check on the read descriptor |
 |---|---|---|
-| `selected` | reader open and switch (`read_table`), recovery, agent open, agent startup (`slurp`) | the helper, then mapped (the agent reads it) |
+| `selected` | reader open and switch (`read_table`), recovery, store open (`read_generation_selection`, its layout), agent startup (`slurp`; the store's profile is this table's) | the helper, then mapped (the agent reads it) |
 | `.image` | reader attach (`select_entry`), recovery (mapped), agent startup (`verify`) | the helper |
 | `.read` | reader attach (`record`), trusted restart (`open_record`), agent startup (`verify`) | the helper |
 | `.lease` | reader attach, recovery | the helper |

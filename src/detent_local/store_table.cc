@@ -24,6 +24,14 @@ Sha digest(std::span<const char> bytes) {
 	hash.getHash(reinterpret_cast<unsigned char *>(out.data()));
 	return out;
 }
+std::size_t shared_prefix(std::string_view a, std::string_view b) noexcept {
+	const auto size = std::min(a.size(), b.size());
+	return std::size_t(std::mismatch(a.begin(), a.begin() + size, b.begin()).first - a.begin());
+}
+// `name` past its first `shared` bytes.
+std::string_view tail(std::string_view name, std::size_t shared) noexcept {
+	return {name.data() + shared, name.size() - shared};
+}
 bool valid_name(std::string_view name) {
 	return !name.empty() && name.size() <= 255 && name.find('\0') == std::string_view::npos;
 }
@@ -263,8 +271,10 @@ PagedTable::PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr
 		const std::string_view last(in.data() + at, length);
 		at += length;
 		refuse(valid_name(last) && (pages_.empty() || pages_.back().last < last), "index order");
-		pages_.push_back({0, 0, index, last});
+		pages_.push_back({0, 0, index, last, pages_.empty() ? 0 : shared_prefix(pages_.back().last, last)});
 	}
+	if (!pages_.empty())
+		shared_ = shared_prefix(pages_.front().last, pages_.back().last);
 	DETENT_COUNT(bytes_hashed, at);
 	const auto sum = digest(in.first(at));
 	refuse(std::equal(sum.begin(), sum.end(), in.begin() + at), "digest");
@@ -325,17 +335,31 @@ std::size_t PagedTable::check(std::size_t k, std::span<std::uint16_t> offsets, s
 }
 
 TableEntryView PagedTable::find(std::string_view name) const {
-	const auto at = std::lower_bound(pages_.begin(), pages_.end(), name,
-	                                 [](const Page &page, std::string_view key) { return page.last < key; });
-	if (at == pages_.end())
+	if (pages_.empty())
 		return {};
-	const auto k = std::size_t(at - pages_.begin());
-	const std::span<const char> in(bytes_.data() + at->offset, at->size);
+	// Every last name shares the first `shared_` bytes, and so does a name between two of them: past a
+	// name that shares them, the search compares only what follows.
+	std::size_t k = 0;
+	const auto prefix = name.substr(0, shared_).compare(pages_.front().last.substr(0, shared_));
+	if (prefix > 0)
+		return {};
+	if (prefix == 0) {
+		const auto key = tail(name, shared_);
+		k = std::size_t(std::lower_bound(pages_.begin(), pages_.end(), key,
+		                                 [this](const Page &page, std::string_view key) {
+			                                 return tail(page.last, shared_) < key;
+		                                 }) -
+		                pages_.begin());
+		if (k == pages_.size())
+			return {};
+	}
+	const auto &page = pages_[k];
+	const std::span<const char> in(bytes_.data() + page.offset, page.size);
 	// A marked page answers from its index; any other reach checks the page into a local one.
 	PageOffsets local;
 	const std::atomic<std::uint16_t> *index = nullptr;
 	std::size_t count;
-	if (state_->marks && state_->marks->test(at->offset - pages_begin_)) {
+	if (state_->marks && state_->marks->test(page.offset - pages_begin_)) {
 		index = state_->offsets->data() + k * page_index;
 		count = index[0].load(std::memory_order_relaxed);
 		++index;
@@ -345,11 +369,13 @@ TableEntryView PagedTable::find(std::string_view name) const {
 	const auto offset = [&](std::size_t i) -> std::size_t {
 		return index ? index[i].load(std::memory_order_relaxed) : local[i];
 	};
-	// Names compared in place; the match is answered in place.
+	// Names compared in place past the prefix the page's entries and `name` share (it lies after the
+	// previous page's last name and at most at this page's); the match is answered in place.
+	const auto key = tail(name, page.shared);
 	for (std::size_t low = 0, high = count; low < high;) {
 		const auto mid = low + (high - low) / 2;
 		const TableEntryView entry(in.data() + offset(mid));
-		const auto order = entry.name().compare(name);
+		const auto order = tail(entry.name(), page.shared).compare(key);
 		if (order < 0)
 			low = mid + 1;
 		else if (order > 0)

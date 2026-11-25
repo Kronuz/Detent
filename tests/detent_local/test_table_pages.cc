@@ -346,6 +346,85 @@ void page_index() {
 	check(unmarked.page_verifications() == 2 * table.entries.size() + 1, "without an account each reach hashes");
 }
 
+// A lookup compares names past the prefix its bounds share (correctness review R3-1): the table's
+// last names', and within a page the previous page's last name's with its own. Every width up to the
+// format's 255, a first page that does not share the later pages' prefix, bytes above 0x7f, and names
+// that are prefixes of each other: each entry, each name around it and every prefix of it answers as
+// the decoded table's `find` does, marked and unmarked.
+void shared_prefixes() {
+	std::vector<l::StoreTable> tables;
+	for (const std::size_t width : {16, 40, 255}) {
+		l::StoreTable table = table_of(0);
+		for (std::size_t i = 0; i < 1000; ++i) {
+			const auto digits = std::to_string(i * 2);
+			l::TableEntry entry = table_of(1).entries[0];
+			entry.name = "namespace-" + std::string(width - 10 - digits.size(), '0') + digits;
+			entry.slot = static_cast<std::uint32_t>(i);
+			table.entries.push_back(entry);
+		}
+		tables.push_back(table);
+	}
+	std::uint64_t seed = 0x9e3779b97f4a7c15;
+	const auto next = [&](std::size_t bound) {
+		seed ^= seed << 13, seed ^= seed >> 7, seed ^= seed << 17;
+		return std::size_t(seed % bound);
+	};
+	const std::string stems[] = {"", "a", std::string(100, 'p'), std::string(100, 'p') + "q", std::string(240, '\xff')};
+	for (unsigned round = 0; round != 4; ++round) {
+		std::vector<std::string> names;
+		for (std::size_t i = 0; i < 600; ++i) {
+			auto name = stems[round == 0 ? (i < 60 ? 0 : 2) : next(std::size(stems))];
+			for (auto extra = 1 + next(round == 3 ? 15 : 6); extra && name.size() < 255; --extra)
+				name.push_back("ab\x01\x7f\x80\xff"[next(6)]);
+			names.push_back(name);
+		}
+		std::sort(names.begin(), names.end());
+		names.erase(std::unique(names.begin(), names.end()), names.end());
+		l::StoreTable table = table_of(0);
+		for (std::size_t i = 0; i < names.size(); ++i) {
+			l::TableEntry entry = table_of(1).entries[0];
+			entry.name = names[i];
+			entry.slot = static_cast<std::uint32_t>(i);
+			entry.root[1] = static_cast<char>(i);
+			table.entries.push_back(entry);
+		}
+		tables.push_back(table);
+	}
+	for (const auto &table : tables) {
+		const auto encoded = l::encode_table(table);
+		check(l::PagedTable(bytes_of(encoded)).decode() == table, "the table decodes");
+		std::vector<std::string> keys{"", "\x01", "\xff", std::string(255, '\xff'), "namespace-", "p", "q"};
+		for (const auto &entry : table.entries) {
+			const auto &name = entry.name;
+			keys.push_back(name);
+			for (const char byte : {'\x01', 'a', '\xff'})
+				keys.push_back(name + byte);
+			for (std::size_t cut = name.size() - 1; cut + 1 > 0; cut -= 1 + cut / 4)
+				keys.push_back(name.substr(0, cut));
+			auto bumped = name;
+			if (static_cast<unsigned char>(bumped.back()) < 0xff) {
+				++bumped.back();
+				keys.push_back(bumped);
+			}
+		}
+		const auto account = std::make_shared<d::StorageLedger>(std::size_t(1) << 30);
+		const l::PagedTable marked(bytes_of(encoded), account), unmarked(bytes_of(encoded));
+		for (unsigned pass = 0; pass != 2; ++pass)
+			for (const auto &key : keys) {
+				const auto *want = table.find(key);
+				for (const auto *paged : {&marked, &unmarked}) {
+					if (pass && paged == &unmarked)
+						continue; // every reach of an unmarked table is a first touch
+					const auto got = paged->find(key);
+					if (want ? !(got == *want) : bool(got)) {
+						std::fprintf(stderr, "key of %zu bytes in a table of %zu entries\n", key.size(), table.entries.size());
+						check(false, "each key answers as the decoded table's find");
+					}
+				}
+			}
+	}
+}
+
 // Every single-byte change, truncation and extension of a three-page table: each lookup, before and
 // after its page is marked, answers the original entry, answers not listed for an unlisted name, or
 // refuses; the whole read equals the table or refuses.
@@ -506,6 +585,7 @@ int main() {
 	bound();
 	concurrent_first_touch();
 	page_index();
+	shared_prefixes();
 	mutations();
 	cross_page();
 	std::puts("table pages: ok");
