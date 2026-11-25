@@ -5588,6 +5588,21 @@
         "todo": "55683761"
       },
       "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: reply_pump.{hh,cc} for D165's 204 header; it asks: Lead: D165's 204 carries a header, and both upstreams write a next's 204 through `distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers. Needed, outside the set: include/detent_distribution_http/reply_pump.hh and src/detent_distribution_http/reply_pump.cc.\u2026; listed 5 min): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 63 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T05:11:41",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T05:11:41",
+      "by": "campaign",
+      "closed": "answered (quest msg-1, R3-F1 sent); its contributor is working and rewrites the Blocked on when it reports",
+      "id": "msg-435",
+      "settles": {
+        "todo": "45d61503"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 69 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
