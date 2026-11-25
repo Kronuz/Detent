@@ -244,7 +244,9 @@ int main(int argc, char **argv) {
 		reactor::tls::configure(
 			*tls, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
 			reactor::tls::Role::Server);
-		http::HttpAsioService server(authority, 1, 4, http::tls_connection_factory(tls, 2s), 4);
+		http::HttpAsioService server(
+			authority, 1, http::Limits{.max_clients = 4, .max_in_flight = 4, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms, .tls_handshake = 2s},
+			http::Tls{tls});
 		http::AsioBindOptions bind;
 		bind.address = "127.0.0.1";
 		server.set_bind_options(bind);

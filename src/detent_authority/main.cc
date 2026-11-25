@@ -163,21 +163,22 @@ int run(const std::vector<std::string>& input_args) {
 			const char* authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
 			const bool lone_quorum = !authority_options.peers || authority_options.peers->addresses.empty();
 			const bool publisher_https = authority_options.publisher_tls.has_value();
-			http::HttpAsioService::ConnectionFactory connection;
+			http::Tls tls;
 			if (publisher_https) {
-				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-				reactor::tls::configure(*context, *authority_options.publisher_tls, reactor::tls::Role::Server);
-				connection = http::tls_connection_factory(std::move(context));
+				tls.context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+				reactor::tls::configure(*tls.context, *authority_options.publisher_tls, reactor::tls::Role::Server);
 			}
 			const std::size_t body_cap = authority_options.node.application.request_bytes;
 			detent::authority::Service authority(std::move(authority_options));
 			// One value for the in-flight limit and the connection cap, so http's gate never refuses a
-			// request before Detent's own admission does (D4).
-			http::HttpAsioService service(authority, reactors, kPublisherConnections, std::move(connection),
-				kPublisherConnections);
-			service.set_request_timeout(authority_network_timeout);
+			// request before Detent's own admission does (D4). The request timeout is the one
+			// connection bound; idle, header and inactivity are off.
+			constexpr std::chrono::milliseconds off{0};
+			const http::Limits limits{.max_clients = kPublisherConnections, .max_in_flight = kPublisherConnections,
+				.idle_timeout = off, .header_timeout = off, .inactivity_timeout = off,
+				.request_timeout = authority_network_timeout, .max_body = body_cap};
+			http::HttpAsioService service(authority, reactors, limits, std::move(tls));
 			authority.observe_connections(service.connection_observer());
-			service.set_max_body(body_cap);
 			service.enable_conditional();
 
 			std::signal(SIGINT, handle_signal);
