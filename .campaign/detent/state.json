@@ -32158,15 +32158,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "V5: fourth failing round in the wait mechanism (R4-1, a late seal 204 read as idle); the owner decides the next shape",
+      "reason": "D163: the owner chose the wire seal stamp",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-25T00:32:43",
+      "updated": "2026-11-25T03:11:50",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
