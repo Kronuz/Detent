@@ -1,12 +1,211 @@
 # observability-core review: design
 
-Commit: Detent:0e096e0edd0a877a4ca9227727b08fb599feaf4d
+Commit: Detent:fa7e5fbad78b4adcdd2d97227f0f809b513fff05
 Verdict: CHANGES
 Date: 2026-11-24
 
 APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
 blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
 REJECT: the approach is wrong; the quest is re-planned.
+
+## Round 3 at Detent:fa7e5fba (whole design)
+
+Scope: all of `docs/design/observability.md` at `Detent:fa7e5fba`, checked against a lifecycle I
+built from the landed code (`src/detent_reader/core.cc`, `src/detent_local/lazy_page_access.cc`,
+`paged_read_state.cc`, `evaluation.hh`, `view.cc`; no source differs from main's `Detent:39b95217`
+on the branch). R1-R8 are fixed. The mark is the right mechanism: a warm hit is one relaxed load, a
+first read one `fetch_or`, and it stays exact through lock-free pins and retirement. The row claim
+holds under 16 threads. What blocks is the fold and the edges around it:
+
+1. The 1,024-key budget does not bound a refresh. Every second publish folds every knob read since
+   open on the application thread that finds it: up to 3.8-7.0 s at 5M (the doc's own estimate),
+   while first attaches, `fork()` and `detent_usage` wait (T1).
+2. Usage changes answers. A pending fold keeps the old generation charged to the cap, and the
+   fold's own lookups map, verify and can fail the successor (T2).
+3. The walk, as written, loses every mark below a page that holds only branch nodes (T3).
+4. A fork child reports the parent's reads through a retired generation still in the ring (T4).
+5. The mark bitmap is both heap memory and an `mmap(MAP_FIXED)` target. The charge, the minimum
+   and `mark_charge` depend on which (T5, T6).
+6. Smaller gaps in text and tests: `detent_usage`'s wait, `statuses[DETENT_OK]`, the size rules of
+   the new structs, a carried name that cannot be allocated, and close (T7-T11).
+
+None needs a new approach, so this is not a REJECT. T1 and T2 need a choice of fold mechanism, and
+T1 lists the options.
+
+### Evidence I relied on
+
+- Quest model job `261124-112726-6e7cf6` (light, exit 0) at `Detent:fa7e5fba`:
+  `tests/detent_reader/usage_claim_model.sh` under TSan. I reused it and did not rerun it.
+
+### What I checked myself
+
+Jobs at `Detent:fa7e5fba`; scripts in `.scratch/detent/review-observability-core-design/`.
+
+- `261124-115748-77e6af` (light, exit 0, TSan, no report): `run_r3_model.sh` builds
+  `r3_fold_model.cc`. It models the core's ring of four slots with lock-free striped pins (the Dekker
+  pair of `core.cc:350-364`, the freer of `:221-232`, the refresh of `:454-470` and `:621-639`), and
+  adds D3's fold, budget, pending fold, carried names and fork clear:
+  - Stress: 8 lock-free readers and 300 reordering, deleting publishes (budget 8). 524 keys read
+    OK, 524 reported, 18 carried.
+  - Observer: 1,500 checks that a read which returned OK before `detent_usage` began is reported,
+    through folds. 0 missing.
+  - A mark on a retired, pinned generation is reported meanwhile and folded after the unpin. A
+    reader parked before its pin across four publishes retries and marks.
+  - Budget: 100,000 knobs read once, budget 1,024, six publishes. Successor lookups per publish:
+    1,024; 100,000 (96,928 unbudgeted); 2,048; 100,000; 2,048; 100,000. With `detent_usage`
+    between publishes: 1,024 per publish, and 98,976 on `detent_usage`'s caller.
+  - Fork: clearing only the attached generation leaves 5 of the parent's keys in the child's
+    report. Clearing every generation of the ring's views leaves 0.
+- `261124-120044-d2524f` (light, exit 0, TSan, no report): `run_r3_rows.sh` builds
+  `r3_rows_stress.cc`. D3 Rows (the quest model's `Table` without its window hooks) ran 16
+  threads, 20 rounds each at `usage_slots` 1 (4 names), 256 (300 names) and 4,096 (1,024 names).
+  Each round: one row per name, every sample counted once in a row or in the overflow row, and
+  `overflowed` set exactly when the overflow row counted.
+- `261124-122940-4f2237` (light, exit 0): `run_r3_cap.sh` builds `r3_probe_cap.cc` in the core,
+  with its test hooks, on 4 KiB pages:
+  - At exactly the minimum, every store opens. Stores of 2,000 and 20,000 knobs (one pack of
+    45,346 or 471,968 bytes) read every key. Stores of 60,000 and 100,000 knobs read 15,564 and
+    11,128 keys and answer `DETENT_NO_MEMORY` for the rest: their near-full packs (1,046,533 and
+    1,047,901 bytes) charge 1,055,304 and 1,055,312 bytes each on their own, 168 and 176 over
+    the minimum.
+  - Held: at a cap of one generation and a half (2,152,704 bytes, as in `retained`), with
+    revision 1 kept mapped by a parked reader, revision 2 reads 15,564 of 60,000 keys and
+    answers `DETENT_NO_MEMORY` for 44,436. Once revision 1 is freed, it reads all 60,000.
+  - A 10-knob delta wrote one 68,952-byte pack, whose marks would be 1,078 bytes.
+- `261124-115751-802aaa` (light, exit 134) aborted on a 200,000-knob store, past the writer's
+  JSON limit of 100,000 knobs (`include/detent/json_schema.hh:19`). That was my error; the rerun
+  above replaces it.
+
+### The lifecycle from the code
+
+| Event | Code | Generations | What D3 adds, and where it breaks |
+| --- | --- | --- | --- |
+| Open | `core.cc:735-788`: cap at least the minimum (`:747`), fork handlers | none attached | rows, stripes; the minimum (T6) |
+| First lookup in a namespace | `:681-705`: one thread attaches; the others `refreshing.wait` (`:705`) | attached | they also wait out a fold (T1) |
+| Lookup, sequence unchanged | `:670-671` | | mark, sample; never waits |
+| Lookup, sequence moved | `:672-679`: refresh if `refreshing` is free, else answer stale | | the refresher runs the fold (T1) |
+| Commit | `:621-639`: install, then `free_retired((s+1)%4)` (`:638`) | old one freed if unpinned, else retired and pinned | fold before the delete; past 1,024 keys, pending (T1, T2) |
+| Next refresh | `:462`: `free_retired(s%4)` | retired views freed once unpinned | resumes the pending fold |
+| Refused | `:464-470` | nothing built | |
+| Kept, re-added, slot reused, dropped, attach failed | `:523-524`, `:536-538`, `:557-573` | shared, new, or kept attached | no retire, or a fold into the new one |
+| `detent_refresh` | `:833-845`: `DETENT_OK` at once if another thread refreshes (`:836-837`) | | finishes pending folds; D6 cites it wrongly (T7) |
+| `fork` | `:251-287`: prepare waits for every `refreshing` (`:254-255`); the child zeroes every pin of every slot and calls `child_after_fork` on every generation of every ring view | retired views stay in the child's ring | D3 clears attached ones only (T4); `fork()` waits out a fold (T1) |
+| Close | `:850-855`, then `:196-201`: `free_view` of slots 0 to 3 in index order | all freed | a fold here would read a freed successor (T11) |
+
+A retired view that a lookup pinned at the commit's free pass lingers until the next
+`refresh_locked`: the next publish a lookup finds, a first attach, or `detent_refresh`. With usage
+on, every generation with more than 1,024 marked keys lingers the same way, pinned or not (T2).
+
+### The five questions
+
+**1. Marks and the fold.** `ever_read` is exact within a generation, and across publishes,
+reorders, deletes and retired, pinned generations: the model above, with lock-free pins under TSan,
+reports exactly the keys read OK. It is not exact for a fork child (T4), nor, as the walk is
+written, for a mark below a page of branch nodes (T3). Close drops everything, which is right, but
+no test fails if a fold runs there (T11).
+
+The fold runs on the holder of `refreshing`: the application lookup that found its namespace's
+sequence moved (`core.cc:672-679`), a first attach's winner, `detent_refresh` and `detent_usage`. A
+warm lookup never waits on it. Lookups whose sequence has not moved answer at `:671`, and moved ones
+answer stale (`:675`). Four callers wait: the refreshing lookup itself, first attaches of other
+namespaces (`:705`), `fork()` in any thread (`:254-255`), and `detent_usage`.
+
+The budget does not bound those costs. Freer passes run only inside `refresh_locked`, so a fold past
+1,024 keys is not spread out. It is finished unbudgeted at the next publish. Every second publish
+therefore makes about R successor lookups (model: 100,000 of 100,000, 96,928 unbudgeted).
+
+**Worst case:** a 5M store with every knob read, and two publishes with no `detent_usage` or
+`detent_refresh` between them. The second publish's first lookup in that namespace makes about 5M
+successor lookups, 3.8-7.0 s by D3's estimate. Meanwhile first attaches, `fork()` and `detent_usage`
+wait, and other namespaces answer stale. At R = 4,096 the cost is 10-91 ms at every second publish.
+The fold refuses no publish; it delays the handle's next view by its own length. reader.md T2 holds
+a first read, from open to the first value, under 1 ms. Nothing bounds the lookup that refreshes,
+and the owner has not accepted this cost (T1).
+
+**2. Concurrency.** The mark is right. Test-before-set is idempotent, and a lookup that returns OK has
+set or seen its bit. The freer sees every mark of a generation it frees: the reader's release
+`fetch_sub` of its pin and the seq_cst loads in `sum()` order the mark before the walk. My model
+checks this with the core's lock-free pins under TSan, including a reader parked before its pin and
+one parked on a retired generation. Rows by name and the overflow row are right under 16 threads
+(job `d2524f`). The quest model pins its readers under a mutex (`usage_claim_model.cc:185`), so it
+cannot interleave a freer with lock-free pins. The core's `fold_concurrent` must, and my model is a
+pattern for it.
+
+**3. Mapping cap.** The verified bitmap is `malloc`ed through `StorageAllocator` and charged
+`sizeof(Header)` plus its payload (`verified_pages.hh:15-16`, `allocator.hh:32`). So 16,384 bytes
+per full segment, plus a header, is the right charge for a heap mark bitmap. But D3 Fork remaps the
+bitmap with `MAP_FIXED`, which needs a page-aligned mapping of its own and a page-rounded charge
+(T5).
+
+Raising the minimum by 16,384 keeps its convention: payloads only, "one full pack and its bitmap"
+(reader.md:130). The cap also counts every page-table allocation (reader.md:130, `core.cc:57`), so
+the minimum has never admitted a full pack: even a 1,046,533-byte pack alone charges 1,055,304
+bytes, 168 over it. A caller at today's exact minimum (1,055,136 bytes) opens, and reads only the
+keys whose path avoids a near-full pack: every key of the 2,000- and 20,000-knob stores, but
+15,564 of 60,000 and 11,128 of 100,000, the rest `DETENT_NO_MEMORY` (probe `4f2237`). After the
+change its `detent_open` returns `DETENT_INVALID_ARGUMENT`, whether usage is on or off. That ABI
+change is the owner's, and the project is greenfield, so I raise no compatibility question.
+
+**4. ABI.** Adding `ever_read` between `name` and `samples`, with `DETENT_ABI_VERSION` staying 1, is
+coherent: nothing has shipped, D158 accepted the shape just before it, and `reader.hh:37` checks for
+equality. The growth rules are not stated. D6 has one only for `detent_open_options` (zero means
+the default), and none for the out-struct `detent_usage_totals` or the callback records (T9).
+`statuses[DETENT_OK]` contradicts G1 (T8).
+
+**5. Gates.** G1 counts events with seeded stripes, so it decides at any level. G2 decides against
+10 ns at 8 threads: each case's threshold is D48's ns over that case's own off median, load only
+makes it stricter, and a strict run that does not pass hands over to one exclusive run (D135).
+
+Four P4 rows have no test that can fail: `fork_child` (T4), close (T11), `mark_charge` (T6), and
+the fold rows on a store too shallow for T3. Every other row's test can fail, including `cycle`
+(a fixed 64 samples 16 names, below its 512) and `fresh_handle` (30-160 of 10,000, expected 78.7,
+standard deviation 8.8). No row tests that answers do not depend on usage (T2).
+
+### Round-2 findings
+
+| ID | Status | How it is shown |
+|---|---|---|
+| R1 | fixed | D3 prices the fold and D10 lists the surface. The price is what shows T1. |
+| R2 | fixed | Names are probed only on the sampled path, and G1 states 2.5 probes per sample at `usage_slots` 256. Job `d2524f`: 256 rows, sums exact, `overflowed` 1. |
+| R3 | fixed | G2 uses D48's ns over each case's off median, with an exclusive fallback. |
+| R4 | fixed | `cycle` is seeded and asserts 512 of 1,024 names within 64 cycles and all within 1,000 (round 2's probe: 631-662, and all by 478-500). |
+| R5 | fixed | D3 Rows item 4 re-examines the slot. Job `d2524f` covers it at `usage_slots` 1 and 256. |
+| R6 | fixed | 10,000 handles, 30-160 sampled. |
+| R7 | fixed | D10's T4 paragraph. |
+| R8 | fixed | `callback_reentry`. |
+
+### Findings (round 3)
+
+A bare "line N" is observability.md's at `Detent:fa7e5fba`.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| T1 | yes | defect | The budget does not bound a refresh, and the worst case is not stated. Freer passes run only inside `refresh_locked`: when a lookup finds its sequence moved, at a first attach, and in `detent_refresh`. So a fold past 1,024 keys is not "spread over passes" (line 124). It pends until the next publish, which finishes it unbudgeted. In steady state, every second publish makes about R successor lookups, where R is every knob read since open, on the application thread that finds the publish. First attaches, `fork()` and `detent_usage` wait meanwhile. Worst case (question 1 above): 3.8-7.0 s at 5M. The A2 fold-timing check has no threshold and leaves out R = every knob, so it cannot fail. | Job `77e6af` budget lines; `core.cc:254-255, 462, 638, 672-679, 705`; observability.md:112, 124, 328, 344 | Choose a bound and put it to the owner with its numbers. Options: (a) at the free, add the generation's marked names to the carried set and free the generation at once, with no successor lookups. A publish then costs the walk of that generation's own marks and a name insert per mark (the walk alone about 0.3 s at 5M if every knob was read in that generation, estimate), and the heap holds one name per knob read since open: core heap, which reader.md T4 holds to 1.5 MiB (0.2-0.5 GB at 5M with every knob read, estimate). (b) Keep the fold and drop the budget, which in steady state defers only 1,024 to 3,072 keys (the model) and causes T2's retention; state the per-publish cost as Limit 10. (c) Let pending folds really spread across refreshes, which retains more generations under the cap. Then give the A2 check that bound as its threshold, at 100K and 1M with R = every knob. Make `fold_budget` publish twice with nothing between and assert the largest pass through `Stats`. It fails without the bound: the model's 100,000-lookup pass. |
+| T2 | yes | defect | "The answer of a lookup never depends on usage" (line 279) is false, three ways. (i) A pending fold keeps the retiring generation's pages charged to the cap until the next publish, `detent_refresh` or `detent_usage`. At a cap of one generation and a half (the core's own `retained` test), the successor's reads then answer `DETENT_NO_MEMORY`. An off handle that no lookup pinned at the commit frees the old generation there (`core.cc:638`) and reads whole. (ii) The fold's successor lookups map and verify segments the application may never read again, under the same cap. (iii) A fold lookup that fails verification sets the generation-wide `failed` (`lazy_page_access.cc:263-265`), after which every lookup in that namespace fails (`:234-235`). With usage off, a page the application does not read again is never verified. Limit 12 also misses the names a refused fold lookup carries. | Probe `4f2237` held lines (44,436 of 60,000 `DETENT_NO_MEMORY` while revision 1 stays mapped, 0 once it is freed); `test_reader_core.cc:475-519`; `lazy_page_access.cc:168, 234-235, 263-265`; observability.md:111-112, 124, 279, 346 | Decide it with T1. Option (a) removes (i)-(iii). Under (b) or (c), fold only into successor pages already verified and carry the rest by name, which removes (ii) and (iii). Then state what remains (the bitmaps' 1/64 of the cap is itself a difference). Add `usage_answers`: one script of lookups and publishes, run on an on and an off handle at the same cap and including a corrupt successor page that only a fold would read, gives the same statuses and values. It fails without the fix on (i) and (iii). |
+| T3 | yes | defect | The walk, as written, enters "only pages whose mark range has a set bit" (line 110). Marks are set only at definition bodies (D3 Marks). A leaf holds only its key's suffix; the rest is the branch path from the root, through external children in other pages (`paged_read_state.cc:69-81, 103-105`). A page of branch nodes has no marks, so the walk stops above every mark beneath one. The quest model folds over a flat map, so it cannot catch this, and neither can a store whose root page holds the definitions read. `detent_usage` uses the same walk. | `paged_read_state.cc:69-81, 103-105`; `paged_layout.hh:25`; observability.md:97, 110, 186 | Enter a page when it is verified: by line 110's own premise, every marked body's page and its ancestors are. Name the bodies whose bit is set, and price the walk per verified page. Run `publish_reorder`, `ever_read` and `fold_concurrent` on a store deep enough that the definitions read sit at least two pages below the root (100K knobs). Each fails without. |
+| T4 | yes | gap | D3 Fork clears "every attached generation's mark bitmaps" and the pending folds' marks (line 126). The ring also holds retired views: pinned when `fork()` ran (as reader.md T6's parked lookup is), or unpinned but not yet freed. The child zeroes their pins (`core.cc:278-279`), so its next refresh frees them, folds their marks and reports the parent's reads. `fork_child` forks in neither state, nor with a fold pending, though line 321 claims "a fork child with one pending" is covered. | Job `77e6af` fork line (5 parent keys; 0 when every ring generation is cleared); `core.cc:275-287` | Clear every generation of every ring view; `core.cc:280-282` already visits them, and `PageTable::child_after_fork` is where the surface table puts it. Say whether the child frees a pending generation or only clears it. `fork_child` forks with a reader parked at `Window::Pinned` on a retired generation that holds marks, and again with a fold pending, and the child reports none of the parent's reads. Fails without. |
+| T5 | yes | defect | The mark bitmap is specified two incompatible ways. D10 allocates it "beside `VerifiedPages` from the same account" (lines 271, 275), which is `malloc` through `StorageAllocator`. D3 Fork replaces it in the child with `mmap(MAP_FIXED)` (lines 126, 271), which needs a page-aligned mapping of its own. As heap memory, the child must clear it by writing, which copies the parent's pages: D3's "no copy" fails, at about 5 MB per child at 5M (302 segments, estimate). As a mapping, the charge is page-rounded: a 10-knob delta wrote a 68,952-byte pack whose 1,078 bytes of marks would take a whole page, 4 KiB here and 16 KiB on Apple Silicon (CI's macos-arm64), 15 times their size there. On 64 KiB pages a full segment's bitmap costs 64 KiB, so 16,384 and a compile-time minimum are wrong there. | `verified_pages.hh:15-16`; `allocator.hh:32`; `generation_mapping.hh` (`rounded_mapping_bytes`); probe `4f2237` delta line | Pick one and state its charge: heap memory with the child's copy stated, or one anonymous mapping per `PageTable`, sized at attach for `root.segments` bitmaps and charged once. Make `mark_charge` assert the on-minus-off charge exactly, for a full segment and a small one. |
+| T6 | yes | defect | `mark_charge`'s last clause, "a cap of exactly the new minimum reads one segment" (line 287), cannot decide the 16,384. The minimum counts a full pack and its bitmap payloads only, while the cap also charges every page-table allocation (reader.md:130, `core.cc:57`). At exactly the minimum, near-full packs of 1,046,533 and 1,047,901 bytes charge 1,055,304 and 1,055,312 bytes on their own, so they never map, and the 60,000- and 100,000-knob stores read only 15,564 and 11,128 of their keys; only a store of one smaller pack reads every key. D10's "one full segment and its bitmaps" (line 275) says the same thing. | Probe `4f2237` minimum lines; `core.cc:59-60, 747`; `lazy_page_access.cc:101-105, 168, 271` | Either name the minimum what reader.md does, an open-time floor ("open attaches nothing"), and drop "reads one segment"; or raise it to cover a full segment's first lookup (the segment, both bitmaps, the segment table, the segment object, and the headers). Either way it is the owner's ABI. Then `mark_charge` asserts the measured on-minus-off charge per segment (T5). |
+| T7 | yes | defect | D6 item 3 says `detent_usage` "takes `refreshing` (waiting as `detent_refresh` waits)". `detent_refresh` does not wait: it returns `DETENT_OK` at once when another thread holds `refreshing` (`core.cc:836-837`). Whether `detent_usage` waits (up to T1's worst case) or returns is undecided, and no test pins it. | `core.cc:833-837`; observability.md:186 | Say which: wait as a first attach does (`core.cc:705`), or return a status. `usage_during_refresh` calls `detent_usage` while a refresher is parked at `Window::Refreshing` and asserts that behavior. Fails without. |
+| T8 | yes | defect | `statuses[DETENT_OK]` is undefined. D6 calls `statuses[16]` "exact lookups by detent_status", and D1 "exact totals per status" (lines 37, 174). But D2 keeps totals "only for statuses other than OK" (line 76), and G1 allows "one read-modify-write per sample and no other" (line 82), so an exact OK count cannot exist. | observability.md:37, 76, 82, 174 | Say `statuses[DETENT_OK]` is 0, or the sampled estimate (`period` × OK samples), and assert it in `fallbacks`. |
+| T9 | yes | gap | The size rules of the three new structs are unstated, and ABI 1 freezes them when they first ship. D6 item 6 covers `detent_open_options` only. For the out-struct `detent_usage_totals`, the library must write no byte at or past the caller's `size`, and the result of a NULL `totals` or a `size` below the first version must be stated. For `detent_knob_usage` and `detent_view_usage`, the library sets `size`, and a caller reads only fields below it. | observability.md:166-178, 189; `core.cc:740-746` (the open-options rule) | State both rules in D6. Add `usage_abi`: one totals struct sized to end after `statuses` with canary bytes behind it, and one larger than the library's. Nothing past either size is written, and each record's `size` equals the library's. Fails without. |
+| T10 | yes | gap | The freer adds carried names, and the freer is `noexcept` (`core.cc:202, 221`). An allocation failure there terminates the process or, if caught, drops a read with nothing to say so, and D6 item 2's absence rule then lies. The class sweep (line 321) has no row for it. | `core.cc:202-232`; observability.md:111, 185, 321 | Say what happens: keep the generation pending and retry, or count the loss and flag it in the totals, excepting it from item 2. Add `fold_allocation_failure` through a failing-allocation seam. Fails without. |
+| T11 | yes | gap | Close's test is "the suite under ASan" (line 319). It fails only if some test closes with a fold pending or a retired generation in the ring. None is named, though line 321 claims "close with one pending" has a test. `~detent_reader` frees ring slots in index order (`core.cc:196-201`), so a fold reached from `free_view` at close would look up in a successor already freed. | `core.cc:196-215, 850-855`; observability.md:319, 321 | Add `close_pending`: close with a fold pending and a retired, unfreed generation. ASan and LSan are clean, and a counting seam shows no successor lookup at close. Fails without. |
+| U1 | no | gap | Every thread on a stripe shares its countdown and its xorshift state, but D2 says "relaxed load and store" for the countdown only. Both must be relaxed atomics, or TSan reports a race. `concurrent_usage` runs at period 1, so it never reloads. | observability.md:49-51, 314 | Say both are relaxed atomics, and run `concurrent_usage` once with the real reload. |
+| U2 | no | gap | `detent_usage` buffers every record before its callbacks: several hundred MB at 5M with every knob read (estimate). Its status when that allocation fails is unstated. | observability.md:186 | State the status (`DETENT_NO_MEMORY`) and the peak. |
+| U3 | no | nit | The overflow record's `ever_read` is unstated. | observability.md:166-167 | 0. |
+| U4 | no | gap | The surface table changes what `PagedReadState::definition` returns, but lists none of its callers (`view.cc:71, 80, 99` and the detent_local tests). The quest's file set lacks `paged_page_access.hh`, `paged_read_state.hh`, `paged_read_state.cc` and `tests/detent/test_one_knob_differential.cc`; the doc says the set gains them before any edit. | observability.md:266-273; state.json | The lead adds them. |
+| U5 | no | nit | `lazy_page_access.cc:69` (line 275) is `:70`. | `lazy_page_access.cc:70` | Fix the cite. |
+| U6 | no | gap | An off handle allocates no bitmap but is still refused below the new minimum. | observability.md:275 | The owner's call; the doc already says so. |
+| U7 | no | gap | `campaign status` lists A2 as met by job `261124-112726-6e7cf6`, the model run. A2 is the lookup cost with the bits on, which needs the build. | `campaign status observability-core` | The lead clears it. |
+| U8 | no | nit | reader.md:123 keeps a segment object across generations, but the landed core builds a new `PageTable` per `Generation` (`core.cc:110-123`). The fold and the fork clear assume the landed shape. | `core.cc:110-123` | Say so in D3. |
+
+### Not run (round 3)
+
+- No strict or exclusive job (as instructed), so nothing here measures a lookup or the fold. Every
+  cost in T1 is D3's own estimate; the alternation between passes is the model's.
+- The fold is not built. T1-T4 rest on the model and the code, not on the core.
+- The host has 4 KiB pages, so T5's 16 KiB and 64 KiB figures are arithmetic, not measured.
 
 ## Re-review at Detent:0e096e0e
 
