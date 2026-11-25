@@ -8050,15 +8050,15 @@
     "consensus-fetch-alongside-loop-stall": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-25T00:11:54",
-          "base": "b4516ee01e41e8d14afa1d7b26a5720ced39b557",
+          "at": "2026-11-25T01:26:13",
+          "base": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
           "blobs": {
-            "test/transport/groups_test.cc": "100644:ec9640469746099450687140a904b74ecb28abe6",
+            "test/transport/groups_test.cc": "100644:c78bc93c9385737c3a39b758a46665b16af242b2",
             "test/transport/rpc_host_test.cc": "100644:5169ada64c634904c60d33ecd020fe08ab726f7f"
           },
           "by": "review",
-          "commit": "0d8263dea24c1caf65be5381ff59c4749979c440",
-          "criteria": "3c2c053c337f4f02",
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": "c1e2ca780113e119",
           "diffs": {
             "test/transport/groups_test.cc": "7953d68a3408d6fb",
             "test/transport/rpc_host_test.cc": "f95dc74ccb0fb5c9"
@@ -8117,7 +8117,7 @@
       "risk": "normal",
       "status": "review",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-25T00:11:54",
+      "updated": "2026-11-25T01:26:13",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
     },
     "consensus-fetch-lane": {
