@@ -103,7 +103,7 @@ At consensus:9f14194 (round 1). Round 0's jobs at 7a9ae86 are history only.
 | A3 | [artifact] docs/DRIVER.md "Where syncs run" (consensus:9f14194): native and InlineCompletion, where a sync runs and whether the loop turns; a Driver on a link loop syncs off the loop on the native completion (detentd, groups_test, bench/netlab); what an inline sync there costs. docs/mechanisms/host-transport.md Placement points to it |
 | A5 | 261125-022322-8743dc, 261125-022324-925f03, 261125-022326-2ffaad, 261125-022327-3106af (strict, 25 runs each beside 4 burners, native completion). Local: 16 of 16 exact, loops turned within 3 ms, longest journal operation 94 ms |
 | A6 | 261125-022329-f14798 (reader) |
-| A4 | CI 45594592100 at 9f14194 |
+| A4 | ci:ci (CI run 45594592100 at 9f14194) |
 
 ## Result
 
