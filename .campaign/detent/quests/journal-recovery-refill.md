@@ -5,32 +5,36 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+An owned store that could fund a checkpoint before a crash can fund one after it. Today journal
+Admission's refill order (control before replacement, admission.h `refill` and the ctor at
+journal:9e11713) moves the replacement pool's bytes into control when the census rebuilds the ledger,
+so an owned store whose Control appends drained more than R minus the checkpoint peak reopens with a
+replacement pool too short for any checkpoint; Normal is refused and nothing refills: wedged for good
+(review F2 of consensus-recovered-over-limit-start, probe 261124-202348-6f464f).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [manual] First a table in the journal: each pool's share before a crash and after recovery, by
+  how the store reached its limit (Control drain, a checkpoint mid-publication, an install), and the
+  rule chosen (keep pool ledgers across a crash, refill replacement to its pre-crash share, or
+  another), with why. If the only correct rule refuses a store that opens today, stop and ask the owner.
+- A2 The probe's two cases as a deterministic test asserting by value that Replacement(R) is admitted
+  after recovery and a checkpoint completes, with a `--fails-without` at main where it is refused.
+- A3 [artifact] The rule stated in journal's admission mechanism doc.
+- A4 Suite and CI green; consensus's deadlines tests pass against the fix (a pinned integration job).
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Admission's public API is unchanged; only the post-recovery pool split changes.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+The lead picks the rule from A1; a rule that narrows what opens goes to the owner.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
 
 ## Tasks
 
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+One contributor.
