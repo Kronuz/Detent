@@ -21,3 +21,8 @@ msgpack-adoption after resource-adoption; http-client-adoption after first-read-
 
 ## Standing
 Cancel superseded jobs at every new head and landing; list parked quests with age in each report.
+
+## Added at the outage
+- warm-relay-agent-boot landed (Detent:59e6a9b1).
+- consensus-inline-sync-loop: review round 4 CHANGES R4-F1 (no ctest entry); the lead added it at consensus:80540ca (file set widened to CMakeLists.txt) and queued the suite there. First move: confirm the suite and CI at 80540ca, accept --confirm R4-F1=<suite job>, land --push.
+- Tell the owner before release (reviewer's ruling): while the leader's own persist is pending, Core sends no heartbeat or append (core.h:716-720), so one leader sync longer than the election timeout costs the term (CI macOS x86: 4.7-6.1 s syncs).
