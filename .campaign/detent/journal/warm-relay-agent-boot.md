@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: ready for review (doc and rows rewritten on the 14 exclusive reruns at e5fdf9ca)
+State: ready for review (doc and rows rewritten on the 14 exclusive reruns at e5fdf9ca; main merged at 60543083, suite 261125-055754-1ed9d8 queued, no other queued job)
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -26,8 +26,7 @@ agent is slower at 100K (+0.10 s) and 1M (+0.35 s), both outside the earlier ran
 the heads). Against the bundle relay, cold totals -49% / -81% / -82%; warm agent 100K +0.15 s,
 1M inside the one before run's noise, 5M about -23% (one round).
 
-CI on the branch's last run failed on macos-x86_64 only and its log is gone; the push of e5fdf9ca
-runs it again: CI run 45546081249 (Docs run 45546080560) at e5fdf9ca, queued when last seen. The doc commit b182ad11 was pushed after it; the journal commit that names these runs is not pushed (a push would cancel the CI run in progress).
+CI: run 45546081249 (Docs 45546080560) was at e5fdf9ca; the branch is pushed again at the final head, see the CI row for the run.
 
 Rows at dc0315b5 (261122-211123-e68717 100K, -211123-7d24e2 1M, -211124-af8242 5M) timed out from a
 hang, not their size: main (30c2d65b) serves the relay from its namespace mirror only, so it logs
@@ -100,7 +99,7 @@ checked what), and answer each message by its id (msg-N).
 | A1 | manual (who: the lead, 2026-11-25; checked: the 14 jobs 261124-202039-aa80ba, 261124-202039-9c9088, 261124-202042-42c0f3, 261124-202041-4379bb, 261124-202044-26b532, 261124-202043-4374a0, 261124-202040-e47e90, 261124-202041-d8961e, 261124-202043-39475a, 261124-202042-2dd756, 261124-202045-e28f51, 261124-202046-1fe8d9, 261124-202045-76410f, 261124-202046-64d8d4 each done, exit 0, exclusive, at e5fdf9ca, 0 "ran beside") |
 | A2 | docs/perf/warm-relay-agent-boot.md |
 | CI | run 45546081249 at e5fdf9ca (previous run 45499703124 at 781b186f failed on macos-x86_64 only, log gone) |
-| Suite | 261124-084506-9cfdb6 (exit 0 at the merged head 794fe37f) |
+| Suite | 261125-055754-1ed9d8 (campaign verify at the merged head 60543083, queued; earlier 261124-084506-9cfdb6 exit 0 at 794fe37f) |
 
 ## Result
 
