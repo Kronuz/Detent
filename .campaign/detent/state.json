@@ -29138,7 +29138,25 @@
         "site/src/content/docs/roadmap.md",
         "src/detent_local/disk_store.cc",
         "src/detent_relay/mirror_service.cc",
-        "src/detent_authority/service_runtime.cc"
+        "src/detent_authority/service_runtime.cc",
+        "CMakeLists.txt",
+        "benchmarks/detent_authority_durable_bench.cc",
+        "benchmarks/relay_window_bench.cc",
+        "tests/detent_agent/agent_store_sole_writer.sh",
+        "tests/detent_agent/test_agent_store_crash.cc",
+        "tests/detent_agent/test_agent_store.cc",
+        "tests/detent_authority/cluster_harness.hh",
+        "tests/detent_authority/offline_runtime.hh",
+        "tests/detent_authority/test_distribution_ownership.cc",
+        "tests/detent_authority/test_history_names.cc",
+        "tests/detent_authority/test_node.cc",
+        "tests/detent_authority/test_process.cc",
+        "tests/detent_authority/test_transport_peers.cc",
+        "tests/detent_relay/mirror_fixture.hh",
+        "tests/detent_relay/mutants/build-on-mirror-thread.patch",
+        "tests/detent_relay/test_http_upstream.cc",
+        "tests/detent_relay/test_relay_chain.cc",
+        "tests/detent_relay/test_relay_pages.cc"
       ],
       "history": [
         {
@@ -29258,12 +29276,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "started by force: pin-wave is waited on by 9 quests; its overlaps are one-token or append-only: FlushMode::full at disk_store.cc:467 (first-read-1ms), mirror_service.cc:364 and service_runtime.cc:586 (relay-mirror-idle-wake), a CHANGELOG line and docs/perf rows it adds beside voter-read-freshness and warm-relay-agent-boot; each later merge resolves in a line",
+      "reason": "completion:b4600a8's required FlushMode reaches every PosixIO construction in tests and benchmarks (17 files, one token each), and completion must load before consensus in CMakeLists.txt; overlaps first-read-1ms (test_agent_store.cc, benchmarks) and relay-mirror-idle-wake (tests/detent_relay) with one-token edits, under pin-wave's --force",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T17:46:15",
+      "updated": "2026-11-24T18:27:22",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
