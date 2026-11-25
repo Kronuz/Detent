@@ -45,13 +45,7 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Blocked on
 
-1. Linux only: completion b4600a8's `replace_sync_calls` on Linux takes (fsync, fdatasync,
-   writeback); two files outside the set still pass two and will not compile on Linux CI:
-   tests/detent_relay/test_relay_mirror_crash.cc:114-115 and
-   tests/detent_local/test_paged_publication_artifacts.cc:161. The fix is one `nullptr,` each (the
-   real fdatasync, unseamed as at the old pin), as done in test_agent_store.cc and
-   test_agent_store_crash.cc. Lead: widen the set by those two lines.
-2. consensus repin (L5) waits for consensus-driver-pressure-rearm to land (lead ruling 3).
+1. consensus repin (L5) waits for consensus-driver-pressure-rearm to land (lead ruling 3).
 
 ## Evidence
 
@@ -107,6 +101,8 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    pass nullptr there (the real call, as the old pin made it unseamed), one token per call, in
    test_agent_store.cc (held by first-read-1ms) as the same class as the FlushMode token.
 6. The A6 and A5 old arm is the quest base 18c5bd23: main since then changed only campaign files.
+8. Lead widened test_relay_mirror_crash.cc and test_paged_publication_artifacts.cc: one `nullptr,`
+   each (Detent:4fd2ab2a).
 7. Linux syscall trace not run: no Linux host here (docker daemon down) and the CI workflow is
    outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
