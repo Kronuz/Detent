@@ -5333,6 +5333,21 @@
         "quest": "xapiand:strata-journal-behind"
       },
       "text": "xapiand:strata-journal-behind started and builds against contract consensus:group-last, which your consensus-fetch-alongside-loop-stall is changing"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:42:51",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:42:51",
+      "by": "campaign",
+      "closed": "widened benchmarks/read_response_bench.cc; contributor resumed to commit the fixture fix and requeue",
+      "id": "msg-419",
+      "settles": {
+        "todo": "6cc462ab"
+      },
+      "text": "to do, critical path first:\ntodo: finish pin-wave (its journal waits on the lead: blocked on lead: widen benchmarks/read_response_bench.cc for F2 (Blocked on 1); waiting on jobs 261125-003938-bb7451 261125-003938-7435c8; to land: criteria without evidence at 021598283204: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
