@@ -147,3 +147,35 @@ the quest base 18c5bd23: empty diff outside .campaign). Not run: native at Deten
 coordinator says it is rerunning; the only code change since round 1 is the benchmark source,
 which the A/B build compiles), and CI at the new head. Probe script:
 `.scratch/detent/review-pin-wave-correctness/get_repeat.sh`.
+
+### Round 2, at the setup fix
+
+Commit: Detent:68398f85
+Verdict: CHANGES
+Date: 2026-11-25
+
+This supersedes the Round 2 verdict above. Detent:68398f85 waits for `/v2/open` until a 60 s
+deadline instead of 100 tries 10 ms apart, prints the open's status when it fails, raises the
+service's timeout from 10 s to 60 s and removes the leftover `.history` directory. The 128 knobs,
+256 overrides, five timed reads and their checks are unchanged, so it changes only the setup, not
+what the bench measures. Native 261125-020916-544c42 passes 220 of 220 and pins
+261125-020917-d1fa6d finds 0 mismatches, both at Detent:68398f85.
+
+The cause, shown with slowed flushes (`tools/w5/slow_flush_get.sh`, 400 ms before every `fsync`
+and `F_FULLFSYNC`):
+
+- At Detent:6a0bdd97 (before the fix), 261125-025801-21c94b (`--fails-without`) exits 134 after
+  132 s: a transaction gets `503 outcome_unknown` at the old 10 s service timeout.
+- At Detent:68398f85, 261125-025755-475fb0 exits 0 after 682 s with 5 trials.
+
+So it is the 60 s service timeout that carries the fix. The open deadline covers the other silent
+`require`, which round 4 may have hit.
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1 | yes | gap | A6's get row has still not run. Row 261125-020947-6f5337 was skipped because its build 261125-020910-b9cc5d was skipped. The setup's cause is fixed and shown (above). The row is the remaining evidence. | `campaign job list` | Requeue the A/B build and the get row at Detent:68398f85. A pass with A/A closes A6, with no code change. |
+| R2-2 | no | defect | The commit names fails-without ce01c0 and fixed a34941, but both exited 127 and proved nothing. `slow_flush_get.sh` cds into its work directory and then runs the relative bench path `.scratch/pin-wave-ab/...`: "No such file or directory". 21c94b and 475fb0 pass the absolute path; they are the evidence. | 261125-020859-ce01c0, 261125-020901-a34941 logs; tools/w5/slow_flush_get.sh:12-14 | Resolve the bench path before the `cd` (`bench=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")`). Its `${TMPDIR:-/tmp}` fallback goes too, for `.scratch`. |
+| R2-3 | no | nit | The read `require` (read_response_bench.cc, the five timed reads) still prints no status, unlike the open and the transactions. | Detent:68398f85 | Print the code and body before it, as the transactions loop does. |
+
+R2-N1 stands. Probe scripts: `tools/w5/slow_flush_get.sh` (the contributor's), run with the
+absolute path given above.
