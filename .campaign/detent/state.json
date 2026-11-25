@@ -5530,6 +5530,34 @@
         "todo": "6765a831"
       },
       "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; listed 32 min): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:27:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:27:03",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-421",
+      "items": {
+        "consensus-inline-sync-loop": "frees include/consensus/transport/host_transport.h, docs/mechanisms/**, test/transport/** for consensus-inline-sync-loop",
+        "consensus-replica-delete": "frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete",
+        "consensus-transport-budgets": "frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets",
+        "driver-pipeline": "driver-pipeline",
+        "split-consensus": "frees include/consensus/**, test/** for split-consensus"
+      },
+      "settles": {
+        "start": [
+          "consensus-inline-sync-loop",
+          "consensus-replica-delete",
+          "consensus-transport-budgets",
+          "driver-pipeline",
+          "split-consensus"
+        ]
+      },
+      "text": "consensus-fetch-alongside-loop-stall landed: unlocks frees include/consensus/transport/host_transport.h, docs/mechanisms/**, test/transport/** for consensus-inline-sync-loop; frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete; frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets; frees include/consensus/**, test/** for split-consensus; driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -30398,9 +30426,84 @@
           "weakened": []
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-25T04:57:53",
+          "ci": {
+            "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+            "runs": [
+              45603512329
+            ]
+          },
+          "commit": "dbd4d4f7370a6bfe425f04784af700b2a169e900",
+          "criteria": {
+            "A1": "pins 261124-234152-d6560c at Detent:75bb4ac1: 30 libraries, 41 shared declarations, 0 mismatches; rerun 261124-234933-f5eec6 at Detent:0b8a0df9 queued",
+            "A2": "heads' CI listed in the cascade table below",
+            "A3": "docs/SHARED_LIBRARY_DECISIONS.md \"The November pin wave\"; asked msg-358",
+            "A4": "261125-043742-6f6410, 261125-032009-b3f010",
+            "A5": "261125-035853-4966da, 261125-035849-03bf36",
+            "A6": "261125-031958-0624b3, 261125-031956-84f5ff, 261125-032006-cda6ba; fails without: 261125-025801-21c94b",
+            "A7": "CHANGELOG.md \"Pins: the November wave\" (Detent:d2031ebc; operator-visible results per library commit, Detent:a45ad238): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions",
+            "A8": "docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md \"The November pin wave\" (Detent:d2031ebc)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "369d3b77aafaec01c4302cb98241de5feefd430d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-043742-6f6410",
+              "level": "light",
+              "seconds": 698.7,
+              "state": "done",
+              "what": "pin-wave check native at 369d3b77aafa"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "9931c6531d779e264ea7d50c6c377f6f2e87eb89",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-032009-b3f010",
+              "level": "none",
+              "seconds": 3.5,
+              "state": "done",
+              "what": "pin-wave check pins at 9931c6531d77"
+            },
+            {
+              "check": "asan",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+              "state": "done"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "8dcf5ed6f6201471baee72828ab972912f46ce40",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "84c4137bc40ff46dced8064a6c9ba019795644d0",
+          "reason": "",
+          "tested": "63537ac243307a2616c5a8c2581d37a481f17c05"
+        }
+      ],
       "lenses": [
         "correctness"
+      ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-24T23:44:57",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "dbd4d4f7370a",
+          "at": "2026-11-24T23:44:57",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Lead: widened tests/detent_relay/CMakeLists.txt and tools/w5/** (A4's link, A5's differ); a fresh contributor finishes both."
+        }
       ],
       "milestone": "N2 Handoff follow-ups",
       "needs": [
@@ -30416,10 +30519,10 @@
       "reason": "A6's get row: the bench's fixture overflows the 16,384-byte definition bound since one-knob-type's 8-byte overrides (broken on main too); key padding fixes the fixture, not the bound",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-25T03:58:21",
-      "worktree": "../Detent-wt/detent/pin-wave"
+      "updated": "2026-11-25T04:57:58",
+      "worktree": ""
     },
     "post-w2": {
       "accepted": {},
