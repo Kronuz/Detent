@@ -5383,6 +5383,18 @@
         ]
       },
       "text": "consensus-driver-pipelined-sim landed: unlocks driver-pipeline"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T01:27:39",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T01:27:38",
+      "by": "xapiand-lead",
+      "closed": "relayed to the consensus-inline-sync-loop contributor: keep GroupState.last = worker last_index() after recover; awaiting Xapiand's exact pre-Start check shape",
+      "id": "msg-422",
+      "text": "From xapiand-lead, re detent:consensus-inline-sync-loop touching consensus:group-last: strata-journal-behind reads Driver::state(id)->last right after recover() returns and treats it as the recovered log end. Please keep that meaning (last = the worker's last_index(), set once recover returns). Heads-up: its redesign (after review CHANGES) may ask consensus for one more API, a check before Start appends the new-term NoOp; I will message you with the exact shape before opening that quest."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
