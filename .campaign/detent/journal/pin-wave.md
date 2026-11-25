@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs: cascade L3 CI (reactor, completion, strings, enum-reflection, logger at the commits in the cascade table); local port build (quiet light pin-wave-ports)
+State: blocked on lead: reactor L3 CI red (reactor_lag on every job, run 45541868647); tests/detent_authority/CMakeLists.txt; consensus CMakeLists.txt hold
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -51,6 +51,17 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Blocked on
 
+0. reactor (L3): its repin moves only task 18eb516 -> 477a7d3, and CI run 45541868647 fails
+   reactor_lag on every job (macOS arm64/x86_64, Linux gcc/clang/arm64, ASan/UBSan, TSan, FreeBSD)
+   with the same five checks, all in the manual-clock sections ([F] on task::inline_scheduler and
+   the busy manual clock): "a wake 700 us past its tick records 700 us", "700 us is in its bucket",
+   "the next wake, aimed at 200 ms, has not run at 199.7 ms", "a wake 200 us past its tick records
+   200 us", "busy, the manual clock wakes the probe once a millisecond". reactor main (01db032,
+   task 18eb516) is green (#44937017380), so the cause is in task 18eb516..477a7d3 (44 commits;
+   candidates: 919d232 sleeps/periodic, 412b2c2 deadline fire behind a cancel). Stopped at L3 as
+   ruled; L4 (journal, http-parser) and L5 wait. Detent's own task pin is 477a7d3 already, so if
+   Detent reads LagProbe on an inline clock it inherits this. Owner of the fix: task or reactor,
+   outside this quest.
 1. consensus repin (L5): rearm landed (consensus:c724c58), but consensus pins in its CMakeLists.txt
    (no cmake/dependencies.json in any library), which consensus-recovered-over-limit-start now
    holds. Options: (a) that quest takes the one-line-per-pin repin into its own commit; (b) the lead
@@ -93,11 +104,11 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 success | fast-forwarded |
 | L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 success | fast-forwarded |
 | L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 success | fast-forwarded |
-| L3 | reactor | task 18eb516 -> 477a7d3 | reactor:40d1461 | pushed | not yet |
-| L3 | completion | metrics 9db73de -> 4cd64db, allocators 07de45d -> ae775ab, task 95798a0 -> 477a7d3 | completion:3061516 | pushed | not yet |
-| L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | pushed | not yet |
-| L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | pushed | not yet |
-| L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | pushed | not yet |
+| L3 | reactor | task 18eb516 -> 477a7d3 | reactor:40d1461 | 45541868647 FAILURE: reactor_lag on all 8 jobs | not moved |
+| L3 | completion | metrics 9db73de -> 4cd64db, allocators 07de45d -> ae775ab, task 95798a0 -> 477a7d3 | completion:3061516 | 45541875670 success | fast-forwarded |
+| L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | 45541886004 success | fast-forwarded |
+| L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | 45541892260 success | fast-forwarded |
+| L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | 45541900094 success | fast-forwarded |
 
 ## Result
 
