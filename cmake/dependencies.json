@@ -208,5 +208,11 @@
     "repository": "https://github.com/Kronuz/strings.git",
     "revision": "d93f2c0f82ce20f9a3a153ecf2b539774da43060",
     "source_subdir": "."
+  },
+  {
+    "name": "allocators",
+    "repository": "https://github.com/Kronuz/allocators.git",
+    "revision": "6850f04ecff489e86c327bab2a7de7e035d1035a",
+    "source_subdir": "."
   }
 ]

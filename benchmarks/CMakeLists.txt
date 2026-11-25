@@ -83,3 +83,9 @@ if(TARGET detent::testing_store)
   target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
 endif()
+
+# Resource accounting hot paths (EX-1): admission, charged controls, PMR, arenas and retirement.
+add_executable(detent_resource_ownership_bench resource_ownership_bench.cc)
+target_link_libraries(detent_resource_ownership_bench PRIVATE detent::resources)
+add_executable(detent_resource_retirement_bench resource_retirement_bench.cc)
+target_link_libraries(detent_resource_retirement_bench PRIVATE detent::resources)
