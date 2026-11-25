@@ -32482,6 +32482,32 @@
       "updated": "2026-11-25T03:44:24",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
+    "relay-service-layouts-base-flake": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_relay/test_relay_service.py"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "test_relay_service: the layouts sometimes never reach a base (:790)",
+      "updated": "2026-11-25T04:38:16"
+    },
     "relay-service-refused-sync-flake": {
       "accepted": {},
       "after": [
