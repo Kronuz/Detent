@@ -84,3 +84,68 @@ under TSan.
 - `same_table` comparing digests only: a republished, repaired table with the same digest keeps
   the damaged mapping until the next real publish. This is availability, not authenticity.
 - The suite, CI, the mutant job, and A1/A2: all were queued or running at this commit.
+
+## Round 2
+
+Commit: Detent:9cc06bc9 (code as at Detent:47216200; 9cc06bc9 changes only the journal)
+Verdict: APPROVE
+Date: 2026-11-24
+
+### Evidence I relied on
+
+- 261124-193948-acb3a6: the new tests pass at Detent:47216200. In `test_local_table_pages` these
+  are the S1 cases (layouts 1 and 2: empty, short, whole, damaged), the per-check cases and the
+  concurrent first touch. In `test_reader_core` they are `acl_grants` and `damaged_attached`.
+- The fails-without mutants:
+  - S1 (size rule before the layout): 261124-194035-e14cfa, at Detent:99b8fb19, exit 1.
+  - S2 (no ACL in the helper): 261124-194041-ed977a, at Detent:d6da5a90, exit 134.
+
+### What I checked myself
+
+The round-1 scripts were adapted to `TableEntryView`. `probe_reader.cc` also gained
+`agent_selected_acl`.
+
+- Job 261124-195512-09902d passed with 0 FAILs:
+  - **tamper:** the same 62,950 mutations, truncations and extensions. The second pass now
+    answers marked pages from the offset index. **PASS**.
+  - **layout-2:** the 96-byte empty table and the 237-byte one-entry table are both
+    `LayoutRefused`. **PASS**.
+  - **layout2-store:** a managed store over either opens and removes `selected`. **PASS**.
+  - **selected-acl / reader-selected-acl:** a `selected` with a grant refuses with "ACL" and the
+    reader's open fails. **PASS**.
+  - **reader-image-acl** and **hard-link:** **PASS**.
+  - **walk-race:** 19,509 genuine opens, 93,566 refusals, 0 opens of another directory. **PASS**.
+  - **agent-selected-acl:** the agent's store open refuses with "ACL", through
+    `read_generation_selection`.
+  - **mapped-change / truncation** on macOS: unchanged from round 1 (N1).
+- Job 261124-195515-e40ef1 (TSan): 300 rounds of 8 threads on fresh and damaged-page tables. With
+  the offset index, no TSan report and 0 wrong answers.
+- Read: every `openat`/`open` in `src/detent_local` and `src/detent_reader`.
+  - `selected`, `.image`, `.read`, `.lease` (attach and recovery, the latter `trusted_file` after
+    its `flock`), `.live`, `.owner` and segment payloads all reach `generation_file_refusal`, ACL
+    included, on the descriptor they read or map.
+  - Segment payloads reach it through `inspect_mapping_file` for `SegmentMapping`, and through
+    `check_generation_file` in `lazy_page_access`.
+  - `change` keeps its own owner/link/mode/ACL rule. `PackScrub` trusts nothing it reads.
+- Read: the offset index (store_table.cc `check`/`find`).
+  - Offsets are written only after the digest, entry bounds, order, slot, last-name and padding
+    checks have all passed, and before the release CAS of the mark.
+  - A failed check throws before any store.
+  - A reader reads the index only after `test()` (acquire) sees the mark.
+  - Racing first touches store the same values.
+  - Entries per page are bounded at 29 by the 138-byte minimum entry (static_assert).
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| S1 | no | defect | Fixed: the magic and layout are read first, and layouts 1 and 2 have their own size rule. | 261124-195512-09902d `layout-2`, `layout2-store`; mutant 261124-194035-e14cfa | Done |
+| S2 | no | defect | Fixed: `generation_file_refusal` checks the ACL, and every reader and recovery file read goes through it. | 261124-195512-09902d `selected-acl`, `reader-selected-acl`; mutant 261124-194041-ed977a | Done |
+| R1 | no | nit | "Store file checks" says the agent's open of `selected` uses the helper. It does, through `read_generation_selection`, and the agent open refuses a granted `selected` (`agent-selected-acl`). But the agent's own `verify` reads `.image`, `.read` and `.live` through completion's `PosixIO` (agent_store.cc:158-160). That check covers owner, link and mode, not ACL, and the table does not list it. Reaching it needs a grant that only the owner, root or an inherited directory ACE can add. An inherited ACE also lands on the next `selected`, which the agent then refuses. | agent_store.cc:126-160; completion posix.h:116 | Add a row for the agent's `verify` reads, or route them through the helper. |
+| R2 | no | gap | A marked page is now answered from the offset index with no per-reach bounds check. `TableEntryView` reads the length byte and 136 field bytes in place. If the mapped inode changes after the mark (owner or root only, Linux visibility, N1), a changed length byte can read past the page, and on the last page past the mapping. The design states this ("What a marked page does not re-check"). It is the same immutability assumption as N1. | store_table.cc `find`; docs/perf/first-read-1ms.md | None needed inside the model. |
+
+### Not run
+
+- Linux and FreeBSD.
+- CI at 9cc06bc9 (`macos-arm64` running).
+- The A2 gates (queued).
