@@ -33927,15 +33927,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "reason": "pin-wave landed",
       "repo": ".",
       "risk": "normal",
-      "status": "blocked",
+      "status": "active",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "until": [
-        "pin-wave"
-      ],
-      "updated": "2026-11-24T12:39:57",
+      "updated": "2026-11-25T04:58:43",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
