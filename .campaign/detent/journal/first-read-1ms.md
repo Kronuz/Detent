@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review; waiting on jobs 261124-155453-d2faac, 261124-155456-b57f68, 261124-155500-f39f9c, 261124-155507-a4b568 (A2), 261124-155516-489edc (A1), 261124-155204-3e4aa2 (mutant) and CI at `Detent:e52669a7`
+State: ready for review (CI's 8 Python-parser tests wait on Blocked on 1, msg-393); security round 1 (S1, S2, N2, N3) committed at `Detent:c7e76dc4`, waiting on jobs 261124-181946-72ca5d 261124-181949-2a042b 261124-181951-354d25 261124-181953-053301 (A2), 261124-181954-a10813 (A1), 261124-182004-2d9ab9 261124-182028-2aaa10 261124-182029-549081 (tests, fails-without) and CI
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,33 +9,40 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Layout 3 is committed: `Detent:91d391cf` (PagedTable, per-page verification with VerifiedPages marks,
-core on it, test_table_pages, a damaged-page test in test_reader_core), `Detent:e11f470c` (format doc,
-writer limits), `Detent:160d37d7` (the gate reports a cell main cannot run), and the mapped table read.
-Local tests pass: test_local_table_pages, test_reader_core, test_reader_files, test_local_managed_reader,
-test_local_disk_store, test_local_read_counters (counters on), test_agent_store_crash and 8 more; only
-test_agent_store fails (Blocked on 1).
-Mutant `Detent:1bb490d8` (the page digest is not checked) is ready for a --fails-without job.
-Screens, strict beside light holds, branch median vs main (us): stopped 1 ns 930 vs 1,224; stopped
-1,000 ns 1,111 vs 2,880; running 1 ns 1,053 vs 1,309; running 1,000 ns 1,297 (main cannot run it).
+Security review round 1 at `Detent:e52669a7` (.campaign/detent/reviews/first-read-1ms-security.md),
+on main merged at `Detent:f35ad03a`:
+- S1 `Detent:1e8de679`: `PagedTable` reads magic and layout first; layouts 1-2 (64-byte header, whole
+  digest, 96 bytes empty) are `LayoutRefused` at their own minimum, shorter or damaged ones
+  `TableRefused`. Tests: test_table_pages `older_layouts` (empty, short at 12/64/95 bytes, full,
+  damaged; layouts 1 and 2; `read_generation_selection`; a managed store over an empty layout-2
+  table opens Ready, refusal recorded, `selected` removed, `Detent:c7e76dc4`).
+- S2 `Detent:ebb4c103`: class = every file the store reads or maps, checked on the descriptor it
+  reads. `generation_file_refusal` now checks the ACL; segment mappings use it; the separate checks
+  after it go; recovery's directory opens take the walk's directory rule (`store_directory`).
+  Gaps closed: `selected` (reader and recovery), and on the recovery path `.lease`, `.image`,
+  `.owner`, packs, the directory, and trusted restart's `.live` and `.read`. Inventory:
+  docs/perf/first-read-1ms.md "Store file checks". Tests: test_reader_core `acl_grants`, one case
+  per kind (selected, .image, .lease, .pack, change, .read, .owner, directory) on each path that
+  reads it, plus the helper's "ACL" refusal; it names every grant a path accepted before failing.
+- N1: design line on `selected` immutability after rename (docs/perf/first-read-1ms.md).
+- N2: test_table_pages `concurrent_first_touch` (8 threads x 50 rounds, fresh and damaged page).
+- N3: test_table_pages `mutations`: 20,900 single-byte changes, truncations and extensions of a
+  three-page table, 8,647 refused at the read, every lookup otherwise original or refused.
+- N4 skipped: not a regression (the old table was an unaccounted heap vector of the same bound),
+  and mapping-ledger admission of `selected` is a reader-wide change, not this finding's fix.
+Local (Release, light hold): test_local_table_pages, test_reader_core, test_local_disk_store,
+test_local_paged_recovery, test_local_managed_reader, test_agent_store pass.
+
+CI at `Detent:e52669a7` failed the same 8 tests on every platform (test_managed_delivery_process,
+test_system_managed_* x6, test_system_relay_pages): three Python parsers of `selected` read layout 2.
+The layout-3 parsers are written and checked against real tables in
+`.scratch/py-layout3/layout3.patch` (outside the file set; Blocked on 1).
 
 ## Next
 
-Jobs at `Detent:e52669a7`, the final head (test_agent_store updated for layout 3; it passes locally):
-- A2, exclusive, one cell each against main: 261124-155453-d2faac (stopped 1), 261124-155456-b57f68
-  (stopped 1,000), 261124-155500-f39f9c (running 1), 261124-155507-a4b568 (running 1,000; main's
-  publisher cannot run it, so the cell reports the branch alone).
-- A1 profile: 261124-155516-489edc.
-- Mutant `Detent:1bb490d8`, --fails-without: 261124-155204-3e4aa2 (a build failure would also exit
-  nonzero; read its log).
-- A3: CI on the pushed branch (`campaign verify --for A3` reads it).
-Cancelled at `Detent:bfad7733`: 261124-155138-5da24c, -155140-00faf4, -155142-9a0f4d, -155155-541c14,
--155200-b45b23. 261124-155135-e8bc6d had started; submitting d2faac stopped it as superseded (the
-tool did it, not a cancel).
-Strict screen of the mapped table, beside light holds, branch vs main medians (us): stopped 1 ns
-745 vs 1,072; stopped 1,000 ns 846 vs 2,349; running 1 ns 680 vs 860; running 1,000 ns 600 (main
-refused). Pooled p99s under that load were 1.4-2.0 ms; the exclusive runs decide A2.
-Local scratch: `.scratch/fr`, `.scratch/main-tree` (detached main worktree), build dirs.
+1. On widening (msg-393): apply `.scratch/py-layout3/layout3.patch`, fix docs/HOW_IT_WORKS.md:52,
+   commit, push; CI then reruns.
+2. Read A2/A1 and the mutant jobs; fold in the correctness review's findings when they come.
 
 ## Messages
 
@@ -55,7 +62,10 @@ Local scratch: `.scratch/fr`, `.scratch/main-tree` (detached main worktree), bui
 
 ## Blocked on
 
-Nothing. Item 1 (test_agent_store.cc) was widened by the lead and fixed in `Detent:e52669a7`.
+1. Lead (msg-393): widen the files to tests/detent_delivery/verify_local_format.py,
+   tests/detent_system/managed.py, tests/detent_system/test_restart_capacity.py and
+   docs/HOW_IT_WORKS.md. Layout 3 broke their layout-2 parsers (8 CI tests). Recommendation: widen;
+   the patch is ready. Alternative: the lead applies `.scratch/py-layout3/layout3.patch` itself.
 
 ## Evidence
 
@@ -66,7 +76,16 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-134303-81190d (strict, probe at `Detent:3f0d12cb`, the reader code main has): see "Profile (A1)"; rerun at the final head for the after-profile |
+| A1 | 261124-181954-a10813 queued (strict, profile at `Detent:c7e76dc4`); before-profile 261124-134303-81190d (strict, probe at `Detent:3f0d12cb`, the reader code main has): see "Profile (A1)"; rerun at the final head for the after-profile |
+
+| A2 | 261124-181946-72ca5d, -181949-2a042b, -181951-354d25, -181953-053301 queued (exclusive, four cells vs main `Detent:34fe15ad`, `--inputs` the code) |
+| A3 | 261124-182004-2d9ab9 (new tests at `Detent:c7e76dc4`); fails-without 261124-182028-2aaa10 (S1 mutant `Detent:725a98de`), 261124-182029-549081 (S2 mutant `Detent:0e4923a3`), 261124-155204-3e4aa2 (page digest mutant `Detent:1bb490d8`); CI after push |
+
+Examined: security review jobs 261124-160310-594aee, 261124-164244-e6d442 (S1, S2 FAILs, fixed this
+round), correctness review jobs 261124-160346-d09bca, 261124-164355-085f7f (the reviewer's probes;
+its findings come by message). Superseded at `Detent:e52669a7`: 261124-155453-d2faac (stopped while
+running), -155456-b57f68, -155500-f39f9c, -155507-a4b568, -155516-489edc. Cancelled (wrong command):
+261124-182008-ba4a88, -182006-e01a39, -182017-e37601.
 
 ## Profile (A1)
 
@@ -122,6 +141,18 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- R5 (S2 shape): the ACL check lives in `generation_file_refusal`, the one owner/link/mode/size
+  check, not beside each caller; `Selected::image` is always the bytes `select_entry` read, since an
+  ACL grant now refuses there. Error type on the reader path moves from `ReadSourceFailure` to the
+  helper's `runtime_error` for a pack ACL, as for its other refusals; the core maps both to
+  `DETENT_SOURCE_FAILURE`.
+- R6 (sweep scope): `change` keeps its own check (owner, link, mode, ACL; its size rule differs);
+  `PackScrub` trusts nothing it reads (hashes against the owner record) and stays unchecked; the
+  agent's own `PosixIO` reads are outside the class (its files, its provisioned directory). ACL tests
+  are macOS-only (`chmod +a`); Linux ACL grants show in the mode's group bits, FreeBSD not run.
+- R7: test_local_table_pages links `detent::local_publication` (the managed store case) and moves
+  under that target's guard with the other publication tests.
 
 - R2: change 2 keeps the post-open name check (`test_trusted_paths` "raced" pins it); only the
   pre-open `fstatat` goes. Change 3 refuses the same tables; a duplicate slot is now found after
