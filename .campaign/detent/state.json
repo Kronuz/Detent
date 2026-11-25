@@ -29946,6 +29946,8 @@
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
+      "base": "a8bf087a2a89d1836c5da65a81cb74490e53ea7e",
+      "branch": "quest/detent/persistent-map-adoption",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -30098,12 +30100,13 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "narrowed tests/detent_authority/** to the map's own tests and its one consumer test, so it runs beside the authority quests; state.hh is the map's user",
+      "reason": "started by force: RC-1 critical path. Overlaps are the shared dependency-registration files with resource-adoption (CMakeLists.txt, cmake/dependencies.json, docs/EXTRACTION_CHECKLIST.md: one line each), tests/detent_authority/CMakeLists.txt with server-composition-adoption (one test entry), and voter-read-freshness's broad src/detent_authority/** while it is blocked; each merges main before landing",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "EX-4: the authority's ordered map from persistent-map",
-      "updated": "2026-11-25T04:59:50"
+      "updated": "2026-11-25T05:00:03",
+      "worktree": "../Detent-wt/detent/persistent-map-adoption"
     },
     "pin-wave": {
       "accepted": {
