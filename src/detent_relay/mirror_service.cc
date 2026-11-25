@@ -368,15 +368,19 @@ struct MirrorService::Impl {
 		}
 	}
 	void watch_loop() {
+		auto asked = Clock::time_point{};
 		for (;;) {
 			std::vector<Position> positions;
 			{
 				std::unique_lock lock(mutex);
 				watch_wake.wait(lock, [&] { return stopping || watch; });
+				// At most one wait per interval, as polling made one sync per interval.
+				watch_wake.wait_until(lock, asked + options.interval, [&] { return stopping; });
 				if (stopping)
 					return;
 				positions = std::move(*std::exchange(watch, std::nullopt));
 			}
+			asked = Clock::now();
 			auto how = Woken::Failed;
 			try {
 				how = upstream->wait(positions, std::chrono::milliseconds(options.maximum_wait_ms), unwatch.get_token())

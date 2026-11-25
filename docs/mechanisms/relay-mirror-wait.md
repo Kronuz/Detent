@@ -24,7 +24,8 @@ source that answers nothing within the timeout hangs, and the relay reads past i
 
 A voter that knows no live leader (`serving()` false, as its `/v1/health` `ready`) answers its
 nexts, parked or new, 503 `not_ready`, as it answers the history routes: a follower cut off from
-the quorum releases a relay's wait once it notices, within `election_max`.
+the quorum releases a relay's wait once it notices, within `election_max`. An agent reads
+`not_ready` as `Unavailable` and moves to its next source, as a relay does.
 
 A parked next costs the authority no turns. Its owner loop marks a next it has looked at for the
 current applied index as parked, not as work in flight, and sleeps until its health turn or the
@@ -63,8 +64,9 @@ authority answers every next parked across it 204 at once, and a relay answers i
 a deadline's 204 comes no sooner than the wait, measured from the send, so the two cannot be
 confused. It syncs and fetches the sealed files, as polling did within one interval.
 
-A sync comes no sooner than `interval_ms` after the previous one, so a stream of changes costs
-at most one sync an interval, as polling did. A failed sync waits `interval_ms` doubled per
+A sync comes no sooner than `interval_ms` after the previous one, and a wait is asked no sooner
+than `interval_ms` after the previous one, so a stream of changes or a short `timeout_ms` costs at
+most one sync and one wait an interval, as polling did. A failed sync waits `interval_ms` doubled per
 failure, up to `reconnect_maximum_ms`, and the next good sync arms the wait again.
 
 An `Upstream` that cannot wait keeps the default `wait`, which returns at once: its mirror syncs
@@ -80,7 +82,10 @@ changed comes at the deadline. With A stopped, B's syncs fail with the backoff, 
 once A returns on its port. `tests/detent_relay/test_relay_hung.py`: three voters; when the voter
 holding a relay's wait is stopped, the relay serves the quorum's publish within its 1 s timeout and
 one sync (`hung`), and a follower whose two peers stop answers its parked next 503 (`cut-off`).
-`tests/detent_relay/test_relay_service.py` checks that relays reading a
+`test_http_upstream` also checks that a failed wait moves the mirror past its source before the
+sync it wakes (`failed_wait`), and that a 400 ms timeout with a 1 s interval asks A at most once a
+second (`paced`). `tests/detent_delivery/test_client_reset.cc` maps 503 `not_ready` to
+`Unavailable`. `tests/detent_relay/test_relay_service.py` checks that relays reading a
 three-voter authority, and a relay reading them, make no sync in 2 s at rest.
 `tests/detent_relay/test_relay_idle.py`: with one voter and a relay at rest, the authority keeps to
 its health turns (at most 60 a second) and the relay makes no sync over 2 s; a publish still wakes

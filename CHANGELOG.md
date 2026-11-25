@@ -20,7 +20,8 @@
   counts `waits` (docs/mechanisms/relay-mirror-wait.md).
 - detent-authority: a W5 next parked for a change no longer turns the owner loop every millisecond;
   the owner sleeps until a publish or the next's deadline. A seal answers parked nexts 204 at once,
-  and a voter that knows no live leader answers its nexts 503 `not_ready`.
+  and a voter that knows no live leader answers its nexts 503 `not_ready`, which agents and relays
+  read as unavailable and move to their next source.
 
 ### Pins: workpool, no scheduler
 

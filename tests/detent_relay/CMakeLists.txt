@@ -21,6 +21,14 @@ if(TARGET detent::relay_mirror)
   set_tests_properties(test_relay_mirror_crash PROPERTIES TIMEOUT 900)
 endif()
 
+# relay-mirror-idle-wake R2-2: an agent moves past a voter that answers 503 not_ready, as a relay
+# does. Its source is under tests/detent_delivery; it is registered here with the quest's other tests.
+if(TARGET detent::delivery_transport)
+  add_executable(test_client_reset ${PROJECT_SOURCE_DIR}/tests/detent_delivery/test_client_reset.cc)
+  target_link_libraries(test_client_reset PRIVATE detent::delivery_transport)
+  add_test(NAME test_client_reset COMMAND test_client_reset)
+endif()
+
 # D138: history files read in ranges, resumed after a lost answer, a failing sync's backoff, and a
 # relay chain reading ranges of a relay.
 if(TARGET detent::relay_http)

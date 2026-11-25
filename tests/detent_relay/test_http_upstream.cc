@@ -632,6 +632,79 @@ void chain(Fixture &f, const std::filesystem::path &root) {
 // idle: relay B waits on A's parked next and syncs only when something changed or its wait's
 // deadline passed. Idle, it makes no sync between deadlines, where polling every 10 ms makes dozens;
 // A's change wakes it at once; with A gone it fails with the backoff, and syncs again when A returns.
+// An upstream whose first wait fails, as at a source that hangs: it counts the moves past a source
+// and the count each sync's layouts saw.
+class FailingWait final : public r::Upstream {
+  public:
+	explicit FailingWait(std::size_t keys) : voter_(keys) {}
+	r::MirrorTable layouts(std::span<const std::string> names) override {
+		seen_skips = skips.load();
+		return voter_.layouts(names);
+	}
+	std::string fetch(std::string_view name, const r::MirrorFile &file) override { return voter_.fetch(name, file); }
+	std::string frames(std::span<const r::Position> positions) override { return voter_.frames(positions); }
+	std::size_t sources() const noexcept override { return 2; }
+	void skip() override { ++skips; }
+	bool wait(std::span<const r::Position>, std::chrono::milliseconds limit, std::stop_token stop) override {
+		if (waits++ == 0)
+			throw std::runtime_error("the source hangs");
+		const auto end = Clock::now() + limit;
+		while (!stop.stop_requested() && Clock::now() < end)
+			std::this_thread::sleep_for(5ms);
+		return false;
+	}
+	std::atomic<int> waits{0}, skips{0}, seen_skips{0};
+
+  private:
+	Voter voter_;
+};
+// A failed wait moves the mirror past its source before the sync it wakes, so that sync reads the
+// next source rather than meeting the failed one again.
+void failed_wait(const std::filesystem::path &root) {
+	prepare(root);
+	r::MirrorServiceOptions options;
+	options.directory = root;
+	options.cluster = identity('c');
+	options.namespaces = {"ns"};
+	options.interval = 10ms;
+	options.maximum_wait_ms = 4000;
+	auto *upstream = new FailingWait(4);
+	r::MirrorService mirror(options, std::unique_ptr<r::Upstream>(upstream),
+							std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+	until([&] { return upstream->waits.load() >= 2; }, "the mirror waiting again after a failed wait");
+	const auto syncs = mirror.status().syncs;
+	std::cout << "failed wait: " << upstream->skips << " skip, the sync after it saw " << upstream->seen_skips
+			  << ", " << syncs << " syncs\n";
+	check(upstream->skips == 1 && upstream->seen_skips == 1 && syncs == 2);
+}
+// An idle relay asks its upstream at most once an interval, however short the timeout makes each
+// parked wait (timeout 400 ms parks 200 ms; interval 1 s).
+void paced(Fixture &f, const std::filesystem::path &root) {
+	auto a = std::make_unique<RelayA>(f, root / "a", 200);
+	until([&] { return a->status().ready; }, "relay A's first sync");
+	r::HttpUpstreamOptions upstream;
+	upstream.endpoints.emplace_back(asio::ip::address_v4::loopback(), a->port());
+	upstream.hostname = "localhost";
+	upstream.token = std::string(RelayA::token);
+	upstream.tls = f.client;
+	upstream.timeout = 400ms;
+	prepare(root / "b");
+	r::MirrorServiceOptions options;
+	options.directory = root / "b";
+	options.cluster = identity('c');
+	options.namespaces = {"ns"};
+	options.interval = 1000ms;
+	r::MirrorService b(options, std::make_unique<r::HttpUpstream>(upstream),
+					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+	until([&] { return b.status().ready; }, "relay B's first sync");
+	const auto idle = a->status().idle;
+	const auto syncs = b.status().syncs;
+	std::this_thread::sleep_for(3000ms);
+	const auto answered = a->status().idle - idle;
+	std::cout << "paced: A answered B " << answered << " idle waits and B synced " << b.status().syncs - syncs
+			  << " times in 3 s (interval 1 s, each wait 200 ms)\n";
+	check(answered >= 2 && answered <= 4 && b.status().syncs - syncs == 0);
+}
 void idle(Fixture &f, const std::filesystem::path &root) {
 	constexpr auto deadline = 4000ms;
 	auto a = std::make_unique<RelayA>(f, root / "a", 200);
@@ -723,6 +796,8 @@ int main(int argc, char **argv) {
 		backoff(scratch / "backoff");
 		chain(f, scratch / "chain");
 		idle(f, scratch / "idle");
+		failed_wait(scratch / "failed-wait");
+		paced(f, scratch / "paced");
 		if (f.server->failure)
 			std::rethrow_exception(f.server->failure);
 		std::filesystem::remove_all(scratch);

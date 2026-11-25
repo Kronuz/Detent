@@ -44,7 +44,7 @@ SessionResetReason detail::session_reset_reason(unsigned status, std::string_vie
 	if (status == 503 && error == "source_not_leader")
 		return SessionResetReason::NotLeader;
 	if (status == 503 && (error == "outcome_unknown" || error == "stopping" || error == "distribution_unavailable" ||
-						  error == "authorization_timeout"))
+						  error == "authorization_timeout" || error == "not_ready"))
 		return SessionResetReason::Unavailable;
 	if (status == 503 && error == "source_behind")
 		return SessionResetReason::SourceBehind;
