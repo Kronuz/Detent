@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review
+State: ready for review (jobs queued at `Detent:e719e352`; code as of `Detent:b8bd0b69`)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -121,11 +121,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-181954-a10813 queued (strict, profile at `Detent:c7e76dc4`); before-profile 261124-134303-81190d (strict, probe at `Detent:3f0d12cb`, the reader code main has): see "Profile (A1)"; rerun at the final head for the after-profile |
+| A1 | 261124-193020-c2e0ea (strict profile, four cells, at the head); before-profile 261124-134303-81190d (main's reader code): see "Profile (A1)" |
+| A2 | 261124-193022-3a25e3 stopped:1, -193024-d4a7fa stopped:1000, -193026-137b0a running:1, -193027-c06a62 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193051-cd402e (table_find_bench, 10 pairs), 261124-193053-d76ab4 (reader_bench warm, 6 pairs x 1 and 8 threads) |
+| A3 | 261124-193104-713826 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head: S1 261124-193106-85a1a4, S2 -193107-bbad0d, page digest -193109-03e4e9, C3 M1 -193111-31ba1c, M3 -193113-d1d56b, M4 -193115-46c914, M5 -193116-7fe50a, M6 -193118-9c6d36, M7 -193120-41ad5a, M8 -193122-dea2d5, M12 -193124-dd6efb, C2a -193126-824292, C2b -193128-2b7e9e, C4 M9 -193130-a0f28a. Suite: CI macos-arm64 at the pushed head |
 
-| A2 | 261124-181946-72ca5d, -181949-2a042b, -181951-354d25, -181953-053301 queued (exclusive, four cells vs main `Detent:34fe15ad`, `--inputs` the code) |
-| A3 | 261124-182004-2d9ab9 (new tests at `Detent:c7e76dc4`); fails-without 261124-182028-2aaa10 (S1 mutant `Detent:725a98de`), 261124-182029-549081 (S2 mutant `Detent:0e4923a3`), 261124-155204-3e4aa2 (page digest mutant `Detent:1bb490d8`); CI after push |
-
+Cancelled at older heads (superseded): 261124-182421-35bcef (A2 stopped:1, was running), 261124-182431-301852, -182433-9d39d1, -182435-760c57 (mutants at `Detent:244990b9`).
 Examined: security review jobs 261124-160310-594aee, 261124-164244-e6d442 (S1, S2 FAILs, fixed this
 round), correctness review jobs 261124-160346-d09bca, 261124-164355-085f7f (the reviewer's probes;
 its findings come by message). Superseded at `Detent:e52669a7`: 261124-155453-d2faac (stopped while
