@@ -155,3 +155,48 @@ Date: 2026-11-25
 
 - netlab, on any platform. Local TSan beyond the contributor's macOS job (CI's linux-tsan stands
   for Linux). FETCH_ALONGSIDE_SLOW_SYNC on the native completion.
+
+## Round 3
+
+Commit: consensus:b2fa03b
+Verdict: CHANGES
+Date: 2026-11-25
+
+### What I checked
+
+- `git diff 9f14194 b2fa03b`: `Spindump` takes a label (default "upload", so the upload case is
+  unchanged). `LoopLags` owns one and starts it only when its first 1.5 s alarm finds that loop
+  in state U (`before[i]` is indexed per node and loop, as the probes are). `stop()` prints it
+  after the sampler joins, and `print()` returns at once when nothing started. The report only
+  runs on CI or with `GROUPS_PROBE_SPINDUMP`. host-transport.md gains 3 lines saying so. No
+  mechanism added; no bound, timeout or assertion changed.
+- CI 45609770275, macos-x86_64, fetch-alongside-consensus (log saved as `ci-45609770275-macos.log`
+  in the review's scratch directory). The group is on loop 1, and node 3 leads term 1. Node 3's
+  own loop-1 journal operation took 6,055 ms, and node 2's (a follower) took 4,709 ms. Every loop
+  turned within 148 ms, 0 peers gone, 16 of 16 exact, and the commits were timely (6,493 ms of
+  8,175 allowed). Node 3 lost term 1 at 8,251 ms. The only check that failed is `leads`
+  (groups_test.cc:2891).
+- Main's failure on that runner (45542770252 at c724c58, job 138965168031; saved as
+  `ci-main-45542770252-macos.log`) is another mode. Loops went 5,905 and 5,930 ms without turning,
+  4 peers gone, 13 of 16 exact, the host stalled 4,567 ms, and journal operations took at most
+  40 ms. That is the loop/kernel-wait problem. The b2fa03b run has none of it.
+
+### On the lead's question
+
+I agree that the term loss is not a sync on the loop: the loops turned and no link dropped.
+I disagree that it is the loop-kernel-wait quest's. It is a leader whose own group waited
+6,055 ms on its sync (DRIVER.md, Where syncs run: "its group's step waits for that IO in every
+case"), so it sent no heartbeats. The red, though, is this quest's: d2ef9a1 changed fetch-alongside's
+rule from `kept || host >= 1'000` (host = held + stalled) to `kept || stalled >= 1'000`. Under
+main's rule this run passes (6,175 >= 1,000). The new rule assumes a slow sync never costs the
+term, which holds for a follower's sync (A1's case) but not for the leader's own. I missed this
+in round 1, where I called the tightening right. Main's failure does not cover this one, so
+`--no-ci` citing both would misattribute it.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R3-F1 | yes | defect | fetch-alongside's `leads = kept \|\| stalled >= 1'000` fails when the leader's own journal operation is slow: 6,055 ms on node 3 (leader) cost term 1, with loops at most 148 ms late, 0 peers gone, 16 of 16 exact and the commits timely. Main's rule passes the same numbers. | CI 45609770275 macos-x86_64; groups_test.cc:2890-2891. | Allow the term when the leader's group's longest journal operation is at least 1,000 ms (a follower's slow sync must still keep it, A1). Test: FETCH_ALONGSIDE_SLOW_SYNC applied to the leader passes at the fix and fails with today's rule (`--fails-without`); macOS CI then reruns. |
+| R3-N1 | no | nit | The diagnostics change adds no mechanism and changes no bound. | `git diff 9f14194 b2fa03b`. | None. |
+| R3-N2 | no | gap | Should a leader keep heartbeating while its own sync is out (6 s on that runner's disk)? That is Driver behavior and the owner's call, a follow-up quest. It is not consensus-macos-x86-loop-kernel-wait, whose failure mode (loops held, peers gone) did not occur here. | As above. | Owner's call. |
