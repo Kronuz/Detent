@@ -1,4 +1,5 @@
-// Fresh durable Service: 128 knobs × 256 overrides and five strong reads.
+// Fresh durable Service: 128 knobs × 256 overrides and five strong reads; each definition stays
+// within the default 16 KiB definition bound (256 rows of a 44-46 byte key plus 17 bytes).
 // Run without competing builds. --escaped exercises worst-case JSON expansion.
 // Owner histograms cover setup, reads and ordinary reclamation, before Service
 // destruction. Shutdown is timed separately; read timings are wall time.
@@ -54,6 +55,7 @@ int main(int argc, char **argv) {
 
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-read-bench-" + std::to_string(getpid()));
+	std::filesystem::create_directories(directory.parent_path());
 	{
 		auto o = options(directory);
 		o.timeout = std::chrono::seconds(10);
@@ -75,7 +77,7 @@ int main(int argc, char **argv) {
 				groups += ',';
 			rapidjson::StringBuffer buffer;
 			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-			const auto key = "group" + std::to_string(i) + std::string(46, escaped ? '\x01' : 'k');
+			const auto key = "group" + std::to_string(i) + std::string(38, escaped ? '\x01' : 'k');
 			writer.String(key.data(), key.size());
 			groups.append(buffer.GetString(), buffer.GetSize());
 			groups += ":1";
