@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: working: reactor_lag root cause (task:627aca3 inline post_call); L4 CI
+State: waiting on library CI: reactor 45547295801 (reactor:d28e5e0), journal 45546842361 (journal:72bbc89), http-parser 45546809878 (http-parser:38950a0), all queued on the shared runners
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,26 +28,25 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. L3 CI: `sh .scratch/pin-wave/bin/wait_ci.sh reactor=40d1461f66e62d5189e2406ccb9a0f20b40f184e
-   completion=30615161bebf6adb8297a8a16b338cb1952ce692 strings=d93f2c0f82ce20f9a3a153ecf2b539774da43060
-   enum-reflection=c9a3f04f20ea9fccea9b833cc3cbfd8ae393ce37 logger=65994c94a0dac58827953e7bcfc364b24e868294`;
+1. Library CI: `sh .scratch/pin-wave/bin/wait_ci.sh reactor=d28e5e024b64f2fd706b44fa628741d5700a925b
+   journal=72bbc890ee2cadd5984db771f614a480bf38255b http-parser=38950a00039b2779cbe0e330041df222f1e13e47`;
    green: fast-forward each main (`GH_TOKEN=$(gh auth token --user Kronuz) git -C
-   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`); then
-   `.scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/R` for L4 (journal, http-parser),
-   then L5 (http; consensus per Blocked on 1). A red head: stop at that level.
-2. Local check of the ports (quiet light, tests CMake patch applied uncommitted, managed agent
-   OFF): all 16 targets build; 18 of 19 ctest entries pass, the nine faultfs ones included
-   (history_power_cut 50 s, installs 43 s, namespace_power_cut 15 s). test_authority_distribution_service
-   fails at line 94 (base(1) answered Delta, not Snapshot) because its enabling of positions sits
-   under DETENT_TEST_MANAGED_DELIVERY, off in this build; the A1 suite job (full profile) decides.
-3. Pin Detent to the cascaded heads; `pins` gate (A1).
+   .scratch/pin-wave/cascade/R push origin quest/detent/pin-wave:main`), fill the cascade table.
+   Red: root-cause as for reactor (ruling 11).
+2. L5 http: `sh .scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/http` (radix-router,
+   http-parser, compressors, task, reactor), its CI, fast-forward. consensus last, when the lead
+   says consensus-recovered-over-limit-start landed (Blocked on 1).
+3. Pin Detent's cmake/dependencies.json to the cascaded heads (reactor, journal, http-parser, http,
+   consensus); `pins` gate (A1).
 4. At the final head, queue once: `campaign verify pin-wave` (A1, A4); A5 w5 job
    `docs/perf/pin-wave-w5.sh .scratch/w5` with `--ref OLD=18c5bd23` (light); A5 syscall job
    `docs/perf/pin-wave-syscalls/run.sh 560c288b40ba55a8d42ff048bcb1c7eaa3624645 <completion head>
    .scratch/sys` (light); A6: build job `docs/perf/pin-wave-ab.sh build ~/.scratch/detent/pin-wave-ab`
    (light, --ref OLD=18c5bd23), then rows durable, update, get, reader, first-read
-   (`row KIND ~/.scratch/detent/pin-wave-ab ROUNDS`, strict, 10 min, --after the build).
-5. A7 CHANGELOG, A8 docs/DEPENDENCIES.md and DEPENDENCY_UPGRADES.md with the final pins.
+   (`row KIND ~/.scratch/detent/pin-wave-ab ROUNDS`, strict, 10 min, --after the build), A/A each.
+5. A7 CHANGELOG (each library old -> new pin; the TLS factory cap: a relay configured above 1024
+   connections now admits its configured count, ruling 9; FlushMode::full; faultfs; reactor's
+   posted arm), A8 docs/DEPENDENCIES.md and DEPENDENCY_UPGRADES.md with the final pins; push.
 
 ## Blocked on
 
@@ -56,11 +55,6 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
    holds. Options: (a) that quest takes the one-line-per-pin repin into its own commit; (b) the lead
    rules the pin lines out of its hold and I repin after it; (c) consensus stays at fcf7f66 for this
    wave. Recommend (b): the repin touches only the FetchContent_Declare tags.
-2. tests/detent_authority/CMakeLists.txt (held by voter-read-freshness via tests/detent_authority/**):
-   journal's head deletes journal/memory_io.h (journal:9f5e846), so the authority's in-memory tests
-   move to faultlab's faultfs (Detent:8a182163) and nine test targets must link faultlab::faultlab.
-   The patch is ready: .scratch/pin-wave/faultfs/tests-cmake.patch (adds faultlab::faultlab to nine
-   target_link_libraries lines and fixes one comment). Recommend widening pin-wave by that file.
 
 ## Evidence
 
@@ -136,7 +130,7 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    test_transport_https's queue-delay case drives http::detail::serve_tls_connection with a
    detail::ServiceState: http's own tests do not cover it. Stale comment outside the set:
    src/detent_authority/service.cc:247 names set_max_body.
-10. faultfs port (Detent:8a182163): powered_off() is true once cut - 1 operations ran, before the
+10. faultfs port (Detent:8a182163; nine targets link faultlab at Detent:5cf3ba59, the widened tests CMakeLists): powered_off() is true once cut - 1 operations ran, before the
    refused one is tried; the durable state is the same as MemoryIO's throw at operation `cut`. A
    run with the power off treats any exception as the cut (MemoryIO's PowerLoss passed through
    Detent's handlers; faultfs's EIO is a std::system_error they may wrap).
