@@ -5485,6 +5485,21 @@
         "quest": "xapiand:consensus-recover-gate"
       },
       "text": "xapiand:consensus-recover-gate started and may change files your consensus-inline-sync-loop changes (order them with --after xapiand:consensus-recover-gate, or narrow the files)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:51:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:51:42",
+      "by": "campaign",
+      "closed": "A1-A6 met; A4's CI is red: macos-x86_64 aborted groups fetch-alongside-consensus (node 3 loop 3 not turned for 1515 ms) on the rerun; sent back to the contributor",
+      "id": "msg-429",
+      "settles": {
+        "todo": "3968a62b"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-inline-sync-loop (nothing moved it for 86 min: ready for review (fix round 1; jobs queued: 261125-022317-c35d52 261125-022319-78e2a5 261125-022321-d39023 261125-022322-8743dc 261125-022324-925f03 261125-022326-2ffaad 261125-022327-3106af 261125-022329-f14798 261125-022338-e1ff83 261125-022340-33344a; CI 45594592100); to land: criteria without evidence at 9f1419472e00: A1-A2, A4-A6 (`campaign status consensus-inline-sync-loop` lists them); new): `campaign status consensus-inline-sync-loop`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
