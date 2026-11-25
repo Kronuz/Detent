@@ -8919,7 +8919,34 @@
       "worktree": ""
     },
     "consensus-inline-sync-loop": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T03:16:39",
+          "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "blobs": {
+            "bench/netlab/node.cc": "100644:d38ed955f6ba47facf9fbfd90e4c01e3390433d3",
+            "docs/DRIVER.md": "100644:b10b47c745ad7dc907e2b164f487b63991c3895d",
+            "docs/mechanisms/host-transport.md": "100644:9eef39cde0b6adc992f237709d9a11dae310285f",
+            "test/transport/groups_test.cc": "100644:48f8d055f4fbebe149acc08a1c4c1edfa0fcf59c",
+            "test/transport/mutant_commit.py": "100755:96e67254ce72183e933cfb6875eef616c8e4283a"
+          },
+          "by": "review",
+          "commit": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "criteria": "abb9ffcfaf0ee7bf",
+          "diffs": {
+            "bench/netlab/node.cc": "0aad5fa753bb3501",
+            "docs/DRIVER.md": "28c65db95debba57",
+            "docs/mechanisms/host-transport.md": "2e59948bf2cbc4e2",
+            "test/transport/groups_test.cc": "40be8b73092366c0",
+            "test/transport/mutant_commit.py": "7e9d5c5a48ff3e19"
+          },
+          "findings": {},
+          "note": "",
+          "review": "0641b887e03d65283b33fbcaa061fae0efcff721",
+          "reviewed": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-fetch-alongside-flake",
         "consensus-rpc-host-stream-gap"
@@ -8944,7 +8971,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -8953,7 +8982,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T02:09:34",
+      "updated": "2026-11-25T03:16:39",
       "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
