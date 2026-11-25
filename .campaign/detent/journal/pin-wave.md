@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs 261124-212452-faeaad 261124-212452-ddf80d 261124-212501-23b03e 261124-212504-2b8b12 261124-212506-a77bb6 261124-212544-a4d5e6 261124-212546-b3fa7f 261124-212548-350859 261124-212550-ef5234 261124-212552-6091d8; library CI http 45550470867, faultlab 45552204645, consensus 45553333430
+State: working: cascade round 2 (faultlab 1ac0b17 CI, journal f66c16e and consensus 770db9a pushed)
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,14 +28,13 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Jobs at Detent:d63517c0 (the d2031ebc ones are superseded): native 261124-212452-faeaad, pins 261124-212452-ddf80d, w5 261124-212501-23b03e, syscalls 261124-212504-2b8b12, A6 build 261124-212506-a77bb6, rows durable 261124-212544-a4d5e6, update 261124-212546-b3fa7f, get 261124-212548-350859, reader 261124-212550-ef5234, first-read 261124-212552-6091d8. Pins is expected red on
-   faultlab's two declares only (Blocked on 1). Read A5 and A6 into docs/perf/pin-wave.md and the
-   Evidence table; a 124 row reruns with fewer rounds.
-2. Library CI: `sh .scratch/pin-wave/bin/wait_ci.sh http=24d24168aa110bf8dcc6167e1f2e0afc3c5fc277
-   faultlab=535f606e5f0779fafa990ab030c44b14985d9a48 consensus=ff87da4b4777339c8e69d7611a12a602c859b64a`;
-   green: fast-forward each main (Detent already pins http 24d2416 and consensus ff87da4). Red:
-   root-cause as for reactor (ruling 11) and re-pin Detent.
-3. Blocked on 1's path, once ruled.
+1. Round 2 of the cascade (lead msg 2026-11-24, Blocked on 1 option (a)): faultlab:1ac0b17 (on
+   535f606: recorder test passes FlushMode::full; local ctest 18/18 green), journal:f66c16e (on
+   d999ae2, the lead's recovery-refill landing; faultlab -> 1ac0b17), consensus:770db9a (on main
+   b4516ee, branch quest/detent/pin-wave-2: every PosixIO in tests, benches, example, README takes
+   FlushMode::full; pins to the heads above). Each CI green: fast-forward main in that order.
+2. Pin Detent: faultlab 1ac0b17, journal f66c16e, consensus 770db9a, http 24d2416 (main
+   fast-forwarded); cancel the d63517c0 jobs; requeue A1, A4-A6 once at the final head.
 
 ## Blocked on
 
