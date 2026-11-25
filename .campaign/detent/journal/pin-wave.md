@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs 261125-042731-d4348b 261125-042733-e2c0a5 261125-042735-a72c72 261125-042737-e9162f 261125-042738-2a10f2 261125-042740-5b0baa 261125-042911-084970 261125-042912-8dac5b
+State: waiting on jobs 261125-043742-6f6410 261125-042731-d4348b 261125-042733-e2c0a5 261125-042735-a72c72 261125-042737-e9162f 261125-042738-2a10f2 261125-042740-5b0baa 261125-042911-084970 261125-042912-8dac5b
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -30,7 +30,8 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 0. Native 261125-035857-8ad10f at Detent:98639023 failed test_relay_service:790 ("the layouts
    reach only {'section', 'block'}"); ruling 28 attributes it. Read the A/B repeat jobs (State)
-   into ruling 28 and docs/perf/pin-wave.md, then queue `campaign verify pin-wave` at the head.
+   into ruling 28; verify queued at Detent:369d3b77 (native 261125-043742-6f6410, pins reused
+   261125-032009-b3f010); later commits are journal-only.
 1. (done) Read the get row 261125-032006-cda6ba (after build 261125-031958-0624b3, OLD = main dead7cab)
    into docs/perf/pin-wave.md and the Evidence table; slow-flush pair f3baf1 (must fail) and
    84f5ff (must pass); pins 261125-032009-b3f010 at Detent:9931c653; native reruns at the round end.
@@ -254,4 +255,9 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    present then and 3 s later. Probe (~/.scratch/detent/pin-wave-relay-service/probe.py) runs the
    test's A1 unchanged and prints kinds at convergence and 3 s later, write latencies and spans.
    Rates: 3x8 strict repeats each at main (d4348b, e2c0a5, a72c72) and the head (e9162f, 2a10f2,
-   5b0baa); one write per seal (PAUSE_EVERY=1.2) x3 at main 084970 and head 8dac5b.
+   5b0baa); one write per seal (PAUSE_EVERY=1.2) x3 at main 084970 and head 8dac5b. First 4
+   runs at main (d4348b): all pass, base present at convergence and 3 s later, median write
+   0.43-0.54 s, max 0.83-0.94 s, 16-21 of 25 three-write spans over 1 s: main paces writes the
+   same way, so main's layouts are as timing-shaped as the head's.
+   Note for the lead: relay-service-refused-sync-flake cites legacy-h's 261123-175720-145715 for
+   :782, but that job failed this check (:790); :790 is a second, separate flake.
