@@ -118,9 +118,10 @@ whole read still fences the store on any damage.
 
 The marks are the trie's `VerifiedPages`: a table page starts at a multiple of 4,096 bytes in the pages
 region, an aligned start it records as it records trie page starts, accounted to the reader's
-mapping ledger. A marked page skips only its hash; its entries are still bounded and checked on
-every reach. Two threads that first touch a page together both hash it; both marks agree
-(`test_table_pages` `concurrent_first_touch`).
+mapping ledger. A page's hash and its entry checks (bounds, order, slot, last name, padding) run once,
+at its first touch; a marked page answers from the offsets that touch kept, in place and unchecked
+("Verified page index" below). Two threads that first touch a page together both check it; both marks
+and both offset sets agree (`test_table_pages` `concurrent_first_touch`).
 
 Marks and the mapping rely on `selected` never changing after its rename: the agent writes a new
 table only under a `.tmp-` name and renames it over `selected`, and the checks below leave only the
@@ -187,25 +188,29 @@ beyond the mode. Directories pass the trust walk's rule (no group or other write
 
 | File | Read by | Check on the read descriptor |
 |---|---|---|
-| `selected` | reader open and switch (`read_table`), recovery, agent open | the helper, then mapped |
-| `.image` | reader attach (`select_entry`), recovery (mapped) | the helper |
-| `.read` | reader attach (`record`), trusted restart (`open_record`) | the helper |
+| `selected` | reader open and switch (`read_table`), recovery, agent open, agent startup (`slurp`) | the helper, then mapped (the agent reads it) |
+| `.image` | reader attach (`select_entry`), recovery (mapped), agent startup (`verify`) | the helper |
+| `.read` | reader attach (`record`), trusted restart (`open_record`), agent startup (`verify`) | the helper |
 | `.lease` | reader attach, recovery | the helper |
-| `.live` | trusted restart (`open_record`) | the helper |
+| `.live` | trusted restart (`open_record`), agent startup (`verify`), agent collection (a held generation's) | the helper |
+| a reached name a publish reuses | agent publish (`slurp`, then its digest) | the helper |
 | `.owner` | recovery and trusted restart | the helper |
 | `segment-*.pack` | reader first touch (`lazy_page_access`), recovery (`SegmentMapping`) | the helper, then mapped |
 | `change` | reader (`ChangeMapping::open`), agent (`ChangeWriter`) | owner, link, mode and ACL; its size is its own rule |
 | store directory | reader trust walk, recovery opens (`store_directory`) | no group or other write, deny-only ACL |
 | packs, scrubbed | `PackScrub` | none: it hashes the bytes against the owner record and trusts nothing it reads |
 
-The agent's own reads of its store (`AgentStore` through `PosixIO`) read files it wrote, in the
-directory it provisioned, and verify each against the table; a reader never trusts them.
+The agent reads every file's bytes through one function, `AgentStore`'s `slurp`, which opens the name
+under the store directory's descriptor and passes it to the helper with the agent's own uid, the
+file's size bounded by the caller's limit, before it verifies the bytes against the table.
 `test_reader_core` `acl_grants` grants `everyone allow write` on each kind of file and on the
 directory, and checks the reader and the recovery refuse each one they read and read again once the
-grant is gone.
+grant is gone. `test_agent_store` `acl_grants` does the same for the agent: a granted `.image`,
+`.read` or `.live` fails its namespace at startup, a granted `selected` refuses the open, and a
+granted reached name refuses its reuse (`ReachedNameMismatch`).
 
 ## What is left
 
-The A2 gate fails a cell whose pooled branch p99 is 1 ms or more, and reports the comparison with
-main on a second line. The running 1,000-namespace cell reports the branch alone: main's test
-writer cannot publish that store.
+The A2 gate fails a cell on either rule: a pooled branch p99 of 1 ms or more (A2), or, where main
+ran, a paired difference or pooled p99 beyond main's plus their floors (D140). The running
+1,000-namespace cell has the bound alone: main's test writer cannot publish that store.
