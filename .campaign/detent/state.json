@@ -29091,7 +29091,10 @@
         "docs/perf/**",
         "site/src/content/docs/architecture/dependencies.md",
         "site/src/content/docs/installation.md",
-        "site/src/content/docs/roadmap.md"
+        "site/src/content/docs/roadmap.md",
+        "src/detent_local/disk_store.cc",
+        "src/detent_relay/mirror_service.cc",
+        "src/detent_authority/service_runtime.cc"
       ],
       "history": [
         {
@@ -29211,12 +29214,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "reason": "completion:b4600a8 makes PosixIOOptions::flush_mode required; Detent's three PosixIO constructions pass FlushMode::full (disk_store.cc:467, mirror_service.cc:364, service_runtime.cc:586)",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T12:39:46"
+      "updated": "2026-11-24T17:46:03"
     },
     "post-w2": {
       "accepted": {},
