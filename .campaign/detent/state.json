@@ -34173,12 +34173,15 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "pin-wave landed",
+      "reason": "A4's authority half needs service.cc, held by relay-mirror-idle-wake; merge main once, after that",
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "blocked",
       "title": "detentd and detent-relay adopt the server composition note (task::lifecycle)",
-      "updated": "2026-11-25T04:58:43",
+      "until": [
+        "relay-mirror-idle-wake"
+      ],
+      "updated": "2026-11-25T07:45:22",
       "worktree": "../Detent-wt/detent/server-composition-adoption"
     },
     "service-shape": {
