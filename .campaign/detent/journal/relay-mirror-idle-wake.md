@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: blocked on lead: reply_pump.{hh,cc} for D165's 204 header
+State: round 5: building at the widened set (reply_pump)
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,7 +32,10 @@ blocker is widened (two call sites, below).
   every visit; the mutant only delays a new next by one owner pass, which no bound separates
   safely from a sanitizer's pass.
 - R5-1: compare.sh builds test_relay_probe at the baseline too; each arm runs its own build's
-  probe, and `--agent-seal` (seal 2^64-1 in relay_latency.py and paths.py) goes only to a build
+  probe. Main's probe has no `--heads`, so the build copies this checkout's relay_probe.cc into
+  the baseline checkout for its build and restores it on exit (a job's ref checkout is reset per
+  job): the probe speaks main's W5 through main's HttpUpstream (checked: head's relay_probe.cc
+  compiles -fsyntax-only against main's headers). `--agent-seal` (seal 2^64-1 in relay_latency.py and paths.py) goes only to a build
   whose session_request.cc takes `"seal"` (main: 0 matches; the fix: 2).
 - R5-2 test: test_relay_seal_shortwait (ctest) runs bench/idle-wakeups/seal_window.py with the
   authority's `subscription_limits.wait_ms` 0, 6 trials, 1.5 s bound (the reviewer's
@@ -357,14 +360,7 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Blocked on
 
-Lead: D165's 204 carries a header, and both upstreams write a next's 204 through
-`distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers.
-Needed, outside the set: include/detent_distribution_http/reply_pump.hh and
-src/detent_distribution_http/reply_pump.cc. The change: `send_control` gains
-`std::span<const std::pair<std::string, std::string>> headers = {}` and copies them into the
-`http::Response` metadata it starts. Its callers in the set already pass them (service.cc:445,
-relay service.cc:152); the build fails only there. The other way, writing a headed 204 by hand
-at both call sites, would duplicate send_control's start/finish path twice, so I did not take it.
+Nothing. (Lead widened reply_pump.{hh,cc} for D165's 204 header: `send_control` takes headers.)
 
 ## Evidence
 

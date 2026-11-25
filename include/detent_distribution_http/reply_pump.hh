@@ -5,6 +5,9 @@
 #include <functional>
 #include <http_handler.h>
 #include <optional>
+#include <span>
+#include <string>
+#include <utility>
 
 namespace detent::distribution_http {
 // Owner-local submission; only authentic transport callbacks change settlement.
@@ -17,7 +20,9 @@ class OwnedReplyPump {
 
 	// `changed` runs on the transport's thread after writable or settled changes: the owner's wake.
 	static void callbacks(http::StreamOptions &, std::weak_ptr<OwnedReplyPump>, std::function<void()> changed);
-	void send_control(int status, std::string_view, std::shared_ptr<distribution::StorageLedger>) noexcept;
+	// A whole JSON reply, with `headers` beside its status and content type.
+	void send_control(int status, std::string_view, std::shared_ptr<distribution::StorageLedger>,
+					  std::span<const std::pair<std::string, std::string>> headers = {}) noexcept;
 	void pump_control() noexcept;
 	http::StreamSubmit publish(std::shared_ptr<const distribution::OwnedBuffer> &pending);
 };

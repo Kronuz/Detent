@@ -7,7 +7,9 @@
 #         60000; the configuration's default is 250).
 #   latency (relay-mirror-idle-wake A2, strict): relay_latency.py, LATENCY_ROUNDS (default 3) rounds
 #         alternating head and baseline, LATENCY_SAMPLES (default 40) each, at LATENCY_INTERVAL_MS
-#         (default 250); each build's own probe reads it, and `seal` goes only to a build that takes it.
+#         (default 250); each build's own probe reads it (its own W5; a baseline whose probe has no
+#         --heads builds this checkout's probe source for the build), and `seal` goes only to a build
+#         that takes it.
 #   paths (A3, strict): paths.py, five rounds alternating head and baseline.
 #   stop  (F13, strict): stop_scale.py, three-voter stop times at STOP_KEYS (default 100000) keys,
 #         STOP_ROUNDS (default 3) rounds alternating head and baseline; fails when head's slowest stop
@@ -30,6 +32,12 @@ build)
 	build . .scratch/idle-head test_relay_probe
 	/usr/bin/clang -O2 -o .scratch/idle-usage "$here/usage.c"
 	if [ $# -ge 1 ]; then
+		probe=tests/detent_relay/relay_probe.cc
+		if ! grep -q -- --heads "$1/$probe"; then
+			cp "$1/$probe" .scratch/idle-base-probe.cc
+			trap 'cp .scratch/idle-base-probe.cc "$1/$probe"' EXIT
+			cp "$probe" "$1/$probe"
+		fi
 		build "$1" .scratch/idle-base test_relay_probe
 	fi
 	exit 0 ;;

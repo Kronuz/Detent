@@ -18,13 +18,15 @@ void OwnedReplyPump::callbacks(http::StreamOptions &options, std::weak_ptr<Owned
 	};
 }
 void OwnedReplyPump::send_control(int status, std::string_view body,
-								  std::shared_ptr<distribution::StorageLedger> account) noexcept {
+								  std::shared_ptr<distribution::StorageLedger> account,
+								  std::span<const std::pair<std::string, std::string>> headers) noexcept {
 	if (!reply || started || settled.load())
 		return;
 	try {
 		http::Response metadata;
 		metadata.status = status;
 		metadata.content_type = "application/json";
+		metadata.headers.assign(headers.begin(), headers.end());
 		auto bytes = distribution::make_owned_buffer(account, body.size());
 		bytes->append(body);
 		bytes->seal();
