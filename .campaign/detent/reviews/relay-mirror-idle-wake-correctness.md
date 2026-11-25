@@ -85,3 +85,76 @@ queued to repeat the hung-voter probe at named commits.
   carries over, but that quest's peer wake is its own.
 - I did not run the main-side probe at main's own authority build. The relay is byte-identical to
   main; the authority binary predates split-detent.
+
+## Round 2
+
+Commit: Detent:29c32169 (journal Detent:2a0f817a)
+Verdict: APPROVE
+Date: 2026-11-24
+
+I re-reviewed the whole wait mechanism at 29c32169: the relay's states (syncing, watching, idle
+re-wait, backoff), the events that move it (changed, idle, failed, stop, good sync, bad sync), and
+the authority's parked-next loop with the seal and `serving()` paths. F1 is fixed, and no new
+blocking defect was found.
+
+### Evidence
+
+- The probes ran on a copy of the worktree build. `ninja -n` reported no work to do, so it matches
+  29c32169. The copy is in `.scratch/detent/review-relay-mirror-idle-wake-correctness/r2-build/`
+  and the logs are in `r2/`.
+- `hung_follower.py`: the wait was parked at voter 1 and the voter was SIGSTOPped. The relay served
+  the leader's heads **2.57 s** after the publish began, a figure that includes about 1 s of churn.
+  Round 1 measured 26.61 s.
+- `two_relays_races.py`: **0 misses** in 15 rounds. Both relays made 0 syncs at rest, and the
+  authority made 5.3 owner turns/s.
+- `seal_race.py`, new: one voter. W1 starts the D136 clock, and W2 comes 1 s - delta later, with
+  delta from 0 to 39 ms, so W2's wake and sync straddle the seal entry. Over 80 trials the relay's
+  `/v2/history/layouts` body matched the authority's within 21 ms of the check every time:
+  **0 misses**. An earlier version that compared `relay_probe` digests was invalid, because the
+  probe's own cost grew with the history, and I discarded it.
+- I did not read the contributor's jobs, which were all still queued: 2c98e3, 92866f, 7888d0,
+  a5cd86, bcf6ff, c5282a, ca4837, 377db8, 265462, 9ee26e and the suite b185e1. The mutants are
+  clean: caf12c70 has the relay files at main, e0648da3 has the five fix files at 9337f6c9, and
+  a1787553 has service_runtime.cc at main. Each new test fails without its own part of the fix, by
+  construction:
+  - `test_relay_hung`: a SIGSTOPped voter cannot answer 503, so it needs (a).
+  - `test_relay_cut-off`: a raw next with no relay involved, so it needs (b).
+  - The reseal check in test_http_upstream and the seal check in test_relay_idle: without the seal
+    wake, each waits for a 4 s or 30 s deadline, past its 1.5 s or 5 s bound.
+
+### The two questions
+
+- **Can (b) make relays thrash, in a 503 storm or an election?** No. A refused wait sets
+  `Failed`, then `skip`, then a sync gated by `next_sync` (mirror_service.cc:447). The sync's
+  history routes are gated by the same `serving()`, so when every voter is unready the sync fails
+  and the existing backoff applies (interval doubling to `reconnect_maximum`). That is the same as
+  polling against main, where the history routes answered 503. A wait is armed only after a good
+  sync, so a refusing voter costs at most one request per interval. A voter still in the quorum
+  across a leader change keeps its wait parked (applied index), as the doc table says.
+- **Can a 204 on a seal mask a real change?** Not for a relay. Frames win in both answerers: the
+  authority's re-plan exports before the 204 check (service_runtime.cc:1620-1637), and the relay
+  upstream's `revisit` calls `answer` before `resealed`. When `framing` is busy, a parked next can
+  get the early 204 instead of frames, but the relay treats an early 204 as a change and syncs, so
+  it reads the frames. An agent re-asks its next and gets the frames then, at the cost of one extra
+  request.
+
+The doc's two tables match the code: hung means the deadline is `timeout_ms` with a park of at most
+half of it; cut off means 503 and `skip`; idle means a re-wait until `maximum_wait_ms` since the
+last good sync, then a sync; a seal means an early 204 and a sync.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | — | fixed | A hung voter holding the wait is read past in about one timeout. A cut-off follower answers 503. | hung_follower 2.57 s; test_relay_hung and test_relay_cut-off (jobs queued) | — |
+| R2-1 | no | defect | The idle re-wait is not gated by `interval`. The park is `timeout_ms / 2` (http_upstream.cc:267), and an idle answer re-arms at once (mirror_service.cc:438). With `timeout_ms` below twice `interval_ms`, an idle relay makes more requests than polling did. With `timeout_ms` of 1, which the configuration accepts (configuration.cc:100), the park is 0 ms and the re-waits run back to back. Argued from the code, not run. | Code | Park for at least `interval`, or re-arm no sooner than `next_sync`; reject `timeout_ms < 2 * interval_ms` in the configuration. |
+| R2-2 | no | gap | The agents' client maps 503 `not_ready` on a next to `AdmissionFull` (client.cc:51), which `unavailable_reset` does not count (coordinator.cc:32). An agent at a cut-off follower therefore retries that follower instead of rotating. That is no worse than before (it was held there), but (b)'s benefit stops at relays. | Code | Owner's call: map `not_ready` to `Unavailable`, here or in voter-read-freshness (D101). |
+| R2-3 | no | nit | `upstream->skip()` after a failed wait (mirror_service.cc:443) carries no load: the sync already tries each source once and rotates on refusal. No test fails without it. test_relay_hung's 2.5 s bound fits a second 1 s timeout. | Code | Drop it, so one mechanism rotates sources, or give it a test. |
+| R2-4 | no | gap | A seal applied after a relay's layouts read but before the authority first looks at its new wait is not answered early (`was_parked` is false on that pass, service_runtime.cc:1619). The relay then adopts it at the `maximum_wait_ms` deadline. Argued from the code: seal_race.py swept that timing in 80 trials and hit it 0 times. | seal_race.py 0/80 | None needed now. A rerun of seal_race.py would catch a regression. |
+| R2-5 | no | nit | Every seal answers every parked W5 next early, agents included: one extra request per seal per parked reader. | Code | None. |
+
+### Not run
+
+- I read none of the round-2 jobs listed above, including A1 af2c4a and band 3908aa and A2 0afbd5
+  and 97c202; all were still queued. I did not rerun test_relay_cut-off locally.
+- The agent-side 503 behavior (R2-2) is from the code only.

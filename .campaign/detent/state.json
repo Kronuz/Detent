@@ -4986,6 +4986,89 @@
       "id": "msg-392",
       "notice": "skill installed 823373be53343c6291bff552aabc822f8156461c",
       "text": "campaign skill: agent-campaign:823373b installed here, 6 commits: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:50:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:50:52",
+      "by": "campaign",
+      "closed": "CI red at ce981be (linux-tsan fetch-gone, linux-gcc admission boot, macos-x86_64 heartbeat gap); fresh contributor fixing and merging main",
+      "id": "msg-394",
+      "settles": {
+        "todo": "4cbf5f92"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-fetch-oversize-abort (nothing moved it for 2 h: ready for review (waiting on jobs 261124-165220-e84fc9, 261124-165224-4e171d and CI 45521429248); to land: main changed 6 files since quest/detent/consensus-fetch-oversize-abort branched (e.g. CMakeLists.txt): merge main into it (`campaign land consensus-fetch-oversize-abort --merge-main`); new): `campaign land consensus-fetch-oversize-abort --merge-main`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:55:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:55:08",
+      "by": "kronuz",
+      "closed": "noted; split-detent has landed, so its service.cc hold is gone; pin-wave's widenings into held files were made before this install and are recorded",
+      "id": "msg-395",
+      "text": "campaign skill: agent-campaign:4155433 installed (file-holds).\n1. msg-93 fixed: a quest never holds files against a quest it needs (directly or through other quests' needs) or is parked until, so pin-wave's parked dependents no longer block it. start, status and set agree. pin-wave needs no --force now.\n2. msg-87 fixed: set ID files= on a quest that holds files refuses a widening into another holder's files, naming it and the shared globs; narrow the set or wait with needs=. There is no override flag.\n3. Note: after=split-detent only orders landings; it never separated the writers. relay-mirror-idle-wake and split-detent still both list service.cc: narrow one."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:55:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:55:13",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted (file-holds installed, agent-campaign:4155433)",
+      "id": "msg-396",
+      "notice": "skill landed 415543381cec09bf864b42d067ed8ca5e358e7ab",
+      "text": "campaign skill: 9 commits landed on agent-campaign's main, installed here: agent-campaign:8999516 file-holds: set files= refuses widening into a holder's files; agent-campaign:eefeb40 file-holds: format the cross-overlap warning; journal: blocked on cli.py; agent-campaign:c972859 file-holds: set refuses outright; no --force on set; agent-campaign:8b51087 file-holds: journal: waiting on the evidence round; agent-campaign:ed7b2ea file-holds: journal: A1 green; shards pending; agent-campaign:b1820e2 file-holds: a holder that waits for a quest never blocks its start; agent-campaign:8cd3cd6 file-holds: journal: round 2 (A1, A4) submitted; agent-campaign:5e96ecc file-holds: journal moves to the campaign-v3 home; agent-campaign:4155433 Merge branch 'main' into quest/campaign-v3/file-holds"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:55:14",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:55:14",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted (file-holds installed, agent-campaign:4155433)",
+      "id": "msg-397",
+      "notice": "skill installed 415543381cec09bf864b42d067ed8ca5e358e7ab",
+      "text": "campaign skill: agent-campaign:4155433 installed here, 9 commits: agent-campaign:8999516 file-holds: set files= refuses widening into a holder's files; agent-campaign:eefeb40 file-holds: format the cross-overlap warning; journal: blocked on cli.py; agent-campaign:c972859 file-holds: set refuses outright; no --force on set; agent-campaign:8b51087 file-holds: journal: waiting on the evidence round; agent-campaign:ed7b2ea file-holds: journal: A1 green; shards pending; agent-campaign:b1820e2 file-holds: a holder that waits for a quest never blocks its start; agent-campaign:8cd3cd6 file-holds: journal: round 2 (A1, A4) submitted; agent-campaign:5e96ecc file-holds: journal moves to the campaign-v3 home; agent-campaign:4155433 Merge branch 'main' into quest/campaign-v3/file-holds"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T19:06:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T19:06:52",
+      "by": "campaign",
+      "closed": "answered as a campaign message; a fresh contributor builds C2",
+      "id": "msg-399",
+      "settles": {
+        "todo": "64ce45e4"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (C2, docs/perf/first-read-1ms.md \"Verified page index\") and widening run_relay_pages.py, dense_reader_measure.py (msg-398); C1, C3, C4 committed at `Detent:08cca469`; waiting on jobs 261124-182421-35bcef 261124-182431-301852 261124-182433-9d39d1 261124-182435-760c57; it asks: 1. Lead: design check of the C2 lifecycle table (docs/perf/first-read-1ms.md \"Verified page index\"). Recommendation: accept; the offsets are written before the release mark and read after its acquire. 2. Lead (msg-398): widen tests/detent_system/run_relay_pages.py and dense_reader_measure.py (patch\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T19:40:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T19:40:35",
+      "by": "campaign",
+      "closed": "probe failed on http's Limits API change; set widened; fresh contributor migrating and continuing the cascade (level 2 green)",
+      "id": "msg-400",
+      "settles": {
+        "todo": "8c751db1"
+      },
+      "text": "to do, critical path first:\ntodo: resume pin-wave (its journal waits on jobs 261124-182953-399223, which ended (failed) 14 min ago; new): `campaign status pin-wave`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7133,7 +7216,32 @@
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-driver-pressure-rearm": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T19:30:20",
+          "base": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "blobs": {
+            "CMakeLists.txt": "100644:3288088588c1f7b80be34f62f9bfb9885b17f087",
+            "docs/mechanisms/deadlines.md": "100644:13b2fbd744ae5731bc2e56236d77ed5af903961f",
+            "include/consensus/driver.h": "100644:0736cb7f17ef5cfda71b10cc155fc80cdba3d71e",
+            "test/driver_pressure_test.cc": "100644:eb8e2aa024168203baec0a52c6a17db1cd42183e"
+          },
+          "by": "review",
+          "commit": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "criteria": "efd88d9e85ab0c2b",
+          "diffs": {
+            "CMakeLists.txt": "1cf2ad44d9e1f7d2",
+            "docs/mechanisms/deadlines.md": "fb1f8572a9be42e1",
+            "include/consensus/driver.h": "77fcbe3e6ff729e9",
+            "test/driver_pressure_test.cc": "cebbd9ff7176231b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "cb49c7f686bc57ef65f664a8133a186bcbe02d15",
+          "reviewed": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-next-deadline-removal"
       ],
@@ -7156,7 +7264,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pressure-rearm",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -7165,7 +7275,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T17:31:27",
+      "updated": "2026-11-24T19:30:20",
       "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
     },
     "consensus-drop-memory-io-include": {
@@ -15405,7 +15515,9 @@
         "tests/detent_delivery/verify_local_format.py",
         "tests/detent_system/managed.py",
         "tests/detent_system/test_restart_capacity.py",
-        "docs/HOW_IT_WORKS.md"
+        "docs/HOW_IT_WORKS.md",
+        "tests/detent_system/dense_reader_measure.py",
+        "tests/detent_system/run_relay_pages.py"
       ],
       "history": [
         {
@@ -15460,12 +15572,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "three Python test tools parse selected and must read layout 3; HOW_IT_WORKS describes the table; no active quest holds them",
+      "reason": "two more Python tools parse selected; they move to the one shared layout-3 reader",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T18:21:38",
+      "updated": "2026-11-24T19:06:33",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
@@ -29158,7 +29270,17 @@
         "tests/detent_relay/test_relay_chain.cc",
         "tests/detent_relay/test_relay_pages.cc",
         "tests/detent_relay/test_relay_mirror_crash.cc",
-        "tests/detent_local/test_paged_publication_artifacts.cc"
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "src/detent_authority/main.cc",
+        "src/detent_relay/host.cc",
+        "tests/detent_authority/test_distribution_service.cc",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_service_wire.cc",
+        "tests/detent_authority/test_transport_https.cc",
+        "tests/detent_authority/test_history_large_base.cc",
+        "tests/detent_authority/test_history_power_cut.cc",
+        "tests/detent_authority/test_history_transport.cc",
+        "tests/detent_authority/test_namespace_power_cut.cc"
       ],
       "history": [
         {
@@ -29278,12 +29400,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "completion:b4600a8 adds an fdatasync argument to Linux replace_sync_calls; each file needs one nullptr (overlaps relay-mirror-idle-wake's tests/detent_relay/** with that one token, under --force)",
+      "reason": "http's head replaces the setters and connection factories with http::Limits (http:ff52c35, CHANGELOG); Detent's authority main, relay host and eight authority tests adopt it",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T18:33:55",
+      "updated": "2026-11-24T19:41:03",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
@@ -31256,7 +31378,10 @@
         "CHANGELOG.md",
         "src/detent_authority/service.cc",
         "src/detent_authority/service_runtime.cc",
-        "src/detent_authority/service_internal.hh"
+        "src/detent_authority/service_internal.hh",
+        "src/detent_delivery/client.cc",
+        "include/detent_delivery/client.hh",
+        "tests/detent_delivery/test_client*.cc"
       ],
       "landed": [],
       "lenses": [
@@ -31265,12 +31390,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "ready at Detent:9337f6c9",
+      "reason": "this quest's new 503 not_ready reaches agents, whose client reads it as AdmissionFull and retries the same voter instead of rotating (review round 2 note); the client maps it",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T17:54:37",
+      "updated": "2026-11-24T19:42:33",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
