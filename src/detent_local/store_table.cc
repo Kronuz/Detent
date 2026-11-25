@@ -51,27 +51,53 @@ std::uint64_t take(std::span<const char> in, std::size_t &at, unsigned width) {
 	at += width;
 	return value;
 }
-// The entry at `at` of a checked page.
-void read_entry(std::span<const char> in, std::size_t &at, TableEntry &entry) {
-	const auto length = static_cast<std::size_t>(take(in, at, 1));
-	entry.name.assign(in.data() + at, length);
-	at += length;
-	take(in, at, entry.cursor.cluster);
-	take(in, at, entry.cursor.incarnation);
-	entry.cursor.position = take(in, at, 8);
-	entry.slot = static_cast<std::uint32_t>(take(in, at, 4));
-	take(in, at, entry.generation);
-	entry.ordinal = static_cast<std::uint32_t>(take(in, at, 4));
-	entry.root_length = take(in, at, 8);
-	take(in, at, entry.root);
-	take(in, at, entry.read);
+// An entry's fields after its name: cluster, incarnation, position, slot, generation, ordinal, root
+// length, root, read.
+constexpr std::size_t position_at = 32, slot_at = 40, generation_at = 44, ordinal_at = 60, root_length_at = 64,
+                      root_at = 72, read_at = 104;
+const char *fields_of(const char *at) noexcept { return at + 1 + static_cast<unsigned char>(*at); }
+std::uint64_t field(const char *at, std::size_t offset, unsigned width) noexcept {
+	std::uint64_t value = 0;
+	for (const auto *byte = fields_of(at) + offset; width; --width)
+		value = (value << 8) | static_cast<unsigned char>(*byte++);
+	return value;
 }
+template <std::size_t N> std::array<char, N> bytes_at(const char *at, std::size_t offset) noexcept {
+	std::array<char, N> value;
+	std::copy_n(fields_of(at) + offset, N, value.begin());
+	return value;
+}
+// The entry whose length byte is at `at`, on a checked page.
+TableEntry entry_at(const char *at) {
+	TableEntry entry;
+	entry.name.assign(at + 1, static_cast<unsigned char>(*at));
+	std::copy_n(fields_of(at), 16, entry.cursor.cluster.begin());
+	std::copy_n(fields_of(at) + 16, 16, entry.cursor.incarnation.begin());
+	entry.cursor.position = field(at, position_at, 8);
+	entry.slot = static_cast<std::uint32_t>(field(at, slot_at, 4));
+	entry.generation = bytes_at<16>(at, generation_at);
+	entry.ordinal = static_cast<std::uint32_t>(field(at, ordinal_at, 4));
+	entry.root_length = field(at, root_length_at, 8);
+	entry.root = bytes_at<32>(at, root_at);
+	entry.read = bytes_at<32>(at, read_at);
+	return entry;
+}
+} // namespace
+
+NamespaceCursor TableEntryView::cursor() const noexcept {
+	return {bytes_at<16>(at_, 0), bytes_at<16>(at_, 16), field(at_, position_at, 8)};
+}
+std::uint32_t TableEntryView::slot() const noexcept { return static_cast<std::uint32_t>(field(at_, slot_at, 4)); }
+GenerationId TableEntryView::generation() const noexcept { return bytes_at<16>(at_, generation_at); }
+TableEntry TableEntryView::entry() const { return entry_at(at_); }
+
+namespace {
 // An entry of a page, checked; `end` bounds it.
 TableEntry take_entry(std::span<const char> in, std::size_t &at, std::size_t end) {
 	const auto length = static_cast<unsigned char>(in[at]);
 	refuse(length && end - at > table_entry_bytes(length) - 1, "truncated entry");
-	TableEntry entry;
-	read_entry(in, at, entry);
+	auto entry = entry_at(in.data() + at);
+	at += table_entry_bytes(length);
 	refuse(valid_name(entry.name) && nonzero(entry.generation), "entry");
 	return entry;
 }
@@ -298,11 +324,11 @@ std::size_t PagedTable::check(std::size_t k, std::span<std::uint16_t> offsets, s
 	return count;
 }
 
-std::optional<TableEntry> PagedTable::find(std::string_view name) const {
+TableEntryView PagedTable::find(std::string_view name) const {
 	const auto at = std::lower_bound(pages_.begin(), pages_.end(), name,
 	                                 [](const Page &page, std::string_view key) { return page.last < key; });
 	if (at == pages_.end())
-		return std::nullopt;
+		return {};
 	const auto k = std::size_t(at - pages_.begin());
 	const std::span<const char> in(bytes_.data() + at->offset, at->size);
 	// A marked page answers from its index; any other reach checks the page into a local one.
@@ -319,22 +345,19 @@ std::optional<TableEntry> PagedTable::find(std::string_view name) const {
 	const auto offset = [&](std::size_t i) -> std::size_t {
 		return index ? index[i].load(std::memory_order_relaxed) : local[i];
 	};
-	// Names compared in place; only the match is decoded.
+	// Names compared in place; the match is answered in place.
 	for (std::size_t low = 0, high = count; low < high;) {
 		const auto mid = low + (high - low) / 2;
-		std::size_t o = offset(mid);
-		const auto order = std::string_view(in.data() + o + 1, static_cast<unsigned char>(in[o])).compare(name);
+		const TableEntryView entry(in.data() + offset(mid));
+		const auto order = entry.name().compare(name);
 		if (order < 0)
 			low = mid + 1;
 		else if (order > 0)
 			high = mid;
-		else {
-			std::optional<TableEntry> found(std::in_place);
-			read_entry(in, o, *found);
-			return found;
-		}
+		else
+			return entry;
 	}
-	return std::nullopt;
+	return {};
 }
 
 StoreTable PagedTable::decode() const {

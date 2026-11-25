@@ -239,7 +239,7 @@ void publish() {
 	const l::PagedTable after(bytes_of(l::encode_table(next)), account);
 	check(!(before == after), "a new table is another table");
 	check(after.page_verifications() == 0, "a new table starts unmarked");
-	check(after.find(name_of(500)) == next.entries[500] && after.find(name_of(500))->cursor.position == 8500,
+	check(after.find(name_of(500)) == next.entries[500] && after.find(name_of(500)).cursor().position == 8500,
 	      "the new table answers the new entry");
 }
 
@@ -367,7 +367,7 @@ void mutations() {
 		for (unsigned pass = 0; pass != 2; ++pass)
 			for (const std::size_t i : {0, 27, 28, 55, 56, 69, 70}) {
 				const bool listed = i < table.entries.size();
-				std::optional<l::TableEntry> got;
+				l::TableEntryView got;
 				try {
 					got = paged->find(listed ? name_of(i) : std::string("0000006x"));
 				} catch (const l::TableRefused &) {

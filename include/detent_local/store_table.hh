@@ -33,6 +33,26 @@ struct TableEntry {
 	std::array<char, 32> root{}, read{}; // SHA-256 of `.image` and `.read`
 	bool operator==(const TableEntry &) const = default;
 };
+// An entry of a verified table page, read in place, or none: like main's `const TableEntry *`, it borrows
+// the PagedTable it came from and is valid as long as that table. A caller that keeps it copies it.
+class TableEntryView {
+  public:
+	TableEntryView() = default;
+	explicit operator bool() const noexcept { return at_ != nullptr; }
+	std::string_view name() const noexcept { return {at_ + 1, static_cast<unsigned char>(*at_)}; }
+	NamespaceCursor cursor() const noexcept;
+	std::uint32_t slot() const noexcept;
+	GenerationId generation() const noexcept;
+	// The entry, copied.
+	TableEntry entry() const;
+	// False for no entry.
+	bool operator==(const TableEntry &other) const { return at_ && entry() == other; }
+
+  private:
+	friend class PagedTable;
+	explicit TableEntryView(const char *at) noexcept : at_(at) {}
+	const char *at_ = nullptr; // the entry's length byte
+};
 // `selected`: replaced atomically. Entries are sorted by name, in pages of whole entries
 // (docs/LOCAL_IMAGE_FORMAT.md).
 struct StoreTable {
@@ -79,8 +99,9 @@ class PagedTable {
 	std::uint64_t size() const noexcept { return count_; }
 	// The highest slot an entry names, plus one.
 	std::uint32_t slots() const noexcept { return slots_; }
-	// The entry `name`, or nullopt when the table does not list it. Throws TableRefused when its page is damaged.
-	std::optional<TableEntry> find(std::string_view name) const;
+	// The entry `name` in place, or none when the table does not list it. Throws TableRefused when its page
+	// is damaged.
+	TableEntryView find(std::string_view name) const;
 	// Every entry, every page verified, with the checks that span pages.
 	StoreTable decode() const;
 	// Pages verified so far (hashed, digest matching); a marked page is not hashed again.

@@ -145,7 +145,7 @@ the marks.
 |---|---|---|---|---|
 | Attach (table read) | header, index | allocated zeroed, with the marks | all clear | after `find` |
 | First touch of a page | the page | written (relaxed) after every check of the page passes | set (release) after the offsets | from the offsets just written |
-| Lookup on a marked page | nothing | read after the mark (acquire) | unchanged | binary search of the offsets comparing names in place; only the match is decoded |
+| Lookup on a marked page | nothing | read after the mark (acquire) | unchanged | binary search of the offsets comparing names in place; the match is answered in place (`TableEntryView`) |
 | A corrupt page | the page, on each reach | not written | stays clear | `TableRefused` |
 | Two first touches together | both | both write the same values | the first CAS sets it | each from its own walk |
 | Without an account (no marks) | the page, on each reach | a local array per reach | none | from the local array |
@@ -155,7 +155,11 @@ the marks.
 What a marked page does not re-check: the entry bounds, order, slot, last-name and padding checks run
 once, at the first touch, like the hash; the marks already rely on the mapped table never changing
 (above). `decode()` walks every page with every check. `PagedTable::check` is the one walk: it
-verifies a page, fills the offsets and, with an account, keeps them and sets the mark.
+verifies a page, fills the offsets and, with an account, keeps them and sets the mark. `find` returns
+a `TableEntryView`, the entry read in place (its name a `string_view`, its fields read from the page)
+or none, as main's `StoreTable::find` returns a `const TableEntry *` or null: it borrows the table and
+is valid as long as it. A caller that keeps an entry copies it (`entry()`): the reader core does so
+only when it attaches a new generation.
 
 Measure. `benchmarks/table_find_bench.cc` (a verified-page `PagedTable::find` against main's
 `StoreTable::find`, 1,000 entries of 16- and 40-byte names, present and absent) and `reader_bench`

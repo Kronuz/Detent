@@ -156,7 +156,7 @@ struct View {
 	// A damaged page counts as listed: the refresh that reaches it reports its failure.
 	bool listed(std::string_view ns) const noexcept {
 		try {
-			return table && table->store.find(ns);
+			return table && bool(table->store.find(ns));
 		} catch (...) {
 			return true;
 		}
@@ -522,9 +522,11 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 		built->store_seen = store_word;
 		built->table = table;
 		// Keeps `previous` while the entry names its generation at its slot; otherwise attaches the entry's.
-		const auto attach = [&](const l::TableEntry &entry, Generation *previous) {
-			if (previous && previous->attached.descriptor.generation == entry.generation && previous->slot == entry.slot)
+		const auto attach = [&](l::TableEntryView found, Generation *previous) {
+			if (previous && previous->attached.descriptor.generation == found.generation() &&
+			    previous->slot == found.slot())
 				return previous;
+			const auto entry = found.entry(); // the new generation keeps its entry
 			DETENT_WINDOW(Attaching);
 			const auto selected = x::select_entry(handle.directory, handle.publisher, table->store.profile(), entry);
 			auto attached = x::PreparedReader::attach(handle.directory, handle.publisher, l::ViewLimits::prepared(), {},
@@ -560,7 +562,7 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 			// Every attached namespace follows its entry; one that left the table keeps its generation.
 			if (installed)
 				for (const auto &had : installed->entries) {
-					std::optional<l::TableEntry> listed;
+					l::TableEntryView listed;
 					try {
 						listed = table->store.find(had.name);
 					} catch (...) {
@@ -578,16 +580,16 @@ Outcome refresh_locked(detent_reader &handle, std::string_view want, bool force)
 					}
 					Generation *generation = had.generation;
 					try {
-						generation = attach(*listed, had.generation);
+						generation = attach(listed, had.generation);
 					} catch (...) {
 						failed_attach();
 					}
-					add(generation, listed->slot);
+					add(generation, listed.slot());
 				}
 			if (first)
 				try {
 					if (const auto listed = table->store.find(want))
-						add(attach(*listed, nullptr), listed->slot);
+						add(attach(listed, nullptr), listed.slot());
 				} catch (...) {
 					// Remembered at this store word, as a whole failed refresh is.
 					handle.failed_status.store(failed_attach(), std::memory_order_relaxed);

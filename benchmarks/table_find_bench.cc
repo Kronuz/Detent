@@ -64,8 +64,8 @@ int main() {
 		const l::PagedTable paged(std::vector<char>(bytes.begin(), bytes.end()), account);
 		for (const auto &name : present)
 			(void)paged.find(name); // every page verified and marked
-		report("paged", width, ns_per([&](std::size_t i) { return paged.find(present[i]).has_value(); }),
-		       ns_per([&](std::size_t i) { return paged.find(absent[i]).has_value(); }));
+		report("paged", width, ns_per([&](std::size_t i) { return bool(paged.find(present[i])); }),
+		       ns_per([&](std::size_t i) { return bool(paged.find(absent[i])); }));
 #endif
 	}
 	return 0;

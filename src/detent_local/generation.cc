@@ -189,8 +189,10 @@ std::optional<detail::Selected> detail::read_selected(int directory, uid_t owner
 		return std::nullopt;
 	std::optional<TableEntry> found;
 	try {
-		found = !name.empty() ? read->find(name)
-		        : read->size() == 1 ? std::optional(read->decode().entries.front()) : std::nullopt;
+		if (name.empty())
+			found = read->size() == 1 ? std::optional(read->decode().entries.front()) : std::nullopt;
+		else if (const auto listed = read->find(name))
+			found = listed.entry();
 	} catch (const TableRefused &) {
 		require(false);
 	}
