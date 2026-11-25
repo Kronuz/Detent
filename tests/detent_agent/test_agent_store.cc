@@ -233,7 +233,7 @@ void one_directory() {
 void table_profile() {
 	const auto root = fresh("profile");
 	const auto opened = [&](std::optional<d::Profile> wanted) {
-		return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, 0644), l::AgentStore::Options{wanted});
+		return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644), l::AgentStore::Options{wanted});
 	};
 	d::Profile semantic = profile;
 	semantic.semantic_id = 2;

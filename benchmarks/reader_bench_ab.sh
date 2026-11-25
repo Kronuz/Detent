@@ -8,8 +8,9 @@
 #                                         which goes first; prints each case's median p50 and p99 in ns
 #   reader_bench_ab.sh find OUT [PAIRS]   strict: table_find_bench, PAIRS rounds of every arm (main, the
 #                                         earlier commit when built, the head, and the head again as an
-#                                         A/A), rotating which goes first; per width and case, each arm's
-#                                         medians and the head's paired differences against each arm
+#                                         A/A), rotating which goes first; per shape and case, each arm's
+#                                         medians, the head's paired differences and ratios against each
+#                                         arm, and A4's verdict (D166): exits 1 when a paged case misses
 set -euo pipefail
 
 build() {
@@ -114,21 +115,33 @@ def spread(values):
 
 
 # Each case of the head against each arm's same case and main's decoded find (main has no paged table).
+# A4 (D166): the paged find of a present name within main's (paired difference within the floor, D140),
+# of an absent name within 1.2x main's median.
+missed = []
 for (code, case, field), head in sorted(rows.items()):
     if code != "head":
         continue
-    kind, width = case.split("/")
-    out_row = {"case": case, "name": field.removesuffix("_ns"), "head": round(statistics.median(head), 1)}
+    kind, shape = case.split("/", 1)
+    name = field.removesuffix("_ns")
+    out_row = {"case": case, "name": name, "head": round(statistics.median(head), 1)}
     for arm in arms:
         if arm == "head":
             continue
-        other = rows.get((arm, case if arm != "base" else f"decoded/{width}", field))
+        other = rows.get((arm, case if arm != "base" else f"decoded/{shape}", field))
         if not other:
             continue
         diff = statistics.median(h - o for h, o in zip(head, other))
         out_row[arm] = {"median": round(statistics.median(other), 1), "diff": round(diff, 1),
-                        "floor": round(max(spread(head), spread(other)), 1)}
+                        "floor": round(max(spread(head), spread(other)), 1),
+                        "ratio": round(statistics.median(head) / statistics.median(other), 3)}
+    if kind == "paged" and "base" in out_row:
+        main = out_row["base"]
+        out_row["a4"] = main["diff"] <= main["floor"] if name == "present" else main["ratio"] <= 1.2
+        if not out_row["a4"]:
+            missed.append(f"{case} {name}")
     print("table_find " + json.dumps(out_row))
+print("A4 " + ("within: present within main, absent within 1.2x" if not missed else "NOT within: " + ", ".join(missed)))
+sys.exit(1 if missed else 0)
 PY
 }
 

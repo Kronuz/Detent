@@ -173,11 +173,38 @@ change, `memcmp` took 58% of a paged `find` against 48% of main's (`sample`, lig
 measured. A lower-bound search on the page (one comparison a step, equality at the end) measured no
 gain over the three-way search and was not kept.
 
-Measure. `benchmarks/table_find_bench.cc` (a verified-page `PagedTable::find`, hot, and a table
-without marks, cold, against main's `StoreTable::find`; 1,000 entries of 16-, 40- and 255-byte names,
-present and absent) and `reader_bench` warm lookups, main against the head as interleaved strict
-pairs (`benchmarks/reader_bench_ab.sh find|run`; `find` adds an earlier commit's arm and the head
-again as an A/A arm). Target: main's warm `find` cost at every width.
+Target (D166): a present name's `find` within main's warm `StoreTable::find` (the paired difference
+within D140's floor) on every shape below; an absent name's within 1.2x main's.
+
+Measure. `benchmarks/table_find_bench.cc` times a verified-page `PagedTable::find` (hot) and a table
+without marks (cold) against main's `StoreTable::find`, on tables of 1,000 entries in seven shapes:
+shared-prefix names (`namespace-` and a zero-padded number) of 16, 40 and 255 bytes, and random
+`[a-z0-9]` names of 4, 8, 16 and 40 bytes (no table prefix; neighbours share about one byte). Each
+shape has present names and absent ones (other names of the shape, so they fall inside pages).
+`benchmarks/reader_bench_ab.sh find` runs it as interleaved strict rounds of main, the head and the
+head again (the A/A arm), and prints each case's ratio to main and the target's verdict; `run` times
+`reader_bench` warm lookups the same way. Ratios, head paged over main decoded, medians of 10 strict
+rounds at `Detent:d12f2887` (the `find` code the final head keeps): 4505c8 is
+261125-031218-4505c8; 988a22 and b0e901 are review round 4's 261125-033041-988a22 and
+261125-034050-b0e901, which also measured random 255-byte names and `tNN.sNNN.` names:
+
+| Names | Present | Absent | Job |
+|---|---|---|---|
+| shared prefix, 16 bytes | 0.72 | 0.79 | 4505c8 |
+| shared prefix, 40 bytes | 0.81 | 0.86 | 4505c8 |
+| shared prefix, 255 bytes | 0.47 | 0.50 | 4505c8 |
+| random, 4 bytes (3 tables) | 0.94-1.03 | 1.08-1.13 | b0e901 |
+| random, 8 bytes (3 tables) | 0.97-0.99 | 1.13-1.16 | b0e901 |
+| random, 16 bytes (4 tables) | 0.96-1.03 | 1.09-1.16 | 988a22, b0e901 |
+| random, 40 bytes | 0.88 | 0.77 | 988a22 |
+| random, 255 bytes | 0.84 | 0.83 | 988a22 |
+| `tNN.sNNN.`, 16 bytes (4 tables) | 0.83-0.91 | 0.99-1.05 | 988a22, b0e901 |
+| `tNN.sNNN.`, 40 and 255 bytes | 1.04, 0.96 | 1.07, 1.02 | 988a22 |
+
+Every present ratio above 1.00 is inside D140's floor. Absent names of 4 to 16 random bytes cost
+1.08-1.16x main, 4 to 20 ns, inside the 1.2x bound; the cause is not established, and removing it is
+quest paged-find-absent-cost. The strict A/B at the final head repeats every `table_find_bench` shape
+with its A/A arm (A4; the quest journal names the job).
 
 In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
 is remembered for the store word (D4): namespaces already attached keep answering, and a new one
