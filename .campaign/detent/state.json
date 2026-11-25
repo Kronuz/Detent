@@ -32828,19 +32828,49 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/split-journal",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T17:17:54",
+          "ci": {
+            "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+            "runs": [
+              45516181830
+            ]
+          },
+          "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "criteria": {
+            "A1": "`docs/dev/splits.md` (journal:a1d039a): split table (4 files), kept-whole table (turn_seal_test.cc)",
+            "A2": "261124-161154-977be8",
+            "A3": "[manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above",
+            "A4": "`ci:ci` (run 45516181830 at a1d039a, green on every job)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "fc5c59b492ff8275ab8be4aa9599c6ca2ae97859",
+          "reason": "",
+          "tested": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at journal:a1d039a",
       "repo": "../journal",
       "risk": "low",
-      "status": "review",
+      "status": "landed",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T16:20:20",
-      "worktree": "../journal-wt/detent/split-journal"
+      "updated": "2026-11-24T17:17:58",
+      "worktree": ""
     },
     "stage-0-architecture": {
       "accepted": {},
