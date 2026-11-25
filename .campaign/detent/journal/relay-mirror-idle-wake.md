@@ -112,7 +112,7 @@ Queued once at cb6ce9f2 (code 5f601d6b; .scratch/relay-mirror-idle-wake/submit4.
   (600 ms setup with timeout 2000 over 16 trials, then loopback with timeout 200 over 40).
 - A1 strict 261125-034218-badf25; A2 strict 261125-034220-aef247 (250 ms), 261125-034223-700753
   (10 ms); all against main 6e2669af (no code change since a0d804bd).
-- A5: the suite reruns at "ready for review" (campaign verify); CI on the pushed branch.
+- A5: suite 261125-034343-bbe132 (campaign verify at f550d3a2, pushed); CI on the pushed branch.
 - Not cancelled (the cancel was refused by my permissions; the lead's): round 3's 26 superseded
   jobs, 261124-233717-f5e430 through 261124-234020-0cb2a9 (Doing, round 3), fc8eca running.
 
@@ -315,7 +315,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A3 | Round 4, queued at cb6ce9f2: test_http_upstream ec02e4 (fw 9f2de8, b0740b, 7f33b7, 5d9190, 7ad458, 61e2f5, c63ca4); test_relay_seal_stamp 861c71 (fw ac469a, 089cd9, 07d53b, 0fc023, 08b4e5, 509945, c4f1aa, 23cdb1, 9f1416, ed5d3e, a78366, 72fc8d, 7e84fc, 25cad1, 3fe3b8); parser e43fcd (fw 894b17); body da3edf (fw 7106ae); test_client_reset 0f3c46 (fw 788931); test_relay_idle 15fd57; test_relay_hung 2412e0; test_relay_cut-off 2c7d46; R4-1 d0d4dc, eaeb52, 62a666; first fails-without at main 261124-033951-a94472 and 261124-191402-bcf6ff |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md (voter-state table, the seal stamp table) |
 | A6 | [decision] D163 at 5f601d6b, D164 (agents' 2^64-1): the stamp is the request's `seal`, no session state (Doing, round 4); R4-1 probes: late_park in test_http_upstream 261125-034204-ec02e4, fails-without at 13707337 261125-034209-d0d4dc; seal_window 261125-034212-eaeb52, fails-without at 13707337 261125-034215-62a666; A1 badf25 and A2 aef247, 700753 at the final head, queued |
-| A5 | suite 261124-234020-0cb2a9, queued; CI runs 45569989196 and 45569989739 at 410fb793 (pushed); at 75021884 5f884c passed |
+| A5 | suite 261125-034343-bbe132 at f550d3a2 (pushed), queued; round 3 0cb2a9 superseded; CI runs 45569989196 and 45569989739 at 410fb793 (pushed); at 75021884 5f884c passed |
 
 Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
 exit 8 as required), 261124-034543-d72b56 (probe, cancelled), 261124-034500-c0335d (A/A, superseded
