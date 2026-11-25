@@ -51,11 +51,9 @@ std::uint64_t take(std::span<const char> in, std::size_t &at, unsigned width) {
 	at += width;
 	return value;
 }
-// An entry of a page; `end` bounds it.
-TableEntry take_entry(std::span<const char> in, std::size_t &at, std::size_t end) {
+// The entry at `at` of a checked page.
+void read_entry(std::span<const char> in, std::size_t &at, TableEntry &entry) {
 	const auto length = static_cast<std::size_t>(take(in, at, 1));
-	refuse(length && end - at >= table_entry_bytes(length) - 1, "truncated entry");
-	TableEntry entry;
 	entry.name.assign(in.data() + at, length);
 	at += length;
 	take(in, at, entry.cursor.cluster);
@@ -67,6 +65,13 @@ TableEntry take_entry(std::span<const char> in, std::size_t &at, std::size_t end
 	entry.root_length = take(in, at, 8);
 	take(in, at, entry.root);
 	take(in, at, entry.read);
+}
+// An entry of a page, checked; `end` bounds it.
+TableEntry take_entry(std::span<const char> in, std::size_t &at, std::size_t end) {
+	const auto length = static_cast<unsigned char>(in[at]);
+	refuse(length && end - at > table_entry_bytes(length) - 1, "truncated entry");
+	TableEntry entry;
+	read_entry(in, at, entry);
 	refuse(valid_name(entry.name) && nonzero(entry.generation), "entry");
 	return entry;
 }
@@ -315,21 +320,21 @@ std::optional<TableEntry> PagedTable::find(std::string_view name) const {
 		return index ? index[i].load(std::memory_order_relaxed) : local[i];
 	};
 	// Names compared in place; only the match is decoded.
-	std::size_t low = 0, high = count;
-	while (low < high) {
-		const auto mid = low + (high - low) / 2, o = offset(mid);
-		const std::string_view entry(in.data() + o + 1, static_cast<unsigned char>(in[o]));
-		if (entry < name)
+	for (std::size_t low = 0, high = count; low < high;) {
+		const auto mid = low + (high - low) / 2;
+		std::size_t o = offset(mid);
+		const auto order = std::string_view(in.data() + o + 1, static_cast<unsigned char>(in[o])).compare(name);
+		if (order < 0)
 			low = mid + 1;
-		else
+		else if (order > 0)
 			high = mid;
+		else {
+			std::optional<TableEntry> found(std::in_place);
+			read_entry(in, o, *found);
+			return found;
+		}
 	}
-	if (low == count)
-		return std::nullopt;
-	std::size_t o = offset(low);
-	if (std::string_view(in.data() + o + 1, static_cast<unsigned char>(in[o])) != name)
-		return std::nullopt;
-	return take_entry(in, o, in.size());
+	return std::nullopt;
 }
 
 StoreTable PagedTable::decode() const {
