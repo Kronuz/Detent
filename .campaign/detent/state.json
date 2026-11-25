@@ -29255,7 +29255,17 @@
         "tests/detent_relay/test_relay_chain.cc",
         "tests/detent_relay/test_relay_pages.cc",
         "tests/detent_relay/test_relay_mirror_crash.cc",
-        "tests/detent_local/test_paged_publication_artifacts.cc"
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "src/detent_authority/main.cc",
+        "src/detent_relay/host.cc",
+        "tests/detent_authority/test_distribution_service.cc",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_service_wire.cc",
+        "tests/detent_authority/test_transport_https.cc",
+        "tests/detent_authority/test_history_large_base.cc",
+        "tests/detent_authority/test_history_power_cut.cc",
+        "tests/detent_authority/test_history_transport.cc",
+        "tests/detent_authority/test_namespace_power_cut.cc"
       ],
       "history": [
         {
@@ -29375,12 +29385,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "completion:b4600a8 adds an fdatasync argument to Linux replace_sync_calls; each file needs one nullptr (overlaps relay-mirror-idle-wake's tests/detent_relay/** with that one token, under --force)",
+      "reason": "http's head replaces the setters and connection factories with http::Limits (http:ff52c35, CHANGELOG); Detent's authority main, relay host and eight authority tests adopt it",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T18:33:55",
+      "updated": "2026-11-24T19:41:03",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
