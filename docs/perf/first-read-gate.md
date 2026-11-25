@@ -74,10 +74,11 @@ The gate has two rules per cell, and a cell fails on either (the cell's `pass`; 
    spread of main's six run p99s in the cell, maximum minus minimum (D142), since a tail statistic
    needs a tail floor.
 
-A cell main cannot run (the running 1,000-namespace cell: main's test writer cannot publish that
-store) has the bound alone. The job's last line counts the cells that pass both.
-`first-read-gate.sh selftest` checks the verdict on fixed numbers: a cell below 1 ms but slower than
-main fails, and so does one within main at 1 ms or more. A main read that exits nonzero is counted in its run's `failed` and its
+The one cell main cannot run (running, 1,000 namespaces: main's test writer cannot publish that
+store) has the bound alone; main refusing any other cell fails it. The job's last line counts the
+cells that pass both. One function, `cell_pass`, gives every cell its `pass`, and
+`first-read-gate.sh selftest` checks it on fixed numbers: a cell below 1 ms but slower than main
+fails, so does one within main at 1 ms or more, and so does a cell main refused that main runs. A main read that exits nonzero is counted in its run's `failed` and its
 message in `failures`, and the run goes on: with the publisher running, main's Client refuses a
 generation file collected under it ("invalid local generation descriptor"), which the branch reads
 again. A branch read that exits nonzero stops the job.
@@ -114,4 +115,12 @@ thread start, the trust walk and attach. Run both by hand against a prepared sto
 
 ## Results
 
-Pending: jobs dab009 (stopped) and f1bca2 (running).
+Exclusive, six interleaved pairs of 200 reads per cell, branch `Detent:28a8d276` (first-read-1ms fix
+round 2) against main `Detent:34fe15ad`; every cell passes both rules where main ran:
+
+| Cell | Job | Branch pooled p99 | Main pooled p99 | Paired median (floor) | Below 1 ms, branch / main (of 1,200) |
+|---|---|---|---|---|---|
+| stopped, 1 | 261124-221058-b76dd6 | 764 us | 846 us | -87 us (36) | 1,199 / 1,197 |
+| stopped, 1,000 | 261124-221101-ac8c51 | 752 us | 2,114 us | -847 us (48) | 1,195 / 0 |
+| running, 1 | 261124-221103-8b1704 | 859 us | 1,168 us | -124 us (16) | 1,194 / 1,161 |
+| running, 1,000 | 261124-221106-893160 | 713 us | publisher refused | n/a | 1,199 / none ran |

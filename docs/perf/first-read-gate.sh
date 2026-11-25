@@ -9,7 +9,8 @@
 #   first-read-gate.sh measure OUT [STATE[:NAMESPACES]...]   exclusive: six main/branch pairs per cell;
 #       a cell fails on either rule: its pooled branch p99 at 1 ms or more (A2's bound), or, where main
 #       ran, its paired difference or pooled p99 beyond main's plus their floors (D140, D142).
-#   first-read-gate.sh selftest   the cell verdict on fixed numbers: each rule fails a cell alone.
+#   first-read-gate.sh selftest   cell_pass, the one rule each cell takes, on fixed numbers: each rule
+#       fails a cell alone, and main refusing a cell it runs fails it.
 #   first-read-gate.sh profile-prepare OUT   light: the branch's first_read_core with the probe's marks
 #       (docs/perf/first-read-probe.py) under OUT/probe, its sources restored after the build.
 #   first-read-gate.sh profile OUT stopped|running...   strict: each cell's phases, median and p90.
@@ -130,35 +131,46 @@ import json, shutil, statistics, subprocess, sys
 from pathlib import Path
 
 # mode: "measure" gates A2's bound and D140's (exclusive, D142); "count" gates only that the branch
-# never fails and counts main's refusals, which do not depend on load (light); "selftest" checks verdict.
+# never fails and counts main's refusals, which do not depend on load (light); "selftest" checks cell_pass.
 # Each argument is a state (both cells) or STATE:NAMESPACES (one cell: an exclusive job holds one).
 BOUND_NS = 1_000_000  # A2: every cell's pooled branch p99 below 1 ms
 
 
-def verdict(branch_p99, main=None):
-    """(below, within): A2's bound, and D140's where main ran (main = diff, floor, main_p99, p99_floor):
-    the median paired difference within the medians' floor, the pooled p99 within main's plus its spread."""
+# main's test writer admits 1,000 generations: its 1,000-namespace publisher cannot start. Only this cell
+# has A2's bound alone; main refusing any other cell fails it.
+MAIN_CANNOT_RUN = {("running", 1000)}
+
+
+def cell_pass(mode, cell, branch_p99, main=None):
+    """(pass, below, within) of one cell: A2's bound, and D140's where main ran (main = diff, floor,
+    main_p99, p99_floor): the median paired difference within the medians' floor, the pooled p99 within
+    main's plus its spread. "count" gates only that the branch never fails."""
     below = branch_p99 < BOUND_NS
     if main is None:
-        return below, None
-    diff, floor, main_p99, p99_floor = main
-    return below, diff <= floor and branch_p99 <= main_p99 + p99_floor
+        within = None if cell in MAIN_CANNOT_RUN else False
+    else:
+        diff, floor, main_p99, p99_floor = main
+        within = diff <= floor and branch_p99 <= main_p99 + p99_floor
+    return mode == "count" or (below and within is not False), below, within
 
 
 if sys.argv[1] == "selftest":
-    cases = [  # (branch p99, main's numbers or None, cell passes), ns
-        (654_000, (-122_000, 51_000, 824_000, 40_000), True),
-        (900_000, (-10_000, 51_000, 700_000, 40_000), False),  # below 1 ms, p99 beyond main's (D140)
-        (900_000, (60_000, 51_000, 950_000, 40_000), False),  # below 1 ms, median beyond main's (D140)
-        (1_050_000, (-150_000, 51_000, 1_200_000, 40_000), False),  # within main, at 1 ms or more (A2)
-        (1_000_000, (0, 51_000, 1_000_000, 40_000), False),  # the bound is strict
-        (990_000, None, True),  # main refused: the bound alone
-        (1_010_000, None, False),
+    stopped, running = ("stopped", 1), ("running", 1000)
+    cases = [  # (mode, cell, branch p99, main's numbers or None when main refused, cell passes), ns
+        ("measure", stopped, 654_000, (-122_000, 51_000, 824_000, 40_000), True),
+        ("measure", stopped, 900_000, (-10_000, 51_000, 700_000, 40_000), False),  # p99 beyond main's (D140)
+        ("measure", stopped, 900_000, (60_000, 51_000, 950_000, 40_000), False),  # median beyond main's (D140)
+        ("measure", stopped, 1_050_000, (-150_000, 51_000, 1_200_000, 40_000), False),  # within main, 1 ms+ (A2)
+        ("measure", stopped, 1_000_000, (0, 51_000, 1_000_000, 40_000), False),  # the bound is strict
+        ("measure", running, 990_000, None, True),  # main cannot run this cell: the bound alone
+        ("measure", running, 1_010_000, None, False),
+        ("measure", ("running", 1), 654_000, None, False),  # main refused a cell it runs
+        ("measure", ("stopped", 1000), 654_000, None, False),
+        ("count", stopped, 1_050_000, (60_000, 51_000, 700_000, 40_000), True),  # count gates only failures
     ]
-    for branch_p99, main, expected in cases:
-        below, within = verdict(branch_p99, main)
-        got = below and within is not False
-        assert got == expected, (branch_p99, main, below, within)
+    for mode, cell, branch_p99, main, expected in cases:
+        passed, below, within = cell_pass(mode, cell, branch_p99, main)
+        assert passed == expected, (mode, cell, branch_p99, main, below, within)
     print(f"selftest PASS: {len(cases)} cell verdicts")
     sys.exit(0)
 mode, prepared, cells_wanted = sys.argv[1], Path(sys.argv[2]).resolve(), []
@@ -201,7 +213,7 @@ def run(code, namespaces, publisher, index):
             agent = subprocess.Popen([prepared / code / "first_read_phases", "--publish", store, str(namespaces)],
                                      stdout=subprocess.PIPE, text=True)
             if agent.stdout.readline().strip() != "publishing":
-                # main's test writer admits 1,000 generations: its 1,000-namespace publisher cannot publish.
+                # Main refusing any cell but MAIN_CANNOT_RUN's fails that cell (cell_pass).
                 raise (PublisherRefused if code == "main" else RuntimeError)(f"{code} publisher did not start")
         for path in store.rglob("*"):  # resident data
             if path.is_file():
@@ -252,13 +264,14 @@ for publisher, namespaces in cells_wanted:
                     continue
                 print(json.dumps({k: v for k, v in results[-1].items() if k != "totals"}), flush=True)
         if refused:
-            # A cell main cannot run reports the branch alone: its medians, below-1-ms counts and pooled p99.
+            # A cell main refused reports the branch alone: its medians, below-1-ms counts and pooled p99.
             branch = [r for r in results if r["code"] == "branch"]
             pooled = sorted(t for r in branch for t in r["totals"])
             branch_p99 = pooled[int(len(pooled) * 0.99) - 1]
-            passed = mode == "count" or verdict(branch_p99)[0]
+            passed, below, within = cell_pass(mode, (publisher, namespaces), branch_p99)
             ok &= passed
-            cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed, "main": "publisher refused",
+            cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed, "below_1ms": below,
+                    "within_main": within, "main": "publisher refused",
                     "branch_below_1ms": [r["below_1ms"] for r in branch],
                     "branch_medians_ns": [r["median_ns"] for r in branch],
                     "branch_p99_ns": [r["p99_ns"] for r in branch],
@@ -275,8 +288,8 @@ for publisher, namespaces in cells_wanted:
         floor = int(max(spread(medians["main"]), spread(medians["branch"])))
         main_p99s = [r["p99_ns"] for r in arm["main"]]
         p99_floor = max(main_p99s) - min(main_p99s)
-        below, within = verdict(p99["branch"], (diff, floor, p99["main"], p99_floor))
-        passed = mode == "count" or (below and within)
+        passed, below, within = cell_pass(mode, (publisher, namespaces), p99["branch"],
+                                          (diff, floor, p99["main"], p99_floor))
         ok &= passed
         cell = {"publisher": publisher, "namespaces": namespaces, "pass": passed, "below_1ms": below,
                 "within_main": within,
