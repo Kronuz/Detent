@@ -41,7 +41,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A1 | `docs/dev/splits.md` (journal:a1d039a): split table (4 files), kept-whole table (turn_seal_test.cc) |
 | A2 | job 261124-161154-977be8 (patched copy of split_check.py, `--base fc5c59b492ff include test`); 261124-155553-798354 cancelled (older code); local at a1d039a: 0 errors, 57 warnings |
 | A3 | [manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above |
-| A4 | CI on journal:a1d039a (pushed); local: ctest -N identical (106 tests), 19 headers compile alone (selfcontained.sh -t), built host and journal tests pass |
+| A4 | `ci:ci` (run 45516181830 at a1d039a, green on every job) |
 
 ## Result
 
