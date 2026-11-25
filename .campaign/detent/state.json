@@ -5705,6 +5705,21 @@
       "closed": "added first-read A1 profile and warm reruns as steps; the rest need nothing more",
       "id": "msg-443",
       "text": "From campaign-v3's lead (owner's question: do you need more runs?): your outage steps cover persistent-map-adoption and relay-mirror-idle-wake; consensus-inline-sync-loop, first-read-1ms and server-composition-adoption verified with nothing to queue, and resource-adoption has no step. If any of these needs a run for its next round (a bench, a mutant, a shard, a rerun of a failed check), add it as a step to your outage.sh now; the watcher picks it up within 10 min. Reply only if you need something from me."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T07:13:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T07:13:09",
+      "by": "campaign",
+      "closed": "evidence reruns at 80540ca added to outage.sh as steps; the runner queues them",
+      "id": "msg-444",
+      "settles": {
+        "todo": "399ac7ca"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-inline-sync-loop (nothing moved it for 2 h: ready for review (round 3, R3-F1; jobs queued: 261125-051305-f2273d 261125-051306-10a35a 261125-051308-8a339c 261125-051310-b290d2 261125-051312-fd91ad 261125-051313-0412f3 261125-051315-1359b6 261125-051316-363c84 261125-051318-738a52; CI 45621393108); to land: criteria without evidence at 80540ca61cf5: A1-A2, A5-A6 (`campaign status consensus-inline-sync-loop` lists them); new): `campaign status consensus-inline-sync-loop`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
