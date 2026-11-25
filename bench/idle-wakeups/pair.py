@@ -95,6 +95,17 @@ class Pair:
         body: dict[str, Any] | None = None,
         token: str = WRITER,
     ) -> tuple[int, bytes]:
+        status, _, answer = self.exchange(port, path, body, token)
+        return status, answer
+
+    def exchange(
+        self,
+        port: int,
+        path: str,
+        body: dict[str, Any] | None = None,
+        token: str = WRITER,
+    ) -> tuple[int, dict[str, str], bytes]:
+        """call(), with the answer's headers (lowercase names)."""
         connection = self.connection(port)
         try:
             headers = {"Connection": "close"}
@@ -105,7 +116,8 @@ class Pair:
                 headers["Content-Type"] = "application/json"
                 connection.request("POST", path, json.dumps(body), headers)
             response = connection.getresponse()
-            return response.status, response.read()
+            answer = response.read()
+            return response.status, {name.lower(): value for name, value in response.getheaders()}, answer
         finally:
             connection.close()
 

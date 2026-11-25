@@ -43,8 +43,8 @@ connection, so a relay stops at once rather than at the deadline.
 
 | The wait returns on | The mirror then |
 |---|---|
-| A change: an answer with frames, or a 204 before the wait (a seal) | syncs and waits again from the new heads |
-| Idle: 204 at the wait's deadline | waits again from the same heads; past `maximum_wait_ms` since the last good sync, syncs |
+| A change: an answer with frames, or a 204 whose seal is above the stamp | syncs and waits again from the new heads |
+| Idle: any other 204 | waits again from the same heads; past `maximum_wait_ms` since the last good sync, syncs |
 | A failure: no answer within the timeout, a refusal (503, 403), a restart | reads past that source (`skip`) and syncs; a failed sync backs off and arms no wait |
 
 What the voter holding the wait does, and when the relay moves on:
@@ -59,36 +59,37 @@ What the voter holding the wait does, and when the relay moves on:
 | Leader change, still in the quorum | stays parked; the new leader's entries answer it | stays |
 
 A seal that moves no head (a write's seal, after its entries reached the relay) has no frame, so
-a reader learns of it only from an early 204: the seal stamp below. The relay takes a 204 that
-comes before its wait, measured from the send, as a change: a deadline's 204 is never early. It
-syncs and fetches the sealed files, as polling did within one interval.
+a reader learns of it only from the seal an answer carries: the seal stamp below. The relay syncs
+on a 204 whose seal is above its stamp and fetches the sealed files, as polling did within one
+interval. It never reads a seal from an answer's timing.
 
 ## The seal stamp
 
-Every next carries `seal`, the reader's stamp. With nothing new, an upstream answers a next 204 at
-once while its own seal is above the stamp, whether the next just arrived or was parked; otherwise
-it parks to its deadline. The authority's seal is `sealed()->applied_index()`, read once per owner
-turn, the seal its layouts carry; a relay's is its mirror table's seal, which only its own sync
-moves. The answer depends on the request alone: the upstream keeps no seal state. A relay's watch
-sends the seal its last good sync read, and only a sync changes it, so a seal newer than that sync
-answers every wait until the relay syncs it. An agent follows no seal and sends 2^64-1 (D164): no
-seal is above it, so a seal never wakes an agent, and a change answers it as before.
+The seal goes both ways (D163, D165). Every next carries `seal`, the reader's stamp, and every
+answer to it, 204 or 200, carries the upstream's seal in `X-Detent-Seal`. With nothing new, an
+upstream answers a next 204 at once while its own seal is above the stamp, whether the next just
+arrived or was parked; otherwise it parks to its deadline. The authority's seal is
+`sealed()->applied_index()`, read once per owner turn, the seal its layouts carry; a relay's is its
+mirror table's seal, which only its own sync moves, and the end of each of its turns (`revisit`)
+is the one place it answers a stamp. The answer depends on the request alone: the upstream keeps no
+seal state. A relay's watch sends the seal its last good sync read, and only a sync changes it; it
+reads a 200 as a change, and a 204 as a change exactly when its seal is above that stamp. A 204
+with no seal is a failure. An agent follows no seal: it sends 2^64-1 (D164), which no seal is
+above, so a seal never wakes it, and it ignores the answer's seal.
 
 Relay B reads upstream U; B's last sync read seal s, and U's seal moves from s to s + 1:
 
 | B when U applies the seal | U answers | B |
 |---|---|---|
-| Between its sync's layouts read and its next reaching U | that next 204 at once | reads it before the park: syncs |
-| Parked at U | 204 at once | before the park: syncs |
-| Parked, and U's 204 reaches B past the park (U took the next late: setup, U's queue, a sync ahead of it on a relay's mirror thread) | 204 at once | reads it as idle and waits again with s; U answers that wait 204 at once: syncs, one round trip later |
-| Answered already (idle or a change) | nothing new | idle: waits again with s, answered at once; a change: syncs, and waits again from the seal it read |
+| Between its sync's layouts read and its next reaching U | that next 204 at once, seal s + 1 | syncs |
+| Parked at U | 204 at once, seal s + 1 | syncs |
+| Parked, and U's 204 reaches B past the park (U took the next late: setup, U's queue, a sync ahead of it on a relay's mirror thread) | 204, seal s + 1 | syncs: the seal, not the time, decides |
+| U grants no park (its session's `wait_ms` is 0) | every next 204 at once, with its seal | syncs on the first answer with seal s + 1; at rest each answer carries s, and B waits again once an interval |
+| Answered already (idle with seal s, or a change) | nothing new | idle: waits again with s, answered at once with s + 1: syncs; a change: syncs, and waits again from the seal it read |
 | Syncing, before its layouts read | nothing | reads s + 1; its next parks |
 | Opening or reopening its watch session | the open carries no stamp | as the rows above: the open costs no sync |
-| Reading a source behind the watch's (after a move) | each wait 204 at once | syncs at most once an interval until its source catches up |
-
-When U's round trip reaches the park (connection setup past half the timeout), the third row's
-second wait is read as idle too, and B serves the seal at `maximum_wait_ms`; such a source hangs by
-the park's own bound.
+| Reading a source behind the watch's (after a move) | each wait 204 at once, above s | syncs at most once an interval until its source catches up |
+| Idle at the deadline, no seal | 204 at the park, seal s | waits again; past `maximum_wait_ms` since its last sync, syncs |
 
 A sync comes no sooner than `interval_ms` after the previous one, and a wait is asked no sooner
 than `interval_ms` after the previous one, so a stream of changes or a short `timeout_ms` costs at
@@ -117,11 +118,13 @@ second and syncs once in all: its watch session opens with no sync (`paced`). `t
 three-voter authority, and a relay reading them, make no sync in 2 s at rest.
 `tests/detent_relay/test_relay_idle.py`: with one voter and a relay at rest, the authority keeps to
 its health turns (at most 60 a second) and the relay makes no sync over 2 s; a publish still wakes
-the relay within 2 s. `tests/detent_relay/test_relay_seal_stamp.py` checks each row at the authority and at a relay:
-a next stamped with the seal parks, one stamped below it answers 204 at once and so does the same
+the relay within 2 s. `tests/detent_relay/test_relay_seal_stamp.py` checks each row at the authority and at a relay,
+and that every answer carries the upstream's seal: a next stamped with the seal parks, one stamped below it answers 204 at once and so does the same
 stamp again, a second next on a session answers 409, a parked next answers when the seal lands, an
 agent's stamp parks through a seal and answers a change, and a closed session answers 410 while a
 next on a new one stamped with the seal parks. `test_http_upstream`'s hooks also seal A after an
 idle answer and before B waits again, and `late_park` holds A's mirror thread 800 ms so that A's
 seal answer reaches B past its park (review R4-1): B syncs the seal within 1.5 s, not at its 10 s
-deadline.
+deadline. `no_park` has A grant no park: B syncs nothing at rest and A's seal reaches it within
+1.5 s. `test_relay_seal_shortwait` (bench/idle-wakeups/seal_window.py) does the same against an
+authority whose `subscription_limits.wait_ms` is 0 (review R5-2): 6 seals, each within 1.5 s.

@@ -80,6 +80,11 @@ if(TARGET detent::relay_mirror_service AND TARGET detent-authority AND TARGET de
   add_test(NAME test_relay_seal_stamp
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_seal_stamp.py ${PROJECT_BINARY_DIR})
   set_tests_properties(test_relay_seal_stamp PROPERTIES TIMEOUT 180)
+  # R5-2: an authority whose W5 wait is 0 grants no park; the answer's seal still wakes the relay.
+  add_test(NAME test_relay_seal_shortwait
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/bench/idle-wakeups/seal_window.py ${PROJECT_SOURCE_DIR}
+      ${PROJECT_BINARY_DIR} 10000 6 0 other 0)
+  set_tests_properties(test_relay_seal_shortwait PROPERTIES TIMEOUT 180)
   # relay-mirror-idle-wake F1: a parked wait never outlives a source that hangs or is cut off.
   foreach(case hung cut-off)
     add_test(NAME test_relay_${case}

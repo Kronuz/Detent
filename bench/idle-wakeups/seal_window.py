@@ -1,4 +1,4 @@
-"""The seal-answer window at the authority (relay-mirror-idle-wake review R4-1).
+"""The seal-answer window at the authority (relay-mirror-idle-wake reviews R4-1 and R5-2).
 
 A single voter and a relay mirroring it (bench/idle-wakeups' Pair) with the relay's `timeout_ms` T, so
 its watch parks T/2. With DELAY_MS, the relay reads the authority through a TCP proxy that holds the
@@ -6,15 +6,17 @@ first bytes of each connection DELAY_MS (network latency before the request arri
 writes once to "a" (the relay syncs it at once), waits for the authority's layouts seal to move (D136
 seals the write about seal_after later, at a phase of the relay's park nothing here chooses), and
 times the relay's layouts seal catching up. The authority answers the parked next 204 when the seal
-is applied; when that 204 reaches the relay after T/2 from its send, the relay reads it as idle and
-waits again, and that wait, still stamped below the seal, is answered at once
+is applied, with the seal (D165), so the relay syncs however late that 204 reaches it
 (docs/mechanisms/relay-mirror-wait.md). A trial misses when the relay is still behind after LIMIT_S.
 Exit 1 on any miss.
+
+With AUTH_WAIT_MS, the authority's `subscription_limits.wait_ms` (0 is allowed): a session that
+grants no park answers every next at once, so only the answer's seal tells a seal from idle (R5-2).
 
 With MODE "other", the relay mirrors only "a" and each trial writes "b": the seal still moves the
 layout seal of "a", which the relay must adopt, and it lands at any phase of the relay's parks.
 
-    seal_window.py SRC BUILD [TIMEOUT_MS] [TRIALS] [DELAY_MS] [MODE]
+    seal_window.py SRC BUILD [TIMEOUT_MS] [TRIALS] [DELAY_MS] [MODE] [AUTH_WAIT_MS]
 """
 
 from __future__ import annotations
@@ -90,6 +92,7 @@ def main() -> int:
     trials = int(sys.argv[4]) if len(sys.argv) > 4 else 40
     delay_ms = int(sys.argv[5]) if len(sys.argv) > 5 else 0
     other = len(sys.argv) > 6 and sys.argv[6] == "other"
+    auth_wait_ms = int(sys.argv[7]) if len(sys.argv) > 7 else None
     written = "b" if other else "a"
     limit = LIMIT_S + 3 * delay_ms / 1000
     sys.path.insert(0, str(source / "bench/idle-wakeups"))
@@ -99,6 +102,12 @@ def main() -> int:
 
     class Timed(Pair):
         def launch(self, name: str, command: list[str]) -> None:
+            if name == "authority" and auth_wait_ms is not None:
+                path = self.root / "authority.json"
+                configuration = json.loads(path.read_text())
+                configuration["subscription_limits"] = {"wait_ms": auth_wait_ms}
+                path.write_text(json.dumps(configuration))
+                path.chmod(0o600)
             if name == "relay":
                 path = self.root / "relay.json"
                 configuration = json.loads(path.read_text())
@@ -129,7 +138,7 @@ def main() -> int:
         rest = mirror()
         time.sleep(2)
         print(f"at rest: relay syncs {int(mirror().get('syncs', 0)) - int(rest.get('syncs', 0))} in 2 s "
-              f"(timeout_ms {timeout_ms}, parks {timeout_ms // 2} ms, proxy delay {delay_ms} ms, "
+              f"(timeout_ms {timeout_ms}, authority wait_ms {auth_wait_ms}, proxy delay {delay_ms} ms, "
               f"writes to {written!r}, mirrors {names})", flush=True)
         for trial in range(trials):
             while (before := seal(pair.authority_port, MIRROR)) is None:

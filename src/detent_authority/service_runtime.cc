@@ -1553,8 +1553,13 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					if (out->empty())
 						out.reset();
 				};
-				// The seal each next's stamp is compared with (docs/mechanisms/relay-mirror-wait.md).
+				// The seal each next's stamp is compared with, and every 204 carries (relay-mirror-wait.md).
 				const auto seal_at = node.sealed() ? node.sealed()->applied_index() : 0;
+				const auto idle = [&] {
+					Reply reply{204, {}};
+					reply.headers.emplace_back(distribution_http::seal_header, std::to_string(seal_at));
+					return reply;
+				};
 				for (std::size_t i = 0; i < frames_tasks.size();) {
 					auto held = frames_tasks[i];
 					auto &task = *held;
@@ -1634,7 +1639,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						}
 						if (now >= task.poll_deadline || sealed) {
 							frames_idle.add();
-							complete(held, {204, {}});
+							complete(held, idle());
 						}
 					} catch (const std::exception &error) {
 						frames_errors.add();
@@ -1711,6 +1716,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 									metadata.headers.emplace_back("X-Detent-Session", hex(slot.task->session));
 									metadata.headers.emplace_back("X-Detent-Coding",
 																  slot.task->compressed ? "zstd" : "raw");
+									metadata.headers.emplace_back(
+										distribution_http::seal_header,
+										std::to_string(node.sealed() ? node.sealed()->applied_index() : 0));
 									if (delivery.reply->start_chunked(metadata, true) != http::StreamSubmit::Accepted)
 										throw std::runtime_error("distribution stream closed");
 									delivery.started = true;

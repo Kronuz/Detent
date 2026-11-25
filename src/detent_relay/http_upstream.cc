@@ -4,6 +4,7 @@
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 #include <atomic>
+#include <charconv>
 #include <http_parser.h>
 #include <map>
 #include <openssl/evp.h>
@@ -17,7 +18,6 @@ namespace {
 using Clock = std::chrono::steady_clock;
 struct Response {
 	unsigned status = 0;
-	bool early = false; // 204 before the wait: the upstream's seal is above the stamp
 	std::map<std::string, std::string, std::less<>> headers; // lowercase names
 	std::string body;
 	std::string_view header(std::string_view name) const {
@@ -270,9 +270,7 @@ struct HttpUpstream::Impl {
 										  std::chrono::duration_cast<std::chrono::milliseconds>(options.timeout / 2)});
 			const auto body = delivery::namespace_session_body(delivery::SessionResponsePurpose::Next, following,
 															   options.compression, channel.session->id, parked);
-			const auto sent = Clock::now();
 			auto response = exchange(channel, "/v2/distribution/session/next", body, stop);
-			response.early = response.status == 204 && Clock::now() - sent < parked;
 			if (response.status == 204 || response.status == 200)
 				return response;
 			if (response.status == 409 && response.body.find("\"session_busy\"") != std::string::npos &&
@@ -404,8 +402,17 @@ bool HttpUpstream::wait(std::span<const Position> positions, std::uint64_t seal,
 		p.watching.endpoint = at;
 	}
 	const auto response = p.next(p.watching, positions, seal, limit, stop);
-	const auto changed = response.status == 200 || response.early;
 	++p.stats.waits;
-	return changed;
+	if (response.status == 200)
+		return true;
+	// An idle answer carries the source's seal (D165): above the stamp, the source sealed.
+	const auto text = response.header("x-detent-seal");
+	std::uint64_t at = 0;
+	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), at);
+	if (text.empty() || error != std::errc{} || end != text.data() + text.size()) {
+		p.refuse(p.watching);
+		throw UpstreamUnavailable("relay upstream: an idle next answered no seal");
+	}
+	return at > seal;
 }
 } // namespace detent::relay

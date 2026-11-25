@@ -147,8 +147,9 @@ struct ServiceRuntime::Impl {
 		result->history = history;
 		return result;
 	}
-	void control(Task &task, int status, std::string_view body) noexcept {
-		task.send_control(status, body, accounts.requests[ordinal(task.admission->kind)]);
+	void control(Task &task, int status, std::string_view body,
+				 std::span<const std::pair<std::string, std::string>> headers = {}) noexcept {
+		task.send_control(status, body, accounts.requests[ordinal(task.admission->kind)], headers);
 		task.completed = true;
 	}
 	// A mirror's answer: a control reply, or its chunks streamed in order.
@@ -156,7 +157,7 @@ struct ServiceRuntime::Impl {
 		auto &reply = task.job->reply;
 		if (!task.started) {
 			if (reply.chunks.empty()) {
-				control(task, reply.status, reply.body);
+				control(task, reply.status, reply.body, reply.headers);
 				return;
 			}
 			http::Response metadata;

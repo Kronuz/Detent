@@ -442,7 +442,7 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 	stream.maximum_bytes = (options_.delivery.bytes / distribution::fragment_bytes + 1) * stream.chunk_bytes;
 	distribution_http::OwnedReplyPump::callbacks(stream, delivery, [wake = owner_.wake()] { wake.raise(); });
 	task->complete = [delivery, account](Reply value) {
-		delivery->send_control(value.status, value.body, account);
+		delivery->send_control(value.status, value.body, account, value.headers);
 	};
 	delivery->reply = response.stream(std::move(stream));
 	check(static_cast<bool>(delivery->reply), "owned distribution streaming unavailable");

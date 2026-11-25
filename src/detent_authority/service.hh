@@ -89,6 +89,7 @@ class Service final : public http::HttpHandler {
 		std::shared_ptr<ReplyAdmission> reservation;
 		// A binary body (a relay's layouts or history file) is never enveloped.
 		std::string_view content_type = "application/json";
+		std::vector<std::pair<std::string, std::string>> headers;
 	};
 	struct Admission;
 	struct Runtime;

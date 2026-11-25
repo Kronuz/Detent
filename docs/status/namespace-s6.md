@@ -113,7 +113,8 @@ Responses: open 200 `{"version":2,"session","wait_ms"}`; next 200
 `application/vnd.detent.frames` with `X-Detent-Session-Version: 2`, `X-Detent-Session` and
 `X-Detent-Coding`, or 204 when nothing changed within `wait_ms`, or at once when the source's seal
 is above `seal` (a relay sends the seal its last sync read, an agent 2^64-1;
-docs/mechanisms/relay-mirror-wait.md); close 204. Errors keep the
+docs/mechanisms/relay-mirror-wait.md); both carry `X-Detent-Seal`, the source's seal, which
+agents ignore; close 204. Errors keep the
 version 1 statuses and `error` names (`detail::session_reset_reason`, one mapping for both).
 `X-Detent-Kind` and `X-Detent-Revision` are gone. Poll mode is next with `wait_ms` 0 every
 `poll_interval_ms` (Q4); the cutover removes `delivery_mode` and the one-shot endpoint.

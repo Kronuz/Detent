@@ -8,6 +8,10 @@ probe (relay_probe --heads), which runs outside the timed span. Prints one JSON 
 p99 and max in ms.
 
     relay_latency.py --build BUILD --probe RELAY_PROBE --label NAME [--samples 40] [--interval-ms 250]
+        [--agent-seal]
+
+The probe must be the build's own (each speaks its build's W5), and --agent-seal goes only to a build
+whose next takes `seal`.
 """
 
 from __future__ import annotations
@@ -42,7 +46,7 @@ def heads(pair: Pair, probe: Path) -> dict[str, list[object]]:
     return result
 
 
-def sample(pair: Pair, probe: Path, spread_ms: int) -> float:
+def sample(pair: Pair, probe: Path, spread_ms: int, agent_seal: bool) -> float:
     incarnation, position = heads(pair, probe)["a"]
     names = [["a", incarnation, position]]
     status, body = pair.call(
@@ -62,22 +66,20 @@ def sample(pair: Pair, probe: Path, spread_ms: int) -> float:
     session = json.loads(body)["session"]
     answered: list[tuple[int, float]] = []
 
+    body: dict[str, object] = {
+        "version": 2,
+        "session": session,
+        "cluster": CONTEXT["cluster"],
+        "namespaces": names,
+        "wait_ms": 9000,
+    }
+    if agent_seal:
+        body["seal"] = 2**64 - 1  # an agent's stamp (D164), to a build that takes it
+
     def park() -> None:
-        # A 204 (a seal, or the deadline) parks again at the same heads, as a W5 reader does.
+        # A 204 (the deadline) parks again at the same heads, as a W5 reader does.
         for _ in range(8):
-            status, _ = pair.call(
-                pair.relay_port,
-                "/v2/distribution/session/next",
-                {
-                    "version": 2,
-                    "session": session,
-                    "cluster": CONTEXT["cluster"],
-                    "namespaces": names,
-                    "wait_ms": 9000,
-                    "seal": 2**64 - 1,  # an agent's stamp (D164)
-                },
-                READER,
-            )
+            status, _ = pair.call(pair.relay_port, "/v2/distribution/session/next", body, READER)
             if status != 204:
                 break
         answered.append((status, time.monotonic()))
@@ -113,11 +115,12 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=40)
     parser.add_argument("--interval-ms", type=int, default=250)
     parser.add_argument("--spread-ms", type=int, default=500)
+    parser.add_argument("--agent-seal", action="store_true", help="send next's seal (a build that takes it)")
     args = parser.parse_args()
     random.seed(1)  # the same phases for every build
     with Pair(args.build.resolve(), interval_ms=args.interval_ms) as pair:
         latencies = sorted(
-            sample(pair, args.probe.resolve(), args.spread_ms)
+            sample(pair, args.probe.resolve(), args.spread_ms, args.agent_seal)
             for _ in range(args.samples)
         )
     cuts = statistics.quantiles(latencies, n=100, method="inclusive")

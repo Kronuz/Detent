@@ -7,7 +7,7 @@
 #         60000; the configuration's default is 250).
 #   latency (relay-mirror-idle-wake A2, strict): relay_latency.py, LATENCY_ROUNDS (default 3) rounds
 #         alternating head and baseline, LATENCY_SAMPLES (default 40) each, at LATENCY_INTERVAL_MS
-#         (default 250); the head's probe reads both.
+#         (default 250); each build's own probe reads it, and `seal` goes only to a build that takes it.
 #   paths (A3, strict): paths.py, five rounds alternating head and baseline.
 #   stop  (F13, strict): stop_scale.py, three-voter stop times at STOP_KEYS (default 100000) keys,
 #         STOP_ROUNDS (default 3) rounds alternating head and baseline; fails when head's slowest stop
@@ -22,13 +22,15 @@ build() { # SOURCE BUILD
 		-DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON >/dev/null
 	cmake --build "$2" -j4 --target detent-authority detent-relay "${@:3}" >/dev/null
 }
+# --agent-seal when SOURCE's W5 next takes `seal` (D163); a build before it refuses the field.
+seal_flag() { grep -q '"seal"' "$1/src/detent_distribution_http/session_request.cc" && echo --agent-seal || true; }
 case $mode in
 build)
 	mkdir -p .scratch
 	build . .scratch/idle-head test_relay_probe
 	/usr/bin/clang -O2 -o .scratch/idle-usage "$here/usage.c"
 	if [ $# -ge 1 ]; then
-		build "$1" .scratch/idle-base
+		build "$1" .scratch/idle-base test_relay_probe
 	fi
 	exit 0 ;;
 idle)
@@ -38,11 +40,11 @@ idle)
 latency)
 	rounds=${LATENCY_ROUNDS:-3}
 	run() { /usr/local/bin/python3 "$here/relay_latency.py" --build "$1" --label "$2" \
-		--probe .scratch/idle-head/tests/detent_relay/test_relay_probe --samples "${LATENCY_SAMPLES:-40}" \
-		--interval-ms "${LATENCY_INTERVAL_MS:-250}"; } ;;
+		--probe "$1/tests/detent_relay/test_relay_probe" --samples "${LATENCY_SAMPLES:-40}" \
+		--interval-ms "${LATENCY_INTERVAL_MS:-250}" $(seal_flag "$3"); } ;;
 paths)
 	rounds=5
-	run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2"; } ;;
+	run() { /usr/local/bin/python3 "$here/paths.py" --build "$1" --label "$2" $(seal_flag "$3"); } ;;
 stop)
 	rounds=${STOP_ROUNDS:-3}
 	rm -rf .scratch/stop-scale
@@ -53,9 +55,9 @@ stop)
 	exit 2 ;;
 esac
 for round in $(seq 1 "$rounds"); do
-	run .scratch/idle-head "head-$round"
+	run .scratch/idle-head "head-$round" .
 	if [ $# -ge 1 ]; then
-		run .scratch/idle-base "main-$round"
+		run .scratch/idle-base "main-$round" "$1"
 	fi
 done
 if [ "$mode" = stop ]; then

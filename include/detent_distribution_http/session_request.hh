@@ -53,6 +53,8 @@ struct SessionRequest {
 	// source's seal is above it; a reader that follows no seal (an agent) sends 2^64-1.
 	std::uint64_t seal = UINT64_MAX;
 };
+// Every answer to a version 2 next, 200 or 204, carries the source's seal in this header (D165).
+inline constexpr std::string_view seal_header = "X-Detent-Seal";
 // The admitted parser arena owns every returned view until worker retirement.
 class ParsedSessionRequest final : public distribution::RetirementNode {
   public:

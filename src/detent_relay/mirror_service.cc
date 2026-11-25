@@ -1,5 +1,6 @@
 #include "detent_relay/mirror_service.hh"
 #include "detent_distribution/framing.hh"
+#include "detent_distribution_http/session_request.hh"
 #include <algorithm>
 #include <condition_variable>
 #include <deque>
@@ -157,14 +158,21 @@ struct MirrorService::Impl {
 		job.reply.content_type = "application/vnd.detent.frames";
 		job.reply.headers = {{"X-Detent-Session-Version", "2"},
 							 {"X-Detent-Session", hex(job.session)},
-							 {"X-Detent-Coding", session.compressed ? "zstd" : "raw"}};
+							 {"X-Detent-Coding", session.compressed ? "zstd" : "raw"},
+							 {std::string(distribution_http::seal_header), std::to_string(seal())}};
 		std::lock_guard lock(mutex);
 		++state.answers;
 	}
 	std::uint64_t seal() const { return relay->mirror().table().seal; }
-	// The mirror's seal is above the next's stamp: with nothing new, it answers 204 now, parked or
-	// new (docs/mechanisms/relay-mirror-wait.md).
+	// The mirror's seal is above the next's stamp: with nothing new, it answers 204 now
+	// (docs/mechanisms/relay-mirror-wait.md).
 	bool sealed(const MirrorJob &job) const { return seal() > job.seal; }
+	// A next's idle answer: 204, with the mirror's seal (D165).
+	void idle(MirrorJob &job) {
+		control(job, 204, {});
+		job.reply.headers = {{std::string(distribution_http::seal_header), std::to_string(seal())}};
+		count_idle();
+	}
 	// A next's answer now, or false while every followed namespace is current (it waits).
 	bool answer(MirrorJob &job, Session &session) {
 		auto positions = job.positions;
@@ -219,15 +227,14 @@ struct MirrorService::Impl {
 			}
 			if (answer(job, *session))
 				break;
-			if (sealed(job) || !job.wait_ms) {
-				control(job, 204, {});
-				count_idle();
+			if (!job.wait_ms) {
+				idle(job);
 				break;
 			}
 			session->busy = true;
 			parked.push_back({held, now + std::chrono::milliseconds(std::min(job.wait_ms, options.maximum_wait_ms))});
 			count_parked();
-			return; // answered by a later sync, or idle at its deadline
+			return; // revisit answers it: a change, a seal above its stamp, or its deadline
 		}
 		case MirrorJob::Kind::Layouts: {
 			std::vector<std::string> names;
@@ -325,8 +332,8 @@ struct MirrorService::Impl {
 		++state.sync_failures;
 		state.error = what;
 	}
-	// Each parked next after a sync: answered when something changed, idle at its deadline, and
-	// idle at once after a seal that moved no head, so a relay reading this one syncs its layouts.
+	// Each parked next, at the end of every turn: answered when a sync changed something, and idle at
+	// its deadline or while the mirror's seal is above its stamp, so a relay reading this one syncs.
 	void revisit(Clock::time_point now, bool synced) {
 		for (std::size_t i = 0; i < parked.size();) {
 			auto &[job, deadline] = parked[i];
@@ -350,8 +357,7 @@ struct MirrorService::Impl {
 				}
 			}
 			if (!settled && (now >= deadline || sealed(*job))) {
-				control(*job, 204, {});
-				count_idle();
+				idle(*job);
 				settled = true;
 			}
 			if (!settled) {

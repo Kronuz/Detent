@@ -507,7 +507,8 @@ class Voter final : public r::Upstream {
 // Slow syncs hold each answer on the mirror thread past the owner's round, so only its wake ends it.
 class RelayA {
   public:
-	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys, std::uint16_t port = 0)
+	RelayA(const Fixture &f, const std::filesystem::path &root, std::size_t keys, std::uint16_t port = 0,
+		   std::uint64_t maximum_wait_ms = 30000)
 		: voter_(new Voter(keys)) {
 		bytes = voter_->bytes;
 		file = voter_->file;
@@ -517,6 +518,7 @@ class RelayA {
 		options.cluster = identity('c');
 		options.namespaces = {"ns"};
 		options.interval = 10ms;
+		options.maximum_wait_ms = maximum_wait_ms; // the longest a next parks here
 		auto ledger = [](std::size_t limit) { return std::make_shared<d::StorageLedger>(limit); };
 		mirror_ = std::make_shared<r::MirrorService>(options, std::unique_ptr<r::Upstream>(voter_), ledger(1 << 30));
 		r::ConfiguredCredential credential;
@@ -813,7 +815,7 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	upstream.hostname = "localhost";
 	upstream.token = std::string(RelayA::token);
 	upstream.tls = f.client;
-	upstream.timeout = 2000ms;
+	upstream.timeout = 4000ms; // B parks 2 s, longer than each step's 1.5 s bound
 	prepare(root / "b");
 	r::MirrorServiceOptions options;
 	options.directory = root / "b";
@@ -834,7 +836,7 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	r::MirrorService b(options, std::unique_ptr<r::Upstream>(hooked),
 					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
 	seal_reaches(b, first + 1, opened.get_future().get(), "a seal before B's watch session opened reached B");
-	// Idle: between deadlines B syncs nothing; the idle 204 each second waits again.
+	// Idle: between deadlines B syncs nothing; the idle 204 every 2 s waits again.
 	until([&] { return a->status().parked == 1; }, "B's next parked at A");
 	const auto rested = b.status().syncs;
 	std::this_thread::sleep_for(1500ms);
@@ -908,9 +910,8 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	}
 }
 // Late park (review R4-1): A takes B's next 800 ms late, its mirror thread held in a sync, so A's
-// seal at +1.3 s answers it after B's 1 s park, counted from B's send: B reads that 204 as idle. B's
-// next wait carries the same stamp, below A's seal, so A answers it at once and B syncs the seal
-// within 1.5 s, not at its 10 s deadline.
+// seal at +1.3 s answers it after B's 1 s park, counted from B's send. That 204 carries A's seal,
+// above B's stamp, so B syncs the seal within 1.5 s, not at its 10 s deadline.
 void late_park(Fixture &f, const std::filesystem::path &root) {
 	constexpr auto hold = 800ms, reseal_at = 1300ms;
 	RelayA a(f, root / "a", 200);
@@ -954,6 +955,44 @@ void late_park(Fixture &f, const std::filesystem::path &root) {
 			  << std::chrono::duration_cast<std::chrono::milliseconds>(reached).count() << " ms later\n";
 	check(reached < 1500ms);
 }
+// No park (review R5-2): A grants no park (its maximum_wait_ms 0), so A answers B's every next at
+// once. B tells a seal from idle by the answer's seal alone: at rest it syncs nothing, and A's seal
+// reaches it within 1.5 s.
+void no_park(Fixture &f, const std::filesystem::path &root) {
+	RelayA a(f, root / "a", 200, 0, 0);
+	until([&] { return a.status().ready; }, "relay A's first sync");
+	r::HttpUpstreamOptions upstream;
+	upstream.endpoints.emplace_back(asio::ip::address_v4::loopback(), a.port());
+	upstream.hostname = "localhost";
+	upstream.token = std::string(RelayA::token);
+	upstream.tls = f.client;
+	upstream.timeout = 2000ms;
+	prepare(root / "b");
+	r::MirrorServiceOptions options;
+	options.directory = root / "b";
+	options.cluster = identity('c');
+	options.namespaces = {"ns"};
+	options.interval = 50ms;
+	options.maximum_wait_ms = 10000;
+	r::MirrorService b(options, std::make_unique<r::HttpUpstream>(upstream),
+					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+	until([&] { return b.status().syncs >= 1 && a.status().idle >= 3; }, "B waiting at A");
+	const auto rested = b.status().syncs;
+	const auto answered = a.status().idle;
+	std::this_thread::sleep_for(1000ms);
+	const auto idle_syncs = b.status().syncs - rested;
+	std::cout << "no park: A answered " << a.status().idle - answered << " waits at once and B synced " << idle_syncs
+			  << " times in 1 s at rest (interval 50 ms)\n";
+	check(idle_syncs == 0);
+	const auto before = a.status().seal;
+	a.reseal_adopted();
+	const auto adopted = Clock::now();
+	until([&] { return b.status().seal > before; }, "B serving A's seal");
+	const auto reached = Clock::now() - adopted;
+	std::cout << "no park: A's seal reached B in "
+			  << std::chrono::duration_cast<std::chrono::milliseconds>(reached).count() << " ms\n";
+	check(reached < 1500ms);
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -970,6 +1009,7 @@ int main(int argc, char **argv) {
 		failed_wait(scratch / "failed-wait");
 		paced(f, scratch / "paced");
 		late_park(f, scratch / "late-park");
+		no_park(f, scratch / "no-park");
 		if (f.server->failure)
 			std::rethrow_exception(f.server->failure);
 		std::filesystem::remove_all(scratch);

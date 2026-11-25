@@ -26,6 +26,9 @@
   204 at once, parked or new, while its seal is above the stamp, and keeps no seal state. A relay
   sends the seal its last sync read, so a seal that moves no head reaches it within a round trip;
   agents send 2^64-1 (D164), and a seal never wakes them.
+- Every answer to a W5 next, 200 or 204, carries the source's seal in `X-Detent-Seal` (D165). A
+  relay syncs on a 204 whose seal is above its stamp and reads nothing from an answer's timing, so
+  an authority whose `wait_ms` is 0 still wakes it on a seal; agents ignore the header.
 
 ### Pins: workpool, no scheduler
 

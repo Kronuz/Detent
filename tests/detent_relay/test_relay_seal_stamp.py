@@ -3,7 +3,8 @@ at a single-voter authority and at a relay mirroring it (bench/idle-wakeups' Pai
 
 Every next carries `seal`. With nothing new, an upstream answers it 204 at once while its own seal
 is above the stamp, parked or new, and otherwise parks until a change or its wait; it keeps no seal
-state. A write to "b" makes the seal that moves no head of "a": the authority seals it after
+state. Every answer, 204 or 200, carries the upstream's seal (X-Detent-Seal, D165), checked at each
+step against the upstream's layouts seal. A write to "b" makes the seal that moves no head of "a": the authority seals it after
 seal_after (1 s), and the relay adopts that seal at its next sync. Every next here follows "a", so
 only the seal can answer it early. The steps order the seal against each next by observing the
 upstream's layouts seal, never by a race:
@@ -68,7 +69,7 @@ class Upstream:
         session: str = json.loads(reply)["session"]
         return session
 
-    def next(self, session: str, names: list[list[object]], wait_ms: int, seal: int) -> tuple[int, float]:
+    def next(self, session: str, names: list[list[object]], wait_ms: int, seal: int) -> tuple[int, float, int | None]:
         body = {
             "version": 2,
             "session": session,
@@ -78,8 +79,10 @@ class Upstream:
             "seal": seal,
         }
         sent = time.monotonic()
-        status, _ = self.pair.call(self.port, "/v2/distribution/session/next", body, self.token)
-        return status, time.monotonic() - sent
+        status, headers, _ = self.pair.exchange(self.port, "/v2/distribution/session/next", body, self.token)
+        took = time.monotonic() - sent
+        carried = headers.get("x-detent-seal")
+        return status, took, int(carried) if carried is not None else None
 
     def close(self, session: str) -> int:
         status, _ = self.pair.call(
@@ -109,25 +112,33 @@ def write(pair: Pair, name: str) -> None:
     check(receipt.get("status") == "applied", f"transaction refused: {receipt}")
 
 
-def report(upstream: Upstream, step: str, answer: tuple[int, float]) -> tuple[int, float]:
-    print(f"{upstream.label} {step}: {answer[0]} after {answer[1] * 1000:.0f} ms", flush=True)
-    return answer
+Answer = tuple[int, float, "int | None"]  # status, seconds, the answer's seal
 
 
-def parks(upstream: Upstream, step: str, answer: tuple[int, float]) -> None:
-    status, took = report(upstream, step, answer)
+def report(upstream: Upstream, step: str, answer: Answer, low: int, high: int | None = None) -> tuple[int, float]:
+    """Prints the answer and checks that it carries the upstream's seal, between `low` and `high`."""
+    status, took, carried = answer
+    print(f"{upstream.label} {step}: {status} after {took * 1000:.0f} ms, seal {carried}", flush=True)
+    high = low if high is None else high
+    check(carried is not None and low <= carried <= high,
+          f"{upstream.label} {step}: the answer's seal {carried}, not the upstream's {low}..{high}")
+    return status, took
+
+
+def parks(upstream: Upstream, step: str, answer: Answer, seal: int) -> None:
+    status, took = report(upstream, step, answer, seal)
     check(status == 204 and took >= PARKED_S, f"{upstream.label} {step}: {status} after {took:.3f} s, not parked")
 
 
-def at_once(upstream: Upstream, step: str, answer: tuple[int, float]) -> None:
-    status, took = report(upstream, step, answer)
+def at_once(upstream: Upstream, step: str, answer: Answer, seal: int) -> None:
+    status, took = report(upstream, step, answer, seal)
     check(status == 204 and took < AT_ONCE_S, f"{upstream.label} {step}: {status} after {took:.3f} s, not at once")
 
 
 def parked_across(upstream: Upstream, session: str, names: list[list[object]], wait_ms: int, stamp: int,
-                  name: str) -> tuple[tuple[int, float], int, int]:
+                  name: str) -> tuple[Answer, int, int]:
     """A next parked 0.2 s before a write to `name`; its answer, and the seal before and after."""
-    answers: list[tuple[int, float]] = []
+    answers: list[Answer] = []
     waiter = threading.Thread(target=lambda: answers.append(upstream.next(session, names, wait_ms, stamp)))
     waiter.start()
     time.sleep(0.2)
@@ -142,40 +153,42 @@ def transitions(upstream: Upstream) -> None:
     session = upstream.open(names)
     seal = upstream.seal()
     check(seal > 0, f"{upstream.label}: no seal yet")
-    parks(upstream, "current", upstream.next(session, names, WAIT_MS, seal))
-    at_once(upstream, "older", upstream.next(session, names, 5000, seal - 1))
-    at_once(upstream, "stale", upstream.next(session, names, 5000, seal - 1))
+    parks(upstream, "current", upstream.next(session, names, WAIT_MS, seal), seal)
+    at_once(upstream, "older", upstream.next(session, names, 5000, seal - 1), seal)
+    at_once(upstream, "stale", upstream.next(session, names, 5000, seal - 1), seal)
 
-    answers: list[tuple[int, float]] = []
+    answers: list[Answer] = []
     first = threading.Thread(target=lambda: answers.append(upstream.next(session, names, WAIT_MS, seal)))
     first.start()
     time.sleep(0.2)
     answers.append(upstream.next(session, names, WAIT_MS, seal))
     first.join()
-    statuses = sorted(status for status, _ in answers)
+    statuses = sorted(status for status, _, _ in answers)
     print(f"{upstream.label} busy: {statuses}", flush=True)
     check(statuses == [204, 409], f"{upstream.label} busy: {answers}")
+    report(upstream, "busy, the parked one", next(a for a in answers if a[0] == 204), seal)
 
-    (status, took), before, after = parked_across(upstream, session, names, 8000, upstream.seal(), "b")
-    report(upstream, "parked", (status, took))
+    stamp = upstream.seal()
+    answer, before, after = parked_across(upstream, session, names, 8000, stamp, "b")
+    status, took = report(upstream, "parked", answer, stamp + 1, after)
     check(after != before, f"{upstream.label} parked: answered before the seal")
     check(status == 204 and took < 5, f"{upstream.label} parked: {status} after {took:.3f} s")
 
     # D164: an agent's stamp. The write to b seals about 1 s in, inside the 4 s wait.
-    (status, took), before, after = parked_across(upstream, session, names, 4000, AGENT, "b")
-    report(upstream, "agent across a seal", (status, took))
-    check(upstream.sealed_after(before) != before, f"{upstream.label} agent: the write was never sealed")
+    answer, before, after = parked_across(upstream, session, names, 4000, AGENT, "b")
+    status, took = report(upstream, "agent across a seal", answer, before + 1, after)
     check(status == 204 and took >= 3.5, f"{upstream.label} agent: {status} after {took:.3f} s, not parked")
-    (status, took), _, _ = parked_across(upstream, session, names, 8000, AGENT, "a")
-    report(upstream, "agent and a change", (status, took))
+    answer, before, after = parked_across(upstream, session, names, 8000, AGENT, "a")
+    status, took = report(upstream, "agent and a change", answer, before, upstream.sealed_after(before))
     check(status == 200 and took < 5, f"{upstream.label} agent: {status} after {took:.3f} s, not the change")
 
     check(upstream.close(session) in (200, 204), f"{upstream.label}: close refused")
-    status, _ = upstream.next(session, names, WAIT_MS, AGENT)
+    status, _, _ = upstream.next(session, names, WAIT_MS, AGENT)
     print(f"{upstream.label} ended: {status}", flush=True)
     check(status == 410, f"{upstream.label} ended: a closed session answered {status}")
     names = upstream.heads()
-    parks(upstream, "reopened", upstream.next(upstream.open(names), names, WAIT_MS, upstream.seal()))
+    seal = upstream.seal()
+    parks(upstream, "reopened", upstream.next(upstream.open(names), names, WAIT_MS, seal), seal)
 
 
 def main() -> int:

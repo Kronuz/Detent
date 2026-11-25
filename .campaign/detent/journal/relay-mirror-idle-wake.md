@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: ready for review
+State: blocked on lead: reply_pump.{hh,cc} for D165's 204 header
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,63 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+### Round 5: D165, the seal on the answer (review round 5 CHANGES at 5f601d6b: R5-1..R5-3)
+
+Lead: fix R5-1..R5-3; D165: every answer to a next, 204 or 200, carries the upstream's seal; the
+relay compares it with its stamp and reads nothing from timing; agents ignore it (D164 stands).
+Done in the worktree, uncommitted parts committed as WIP below; it does not build until the
+blocker is widened (two call sites, below).
+- Wire (D165): header `X-Detent-Seal` (`distribution_http::seal_header`, session_request.hh). The
+  authority's 204 (`idle()` in the frames pass, seal_at) and 200 (export metadata, the sealed
+  index at start) carry it; `Service::Reply` gains `headers`, which stream_task passes to
+  send_control. The relay's 204 (`idle(job)`) and 200 (`answer`'s headers) carry its mirror seal;
+  relay service.cc's `control` passes `reply.headers`. `HttpUpstream::wait`: 200 is a change; a
+  204 is a change when its seal is above the stamp; a 204 with no or a bad seal refuses the watch
+  and throws. `Response::early` and the send-time test are gone.
+- R5-3, wire-older-r: the relay's handler no longer checks the stamp; `revisit`, which runs at the
+  end of every turn after `handle`, is the one place a stamp is answered (as the authority has one
+  expression per visit). A new next with a stale stamp waits at most for a sync running in its
+  turn.
+- R5-3, b0740b: test_http_upstream `idle` parks 2 s (timeout 4000), longer than each step's 1.5 s
+  bound, so wire-parked-r's fallback to A's deadline fails the step by 0.5 s, not 40 ms.
+- R5-3, ac469a: dropped with wire-older-a. The authority computes `sealed` in one expression for
+  every visit; the mutant only delays a new next by one owner pass, which no bound separates
+  safely from a sanitizer's pass.
+- R5-1: compare.sh builds test_relay_probe at the baseline too; each arm runs its own build's
+  probe, and `--agent-seal` (seal 2^64-1 in relay_latency.py and paths.py) goes only to a build
+  whose session_request.cc takes `"seal"` (main: 0 matches; the fix: 2).
+- R5-2 test: test_relay_seal_shortwait (ctest) runs bench/idle-wakeups/seal_window.py with the
+  authority's `subscription_limits.wait_ms` 0, 6 trials, 1.5 s bound (the reviewer's
+  seal_shortwait, folded into seal_window as AUTH_WAIT_MS). test_http_upstream `no_park`: relay A
+  grants no park (maximum_wait_ms 0): B syncs 0 times in 1 s at rest, and A's seal reaches B within
+  1.5 s.
+- test_relay_seal_stamp checks the answer's seal at every step (Pair.exchange returns headers).
+- Docs: relay-mirror-wait.md (the table below, the wake table), namespace-s6.md, CHANGELOG.
+
+State table, extended with the answer's seal and a park of 0 (B's stamp s; U's seal s -> s+1):
+
+| # | B when U applies the seal | U answers (status, seal) | B | Test |
+|---|---|---|---|---|
+| 1 | Between its sync's layouts read and its next reaching U | 204 at once, s+1 | change: syncs | http "between"; stamp `older`, `stale` (seal = S) |
+| 2 | Parked at U | 204 at once, s+1 | syncs | http "while parked" (2 s park); stamp `parked` (seal in s+1..after) |
+| 3 | Parked; U's 204 reaches B past the park (R4-1) | 204, s+1 | syncs: the seal decides, not the time | http `late_park`; seal_window `other` |
+| 4 | U grants no park (session `wait_ms` 0; R5-2) | every next 204 at once, its seal | syncs on the first answer above s; at rest waits again once an interval | http `no_park` (relay U), test_relay_seal_shortwait (authority U) |
+| 5 | Answered already (idle with s, or a 200) | nothing new | idle: waits again with s, answered 204 s+1 at once: syncs; 200: syncs | http "after an idle answer" |
+| 6 | Syncing, before its layouts read | nothing | reads s+1; its next parks | stamp `current` (204, seal = S, parks) |
+| 7 | Opening its watch session | the open carries no stamp | as rows 1-5; no sync for the open | http `paced` (1 sync in all) |
+| 8 | 409, 410 | no seal (errors) | retry; reopen (7) | stamp `busy` (the parked 204's seal = S), `ended` |
+| 9 | Reading a source behind the watch's | every 204 above s | syncs at most once an interval | (rotation: `failed_wait`) |
+| 10 | Idle at the deadline, no seal | 204 at the park, s | waits again; at maximum_wait_ms syncs | http deadline sync at 4 s |
+| 11 | A 204 with no seal (a broken source) | 204 without the header | refuses the watch session, `Failed`: skip and sync | (by reading; one shape: no fallback) |
+| D164 | Agent (stamp 2^64-1) | 204 at its deadline through a seal (seal carried, ignored); 200 on a change | as main | stamp `agent across a seal`, `agent and a change` (200's seal in before..after) |
+
+Mutants for this round (make5.py, after the blocker): drop wire-older-r and wire-older-a; rewrite
+wire-open-u as an open that returns a 200 (`Response` lost `early`); add wire-header-a (the
+authority's 204 seal "0"), wire-header-r (the relay's), and wire-compare-u (`wait` reads only 200
+as a change). Pairs: stamp test for -a/-r header mutants, shortwait for wire-header-a, http for
+wire-compare-u and wire-header-r; shortwait's own fails-without at 5f601d6b via `--ref`. Every
+pair run locally on a mutant tree before it is queued.
 
 ### Round 4: D163, the seal stamp on the wire (reviewed head 13707337; R4-1)
 
@@ -295,11 +352,19 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Read round 4's jobs (Doing); fill Evidence and Result with A1 and A2 at cb6ce9f2.
+1. Once reply_pump is widened: add the headers parameter, build, run the tests, make5.py mutants
+   (run each pair locally), then queue every criterion once at the head, push, ready for review.
 
 ## Blocked on
 
-Nothing.
+Lead: D165's 204 carries a header, and both upstreams write a next's 204 through
+`distribution_http::OwnedReplyPump::send_control(status, body, account)`, which takes no headers.
+Needed, outside the set: include/detent_distribution_http/reply_pump.hh and
+src/detent_distribution_http/reply_pump.cc. The change: `send_control` gains
+`std::span<const std::pair<std::string, std::string>> headers = {}` and copies them into the
+`http::Response` metadata it starts. Its callers in the set already pass them (service.cc:445,
+relay service.cc:152); the build fails only there. The other way, writing a headed 204 by hand
+at both call sites, would duplicate send_control's start/finish path twice, so I did not take it.
 
 ## Evidence
 

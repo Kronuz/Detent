@@ -25,7 +25,7 @@ from pair import CONTEXT, NAMES, READER, WRITER, Pair
 
 
 def client(
-    path: str, port: int, ca: str, seconds: float, start: float
+    path: str, port: int, ca: str, seconds: float, start: float, agent_seal: bool
 ) -> tuple[list[int], int]:
     import http.client
 
@@ -62,8 +62,9 @@ def client(
             "session": json.loads(opened)["session"],
             "namespaces": names,
             "wait_ms": 0,
-            "seal": 2**64 - 1,
         }
+        if agent_seal:
+            body["seal"] = 2**64 - 1  # an agent's stamp (D164), to a build that takes it
     while time.monotonic() < start:
         time.sleep(0.001)
     latencies: list[int] = []
@@ -82,12 +83,12 @@ def client(
     return latencies, busy
 
 
-def measure(pair: Pair, path: str, clients: int, seconds: float) -> dict[str, Any]:
+def measure(pair: Pair, path: str, clients: int, seconds: float, agent_seal: bool) -> dict[str, Any]:
     port = pair.authority_port if path == "authority" else pair.relay_port
     start = time.monotonic() + 1.0
     with multiprocessing.get_context("spawn").Pool(clients) as pool:
         results = pool.starmap(
-            client, [(path, port, pair.ca, seconds, start)] * clients
+            client, [(path, port, pair.ca, seconds, start, agent_seal)] * clients
         )
     latencies = sorted(value for values, _ in results for value in values)
     count = len(latencies)
@@ -106,11 +107,12 @@ def main() -> None:
     parser.add_argument("--label", required=True)
     parser.add_argument("--clients", type=int, default=4)
     parser.add_argument("--seconds", type=float, default=10)
+    parser.add_argument("--agent-seal", action="store_true", help="send next's seal (a build that takes it)")
     args = parser.parse_args()
     with Pair(args.build.resolve()) as pair:
         for path in ("authority", "relay"):
             row = {"label": args.label} | measure(
-                pair, path, args.clients, args.seconds
+                pair, path, args.clients, args.seconds, args.agent_seal
             )
             print(json.dumps(row, sort_keys=True), flush=True)
 
