@@ -9,6 +9,37 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+Round 2 review APPROVE at 29c32169 (reviews/relay-mirror-idle-wake-correctness.md, 26f645a5); its
+notes R2-1..R2-3 fixed at 75021884 (main 2c825a49 merged: campaign files only).
+- R2-1: the watcher asks no sooner than `interval` after its previous wait (mirror_service.cc
+  watch_loop, `asked`). Class: every path that re-arms a wait (idle re-wait, change, failure); one
+  gate before each ask covers all. Test test_http_upstream `paced`: timeout 400 ms (200 ms parks),
+  interval 1 s: A answered 3 idle waits in 3 s, B 0 syncs (local); fails-without paced-off.
+- R2-2: client.cc maps 503 not_ready to Unavailable (rotates, coordinator.cc unavailable_reset).
+  Test tests/detent_delivery/test_client_reset.cc (value per 503/429 error), registered in
+  tests/detent_relay/CMakeLists.txt (tests/detent_delivery/CMakeLists.txt is outside the set);
+  fails-without client-off.
+- R2-3: test_http_upstream `failed_wait`: an upstream whose first wait throws; 1 skip, and the sync
+  after it saw it, 2 syncs; fails-without skip-off.
+Local `quiet light` at 75021884: test_client_reset, test_http_upstream, test_relay_idle (seal after
+2.80 s), test_relay_hung (0.46 s), test_namespace_coordinator passed.
+Queued once at 75021884 (mutants under refs/mutants/; hunk reverts of the head file):
+- test_http_upstream 261124-194930-93c649; fails-without relay-at-main 261124-194933-393865,
+  paced-off 261124-194938-f72663, skip-off 261124-194942-93b926, relay-f1-9337 (fix files at
+  9337f6c9, 29c32169 tests: reseal) 261124-194946-4672e0.
+- test_client_reset 261124-194951-3fd12d; fails-without client-off 261124-194955-c8f24b.
+- test_relay_idle 261124-194958-4ef9df; fails-without runtime-at-main 261124-195002-0ce6a0,
+  relay-f1-9337 261124-195005-70f43b.
+- test_relay_hung 261124-195008-115e1d; fails-without 261124-195012-4047b1 (relay-f1-9337).
+- test_relay_cut-off 261124-195015-196331; fails-without 261124-195018-215053 (relay-f1-9337).
+- A1 261124-195021-2bfd93 (75021884 vs a69f43a4); band 261124-191512-3908aa (main vs main, kept:
+  independent of the fix). A2 261124-195024-14371c (250 ms), 261124-195027-702b6d (10 ms).
+- Suite 261124-195030-5f884c. CI on the pushed branch.
+Cancelled as superseded (29c32169): 2c98e3 bcf6ff c5282a 92866f ca4837 377db8 7888d0 265462
+a5cd86 9ee26e af2c4a 0afbd5 97c202 b185e1.
+
+### Round 1 (29c32169)
+
 Correctness review CHANGES at 9337f6c9 (.campaign/detent/reviews/relay-mirror-idle-wake-correctness.md),
 fixed at 29c32169 (main a69f43a4 merged; no source change since e9149575).
 - F1 (blocking), both lead-ruled parts. Class: a source that stops answering while it holds the
@@ -62,8 +93,8 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Read the 29c32169 jobs: A1 af2c4a and band 3908aa into net cores and watts (relay + authority),
-   A2 0afbd5 and 97c202, the A3 rows and fails-without, suite b185e1, CI; fill Evidence and Result.
+1. Read the 75021884 jobs: A1 2bfd93 and band 3908aa into net cores and watts (relay + authority),
+   A2 14371c and 702b6d, the A3 rows and fails-without, suite 5f884c, CI; fill Evidence and Result.
 
 ## Blocked on
 
@@ -78,11 +109,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-191537-af2c4a (29c32169 vs main a69f43a4), band 261124-191512-3908aa; queued |
-| A2 | 261124-191516-0afbd5 (250 ms), 261124-191520-97c202 (10 ms), queued; earlier 3ac6f3, 314fca, band 387342 (80393d76) |
-| A3 | test_http_upstream 2c98e3 (fw bcf6ff, c5282a); test_relay_idle 92866f (fw ca4837, 377db8); test_relay_hung 7888d0 (fw 265462); test_relay_cut-off a5cd86 (fw 9ee26e); queued |
+| A1 | 261124-195021-2bfd93 (75021884 vs main a69f43a4), band 261124-191512-3908aa; queued |
+| A2 | 261124-195024-14371c (250 ms), 261124-195027-702b6d (10 ms), queued; earlier 3ac6f3, 314fca, band 387342 (80393d76) |
+| A3 | test_http_upstream 93c649 (fw 393865, f72663, 93b926, 4672e0); test_client_reset 3fd12d (fw c8f24b); test_relay_idle 4ef9df (fw 0ce6a0, 70f43b); test_relay_hung 115e1d (fw 4047b1); test_relay_cut-off 196331 (fw 215053); queued |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md (voter-state table, seal answer) |
-| A5 | 261124-191550-b185e1 queued; CI on 29c32169 |
+| A5 | 261124-195030-5f884c queued; CI on 75021884 |
 
 Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
 exit 8 as required), 261124-034543-d72b56 (probe, cancelled), 261124-034500-c0335d (A/A, superseded
@@ -129,6 +160,10 @@ lower, p99 +7 to +16 ms, inside the 250 ms A/A p99 spread (36 ms) but with no 10
   healthy idle answer always lands before it, and a silent source is one that hangs.
 - A wait that fails makes the mirror `skip()` past its source before syncing, so the sync reads the
   next source at once instead of meeting the hung one and timing out again.
+- R2-1's gate paces every wait, not only idle re-waits: a change's wait already starts long after
+  the previous ask, so only back-to-back asks are delayed. No configuration bound on timeout_ms.
+- test_client_reset's source sits in tests/detent_delivery (the widened set) and is registered from
+  tests/detent_relay/CMakeLists.txt, which is in the set; the lead may move the registration.
 - Seal signal (N2): a 204 before the wait, not a new field or status, so no protocol change; the
   authority answers only nexts that were parked before the seal turn (`was_parked`).
 - The watch is a signal: its answer's frames are dropped and the sync re-reads them (one extra
