@@ -1,6 +1,6 @@
 # consensus-recovered-over-limit-start: journal
 
-State: working
+State: ready for review (jobs queued at consensus:d03a71b; pushed)
 Quest: .campaign/detent/quests/consensus-recovered-over-limit-start.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A1 table written (below); implementing the rule in worker.h / driver.h.
+Final head consensus:d03a71b; A2 pair, fails-without pair and suite queued; branch pushed for CI.
 
 ## Next
 
-1. Worker: a turn refused with Pressure before Start reclaims instead, until a whole pass ran.
-2. Driver: a Pressure turn before Start after that fences the group (`over_headroom`), failing the open.
-3. test/recovered_over_limit_test.cc (cases `reclaims`, `refuses`), CMake, deadlines.md.
+1. Read jobs 261124-201345-5a60e2, 261124-201346-931ecd, 261124-201348-90beab, 261124-201349-16891d,
+   261124-201351-4ac6e5 and CI; correctness review.
 
 ## Table (A1): how recovery leaves a store above its control headroom
 
@@ -68,13 +67,27 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | this journal's table |
-| A2 | pending |
-| A3 | pending |
-| A4 | pending |
+| A2 | reclaims 261124-201345-5a60e2; refuses 261124-201348-90beab; fails-without at consensus:0cf87ca (main's worker.h and driver.h, `over_headroom`'s name only): reclaims 261124-201346-931ecd, refuses 261124-201349-16891d. Local Release at d03a71b: reclaims 17 checks, refuses 12, 0 failures; at the mutant both fail "the open completes: never, within 200 ms". |
+| A3 | [artifact] docs/mechanisms/deadlines.md, "A recovered store over its control headroom" |
+| A4 | suite 261124-201351-4ac6e5; CI on the push |
 
 ## Result
 
-Pending.
+Before Start, `Worker::run_one` turns a Pressure turn into a reclaim step (`IOPending` async,
+`Maintenance` sync) until a reclaim pass completes (`reclaimed_`, also set by maintenance's passes);
+`started_` is set when a Start is admitted. `Driver::step` fences a group whose turn before Start is
+Pressure with `over_headroom` ("storage above its control headroom at start"), so the open fails with
+`fenced` and the Sink hears `Fenced` with that reason. Measured (test/recovered_over_limit_test.cc,
+lone voter, 512 KiB published checkpoint, 114-byte pre-Start pack): `reclaims`, a killed checkpoint's
+640 KiB staged image over `hard` = published + 324 KiB: reclaimed, the open completes, the group leads
+and commits; `refuses`, `hard` = published + pack - 1: the open fails by name within 200 ms and the
+store keeps its two artifacts. At main both opens never complete. Local neighbours: driver_pressure 25
+checks, worker 96196 checks, 0 failures.
+
+Files: include/consensus/worker.h, include/consensus/driver.h, test/recovered_over_limit_test.cc
+(ctest consensus_recovered_over_limit_{reclaims,refuses}), CMakeLists.txt, docs/mechanisms/deadlines.md.
+
+Left open for the lead: the refill-order note under the table (journal's admission, not this file set).
 
 ## Rulings I made
 
@@ -83,3 +96,10 @@ Pending.
    only moves the stall past the open.
 2. The fence decision is the Driver's (its open hung forever at main); the Worker only reclaims, so
    no Worker host that starts a group today is refused.
+3. The named status is `fenced` with the public reason `over_headroom` (driver.h), not a new
+   exception type: one mechanism for a group that cannot continue, and every `catch (fenced&)` keeps
+   working. A distinct type deriving from `fenced` is a small follow-up if the owner wants one.
+4. One completed reclaim pass suffices: no root changes before Start, so any pass that completes
+   after recovery examined every file against the same roots.
+5. The fails-without commit consensus:0cf87ca (local branch scratch/over-limit-mutant, never pushed)
+   keeps `over_headroom`'s declaration so the test compiles against main's behavior.
