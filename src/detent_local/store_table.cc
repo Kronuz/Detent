@@ -14,8 +14,8 @@ namespace detent::local {
 namespace {
 using Sha = std::array<char, 32>;
 constexpr std::string_view table_magic = "DTTABLE1";
-// The header; an index record's digest and name length; the longest entry.
-constexpr std::size_t table_header = 72, index_fixed = 33, entry_max = table_entry_bytes(255),
+// The header, and an older layout's; an index record's digest and name length; the longest entry.
+constexpr std::size_t table_header = 72, old_header = 64, index_fixed = 33, entry_max = table_entry_bytes(255),
 					  maximum_entries = 1u << 20;
 Sha digest(std::span<const char> bytes) {
 	SHA256 hash;
@@ -191,16 +191,19 @@ PagedTable::PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr
 	                     : std::span<const char>(owned_)),
 	  state_(std::make_unique<State>()) {
 	const std::span<const char> in(bytes_);
-	refuse(in.size() >= table_header + 32 && std::string_view(in.data(), 8) == table_magic, "header");
+	// The layout comes first: every size rule after it is its layout's.
+	refuse(in.size() >= 12 && std::string_view(in.data(), 8) == table_magic, "header");
 	std::size_t at = 8;
 	const auto layout = take(in, at, 4);
 	if (layout < agent_store_layout) {
-		// An older layout's whole table carries one trailing digest.
+		// An older layout: a 64-byte header, its entries, and one trailing digest of the whole table.
+		refuse(in.size() >= old_header + 32, "header");
 		const auto sum = digest(in.first(in.size() - 32));
 		refuse(std::equal(sum.begin(), sum.end(), in.end() - 32), "digest");
 		throw LayoutRefused("agent store table: layout");
 	}
 	refuse(layout == agent_store_layout, "layout");
+	refuse(in.size() >= table_header + 32, "header");
 	count_ = take(in, at, 4);
 	sequence_ = take(in, at, 8);
 	take(in, at, directory_.cluster);

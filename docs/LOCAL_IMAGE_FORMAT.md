@@ -33,7 +33,7 @@ The table `selected` (`DTTABLE1`, layout 3, `include/detent_local/store_table.hh
 
 ## Other layouts
 
-No other layout is read (D43). A whole table of an older layout, or a whole root of an older format whose digest its entry names, is `LayoutRefused`: the agent refuses the store once (`DiskStore::refusal()`), removes `selected`, opens empty and bootstraps a full copy; collection removes the old files no reader holds. A newer layout or format is not this agent's to remove, and a root whose digest differs from its entry's is damage: both fence the store and keep every file.
+No other layout is read (D43). A read takes the table's layout before any size rule: a whole table of an older layout (its 64-byte header and trailing digest, 96 bytes when empty), or a whole root of an older format whose digest its entry names, is `LayoutRefused`: the agent refuses the store once (`DiskStore::refusal()`), removes `selected`, opens empty and bootstraps a full copy; collection removes the old files no reader holds. A newer layout or format is not this agent's to remove, and a root whose digest differs from its entry's is damage: both fence the store and keep every file.
 
 ## Verification and remaining gates
 
