@@ -29156,7 +29156,9 @@
         "tests/detent_relay/mutants/build-on-mirror-thread.patch",
         "tests/detent_relay/test_http_upstream.cc",
         "tests/detent_relay/test_relay_chain.cc",
-        "tests/detent_relay/test_relay_pages.cc"
+        "tests/detent_relay/test_relay_pages.cc",
+        "tests/detent_relay/test_relay_mirror_crash.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc"
       ],
       "history": [
         {
@@ -29276,12 +29278,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "completion:b4600a8's required FlushMode reaches every PosixIO construction in tests and benchmarks (17 files, one token each), and completion must load before consensus in CMakeLists.txt; overlaps first-read-1ms (test_agent_store.cc, benchmarks) and relay-mirror-idle-wake (tests/detent_relay) with one-token edits, under pin-wave's --force",
+      "reason": "completion:b4600a8 adds an fdatasync argument to Linux replace_sync_calls; each file needs one nullptr (overlaps relay-mirror-idle-wake's tests/detent_relay/** with that one token, under --force)",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T18:27:22",
+      "updated": "2026-11-24T18:33:55",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
