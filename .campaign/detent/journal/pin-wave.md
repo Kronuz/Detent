@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: ready for review; jobs at Detent:0b8a0df9 queued: A4 native 261124-234933-d07efb, pins 261124-234933-f5eec6, A5 w5 261124-234929-bde848; A6 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; CI at the pushed head
+State: blocked on lead: widen benchmarks/read_response_bench.cc for F2 (Blocked on 1); waiting on jobs 261125-003938-bb7451 261125-003938-7435c8
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,14 +28,25 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Read the jobs in State: A5 w5 report (snapshot JSON, frames, paged images identical; each other
-   class difference traced to a library commit) and A6 rows into docs/perf/pin-wave.md and the
-   Evidence table; a 124 row reruns with fewer rounds. CI's asan and tsan for A4.
+1. Once benchmarks/read_response_bench.cc is widened: apply the fix in Blocked on 1, then queue
+   `pin-wave-ab.sh build` and the get row with its A/A (--ref OLD=main) at that head, and
+   `campaign verify pin-wave`; push once.
+2. Read the get row into docs/perf/pin-wave.md and the Evidence table; set "ready for review".
 
 ## Blocked on
 
-None. Both former blockers were widened by the lead (0801ccb2) and are done: test_relay_chain
-links faultlab (Detent:7553872a); tools/w5 builds (Detent:0b8a0df9).
+1. F2: benchmarks/read_response_bench.cc (outside the set). Root cause: its fixture writes 256
+   overrides of 52-54-byte group keys; since one-knob-type (Detent:711a114e) each override row is
+   key + 17 bytes (8-byte length, kind octet, 8-byte int64), where a bool override was 1-2, so the
+   definition encodes to 18,083 bytes, over the default `definition_bytes` 16,384
+   (state_internal.hh:163). It fails in both arms (local runs of the job's binaries: same 400).
+   Fix, keeping 256 overrides (the override cap) and the bound: pad the key with 38 bytes, not 46
+   (keys 44-46 bytes, definition 16,035 bytes); and `create_directories` for its scratch directory,
+   since it aborts where `.scratch` does not exist (the reviewer's old-arm probe). Proven out of
+   tree (.scratch/pin-wave/get-bench, quiet light): both arms of the unchanged bench exit 134;
+   the fixed copy exits 0 plain (reply 1,664,672 B) and --escaped (7,890,592 B). The A/B already
+   builds the bench from the head's source in both arms (Detent:dda447e3). Recommend: widen by that
+   one file.
 
 ## Evidence
 
@@ -44,10 +55,10 @@ links faultlab (Detent:7553872a); tools/w5 builds (Detent:0b8a0df9).
 | A1 | pins 261124-234152-d6560c at Detent:75bb4ac1: 30 libraries, 41 shared declarations, 0 mismatches; rerun 261124-234933-f5eec6 at Detent:0b8a0df9 queued |
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
-| A4 | native 261124-234933-d07efb at Detent:0b8a0df9 queued; asan, tsan: CI at the pushed head (run id below in State once listed). Earlier red (native 261124-212452-faeaad, CI 45553576282) was test_relay_chain's missing faultlab link, fixed at Detent:7553872a |
-| A5 | w5 261124-234929-bde848 at Detent:0b8a0df9, OLD = main bc86991a (code = quest base 18c5bd23) queued; syscalls 261124-234152-ea3a2e at Detent:75bb4ac1 (2b8b12 at d63517c0 done). Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get 261124-234154-693af5, reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
-| A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
+| A4 | native 261124-234933-d07efb at Detent:0b8a0df9 passed 220/220, asan and tsan green in CI 45571227792 (review); native 261125-003938-bb7451 and pins 261125-003938-7435c8 at Detent:dda447e3 queued; asan, tsan: CI at the pushed head (run id below in State once listed). Earlier red (native 261124-212452-faeaad, CI 45553576282) was test_relay_chain's missing faultlab link, fixed at Detent:7553872a |
+| A5 | w5 261124-234929-bde848 at Detent:0b8a0df9, OLD = main bc86991a (code = quest base 18c5bd23): snapshot JSON, wire frames and paged images identical, every class 0 different (docs/perf/pin-wave.md "Input classes"); http replay skipped in both arms (no classic profile); syscalls 261124-234152-ea3a2e at Detent:75bb4ac1 (2b8b12 at d63517c0 done). Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
+| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get blocked (F2, Blocked on 1; 261124-234154-693af5 failed in both arms), reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
+| A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc; operator-visible results per library commit, Detent:a45ad238): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
 | A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
 ### Cascade
@@ -167,7 +178,7 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    test_lagging_incarnation, test_relay_chain) and every file including faultlab headers
    (history_power_cut, namespace_power_cut, history_transport, history_large_base) now links it;
    offline_runtime.hh includes no faultlab header (grep, Detent:7553872a).
-20. w5_store port (Detent:0b8a0df9) follows renames only: flat ImageBuilder (deleted, Detent:f6e8d3d6)
+20. w5_store port (Detent:0b8a0df9) changes what w5 compares, forced in both arms (review N3): flat ImageBuilder (deleted, Detent:f6e8d3d6)
    -> detail::PagedSnapshotBuilder as benchmarks/paged_snapshot_bench.cc drives it; the persisted
    image is now its root plus segments sorted by segment id, each saved as a file. The snapshot
    fixture's value is test_encoded_update.cc's four-field tuple (the three-field one throws "tuple
@@ -179,6 +190,27 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 22. A6's rows at Detent:75bb4ac1 stand: since then the head changed a test CMake link, tools/w5/w5_store.cc
    and the journal; pin-wave-ab.sh builds only its six bench targets and runs ab_rounds.py and
    bench_rows.sh, none of which changed.
+23. Review pin-wave-correctness (CHANGES at Detent:0b8a0df9), folded in:
+   - F1 (Detent:a45ad238). Class: a library commit in the wave that changes what an operator of
+     the authority, relay or agent sees. Swept every moved library's log old..new pin (CHANGELOG
+     diff, and commit subjects where a library keeps none: task, logger, http-parser,
+     radix-router, strict-stox, sha256, wheel, workpool and the header-only ones), keeping what
+     reaches Detent's paths (Worker, Core, Peers, SnapshotChannel, the owned journal Store,
+     PosixIO, http and reactor listeners, logger, strict-stox). Beyond the review's list: the late
+     append success (consensus 2026-11-15), the lone voter's campaign at Start (2026-11-16), exit
+     waiting for peer lookups (2026-11-19), idle TLS memory (http 2026-11-16), reactor's wheel
+     timers, thread names, stop order and 16 MiB TLS file cap, the logger's exit drain
+     (logger:cfcec69, 70e3c36, db35b6c) and strict-stox's libc path. Not operator-visible to
+     Detent, so not listed: the Driver, host transport, seeds, quiescence, turn log and Host;
+     follower reads (Detent's Start carries no nonce); journal's flush-mode bullet (stated).
+     No test: a CHANGELOG has none; the class is checked by that sweep.
+   - F2: root cause and the fix's evidence in Blocked on 1; the bench is outside the set. The A/B
+     builds the get bench from the head in both arms (Detent:dda447e3), since main's copy fails too.
+   - N1, N2, N5 (perf doc and manifest newline), N3 (ruling 20), N7 (perf doc input classes):
+     Detent:a45ad238. N5's stale `set_max_body` (service.cc:247, docs/mechanisms/authority-reply.md:14)
+     is outside the set: left for the lead. N4, N6: nothing to do.
+24. msg-1 (lead widened tests/detent_relay/CMakeLists.txt and tools/w5/**): done, Detent:7553872a
+   and Detent:0b8a0df9; A4 and A5 passed at 0b8a0df9.
 18. A/B script (Detent:eb2ce062): first_read_phases linked detent::local_client, removed with
    detent::Client (Detent:1c878402) before both arms, so A6's build never generated; it links
    detent::local_view and detent::testing_store now (both targets build locally at the new pins).
