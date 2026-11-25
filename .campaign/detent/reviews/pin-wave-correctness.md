@@ -107,3 +107,43 @@ Answers to the lead's questions:
 - An old-pin run of the power-cut tests to compare cut counts by number; I relied on the asserted
   floors and the model comparison.
 - A rolling-upgrade or mixed-pin cluster: Detent has no users to upgrade.
+
+## Round 2
+
+Commit: Detent:02159828 (journal Detent:50b92513)
+Verdict: CHANGES
+Date: 2026-11-25
+
+F1 is fixed: Detent:a45ad238's "Results that changed" holds every item of F1, and I checked the
+additions against the libraries' logs between the old and new pins. Their commits and dates are as
+the CHANGELOG cites them: consensus 2026-11-15 (a late append success counts), 2026-11-16 (a lone
+voter campaigns at Start; no heartbeat without peers) and 2026-11-19 (exit waits for lookups);
+reactor 2026-11-12 (wheel timers due 1 to about 2 ms late), 2026-11-16 (`reactor-<index>` thread
+names) and 2026-11-19 (stop order; 16 MiB file cap); logger:cfcec69, 70e3c36 and db35b6c, all
+three between 6e7ab9e and 65994c9; strict-stox 2026-11-16. The exclusions hold: Detent's
+consensus transport is `Peers` (src/detent_authority/peers.hh:9), so the host connection's
+SIGPIPE fix and the Driver, seeds and quiescence entries do not reach it. http's q-value parser
+(http:4ce7ad8) reaches only `http_compression.h`, which Detent does not enable (grep). N2's
+point is folded into the sync bullet.
+
+F2's fix changes the fixture, not the measurement: the key padding goes from 46 to 38 bytes
+(`group<i>` plus 38 is 44 to 46 bytes, plus 17 each, times 256 is at most 16,128, under the
+unchanged 16,384 bound) and the bench creates its `.scratch` parent. The 128 knobs, 256 overrides
+and five strong reads, the timing and the link (`detent_authority_service`) are unchanged.
+Detent:dda447e3 builds that one source into both arms, the way tools/w5 builds its drivers, so
+the old arm measures the same fixture. Each reply is about 8 bytes per override row smaller, so
+the row's absolute numbers do not compare with earlier runs of this bench (R2-N1).
+
+The get row itself has not passed:
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1 | yes | gap | A6's get row has no result. Its round-4 A/A run exited with `read benchmark validation failed` and printed no status, so the failing `require` is the open (`/v2/open` retried for only 1 s, read_response_bench.cc:65-72) or a read (:105). Neither prints its code. Run alone the bench passes 40 of 40 (old 20, new 20, light), so it fails rarely and under load (this row ran beside 8 light holds). The cause is not shown; a 1 s open budget against full-flush creation under load is my guess, not a finding. | 261125-004223-19cd2c (failed); probe 261125-005225-e5f0f1 (0 of 40) | Make both silent `require`s print the code and body, as the transactions loop does (:97), then rerun the row. A pass closes A6; a failure now names its status, and its fix is the bench's. |
+| R2-N1 | no | nit | docs/perf/pin-wave.md should state that the get row's fixture is the head's, built into both arms with 38-byte padding, so its numbers are not compared with older runs of this bench. | Detent:02159828, Detent:dda447e3 | One sentence. |
+
+Evidence: pins 261125-004230-dc7d45 (0 mismatches at Detent:02159828); A/B build
+261125-004218-16986b (both arms build the head's bench, OLD = main dead7cab, whose code equals
+the quest base 18c5bd23: empty diff outside .campaign). Not run: native at Detent:02159828 (the
+coordinator says it is rerunning; the only code change since round 1 is the benchmark source,
+which the A/B build compiles), and CI at the new head. Probe script:
+`.scratch/detent/review-pin-wave-correctness/get_repeat.sh`.
