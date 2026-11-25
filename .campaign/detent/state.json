@@ -9859,20 +9859,56 @@
         "docs/mechanisms/deadlines.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/consensus-recovered-over-limit-start",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T21:22:09",
+          "ci": {
+            "carried": true,
+            "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+            "runs": [
+              45548717537
+            ]
+          },
+          "commit": "be18ad93cf5205abe56cea54973e1ca69a7674a7",
+          "criteria": {
+            "A1": "this journal's table (fix round 1: rows by mode, F1)",
+            "A2": "261124-204315-ae3e15 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files), 261124-204318-1b1244 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files), 261124-204309-3eda32 (passed at 53c8146d3b48; only 1 merge from main since, none touching its files); fails without: 261124-201346-931ecd, 261124-201349-16891d, 261124-204312-01c44d",
+            "A3": "[artifact] docs/mechanisms/deadlines.md, \"A recovered store over its control headroom\" (rewritten by mode, F1)",
+            "A4": "261124-204331-0201ac (passed at 53c8146d3b48; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-204331-0201ac",
+              "level": "light",
+              "seconds": 916.4,
+              "state": "done",
+              "what": "consensus-recovered-over-limit-start check suite at 53c8146d3b48"
+            }
+          ],
+          "final": true,
+          "from": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+          "reason": "",
+          "tested": "be18ad93cf5205abe56cea54973e1ca69a7674a7"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
-      "updated": "2026-11-24T21:20:38",
-      "worktree": "../consensus-wt/detent/consensus-recovered-over-limit-start"
+      "updated": "2026-11-24T21:22:13",
+      "worktree": ""
     },
     "consensus-replica-delete": {
       "accepted": {},
