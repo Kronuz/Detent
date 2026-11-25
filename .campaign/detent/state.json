@@ -32798,8 +32798,38 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T17:44:44",
+          "ci": {
+            "commit": "0534e8d9fe2fc6affe0e8e9ec2bf3d013804c32d",
+            "runs": [
+              45519316796
+            ]
+          },
+          "commit": "e66a29b3406ebc625a9be4c3a873b37cfc6908a8",
+          "criteria": {
+            "A1": "docs/dev/splits.md",
+            "A2": "261124-173248-cabb3e, 261124-173247-9bd565, 261124-173248-f43e9d",
+            "A3": "Lead read the split (2026-11-24): service.cc -> options parsing, Runtime, internal header; state.cc -> codec, application, administrative, image, internal header; moves only (76 non-move lines: CMake lists, includes, inline on helpers lifted from anonymous namespaces into the internal headers). service_runtime.cc stays 2,364 lines: Runtime::run is one ~2,050-line function, a restructure, not a move (follow-up).",
+            "A4": "261124-163504-d828ec, 261124-163509-8a377b"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "0534e8d9fe2fc6affe0e8e9ec2bf3d013804c32d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "73ba1f2ac2bb3e2089c85830ac5c7554c1534cc0",
+          "reason": "",
+          "tested": "a341e8f140092d6f74d9407c548fe2c1cfa13f68"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "legacy-h"
@@ -32808,10 +32838,10 @@
       "reason": "the split moves code that check_docs, mutant patches and scripts and four CURRENT mechanism docs cite by file; parked msgpack/persistent-map/voter-read/relay-mirror globs cover some of them but their branches edit none (checked); dated design records and docs-site-audit stay for the docs wave",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T12:59:24",
-      "worktree": "../Detent-wt/detent/split-detent"
+      "updated": "2026-11-24T17:45:11",
+      "worktree": ""
     },
     "split-journal": {
       "accepted": {},
