@@ -19762,20 +19762,55 @@
         "docs/mechanisms/admission*.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/journal-recovery-refill",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T21:56:10",
+          "ci": {
+            "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+            "runs": [
+              45554113724
+            ]
+          },
+          "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "criteria": {
+            "A1": "this table and the rule above",
+            "A2": "261124-213010-aaea95, 261124-213014-836945, 261124-213017-d8c48c; fails without: 261124-204700-cfc2f7, 261124-213022-4bd2fc, 261124-213026-23aa96, 261124-213029-039f92, 261124-213033-a6b133, 261124-213037-283680",
+            "A3": "journal `docs/mechanisms/admission.md` (Recovery: the rule and its event table), at a6fff53",
+            "A4": "261124-213046-c80acd"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-213046-c80acd",
+              "level": "light",
+              "seconds": 64.4,
+              "state": "done",
+              "what": "journal-recovery-refill check suite at 46a7a31177cd"
+            }
+          ],
+          "final": true,
+          "from": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "reason": "",
+          "tested": "46a7a31177cddf4e16007ecb42ec55246323987a"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../journal",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "a crash never wedges an owned store: recovery refills replacement before it can fund a checkpoint",
-      "updated": "2026-11-24T21:45:50",
-      "worktree": "../journal-wt/detent/journal-recovery-refill"
+      "updated": "2026-11-24T21:56:23",
+      "worktree": ""
     },
     "journal-reopen-closed": {
       "accepted": {
