@@ -39,7 +39,7 @@
   | http-parser | fcdad32 | 38950a0 | http-parser:38950a0 (45546809878) |
   | http | c813531 | 24d2416 | http:24d2416 (45550470867) |
   | faultlab | (new) | 83fbde7 | head (45451339080) |
-  | consensus | a197efb | c724c58 | head, not yet re-pinned (its pin lines wait for consensus-recovered-over-limit-start) |
+  | consensus | a197efb | ff87da4 | consensus:ff87da4 (45553333430) |
 
 - Sections of cpp-libraries' [upgrade guide](https://github.com/Kronuz/cpp-libraries/blob/main/docs/UPGRADING-2026-10.md)
   acted on: completion (`PosixIOOptions::flush_mode` is required since completion:b4600a8: every
@@ -63,7 +63,8 @@
   runs no probe on an inline scheduler.
 - Owner decisions: `FlushMode::full` at every PosixIO for this wave, its macOS cost measured by the
   durable A/B row, which decides a follow-up moving the refetchable stores to `plain`; the libraries'
-  pins cascade to heads first; consensus re-pins last, after consensus-recovered-over-limit-start.
+  pins cascade to heads first; consensus re-pins last, after consensus-recovered-over-limit-start
+  (consensus:be18ad9).
 
 ### detent-authority
 
