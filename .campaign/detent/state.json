@@ -31896,7 +31896,9 @@
         "src/detent_authority/service_internal.hh",
         "src/detent_delivery/client.cc",
         "include/detent_delivery/client.hh",
-        "tests/detent_delivery/test_client*.cc"
+        "tests/detent_delivery/test_client*.cc",
+        "src/detent_authority/namespace_sessions.hh",
+        "src/detent_authority/namespace_sessions.cc"
       ],
       "landed": [],
       "lenses": [
@@ -31905,12 +31907,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "this quest's new 503 not_ready reaches agents, whose client reads it as AdmissionFull and retries the same voter instead of rotating (review round 2 note); the client maps it",
+      "reason": "seal stamp (docs/mechanisms/relay-mirror-seal-stamp.md) lives in the session record; closes the seal-between-sync-and-park miss CI showed",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T20:00:39",
+      "updated": "2026-11-24T23:12:13",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
