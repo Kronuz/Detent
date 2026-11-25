@@ -33119,15 +33119,12 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "D162: restarts from main after pin-wave lands",
+      "reason": "D162: pin-wave landed (Detent:dbd4d4f7)",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "EX-1: one resource-accounting implementation in allocators",
-      "until": [
-        "owner"
-      ],
-      "updated": "2026-11-24T22:05:30"
+      "updated": "2026-11-25T04:58:39"
     },
     "restart-capacity": {
       "accepted": {
