@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs 261125-031954-f3baf1 261125-031956-84f5ff 261125-031958-0624b3 261125-032006-cda6ba 261125-032009-b3f010
+State: ready for review (round 2 accepted at 8dcf5ed6; final reruns: native, A5)
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
