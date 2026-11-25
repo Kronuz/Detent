@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: ready for review (waiting on jobs 261124-165220-e84fc9, 261124-165224-4e171d and CI 45521429248)
+State: ready for review (waiting on jobs at consensus:afe0d31, Evidence, and CI 45537067121)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,38 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Round 3: CI red at ce981be (45521429248) and 87cb821 (45507969326). Head consensus:afe0d31 =
+3cc679f (test fix) + main fcf7f66 merged. Three failures:
+1. linux-tsan fetch-gone, both runs: connection_aborted at 1003/1006 ms against the case's
+   `< 1000`, asked again 1 (the test expects 1: the count is the posted retry). Cause: the
+   child's reader called `_exit(0)`; TSan intercepts `_exit` and runs Finalize, which sleeps
+   `atexit_sleep_ms` (default 1000) while the process has more than one thread, sockets open.
+   The peer was alive for that second, so no early end; no port reuse or listener. Code right,
+   test wrong. Fix consensus:3cc679f: the child dies by `raise(SIGKILL)`. Proof: TSan fetch-gone
+   x10 at afe0d31 (190025-62d7c8) vs fails-without at b056286 (190051-bc3346). Local TSan
+   (macOS x86_64, quiet light): at b056286 default 4/4 FAILED at 1123-1171 ms, with
+   TSAN_OPTIONS=atexit_sleep_ms=0 4/4 ok at 102-126 ms; at 3cc679f 3/3 ok at 178-249 ms.
+2. linux-x86_64-gcc admission_nodes_boot "node 2 hears node 1's refusal ... duplicate": node 1
+   refused 29 hellos, node 2 heard 0. Not on main's CI (45522218942, 45483860248, 45454851601
+   green since the test's d42a7d1), but this branch does not touch that path: HostTransport's
+   `dial` is Links::dial's own two halves (connect, then offer) with the same outcome mapping;
+   `boot_refused` fires inside Links::offer, unchanged. Whether node 2 ever dials node 1 (and
+   hears the acceptor's reason) depends on node 1's redial winning the race to a link node 2
+   accepts: test timing. Stress at the head and at main, beside 4 burners:
+   190125-5a681c, 190127-80b046.
+3. macos-x86_64 fetch: 16 MiB exact, links 2+2, ended dead 0 stuck 0 failed 0, heartbeat gap
+   2726 ms of 1063. No link ended, so the retry never ran (it runs only on connection_aborted);
+   the first ask's path is call()'s. Same failure without this quest's code: main 512e3ef
+   (45366654906) gap 1564 ms; consensus-follower-read 49deff5c (45374547236) 3746 ms;
+   consensus-liveness-asan-timeout c4c70f8d (45425539843) 3765 ms; each "16 MiB exact, five
+   4 MiB: 1 ok, 4 refused FAILED". Green runs (ea48bc8 45481678940, main) print no gaps (ctest
+   prints passing output never), so no gap to compare from them. Pre-existing: the Intel stall
+   class (consensus-fetch-alongside-loop-stall's).
+A2 rerun 261124-165337-696f2e timed out at 30 min under host load: split in two x100 at 45 min,
+the second after the first. Mutants rebuilt on afe0d31 (host_transport.h unchanged since
+87cb821): fetch-not-asked-again-2 78da004, fetch-any-connection-2 da50dba, fetch-no-clear-2
+ef7adf4, fetch-oversize-aborts-2 2cae086, fetch-no-again-map-2 9526d3c.
 
 Round 2 review at 87cb821 (CHANGES, R2-F1; F1-F4 closed): nothing tested fail() ending a
 second ask that waits for its connection connection_aborted. Fixed test-only in
@@ -147,8 +179,8 @@ every call on it ends connection_aborted; the 48 MiB fetch was only the call in 
 
 ## Next
 
-1. Read the jobs queued at consensus:87cb821 (Evidence) and CI 45507969326; then the review's
-   second look.
+1. Read the jobs at consensus:afe0d31 (Evidence), the admission pair and CI 45537067121; then
+   the review's third look. macos-x86_64's fetch gap may stay red (pre-existing, Doing 3).
 
 ## Blocked on
 
@@ -156,15 +188,17 @@ Nothing.
 
 ## Evidence
 
-At consensus:87cb821 (the review round; local: rpc_host ctest 14/14, each mutant 3/3 failing
-for its stated reason):
+At consensus:afe0d31 (round 3: 3cc679f plus main fcf7f66):
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Cause: suite probe run 45453078372 (Doing). Tests at the fix, 10 runs each: fetch-partial 261124-151246-f0ad2c, fetch-twice 261124-151248-f49548, fetch-gone 261124-151250-cd4e3b, fetch-unverified 261124-151252-3b3f74, fetch-removed 261124-151254-e42706, fetch-oversize 261124-151256-f001a3; fetch-dead x20 261124-151308-fdd296. Fails without: fetch-gone 261124-151258-073436, fetch-unverified 261124-151300-44e305, fetch-removed 261124-151302-d24b61 (mutant/fetch-any-connection d627e22, ea48bc8's host_transport.h); fetch-partial 261124-151304-e49b9a (no-clear af9ba03); fetch-oversize 261124-151306-086ff4 (oversize-aborts 326089a). Earlier: fetch-dead fails without asking again 261124-123054-1bea5f |
-| A2 | 261124-123104-84309d (fetch x200 beside 4 burners, light, at ea48bc8; not rerun at 87cb821, which changes the redial path: the lead decides) |
+| A1 | Cause: suite probe run 45453078372 (Doing). Tests at the fix: fetch-dead x20 261124-190013-3f0e24; 10 runs each: fetch-partial 261124-190014-9de627, fetch-twice 261124-190016-5b17fc, fetch-gone 261124-190018-dd2ea2, fetch-unverified 261124-190020-ce04d3, fetch-oversize 261124-190021-1c07c7, fetch-removed 261124-190023-427796; fetch-gone under TSan 261124-190025-62d7c8. Fails without: fetch-dead 261124-190037-d07256 (not-asked-again-2 78da004); fetch-gone 261124-190039-182c0d, fetch-unverified 261124-190041-99193f, fetch-removed 261124-190042-eb913a (any-connection-2 da50dba); fetch-partial 261124-190044-61b5b9 (no-clear-2 ef7adf4); fetch-oversize 261124-190046-870cce (oversize-aborts-2 2cae086); fetch-removed 261124-190048-2689f9 (no-again-map-2 9526d3c); TSan fetch-gone with `_exit` 261124-190051-bc3346 (b056286) |
+| A2 | fetch x100 beside 4 burners twice: 261124-190103-461c74, then 261124-190124-05dbe0 (after it) |
 | A3 | [artifact] docs/mechanisms/rpc-lane.md: the fetch bullet and "A fetch whose connection ends" (two tables: each way a connection ends x the redial's outcome, the caller's code and time), consensus:afec3fe, 87cb821 |
-| A4 | suite 261124-151310-7f0e32 (45 min) and CI 45507969326 at 87cb821, pending; at ea48bc8: suite 261124-134701-6d9c49 171/171, CI 45481678940 green |
+| A4 | suite 261124-190107-8ece74 (45 min) and CI 45537067121 at afe0d31; earlier CI 45521429248 (ce981be), 45507969326 (87cb821): Doing, round 3 |
+
+Not criteria: admission_nodes_boot x200 beside 4 burners at afe0d31 261124-190125-5a681c and
+at main fcf7f66 261124-190127-80b046 (Doing 2).
 
 Other runs examined: pairing probe 45449779597 (100 rounds, 0 failures); suite probe 45481730112
 at 1427d38 (fix + probe) pending.
@@ -177,10 +211,15 @@ Doing; docs/mechanisms/rpc-lane.md. Open: the macOS kernel's 5 s uninterruptible
 (groups-upload-loop-stall's class); capping TLS records below 16 KB is an unmeasured option.
 Cleanup after landing: the probe branch probe/detent/fetch-stall and its worktree
 ~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the worktree mutant-wt beside it and the local branches mutant/fetch-any-connection, mutant/fetch-no-clear, mutant/fetch-oversize-aborts, mutant/fetch-no-again-map and
-mutant/fetch-not-asked-again.
+mutant/fetch-not-asked-again, and each one's -2 (the same mutation on afe0d31).
 
 ## Rulings I made
 
+- Round 3: fetch-gone's 1 s on linux-tsan is the test's, not the code's: a TSan process that
+  `_exit`s is alive 1 s more with its sockets open. The child dies by SIGKILL; the < 1000 ms
+  bound and asked again 1 stay.
+- Round 3: admission_nodes_boot and macos-x86_64's fetch heartbeat gap are left as they are
+  (no path of this branch's change reaches them; Doing 2-3), stated with run ids for the lead.
 - F1: a redial whose hellos fail or whose peer refuses this node's boot or wire version is not a
   connection failure: the first is redialed after `redial` (200 ms) and then fails to connect;
   the second redials to fetch_deadline (timed_out), since the peer is up and answering. The
