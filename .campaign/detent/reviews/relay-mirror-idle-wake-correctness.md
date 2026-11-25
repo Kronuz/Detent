@@ -638,3 +638,202 @@ Notes (non-blocking):
   The two older probes have no job.
 - No A1 or A2 number exists at this code. The at-rest sync counts above are not CPU.
 - I built no TSan servers, so the process-level probes ran on Release only.
+
+## Round 6
+
+Commit: Detent:e200ee50 (the branch head Detent:4330b077 adds only the journal)
+Verdict: CHANGES
+Date: 2026-11-25
+
+I reviewed the whole relay-mirror wait mechanism again from a fresh read of e200ee50, not from the
+diff:
+- the stamp on the request and the seal on every answer, at the authority
+  (service_runtime.cc:1556-1562, :1618-1643, :1719-1721) and at a relay (mirror_service.cc:155-175,
+  :215-237, :337-374);
+- how the relay reads an answer (`HttpUpstream::wait`, http_upstream.cc:397-417);
+- pacing, the idle re-wait, the deadline sync and the failed wait (`MirrorService::run` and
+  `watch_loop`, mirror_service.cc:392-505).
+
+D165 does what it was for. The relay compares the answer's seal with its stamp and reads nothing
+from timing, and neither upstream keeps seal state. Every interleaving the lead named holds, each
+by a run. R5-1, R5-2 and R5-3 are fixed, and R4-1's probes still fail at 13707337 for their own
+reason. Two findings block. Both are in the tests, not the mechanism:
+1. R6-1: test_relay_seal_stamp's first step races the Pair's last seal. It failed 3 of 20 runs at
+   the fix on this machine.
+2. R6-2: row 11, a 204 without a seal, has no test. A mutant that reads such a 204 as idle passes
+   every relay test.
+
+I ran as a subagent of the lead, not as a session titled `detent · reviewer relay-mirror-idle-wake
+correctness`.
+
+### Evidence I relied on
+
+- CI 45624708156 passed at 4330b077, which has e200ee50's code. linux-tsan passed 222 of 222
+  tests, linux-asan-ubsan 224 of 224 and macos-arm64 225 of 225. The linux x86_64 gcc and clang,
+  linux arm64 gcc and macos-x86_64 jobs passed too. Under TSan, test_http_upstream took 18.6 s,
+  test_relay_seal_stamp 32.0 s and test_relay_seal_shortwait 17.8 s (r6/ci/).
+- A1 261124-233918-fc8eca and A2 261124-233923-494ac5, at 13707337 against a0d804bd (item 4).
+- None of round 5's jobs at e200ee50 had run (Not run).
+
+### What I checked myself
+
+Scripts and logs are in `.scratch/detent/review-relay-mirror-idle-wake-correctness/r6/`. The probes
+ran under `quiet light` on Release builds:
+- e200ee50: the daemons and test_relay_probe (fix-build), and a full tree for the tests and mutants
+  (src-mut; setup.sh);
+- round 5's builds of 5f601d6b and 13707337 (r5/fix-build, r5/r4head-build).
+
+Eight of the probes are also queued as jobs at e200ee50, in slot `detent-review-rmiw-r5`
+(submit.sh, submit2.sh; Not run).
+
+1. **The state table and the interleavings the lead named.** The journal's eleven rows and D164's
+   row hold. Row 11 holds by a run, but no test covers it (R6-2).
+
+   | Interleaving | Holds | Why | Run |
+   |---|---|---|---|
+   | A park of 0 | yes | Every next is answered at once with the upstream's seal. A seal equal to the stamp is idle, and the watcher asks again an interval later (mirror_service.cc:400). | test_http_upstream `no_park`: A answered 18 waits at once, B made 0 syncs in 1 s and served A's seal in 99 ms. window.sh, authority `wait_ms` 0: 0 of 6 seals missed 1.5 s |
+   | A slow round trip | yes | The seal comes from the answer, never from its timing (http_upstream.cc:408-416). | `late_park` 114 ms. window.sh: 0 of 16 missed 3.3 s with 600 ms of proxy setup at `timeout_ms` 2000, and 0 of 40 missed 1.5 s at `timeout_ms` 200 |
+   | An authority restart | yes | The cut watch is a failed wait, so the relay calls `skip()` and then syncs (mirror_service.cc:470-471). | restart_seal.py: the relay was current 2.16 and 2.31 s after the stop. At rest it made 0 syncs in 3 s, then served each new seal in 93 and 110 ms |
+   | The seal going backwards | yes | A 204 below the stamp reads as idle (http_upstream.cc:416). A sync that reads an older seal throws `UpstreamBehind` (namespace_relay.cc:263-264). The relay then backs off and arms no wait until a sync succeeds (mirror_service.cc:489-496). | wipe_seal.py: the relay held 14, and the authority restarted empty at 5. For 12 s the relay made 0 syncs and 2 failed ones, stayed ready and served 14. Once the authority passed 14, it made one sync and served 19. bad_seal.py `zero` (every 204 says 0): 0 syncs at rest, and the seal came with the deadline sync, 24.1 s later |
+   | A failover | yes | The stamp is on the request (service.cc:572; relay service.cc:388), so any voter answers it for its own seal. A lagging voter parks until it passes the stamp. | hung_follower.py: with the wait parked at a SIGSTOPped follower, the leader's publish reached the relay in 1.81 s |
+   | Two relays | yes | As above: neither upstream keeps per-session seal state. | two_relays_races.py: 0 of 15 rounds missed 3 s; both relays served in 36-664 ms |
+   | A seal racing a sync and its next | yes | `revisit` is the only place a relay answers a stamp, at the end of every turn (mirror_service.cc:359). | seal_race.py: 0 of 40 missed 4 s; median 9.8 ms, max 20.1 ms |
+   | An answer lost on the wire | yes | A cut connection is a failed wait: `skip()`, then a sync. The upstream keeps nothing. | lost_answer.py: with the seal's 204 dropped, the seal came in 99 ms. With every parked answer dropped: 3 syncs in 3 s at rest (one per park), and the seal in 107 ms |
+   | Missing or hostile answer seals | yes | A missing, garbage, overflowing or negative seal refuses the watch session and throws (http_upstream.cc:412-415), a failed wait. Two header lines are joined (:173), so they read as a larger seal. | bad_seal.py, a TLS proxy rewriting every 204: one sync per park at rest for drop, garbage, overflow, negative, duplicate and 2^64-1, and each seal in 104-121 ms. `zero` as above. Unchanged again: 84 ms |
+   | Hostile stamps | yes | `number()` takes only `IsUint64`, and `fields()` refuses duplicates (session_request.cc). | hostile_seal.py: both upstreams answer 12 bad stamps 400. 0 and -0 answer at once, 2^64-1 parks the whole 600 ms, and a valid next parks afterwards |
+   | An agent sending a small stamp | yes | It is answered 204 at once, as a `wait_ms` 0 next is: nothing an agent could not already do. | hostile_seal.py: stamp 0 answered in 5 ms at the authority and 21 ms at the relay |
+   | The relay's restart | yes | The watch is armed only after a good sync, stamped with the seal that sync read (mirror_service.cc:422-429, :489-496). | restart_seal.py: the relay was current 0.28 and 0.23 s after the stop, then served each seal in 95 and 122 ms |
+
+2. **Round 5's findings.**
+   - R5-1 is fixed by reading. compare.sh builds test_relay_probe at both checkouts. When the
+     baseline's probe has no `--heads`, it builds this checkout's probe source there and restores
+     the file on exit (compare.sh:30-43). Each arm runs its own probe (:51). `--agent-seal` goes
+     only to a build whose session_request.cc names `"seal"` (:28), and relay_latency.py and
+     paths.py send `seal` only with it. a2_cut.sh runs both arms against main e2e9ce35 at 250 and
+     10 ms (job 261125-055745-b2a717), and A2's own jobs run the same command. Both are queued.
+   - R5-2 is fixed. window.sh with the authority's `wait_ms` 0 missed 0 of 6 at the fix. At
+     5f601d6b it missed 6 of 6, and the first seal was served 24.6 s late, so d64cca fails for its
+     stated reason. test_relay_seal_shortwait passed at the fix locally and on CI.
+   - R5-3 is fixed. 9f2de8, 509945, ac469a and b0740b are cancelled. I ran each of the 31
+     fails-without mutants against its paired test (run_mutants.sh, logs/mutants.log). All 31 are
+     killed, 29 at the step their subject names. cdf30c16 (400518) and 17e235a4 (405c3e) failed
+     at `current` (R6-1) before reaching theirs.
+3. **R4-1's probes.**
+   - f656b3's command at 13707337 (window.sh) missed 6 of 16 with 600 ms of setup and 4 of 40 on
+     loopback. Each run's first miss was served 30.9 s and 22.9 s late. That is R4-1's own
+     failure.
+   - d0d4dc runs round 4's seal_late_park at 13707337. Round 5 ran it locally: 2 of 4 cases slow,
+     8.4 s (r5/logs). The job is queued.
+   - At the fix both pass: `late_park` took 114 ms, and window.sh missed 0 of 16 and 0 of 40.
+4. **A1, A2 and A5.**
+   - A1 has no number at e200ee50. fc8eca is done, so 3344f2 is not waiting for it, but it is 53rd
+     of the quest's 64 queued jobs. fc8eca measured round 4's code, 13707337, against a0d804bd at
+     `interval_ms` 250, in 3 rounds of 20 s:
+     - authority: 0.131-0.153% of a core against 1.396-1.45%;
+     - relay: 0.078-0.095% against 0.99-1.037%;
+     - relay syncs: 0 a second against 3.79-3.85;
+     - interrupt wakeups: 11.2-11.4 a second against 68.4-69.3 at the authority, and 11.5 against
+       36.4-37.0 at the relay.
+
+     The means differ by 0.93% of a core at the relay and 1.28% at the authority. That is about
+     1,900 core-seconds a day per idle relay. Since 13707337 the idle path has gained one header
+     on each 204, written by the upstream and parsed by the relay. That is an argument, not a
+     number, so A1 stays open until 3344f2 runs. At rest, my probes at the fix made one parked
+     next per park and no sync.
+   - A2 has no number at e200ee50 either; d5d3f0 and 00c484 are queued. 494ac5 measured 13707337
+     against a0d804bd at 250 ms: p50 30.3-33.6 ms against 170.8-188.8 ms, and p99 232.5-238.6 ms
+     against 303.1-337.4 ms. No run exists at 10 ms: d29ae2 was cancelled.
+   - A5: CI above. No suite job exists at e200ee50 (bbe132 was cancelled), and the journal plans
+     `campaign verify` when the quest is ready for review.
+
+### R6-1: test_relay_seal_stamp's first step races the Pair's last seal
+
+`transitions()` reads the authority's layouts seal as soon as the Pair is ready, and `current`
+stamps a next with it (test_relay_seal_stamp.py:151-156). `current` passes only if no seal lands
+during its 1.5 s wait. `report` checks the answer's seal against that one value (:118-124), and
+`parks` checks that the next waited (:128-130).
+
+But `Pair.start()` returns once the relay's first sync is done (pair.py:291-296), and the
+authority may still owe the setup's last seal. D136 seals changes `seal_after` (1 s) after they
+began, once the history is ready (service_runtime.cc:1676-1691). When that seal lands during
+`current`'s wait, the fix answers the parked next with it at once, as row 2 requires, and the test
+fails.
+
+Runs of the committed test at e200ee50 (fix-build):
+- stamp_loop.sh: 3 of 20 runs failed, each at `current`: seal 16 against the stamp 14, 13 and 13,
+  answered after 994, 1311 and 287 ms (logs/stamp-loop.log). Every passing run started at seal 15.
+- settle.py runs the test's own preamble, then reads the layouts seal for 1.5 s. In 1 of 12 trials
+  the seal moved from 13 to 16 at +377 ms.
+- The mutant runs of cdf30c16 and 17e235a4 failed at `current` the same way: stamp 13, then 16.
+
+The test passed in all three CI logs I read, so it is a flake, not a failure. But it makes A5 and the
+stamp test's 19 fails-without jobs nondeterministic: a mutant can fail at `current` for this
+reason instead of its own.
+
+Fix: before `current`, wait until the authority's seal has held for longer than `seal_after`. For
+example, `Pair.start()` could do this for every user. The test: one write to "b" just before the
+preamble fails the old test every time and passes the fixed one.
+
+### R6-2: a 204 without a seal has no test
+
+The journal's row 11 says "(by reading)", and the lead named this case in D165's shape. bad_seal.py
+shows that the fix behaves as row 11 says (item 1). But no test sends the relay a 204 without
+`X-Detent-Seal`.
+
+out/row11-idle.patch makes a header-less or unparsable 204 read as idle. With it applied
+(own_mutant.sh, logs/own-row11.log), every relay test passes: test_http_upstream,
+test_relay_seal_stamp, test_relay_seal_shortwait, test_relay_idle, test_relay_hung,
+test_relay_cut-off, test_relay_service and test_relay_chain.
+
+bad_seal.py kills it (row11_kill.sh, logs/row11-kill.log). The drop, garbage, overflow and negative
+modes each missed their seal for 3 s. In garbage mode the relay made 28 nexts and 0 syncs in 3 s
+at rest. Against such a source the mutant serves a seal only at the deadline sync, up to 30 s
+later, and reports nothing.
+
+Fix: a test step whose upstream answers 204 without the header. bad_seal.py's `drop` mode would do,
+or a hook in test_http_upstream that strips the header from A's 204s. The relay must count a failed
+wait, sync, and serve the seal within 1.5 s. Its fails-without is the row-11 mutant.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R6-1 | yes | defect | test_relay_seal_stamp's `current` step stamps the seal the Pair left. When the setup's last D136 seal lands during its 1.5 s wait, the fix answers the next early with the new seal, and the test fails. | stamp_loop.sh: 3 of 20 failed at e200ee50; settle.py: 1 of 12; test_relay_seal_stamp.py:151-156, :118-130; pair.py:291-296; service_runtime.cc:1676-1691 | Before `current`, wait until the seal has held past `seal_after`; a write to "b" before the preamble fails without the wait |
+| R6-2 | yes | gap | Row 11, a 204 without a seal is a failed wait, has no test: the row-11 mutant passes all eight relay tests. | own_mutant.sh and row11_kill.sh with out/row11-idle.patch; http_upstream.cc:412-415 | A step whose upstream drops the header, with the row-11 mutant as its fails-without |
+| R6-3 | no | nit | relay-mirror-wait.md:14 still gives `Upstream::wait(positions, maximum_wait_ms, stop)`. The call is `wait(positions, seal, limit, stop)` (mirror_service.cc:408, namespace_relay.hh:53). | Code | Update the signature |
+
+Notes (non-blocking):
+- The quest's slot still holds round 4's orphaned fails-without jobs, whose test jobs are cancelled.
+  089cd9, 07d53b, 0fc023, 08b4e5 and 788931 have run. c4f1aa, 23cdb1, 9f1416, ed5d3e, a78366,
+  72fc8d, 7e84fc, 25cad1, 3fe3b8, 894b17 and 7106ae are queued ahead of round 5's jobs and A1/A2.
+- The journal's Evidence table still names round 4's cancelled jobs (badf25, aef247, 700753,
+  ec02e4, 861c71, eaeb52, 62a666 and bbe132). Round 5's jobs appear only in the list above it.
+- Since the merge base 6e2669af, main has changed six of the quest's files, among them
+  service_runtime.cc, mirror_service.cc, test_http_upstream.cc and
+  tests/detent_relay/CMakeLists.txt. The merge needs the suite again.
+- On a missing seal, `refuse()` drops the watch session without closing it, so the source holds
+  the session until idle expiry. That is at most one session per park, the same as the other
+  refusals (http_upstream.cc:87, :213).
+- Repeated header lines are joined with no separator (http_upstream.cc:173). A header name split
+  across reads would keep only its last part (:166). Both predate this quest, and an upstream is
+  trusted over TLS.
+
+### Not run
+
+- None of the contributor's round-5 jobs at e200ee50 had run. In the quest's slot they wait behind
+  the orphans above and d0d4dc. A1 3344f2 is 53rd of 64 queued.
+- My jobs at e200ee50 in slot `detent-review-rmiw-r5` were queued too:
+  - 261125-055745-b2a717 (a2_cut);
+  - 261125-055751-bf89b7 (shortwait);
+  - 261125-055755-aa41d1 (slow-rtt: 1500 ms of setup against a 2 s park);
+  - 261125-055800-436458 (bad_seal);
+  - 261125-055805-4f85fa (older);
+  - 261125-060948-69016b (restart);
+  - 261125-060953-277b35 (lost-answer);
+  - 261125-060956-c86219 (wipe).
+
+  Their probes ran locally, as above, except a2_cut and the 1500 ms slow-rtt case. So R5-1 rests
+  on reading until a2_cut or A2's jobs run.
+- No A1 or A2 number exists at e200ee50.
+- I built no TSan servers, so the process-level probes ran on Release only. CI's TSan run covers
+  the tests.
