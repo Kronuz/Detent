@@ -1,6 +1,6 @@
 # resource-adoption: journal
 
-State: working
+State: blocked on lead: tests/detent_reader/CMakeLists.txt outside the file set; pin cascade ruling; waiting on job 261125-051931-4c08af
 Quest: .campaign/detent/quests/resource-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,9 +21,14 @@ Detent adoption (Detent:e4575f9a), qualification script and pin at allocators:73
 (local), A/B job 261125-051931-4c08af queued. A6 mutant commit Detent:3ed99815
 (`mutant/detent/resource-adoption-settle`, local).
 
-Local iteration build (allocators override): everything compiles except `test_reader_switch`, which
-includes `src/detent_local/lazy_page_access.hh` without linking the target that carries its include
-paths (see Blocked on). Suite run in progress.
+Local iteration build (RelWithDebInfo, Apple clang, authority+relay+agent, allocators override at
+allocators:73baa46): 217 of 218 tests pass, `test_local_trusted_paths` skips (privileged, as on
+main) and `test_reader_switch` does not build: it includes `src/detent_local/lazy_page_access.hh`
+without linking the target that carries allocators' include path (Blocked on 1). With the one-line
+fix applied locally and reverted, it builds and passes (216 s). Not evidence: local, not a job.
+
+Not pushed: Detent CI would fail on `test_reader_switch` until Blocked on 1 is ruled. The allocators
+quest branch is pushed; its CI run 45622927366 was still queued at 05:55.
 
 ## Next
 
