@@ -20,7 +20,7 @@ case $mode in
         rm -f src/detent_authority/service_runtime.cc.orig ;;
     no-leader)
         test_name=test_authority_daemon_ready pattern='^READINESS: ready:true without a leader'
-        sed -i.orig 's/return leader_known &&$/return true \&\&/' src/detent_authority/service_runtime.cc || exit 125
+        sed -i.orig 's/return leader_known && trusting()/return true \&\& trusting()/' src/detent_authority/service_runtime.cc || exit 125
         cmp -s src/detent_authority/service_runtime.cc src/detent_authority/service_runtime.cc.orig && { echo "mutation did not apply"; exit 125; }
         rm -f src/detent_authority/service_runtime.cc.orig ;;
     stop)
