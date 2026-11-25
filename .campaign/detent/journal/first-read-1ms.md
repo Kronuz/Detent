@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review (jobs queued at `Detent:e719e352`; code as of `Detent:b8bd0b69`)
+State: ready for review (jobs queued at `Detent:47216200`, the final code)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,22 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Fix round 1 finished at `Detent:b8bd0b69` (code); jobs queued at the final head (Evidence).
-- C2 `Detent:91a03ba0`, `Detent:b8bd0b69`: the verified page index as designed. `PagedTable::check` is
-  the one page walk (hash unless marked, every entry check, offsets out); with an account it stores
-  count and offsets (atomic uint16, `page_index` = 30 a page, ledger-allocated beside the marks)
-  relaxed, then sets the mark (release). `find` on a marked page reads them after the mark's acquire,
-  binary-searches comparing names in place (one three-way compare a step), decodes only the match
-  with `read_entry` (no re-check). Unmarked reach: a local index. Tests: test_table_pages
-  `page_index` (every entry and in-page unlisted name on marked pages, hashing nothing; 8 threads x
-  50 rounds first touching together; without an account, each reach hashing). Mutants C2a (offsets
-  not kept), C2b (short local index). Bench: `benchmarks/table_find_bench.cc`,
-  `reader_bench_ab.sh find`. Screen (light, 3 runs, 1,000 entries), ns, head paged vs main decoded:
-  16-byte present 179-193 vs 157-169, absent 168-190 vs 162-191; 40-byte present 218-251 vs
-  142-150, absent 170-193 vs 141-158 (before the index: 4,800-12,500). Profile (`sample`, 40-byte):
-  absent is memcmp and the two binary searches (the same compares main makes); present adds
-  malloc/free of the 40-byte name (15% of samples) and the entry decode: returning a `TableEntry`
-  by value is what remains over main's pointer.
+Fix round 1 finished at `Detent:47216200` (code); jobs queued there (Evidence).
+- C2 `Detent:91a03ba0`, `Detent:b8bd0b69`, `Detent:47216200`: the verified page index as designed.
+  `PagedTable::check` is the one page walk (hash unless marked, every entry check, offsets out); with
+  an account it stores count and offsets (atomic uint16, 30 a page, ledger-allocated beside the
+  marks) relaxed, then sets the mark (release). `find` on a marked page reads them after the mark's
+  acquire, binary-searches comparing names in place, and returns a `TableEntryView`: the entry read
+  in place (name a `string_view`, fields from the page) or none, the shape of main's `const
+  TableEntry *`, borrowing the table for its lifetime. Callers that keep an entry copy it
+  (`entry()`): the core only when it attaches a new generation; `read_selected`. One decoder,
+  `entry_at`. Unmarked reach: a local index. Tests: test_table_pages `page_index` (marked pages, 8
+  threads x 50 rounds of first touches together, without an account); mutants C2a, C2b.
+  Light screens, 1,000 entries, ns, head vs main: by value (`Detent:b8bd0b69`) present 16-byte
+  179-193 vs 157-169, 40-byte 218-251 vs 142-150 (profile: name malloc/free 15% plus the decode);
+  as a view (`Detent:47216200`, a slower host moment) present 16-byte 226-233 vs 229-254, 40-byte
+  244-287 vs 198-231; absent 16-byte 245-259 vs 243-248, 40-byte 290-309 vs 220-231. The strict
+  pair (Evidence) gives the numbers that count.
 - msg-4 widening `Detent:16edb38a`: run_relay_pages.py and dense_reader_measure.py read `selected`
   through `table_entries`. dense_reader_measure's four identity arguments were raw offsets of an
   older table ([72,152)); mixed_oracle reads them as cluster, group, restore_epoch and scope, which
@@ -70,8 +70,8 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 - msg-4 (lead: C2 checked; target main's warm find; widened two Python tools): C2 built as
   written, measured as interleaved strict pairs at main and the head (Evidence); the Python tools
-  moved (`Detent:16edb38a`). Over main's band where it remains: see Doing (present lookups of
-  names past the string's inline size).
+  moved (`Detent:16edb38a`). Lead's follow-up (find returns a borrowed view, as main's pointer):
+  done in `Detent:47216200`; the jobs at the older head cancelled and requeued there.
 - Correctness review (CHANGES at `Detent:e52669a7`, .campaign/detent/reviews/first-read-1ms-correctness.md),
   folded in by id:
   - C1 `Detent:fd01d67f`: the gate fails a cell unless its pooled branch p99 is below 1 ms, the
@@ -121,11 +121,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-193020-c2e0ea (strict profile, four cells, at the head); before-profile 261124-134303-81190d (main's reader code): see "Profile (A1)" |
-| A2 | 261124-193022-3a25e3 stopped:1, -193024-d4a7fa stopped:1000, -193026-137b0a running:1, -193027-c06a62 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193051-cd402e (table_find_bench, 10 pairs), 261124-193053-d76ab4 (reader_bench warm, 6 pairs x 1 and 8 threads) |
-| A3 | 261124-193104-713826 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head: S1 261124-193106-85a1a4, S2 -193107-bbad0d, page digest -193109-03e4e9, C3 M1 -193111-31ba1c, M3 -193113-d1d56b, M4 -193115-46c914, M5 -193116-7fe50a, M6 -193118-9c6d36, M7 -193120-41ad5a, M8 -193122-dea2d5, M12 -193124-dd6efb, C2a -193126-824292, C2b -193128-2b7e9e, C4 M9 -193130-a0f28a. Suite: CI macos-arm64 at the pushed head |
+| A1 | 261124-193926-75ef7a (strict profile, four cells, at the head); before-profile 261124-134303-81190d (main's reader code): see "Profile (A1)" |
+| A2 | 261124-193929-8a61ac stopped:1, -193933-aafc88 stopped:1000, -193936-891b76 running:1, -193939-7e39f4 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193942-688ac7 (table_find_bench, 10 pairs), 261124-193945-948831 (reader_bench warm, 6 pairs x 1 and 8 threads) |
+| A3 | 261124-193948-acb3a6 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head (`.scratch/mutants-final.txt`): S1 261124-194035-e14cfa, S2 -194041-ed977a, page digest -194044-f809e0, C3 M1 -193951-bcf9aa, M3 -193954-0ee7cd, M4 -193958-5b5a56, M5 -194001-fa68c0, M6 -194004-921017, M7 -194008-5f78a9, M8 -194013-93c0b9, M12 -194017-63c5aa, C2a -194022-3f543c, C2b -194026-24bc4a, C4 M9 -194031-002ccd. Suite: CI macos-arm64 at the pushed head |
 
-Cancelled at older heads (superseded): 261124-182421-35bcef (A2 stopped:1, was running), 261124-182431-301852, -182433-9d39d1, -182435-760c57 (mutants at `Detent:244990b9`).
+Cancelled at older heads (superseded): every job 261124-193020 to -193130 (at `Detent:e719e352`, before the view); 261124-182421-35bcef (A2 stopped:1, was running), 261124-182431-301852, -182433-9d39d1, -182435-760c57 (mutants at `Detent:244990b9`).
 Examined: security review jobs 261124-160310-594aee, 261124-164244-e6d442 (S1, S2 FAILs, fixed this
 round), correctness review jobs 261124-160346-d09bca, 261124-164355-085f7f (the reviewer's probes;
 its findings come by message). Superseded at `Detent:e52669a7`: 261124-155453-d2faac (stopped while
@@ -187,10 +187,10 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-- R8 (C2): a marked page's match is decoded by `read_entry` without re-checking, as the design's
-  "what a marked page does not re-check" says; `take_entry` (checks plus `read_entry`) stays the one
-  checked decoder. `find` keeps returning `std::optional<TableEntry>`; a lookup API returning a view
-  would close the 40-byte present gap but changes the reader core's callers (not done).
+- R8 (C2): a marked page's match is read in place without re-checking, as the design's "what a
+  marked page does not re-check" says; `take_entry` (bounds, then `entry_at`, then name and
+  generation checks) is the checked decoder. `TableEntryView::operator==(const TableEntry &)` is
+  false for none, as `std::optional`'s, so the tests compare a lookup to its entry directly.
 - R9 (dense_reader_measure): moved byte for byte, not reinterpreted (see Doing).
 - R5 (S2 shape): the ACL check lives in `generation_file_refusal`, the one owner/link/mode/size
   check, not beside each caller; `Selected::image` is always the bytes `select_entry` read, since an
