@@ -23803,12 +23803,15 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "pin-wave landed",
+      "reason": "B3: service.cc is held by relay-mirror-idle-wake",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "Multi-voter detent-authority sleeps until work or deadline (D124)",
-      "updated": "2026-11-25T04:58:41",
+      "until": [
+        "relay-mirror-idle-wake"
+      ],
+      "updated": "2026-11-25T05:01:31",
       "worktree": "../Detent-wt/detent/multi-voter-idle-wake"
     },
     "namespace-cleanup": {
