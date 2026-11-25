@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: blocked on split-detent: landing; then move the authority edit and queue evidence
+State: ready for review
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,24 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Round 3 (lead's ruling: the authority regression is this quest's). Done locally, not queued:
-- dec62ada: service.cc's owner loop counts a W5 next looked at for the current applied index as
-  parked (`frames_busy` false, its poll/deadline into `frames_until`), so the owner sleeps until its
-  health turn, a deadline or a publish; unlooked nexts and nexts waiting for history keep 1 ms.
-- fddecc70: tests/detent_relay/test_relay_idle.py (single voter + relay at 250 ms; over 2 s at rest
-  authority turns <= 60/s and relay syncs <= 1; a publish wakes the relay within 2 s). At fddecc70
-  (no authority fix) it should fail on turns (~780/s per A1 981777): the fails-without.
-- test_relay_service: waits for the wake write's seal before stopping A and B (a local failure:
-  "relay a fetched again after a restart", 2 files of the late seal).
-Local `quiet light` at dec62ada: test_relay_idle passed ("authority 4.5 owner turns/s, relay 0
-syncs in 2 s"; "the relay synced after 259 ms"), test_relay_service, test_http_upstream,
-test_authority_frames_service, test_authority_idle_wake, test_delivery_namespace_session,
-test_namespace_coordinator passed.
-
-Earlier rounds: A3 903054 and suite ce2080 failed on test bugs (restarted A at an older seal; the
-wake write before the busy probe), fixed in 0ef266b3. Jobs 261124-102825-ffc13c, -102832-d10575,
--102840-e72d93 ran at 0ef266b3, before the authority fix: superseded, not evidence (ffc13c and
-d10575 cancelled; the suite e72d93 failed only test_relay_service on the late seal fixed in dec62ada).
+Final head 9337f6c9: main merged after split-detent (a341e8f1); dec62ada's authority edit moved
+unchanged to src/detent_authority/service_runtime.cc (applied by `git apply --3way`). Local
+`quiet light` at 9337f6c9: test_relay_idle ("authority 4.0 owner turns/s, relay 0 syncs in 2 s";
+wake after 306 ms), test_http_upstream, test_relay_service, test_authority_frames_service,
+test_authority_idle_wake, test_delivery_namespace_session, test_namespace_coordinator passed.
+Queued once at 9337f6c9 (main e9149575: campaign commits only past the merge), branch pushed for CI:
+- A3 test_http_upstream 261124-175307-7f5598; fails-without 261124-175312-61b78c at ccd850ec
+  (head with the five relay-wait files at main).
+- Loop turns test_relay_idle 261124-175317-fef9a7; fails-without 261124-175322-3c4319 at 35e38250
+  (head with service_runtime.cc at main).
+- A5 suite 261124-175328-eb494f; CI on the pushed branch.
+- A1 exclusive 261124-175330-d0505f (9337f6c9 vs main, 3 x 20 s interleaved); A/A band
+  261124-175351-1a1358 at 5da530c8 (head with all six fix files at main: main's daemons, this
+  bench). 261124-175335-73e528 cancelled (ran main's older bench).
+A2 is not rerun: the authority edit changes when the owner sleeps, not how a publish reaches a
+parked next (local wake 306 ms; the A2 rows 3ac6f3 and 314fca stand, at 80393d76).
+Pin-wave will touch mirror_service.cc:364 and service_runtime.cc:586 (one token each): expect a
+one-line merge.
 
 ## Design (sent to the lead as msg-310)
 
@@ -43,17 +43,12 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. When split-detent lands: merge main, move dec62ada's edit to the split file holding the owner
-   loop (likely service_runtime.cc; the lead widens the set), run the targeted tests locally.
-2. Queue once on that final code: A3 (test_http_upstream), A3 fails-without (revert mutant),
-   test_relay_idle and its fails-without (a mutant with the authority edit reverted), the suite
-   (A5), push for CI, and one exclusive A1 rerun (idle relay + authority, interleaved with main)
-   with its A/A band. A2 needs no rerun unless the A1 row moves the wake path's numbers.
-3. Result: net cores and watts across relay + authority; Evidence; ready for review.
+1. Read A1 d0505f and band 1a1358: net cores and watts across relay + authority into the Result;
+   paste the Evidence table; answer review findings.
 
 ## Blocked on
 
-split-detent landing (the lead's sequencing): it moves service.cc's owner loop to another file.
+Nothing.
 
 ## Evidence
 
@@ -64,11 +59,11 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261124-035150-981777 (fix vs main), band 261124-035211-92ed4b; at 80393d76, src as at head |
-| A2 | 261124-035152-3ac6f3 (250 ms), 261124-035154-314fca (10 ms), band 261124-034503-387342; at 80393d76 |
-| A3 | 261124-102825-ffc13c queued; fails-without 261124-102832-d10575 queued |
+| A1 | 261124-175330-d0505f (9337f6c9 vs main), band 261124-175351-1a1358; queued |
+| A2 | 261124-035152-3ac6f3 (250 ms), 261124-035154-314fca (10 ms), band 261124-034503-387342 (80393d76) |
+| A3 | 261124-175307-7f5598, fails-without 261124-175312-61b78c; loop turns 261124-175317-fef9a7, fails-without 261124-175322-3c4319; queued |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md |
-| A5 | 261124-102840-e72d93 queued; CI pending |
+| A5 | 261124-175328-eb494f queued; CI on 9337f6c9 |
 
 Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
 exit 8 as required), 261124-034543-d72b56 (probe, cancelled), 261124-034500-c0335d (A/A, superseded
@@ -95,7 +90,9 @@ residual 0.059% is its host turn (9.9 turns/s, unchanged), no mirror work.
 Authority: +3.65% of a core = 3,156 core-s a day (+0.37 W): a parked W5 next makes the authority's
 owner turn every ~1 ms (service.cc:3337, `!frames_tasks.empty()` counts as transient work). That
 cost is per authority while any next is parked (agents park nexts there today), not per relay.
-Net for one relay on one authority: +2.6% of a core until the authority waits properly.
+Net for one relay on one authority at 80393d76: +2.6% of a core. Fixed at dec62ada (now
+service_runtime.cc): locally the authority idles at 4.0 owner turns/s with the relay parked (main
+~20, the spin ~780); A1 d0505f gives the net.
 
 A2 (p50 / p99 ms, 3 rounds each): at 250 ms, 3ac6f3: main 158.8/329.9, 166.7/325.3, 157.3/269.6;
 fix 31.0/169.5, 31.1/171.9, 31.7/182.1 (A/A band 387342: p50 168-186, p99 309-345). At 10 ms,
