@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: working (fix round 3, V5: R3-1 find cost; R3-2, R3-4, R3-5, R3-6)
+State: ready for review (fix round 3; code `Detent:d12f2887`; jobs queued there, see Evidence)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -36,6 +36,44 @@ table_find_bench: 255-byte names, cold), to be replaced by the strict A/B.
 The decoded path (`StoreTable::find`) is the agent's and `decode()`'s, the same code at both commits.
 The cold row is the first-touch hash the design moves from the open (A2's cells measure it end to
 end); its find part is the hot path's search plus `check`.
+
+### R3-1: cause and fix
+
+- Profile (`sample`, light, `table_find_bench loop 40`, `.scratch/r3/sample_*.txt`): memcmp is 58% of
+  a paged `find` at 40 bytes against 48% of main's `StoreTable::find`; the rest of `find` is less
+  than main's. Same number of compares (about 5.5 over the index, 4.5 on the page, against main's
+  10 plus one equality), each over the 36 bytes the names share. Cause: the comparison length.
+  Not the indirection (offsets, mark) and not the early-out: those are in `find`'s own share.
+- Experiment 1 (`.scratch/r3/bench_v1`): compare past the prefix the bounds share (design:
+  docs/perf/first-read-1ms.md, "Compares past the shared prefix"). Light screen, median of 3, ns,
+  present/absent: 40-byte 229/255 -> 156/165 (main's decoded 192-205/195-201 in the same runs);
+  255-byte 399/459 -> 183/182; 16-byte 229/257 -> 168/188. Kept: `Detent:5fa1f6c6`.
+- Experiment 2 (`.scratch/r3/bench_v2`): lower-bound page search (one branch a step, equality at
+  the end) on top of 1: 168/181 at 40, 202/188 at 16, no gain over 1. Not kept.
+- Class sweep: every `find` row goes through the one changed search (hot and cold pages share it;
+  the decoded path is main's code). Test test_table_pages `shared_prefixes` (`Detent:5fa1f6c6`,
+  `Detent:d12f2887`): widths 16, 40, 255 and four random tables (a first page below the later
+  prefix, bytes above 0x7f, names prefixes of each other); every entry, the names around it, its
+  prefixes and its name with one byte up or down at start, middle and end answer as the decoded
+  `find`, marked and unmarked. Mutants P1 (no early-out above the prefix) and P2 (every page past
+  the table prefix) fail it locally on a wrong entry; jobs in Evidence.
+- Before/after (strict, 10 rounds of main / `Detent:28a8d276` / head / head again as A/A):
+  261125-031218-4505c8; the table above gets its numbers when it ends.
+
+### Non-blocking
+
+- R3-2 `Detent:a0567b5f`: `cell_pass(mode, cell, branch_p99, main)` is the one rule; selftest and
+  both loop paths call it; selftest has 10 cases. Mutants L1 (bound alone) and L2 (a refused cell
+  passes) fail selftest locally.
+- R3-4 `Detent:a0567b5f`: `MAIN_CANNOT_RUN = {("running", 1000)}`; main refusing any other cell
+  fails it (`within_main` false); selftest has running:1 and stopped:1000 refused cases.
+- R3-5 `Detent:8127a259`: `AgentStore::Options::profile` is optional; none takes the verified
+  table's (a new store's default); DiskStore's own completion read of `selected` is gone. Test
+  test_agent_store `table_profile`. Sweep of the class (store-file reads outside the helper): the
+  remaining completion opens in agent_store.cc are `.lease` opens for locking (lines 362, 537),
+  which read nothing; PackScrub stays as R6.
+- R3-6 `Detent:a0567b5f`: first-read-gate.md Results names the four round 2 cells.
+- R3-3: the lead's (CI rerun).
 
 Fix round 2 finished at `Detent:28a8d276` (code); jobs queued there (Evidence).
 - R2-1 `Detent:a3da0693`: `reader_bench_ab.sh build` copies both binaries after `mkdir -p
@@ -122,8 +160,11 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Next
 
-1. Review of fix round 2 at `Detent:28a8d276`; fold findings by id. Read the four `A16 cell` lines
-   and the C2 pair's `table_find` and `reader_bench` lines into Result when they end.
+1. Review of fix round 3 at `Detent:d12f2887`. When 261125-031218-4505c8 ends, fill the V5 table's
+   after column (`table_find` lines) and the four `A16 cell` lines into first-read-gate.md Results.
+
+Lead: pin-wave also changes src/detent_local/disk_store.cc and tests/detent_agent/test_agent_store.cc
+(`campaign status` warning); this round touches both (R3-5).
 
 ## Messages
 
@@ -181,6 +222,18 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
 checked what), name every job you examined, failures included (`campaign brief` lists failed
 jobs no journal names), and answer each message by its id (msg-N).
+
+Round 3, at `Detent:d12f2887` (queued):
+- A2: R3-1 find A/B 261125-031218-4505c8 (strict); warm 261125-031221-f08ca9 (strict); A2 cells
+  (exclusive) stopped:1 -031224-b0beee, stopped:1000 -031228-873097, running:1 -031230-95829a,
+  running:1000 -031233-4a1cfb.
+- A1: profile 261125-031306-9e9536 (strict).
+- A3: tests 261125-031135-fda3dd (test_local_table_pages, test_agent_store, test_reader_core);
+  gate selftest -031236-1267a1; fails without (`.scratch/r3/mutants.txt`): P1 -031138-e7f754
+  (`Detent:0693dda8`), P2 -031141-283064 (`Detent:428e2490`), L1 -031144-c056ef
+  (`Detent:2e6f8c5a`), L2 -031147-bc9ddd (`Detent:d55040a3`). Suite: CI macos-arm64 at the pushed head.
+- Failed, my command (zsh kept `$Q` as one word, exit 127): 261125-031108-7138fa, -031111-cf189c,
+  -031113-f22498, -031116-32a472, -031119-0e84bb, -031122-784335, -031125-2105d9; resubmitted above.
 
 | Criterion | Evidence |
 |---|---|
@@ -250,6 +303,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- R12 (R3-1): the fix is the comparison length, measured (profile, two one-hypothesis experiments);
+  the target stays main's warm `find` at every width. The cold row has no main counterpart: main
+  hashes the whole table at open.
+- R13 (R3-5): `Options::profile` optional rather than a second constructor: one shape; existing
+  `{profile}` callers compile unchanged. The test is a value test of the new option: the removed
+  read had no observable effect to kill (the agent refused a granted `selected` either way, a481db).
+- R14 (R3-4): option a of the finding (only running 1,000 takes the bound alone).
 
 - R8 (C2): a marked page's match is read in place without re-checking, as the design's "what a
   marked page does not re-check" says; `take_entry` (bounds, then `entry_at`, then name and
