@@ -19,11 +19,13 @@
   `interval_ms` is now the least time between syncs. `Upstream::wait` is new; `HttpUpstream::Stats`
   counts `waits` (docs/mechanisms/relay-mirror-wait.md).
 - detent-authority: a W5 next parked for a change no longer turns the owner loop every millisecond;
-  the owner sleeps until a publish or the next's deadline. A W5 session holds a seal stamp, the seal
-  at its last answer: a next on a session last answered before a seal answers 204 at once, parked or
-  new, at the authority and at a relay. A relay's watch that opens its session syncs once more. A
-  voter that knows no live leader answers its nexts 503 `not_ready`, which agents and relays
-  read as unavailable and move to their next source.
+  the owner sleeps until a publish or the next's deadline. A voter that knows no live leader answers
+  its nexts 503 `not_ready`, which agents and relays read as unavailable and move to their next
+  source.
+- W5 next carries a required `seal` (D163): with nothing new, the authority or a relay answers it
+  204 at once, parked or new, while its seal is above the stamp, and keeps no seal state. A relay
+  sends the seal its last sync read, so a seal that moves no head reaches it within a round trip;
+  agents send 2^64-1 (D164), and a seal never wakes them.
 
 ### Pins: workpool, no scheduler
 

@@ -62,6 +62,7 @@ def client(
             "session": json.loads(opened)["session"],
             "namespaces": names,
             "wait_ms": 0,
+            "seal": 2**64 - 1,
         }
     while time.monotonic() < start:
         time.sleep(0.001)

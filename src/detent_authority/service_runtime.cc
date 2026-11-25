@@ -1553,7 +1553,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					if (out->empty())
 						out.reset();
 				};
-				// The seal each session's stamp is compared with (docs/mechanisms/relay-mirror-wait.md).
+				// The seal each next's stamp is compared with (docs/mechanisms/relay-mirror-wait.md).
 				const auto seal_at = node.sealed() ? node.sealed()->applied_index() : 0;
 				for (std::size_t i = 0; i < frames_tasks.size();) {
 					auto held = frames_tasks[i];
@@ -1583,7 +1583,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 						}
 						if (task.kind == Task::Kind::SessionOpen) {
 							const auto result =
-								frames_sessions->open(task.session, task.frames_principal, task.compressed, now, seal_at);
+								frames_sessions->open(task.session, task.frames_principal, task.compressed, now);
 							if (result != SessionResult::Accepted)
 								complete(held, session_reply(result));
 							else
@@ -1612,9 +1612,9 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							}
 							task.bound = true;
 						}
-						// A seal that moves no head has no frame: a next whose session was last answered
-						// before it, parked or new, answers 204 now, and a relay syncs its layouts.
-						const bool sealed = frames_sessions->restamp(task.session, seal_at);
+						// A seal that moves no head has no frame: a next whose stamp is below this voter's
+						// seal, parked or new, answers 204 now, and a relay syncs its layouts.
+						const bool sealed = seal_at > task.seal;
 						// Every applied entry may change an answer: a write, a seal, the enabling entry.
 						if (!framing && task.looked != node.state().applied_index()) {
 							task.looked = node.state().applied_index();

@@ -74,6 +74,7 @@ def sample(pair: Pair, probe: Path, spread_ms: int) -> float:
                     "cluster": CONTEXT["cluster"],
                     "namespaces": names,
                     "wait_ms": 9000,
+                    "seal": 2**64 - 1,  # an agent's stamp (D164)
                 },
                 READER,
             )

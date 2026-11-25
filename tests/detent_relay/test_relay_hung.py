@@ -156,6 +156,7 @@ def cut_off(run: t.Run) -> None:
                         "cluster": t.CONTEXT["cluster"],
                         "namespaces": names,
                         "wait_ms": 30000,
+                        "seal": 2**64 - 1,
                     }
                 ),
                 {

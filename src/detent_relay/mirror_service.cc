@@ -51,7 +51,6 @@ struct MirrorService::Impl {
 		Clock::time_point used;
 		bool pages = false;
 		std::vector<std::string> records;
-		std::uint64_t seal = 0; // the stamp: the mirror's seal at its last answer, or at its open
 	};
 	std::map<d::Identity, Session> sessions;
 	struct Parked {
@@ -71,10 +70,14 @@ struct MirrorService::Impl {
 	std::deque<std::function<void()>> builds;
 	std::condition_variable build_wake;
 	bool built = false;
-	// The watcher thread's wait on the upstream, under `mutex`: the positions to wait on, set after a
-	// good sync; `woken` tells the mirror thread how the wait returned.
+	// The watcher thread's wait on the upstream, under `mutex`: the positions and the seal stamp to
+	// wait on, set after a good sync; `woken` tells the mirror thread how the wait returned.
 	enum class Woken { No, Changed, Idle, Failed };
-	std::optional<std::vector<Position>> watch;
+	struct Watch {
+		std::vector<Position> positions;
+		std::uint64_t seal = 0;
+	};
+	std::optional<Watch> watch;
 	Woken woken = Woken::No;
 	std::condition_variable watch_wake;
 	std::stop_source unwatch;
@@ -159,9 +162,9 @@ struct MirrorService::Impl {
 		++state.answers;
 	}
 	std::uint64_t seal() const { return relay->mirror().table().seal; }
-	// Stamps the session with the mirror's seal: true when the seal moved since its last answer, so
-	// its next, parked or new, answers 204 now (docs/mechanisms/relay-mirror-wait.md).
-	bool restamp(Session &session) const { return std::exchange(session.seal, seal()) != seal(); }
+	// The mirror's seal is above the next's stamp: with nothing new, it answers 204 now, parked or
+	// new (docs/mechanisms/relay-mirror-wait.md).
+	bool sealed(const MirrorJob &job) const { return seal() > job.seal; }
 	// A next's answer now, or false while every followed namespace is current (it waits).
 	bool answer(MirrorJob &job, Session &session) {
 		auto positions = job.positions;
@@ -190,7 +193,7 @@ struct MirrorService::Impl {
 				break;
 			}
 			auto id = random_identity();
-			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records, seal()};
+			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records};
 			control(job, 200, "{\"version\":2,\"session\":\"" + hex(id) +
 								  "\",\"wait_ms\":" + std::to_string(options.maximum_wait_ms) + "}");
 			break;
@@ -214,10 +217,9 @@ struct MirrorService::Impl {
 				control(job, 503, "{\"error\":\"source_behind\"}");
 				break;
 			}
-			const bool sealed = restamp(*session);
 			if (answer(job, *session))
 				break;
-			if (sealed || !job.wait_ms) {
+			if (sealed(job) || !job.wait_ms) {
 				control(job, 204, {});
 				count_idle();
 				break;
@@ -334,7 +336,6 @@ struct MirrorService::Impl {
 				control(*job, 410, "{\"error\":\"session_expired\"}");
 				settled = true;
 			}
-			const bool sealed = !settled && restamp(found->second);
 			if (!settled && synced) {
 				try {
 					settled = answer(*job, found->second);
@@ -348,7 +349,7 @@ struct MirrorService::Impl {
 					settled = true;
 				}
 			}
-			if (!settled && (now >= deadline || sealed)) {
+			if (!settled && (now >= deadline || sealed(*job))) {
 				control(*job, 204, {});
 				count_idle();
 				settled = true;
@@ -385,7 +386,7 @@ struct MirrorService::Impl {
 	void watch_loop() {
 		auto asked = Clock::time_point{};
 		for (;;) {
-			std::vector<Position> positions;
+			Watch asking;
 			{
 				std::unique_lock lock(mutex);
 				watch_wake.wait(lock, [&] { return stopping || watch; });
@@ -393,12 +394,13 @@ struct MirrorService::Impl {
 				watch_wake.wait_until(lock, asked + options.interval, [&] { return stopping; });
 				if (stopping)
 					return;
-				positions = std::move(*std::exchange(watch, std::nullopt));
+				asking = std::move(*std::exchange(watch, std::nullopt));
 			}
 			asked = Clock::now();
 			auto how = Woken::Failed;
 			try {
-				how = upstream->wait(positions, std::chrono::milliseconds(options.maximum_wait_ms), unwatch.get_token())
+				how = upstream->wait(asking.positions, asking.seal, std::chrono::milliseconds(options.maximum_wait_ms),
+									 unwatch.get_token())
 						  ? Woken::Changed
 						  : Woken::Idle;
 			} catch (const std::exception &) {
@@ -409,13 +411,14 @@ struct MirrorService::Impl {
 			wake.notify_one();
 		}
 	}
-	// Waits on every mirrored name from the ring's head; a name the upstream lacks, from no cursor.
+	// Waits on every mirrored name from the ring's head (a name the upstream lacks, from no cursor),
+	// and on a seal above the one the last good sync read.
 	void watch_heads() {
-		std::vector<Position> positions;
+		Watch asking{{}, seal()};
 		for (const auto &name : options.namespaces)
-			positions.push_back({name, relay->head(name)});
+			asking.positions.push_back({name, relay->head(name)});
 		std::lock_guard lock(mutex);
-		watch = std::move(positions);
+		watch = std::move(asking);
 		watch_wake.notify_one();
 	}
 	void run() {

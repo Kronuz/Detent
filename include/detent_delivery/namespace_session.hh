@@ -25,6 +25,9 @@ struct Following {
 		std::uint64_t after = 0, offset = 0;
 	};
 	std::optional<Resume> resume;
+	// Next's seal stamp: with nothing new, the source answers 204 at once while its seal is above
+	// it. A relay sends the seal its last sync read; an agent follows no seal and keeps 2^64-1 (D164).
+	std::uint64_t seal = UINT64_MAX;
 };
 // A W5 body (version 2). The request's cluster is the directory cursor's, else the first store
 // cursor's; a cursor of another cluster is sent as no store, which earns the same full copy.

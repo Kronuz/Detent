@@ -150,10 +150,15 @@ int main() {
 				opened.reset();
 				opened = v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') + ",\"cluster\":" +
 													  identity('1') + ",\"namespaces\":[[\"pay\"," + identity('2') +
-													  ",42]],\"wait_ms\":250}");
+													  ",42]],\"wait_ms\":250,\"seal\":7}");
 				check(opened->request().session[0] == '\xaa' && opened->request().positions.size() == 1 &&
 					  opened->request().positions[0].cursor->position == 42 && !opened->request().all &&
-					  opened->request().wait_ms == 250);
+					  opened->request().wait_ms == 250 && opened->request().seal == 7);
+				opened.reset();
+				// An agent's stamp (D164): the largest seal.
+				opened = v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
+													  ",\"namespaces\":[[\"a\"]],\"seal\":18446744073709551615}");
+				check(opened->request().seal == UINT64_MAX);
 				opened.reset();
 				// DD3: open asks for page transfers and names the namespaces asked as records; next does not.
 				opened = v2(h::RequestKind::Open, "{\"version\":2,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[[\"a\"],"
@@ -185,12 +190,13 @@ int main() {
 						 open2 + "\"namespaces\":[[\"a\"]],\"records\":[\"a b\"]}",					   // records name
 					 })
 					check(refused_v2(h::RequestKind::Open, bad));
-				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
-														   ",\"namespaces\":[[\"a\"]],\"after\":1}"));
-				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
-														   ",\"namespaces\":[[\"a\"]],\"pages\":true}")); // open only
-				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
-														   ",\"namespaces\":[[\"a\"]],\"records\":[\"a\"]}"));
+				const auto next2 = "{\"version\":2,\"session\":" + identity('a') + ",\"namespaces\":[[\"a\"]]";
+				check(refused_v2(h::RequestKind::Next, next2 + "}"));					   // no seal
+				check(refused_v2(h::RequestKind::Next, next2 + ",\"seal\":-1}"));		   // seal not a count
+				check(refused_v2(h::RequestKind::Next, next2 + ",\"seal\":\"1\"}"));	   // seal not a number
+				check(refused_v2(h::RequestKind::Next, next2 + ",\"seal\":0,\"after\":1}")); // v1 field
+				check(refused_v2(h::RequestKind::Next, next2 + ",\"seal\":0,\"pages\":true}")); // open only
+				check(refused_v2(h::RequestKind::Next, next2 + ",\"seal\":0,\"records\":[\"a\"]}"));
 				check(refused_v2(h::RequestKind::Close, "{\"version\":2,\"session\":" + identity('a') +
 															",\"namespaces\":[]}"));
 			}

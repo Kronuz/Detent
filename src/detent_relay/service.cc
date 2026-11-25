@@ -384,6 +384,7 @@ task::task<void> Service::handle(http::Request &request, http::ResponseWriter &r
 		job.pages = command.pages;
 		job.records.assign(command.records.begin(), command.records.end());
 		job.wait_ms = command.wait_ms;
+		job.seal = command.seal;
 	}
 	job.principal = admission->credential->principal;
 	job.grants = admission->credential->namespaces.get();

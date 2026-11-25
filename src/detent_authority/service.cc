@@ -569,6 +569,7 @@ void Service::frames_request(const distribution_http::SessionRequest &command, h
 		task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout) +
 						 std::chrono::milliseconds(command.wait_ms);
 		task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
+		task->seal = command.seal;
 		break;
 	default:
 		task->kind = Task::Kind::SessionClose;

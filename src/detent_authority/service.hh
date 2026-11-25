@@ -134,11 +134,12 @@ class Service final : public http::HttpHandler {
 		std::chrono::steady_clock::time_point deadline;
 		std::chrono::steady_clock::time_point poll_deadline;
 		// W5 (version 2): the followed namespaces and their stores, `all`'s directory cursor, and
-		// the group revision of the last look for changes.
+		// the group revision of the last look for changes, and the request's seal stamp: a next with
+		// nothing new answers 204 at once while this voter's seal is above it.
 		bool frames = false, bound = false, compressed = false;
 		std::vector<Followed> follows;
 		std::optional<distribution::DirectoryCursor> all;
-		std::uint64_t looked = UINT64_MAX;
+		std::uint64_t looked = UINT64_MAX, seal = UINT64_MAX;
 		SessionPrincipal frames_principal;
 		std::optional<Reply> refused;
 	};

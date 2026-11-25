@@ -44,7 +44,8 @@ struct MirrorJob {
 	// (`"records":[names]`, strictly increasing), which keep records (dense distribution D9).
 	bool pages = false;
 	std::vector<std::string> records;
-	std::uint64_t wait_ms = 0;
+	// Next: with nothing new, answer 204 at once while the mirror's seal is above `seal`.
+	std::uint64_t wait_ms = 0, seal = UINT64_MAX;
 	// The answer, set by the mirror thread before `done`: a JSON control body, or chunks.
 	struct Reply {
 		int status = 503;

@@ -112,7 +112,7 @@ struct ParsedSessionRequest::Impl {
 				"invalid session parser admission");
 	}
 	// W5: open {version, profile, coding, cluster?, namespaces, all?, wait_ms?, pages?, records?};
-	// next {version, session, cluster?, namespaces, all?, wait_ms?, resume?}; close {version, session}.
+	// next {version, session, cluster?, namespaces, all?, wait_ms?, seal, resume?}; close {version, session}.
 	// A namespace is [name] or [name, incarnation, position]; resume is [name, root, after, offset].
 	void parse_positions() {
 		switch (result.kind) {
@@ -131,8 +131,9 @@ struct ParsedSessionRequest::Impl {
 			}
 			break;
 		case RequestKind::Next:
-			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms", "resume"});
+			fields(document, {"version", "session", "cluster", "namespaces", "all", "wait_ms", "seal", "resume"});
 			result.session = identity<d::Identity>(field(document, "session"));
+			result.seal = number(field(document, "seal"));
 			if (document.HasMember("resume")) {
 				const auto &resume = field(document, "resume");
 				require(resume.IsArray() && resume.Size() == 4, "session resume arity");

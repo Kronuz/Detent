@@ -49,6 +49,9 @@ struct SessionRequest {
 	bool pages = false;
 	std::span<const std::string_view> records;
 	std::optional<TransferResume> resume;
+	// Next only: the reader's seal stamp. A next with nothing new answers 204 at once while the
+	// source's seal is above it; a reader that follows no seal (an agent) sends 2^64-1.
+	std::uint64_t seal = UINT64_MAX;
 };
 // The admitted parser arena owns every returned view until worker retirement.
 class ParsedSessionRequest final : public distribution::RetirementNode {

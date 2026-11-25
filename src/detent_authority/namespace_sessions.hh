@@ -1,8 +1,7 @@
 #pragma once
 // W5 sessions on the owner (docs/status/namespace-s6-cutover.md): a session holds its principal and
 // coding, at most one next in flight, and expires when idle or at its maximum lifetime. Every next
-// carries its own cursors, so a session holds no position. It holds its seal stamp: the seal at its
-// last answer, or at its open (docs/mechanisms/relay-mirror-wait.md).
+// carries its own cursors, so a session holds no position.
 #include "detent_distribution/allocator.hh"
 #include "state.hh"
 #include <chrono>
@@ -23,13 +22,9 @@ class NamespaceSessions {
   public:
 	using Clock = std::chrono::steady_clock;
 	NamespaceSessions(std::shared_ptr<distribution::StorageLedger>, SessionLimits);
-	SessionResult open(const Identity &id, const SessionPrincipal &, bool compression, Clock::time_point now,
-					   std::uint64_t seal);
+	SessionResult open(const Identity &id, const SessionPrincipal &, bool compression, Clock::time_point now);
 	// A next begins: Accepted holds the session until end(); `compression` is the session's coding.
 	SessionResult begin(const Identity &id, const SessionPrincipal &, Clock::time_point now, bool &compression);
-	// Stamps the session with `seal`: true when that is not its stamp, so the seal moved since its
-	// last answer and its next answers now.
-	bool restamp(const Identity &id, std::uint64_t seal) noexcept;
 	void end(const Identity &id, Clock::time_point now) noexcept;
 	SessionResult close(const Identity &id, const SessionPrincipal &) noexcept;
 	// Removes expired sessions with no next in flight, visiting at most `visits`.
@@ -41,7 +36,6 @@ class NamespaceSessions {
 		SessionPrincipal principal;
 		bool compression = false, busy = false, closing = false;
 		Clock::time_point idle, maximum;
-		std::uint64_t seal = 0;
 	};
 	template <class T> using Allocator = distribution::StorageAllocator<T>;
 	using Sessions = std::map<Identity, Session, std::less<>, Allocator<std::pair<const Identity, Session>>>;

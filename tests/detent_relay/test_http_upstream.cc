@@ -22,6 +22,7 @@
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 #include <atomic>
+#include <condition_variable>
 #include <cstring>
 #include <functional>
 #include <future>
@@ -428,11 +429,21 @@ void backoff(const std::filesystem::path &root) {
 }
 // A voter's history for the chain: one namespace, a base of `keys` real records; publish() seals a
 // base one record longer, the change a mirror reading it adopts; reseal() seals the same base.
+// hold() stops the mirror thread inside its next sync's layouts() until release().
 class Voter final : public r::Upstream {
   public:
 	explicit Voter(std::size_t keys) { rebase(keys); }
 	r::MirrorTable layouts(std::span<const std::string>) override {
 		std::this_thread::sleep_for(std::chrono::milliseconds(sync_ms.load()));
+		{
+			std::unique_lock lock(gate_);
+			if (hold_) {
+				held_in_ = true;
+				gated_.notify_all();
+				gated_.wait(lock, [&] { return !hold_; });
+				held_in_ = false;
+			}
+		}
 		std::lock_guard lock(mutex_);
 		return {0, seal_, {{"ns", identity('i'), seal_, seal_, current_.last, "policy-1", {current_}}}};
 	}
@@ -449,6 +460,17 @@ class Voter final : public r::Upstream {
 	void reseal() {
 		std::lock_guard lock(mutex_);
 		++seal_;
+	}
+	// Returns once the mirror thread is held inside a sync's layouts().
+	void hold() {
+		std::unique_lock lock(gate_);
+		hold_ = true;
+		gated_.wait(lock, [&] { return held_in_; });
+	}
+	void release() {
+		std::lock_guard lock(gate_);
+		hold_ = false;
+		gated_.notify_all();
 	}
 	std::string bytes; // the first base's
 	r::MirrorFile file;
@@ -471,7 +493,9 @@ class Voter final : public r::Upstream {
 			file = current_;
 		}
 	}
-	std::mutex mutex_;
+	std::mutex mutex_, gate_;
+	std::condition_variable gated_;
+	bool hold_ = false, held_in_ = false;
 	std::uint64_t seal_ = 2;
 	std::string held_;
 	r::MirrorFile current_;
@@ -543,6 +567,7 @@ class RelayA {
 		asio::post(owner_.io(), turn_);
 	}
 	~RelayA() {
+		voter_->release();
 		runtime_->close();
 		mirror_->close();
 		listener_->stop();
@@ -565,6 +590,8 @@ class RelayA {
 	void slow_syncs(std::chrono::milliseconds pause) { voter_->sync_ms.store(pause.count()); }
 	void publish() { voter_->publish(); }
 	void reseal() { voter_->reseal(); }
+	void hold() { voter_->hold(); }
+	void release() { voter_->release(); }
 	// Reseals and returns once A's mirror serves the new seal (A syncs its voter every 10 ms).
 	void reseal_adopted() {
 		const auto before = status().seal;
@@ -657,7 +684,8 @@ class FailingWait final : public r::Upstream {
 	std::string frames(std::span<const r::Position> positions) override { return voter_.frames(positions); }
 	std::size_t sources() const noexcept override { return 2; }
 	void skip() override { ++skips; }
-	bool wait(std::span<const r::Position>, std::chrono::milliseconds limit, std::stop_token stop) override {
+	bool wait(std::span<const r::Position>, std::uint64_t, std::chrono::milliseconds limit,
+			  std::stop_token stop) override {
 		if (waits++ == 0)
 			throw std::runtime_error("the source hangs");
 		const auto end = Clock::now() + limit;
@@ -708,17 +736,18 @@ void paced(Fixture &f, const std::filesystem::path &root) {
 	options.interval = 1000ms;
 	r::MirrorService b(options, std::make_unique<r::HttpUpstream>(upstream),
 					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
-	until([&] { return b.status().syncs >= 2; }, "relay B's sync after its watch session opened");
+	until([&] { return b.status().syncs >= 1 && a->status().parked == 1; }, "relay B's next parked at A");
 	const auto idle = a->status().idle;
-	const auto syncs = b.status().syncs;
 	std::this_thread::sleep_for(3000ms);
 	const auto answered = a->status().idle - idle;
-	std::cout << "paced: A answered B " << answered << " idle waits and B synced " << b.status().syncs - syncs
-			  << " times in 3 s (interval 1 s, each wait 200 ms)\n";
-	check(answered >= 2 && answered <= 4 && b.status().syncs - syncs == 0);
+	const auto syncs = b.status().syncs;
+	std::cout << "paced: A answered B " << answered << " idle waits and B synced " << syncs
+			  << " times in all, 3 s at rest (interval 1 s, each wait 200 ms)\n";
+	// One sync, the first: opening the watch session costs none.
+	check(answered >= 2 && answered <= 4 && syncs == 1);
 }
-// B's upstream, with a hook its watcher runs once before a wait: a test orders A's seal against
-// B's next by the hook, not by timing.
+// B's upstream, with hooks its watcher runs once: before its next wait, or before its next wait
+// that follows an idle answer. A test orders A's seal against B's next by a hook, not by timing.
 class Hooked final : public r::Upstream {
   public:
 	explicit Hooked(r::HttpUpstreamOptions options) : inner_(std::move(options)) {}
@@ -727,25 +756,43 @@ class Hooked final : public r::Upstream {
 	std::string frames(std::span<const r::Position> positions) override { return inner_.frames(positions); }
 	std::size_t sources() const noexcept override { return inner_.sources(); }
 	void skip() override { inner_.skip(); }
-	bool wait(std::span<const r::Position> positions, std::chrono::milliseconds limit, std::stop_token stop) override {
+	bool wait(std::span<const r::Position> positions, std::uint64_t seal, std::chrono::milliseconds limit,
+			  std::stop_token stop) override {
 		std::function<void()> hook;
 		{
 			std::lock_guard lock(mutex_);
 			hook = std::exchange(hook_, nullptr);
+			if (!hook && idle_)
+				hook = std::exchange(rewait_, nullptr);
 		}
 		if (hook)
 			hook();
-		return inner_.wait(positions, limit, stop);
+		bool changed = false;
+		try {
+			changed = inner_.wait(positions, seal, limit, stop);
+		} catch (...) {
+			std::lock_guard lock(mutex_);
+			idle_ = false;
+			throw;
+		}
+		std::lock_guard lock(mutex_);
+		idle_ = !changed;
+		return changed;
 	}
 	void before_wait(std::function<void()> hook) {
 		std::lock_guard lock(mutex_);
 		hook_ = std::move(hook);
 	}
+	void before_rewait(std::function<void()> hook) {
+		std::lock_guard lock(mutex_);
+		rewait_ = std::move(hook);
+	}
 
   private:
 	r::HttpUpstream inner_;
 	std::mutex mutex_;
-	std::function<void()> hook_;
+	std::function<void()> hook_, rewait_;
+	bool idle_ = false; // the last wait answered idle
 };
 // Waits until B serves A's seal `target`, timed from A adopting it: within 1.5 s, against B's 4 s
 // deadline.
@@ -776,8 +823,8 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	options.reconnect_maximum = 400ms;
 	options.maximum_wait_ms = deadline.count();
 	auto *hooked = new Hooked(upstream);
-	// Open: A seals after B's first sync and before B's watch session opens, which A stamps with that
-	// seal. B's first wait reports a change, so B syncs the seal at once.
+	// Open: A seals after B's first sync and before B's watch session opens. B's first next carries the
+	// seal that sync read, below A's, so A answers it at once and B syncs the seal.
 	const auto first = a->status().seal;
 	std::promise<Clock::time_point> opened;
 	hooked->before_wait([&] {
@@ -823,8 +870,18 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	a->reseal_adopted();
 	seal_reaches(b, parked_seal, resealed, "a seal while B's next was parked reached B");
 	// Stamped older: the hook seals A after B's sync read its layouts and before B's next reaches A, the
-	// window CI's sanitizers hit. A answers that next 204 at once: B's session was last answered before.
+	// window CI's sanitizers hit. A answers that next 204 at once: its stamp is below A's seal.
 	seal_reaches(b, parked_seal + 1, between.get_future().get(), "a seal between B's sync and its next reached B");
+	// Answered late: A answers B's parked next idle, then seals before B's next wait reaches it. That
+	// wait carries the same stamp, below A's seal, so A answers it at once.
+	until([&] { return a->status().parked == 1; }, "B's next parked at A");
+	std::promise<Clock::time_point> rewaited;
+	hooked->before_rewait([&] {
+		a->reseal_adopted();
+		rewaited.set_value(Clock::now());
+	});
+	seal_reaches(b, parked_seal + 2, rewaited.get_future().get(),
+				 "a seal after an idle answer, before B's wait again, reached B");
 	// A stops: B's wait fails, and B's syncs fail with the backoff (10 ms doubling to 400 ms) rather than
 	// every interval; A returns on its port and B syncs from it again.
 	const auto failures = b.status().sync_failures;
@@ -841,15 +898,61 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	// A returns as it was, its change and seals published, so its seal is B's and not one B refuses as older.
 	a = std::make_unique<RelayA>(f, root / "a", 200, port);
 	a->publish();
-	a->reseal();
-	a->reseal();
-	a->reseal();
+	while (a->status().seal < b.status().seal)
+		a->reseal_adopted();
 	const auto back = b.status().syncs;
 	try {
 		until([&] { return b.status().syncs > back && b.status().error.empty(); }, "relay B syncing from A again");
 	} catch (const std::runtime_error &error) {
 		throw std::runtime_error(std::string(error.what()) + ": \"" + b.status().error + "\"");
 	}
+}
+// Late park (review R4-1): A takes B's next 800 ms late, its mirror thread held in a sync, so A's
+// seal at +1.3 s answers it after B's 1 s park, counted from B's send: B reads that 204 as idle. B's
+// next wait carries the same stamp, below A's seal, so A answers it at once and B syncs the seal
+// within 1.5 s, not at its 10 s deadline.
+void late_park(Fixture &f, const std::filesystem::path &root) {
+	constexpr auto hold = 800ms, reseal_at = 1300ms;
+	RelayA a(f, root / "a", 200);
+	until([&] { return a.status().ready; }, "relay A's first sync");
+	r::HttpUpstreamOptions upstream;
+	upstream.endpoints.emplace_back(asio::ip::address_v4::loopback(), a.port());
+	upstream.hostname = "localhost";
+	upstream.token = std::string(RelayA::token);
+	upstream.tls = f.client;
+	upstream.timeout = 2000ms; // B parks 1 s
+	prepare(root / "b");
+	r::MirrorServiceOptions options;
+	options.directory = root / "b";
+	options.cluster = identity('c');
+	options.namespaces = {"ns"};
+	options.interval = 10ms;
+	options.maximum_wait_ms = 10000;
+	auto *hooked = new Hooked(upstream);
+	r::MirrorService b(options, std::unique_ptr<r::Upstream>(hooked),
+					   std::make_shared<d::StorageLedger>(std::size_t{1} << 30));
+	until([&] { return b.status().syncs >= 1 && a.status().parked == 1; }, "B's next parked at A");
+	std::promise<Clock::time_point> sending;
+	hooked->before_rewait([&] {
+		a.hold(); // A's mirror thread is inside a sync until released
+		sending.set_value(Clock::now());
+	});
+	const auto sent = sending.get_future().get();
+	std::this_thread::sleep_until(sent + hold);
+	a.release();
+	until([&] { return a.status().parked == 1; }, "A parking B's late next");
+	std::this_thread::sleep_until(sent + reseal_at);
+	const auto before = a.status().seal;
+	a.reseal();
+	until([&] { return a.status().seal > before; }, "A adopting the seal");
+	const auto adopted = Clock::now();
+	until([&] { return b.status().seal > before; }, "B serving the seal");
+	const auto reached = Clock::now() - adopted;
+	std::cout << "late park: A adopted the seal at +"
+			  << std::chrono::duration_cast<std::chrono::milliseconds>(adopted - sent).count()
+			  << " ms from B's send (B parks 1 s); B served it "
+			  << std::chrono::duration_cast<std::chrono::milliseconds>(reached).count() << " ms later\n";
+	check(reached < 1500ms);
 }
 } // namespace
 
@@ -866,6 +969,7 @@ int main(int argc, char **argv) {
 		idle(f, scratch / "idle");
 		failed_wait(scratch / "failed-wait");
 		paced(f, scratch / "paced");
+		late_park(f, scratch / "late-park");
 		if (f.server->failure)
 			std::rethrow_exception(f.server->failure);
 		std::filesystem::remove_all(scratch);

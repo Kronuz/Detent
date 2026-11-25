@@ -76,10 +76,10 @@ if(TARGET detent::relay_mirror_service AND TARGET detent-authority AND TARGET de
   add_test(NAME test_relay_idle
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_idle.py ${PROJECT_BINARY_DIR})
   set_tests_properties(test_relay_idle PROPERTIES TIMEOUT 120)
-  # The seal stamp: one check per transition, at the authority and at a relay.
+  # The seal stamp on the wire: one check per row, at the authority and at a relay.
   add_test(NAME test_relay_seal_stamp
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_relay_seal_stamp.py ${PROJECT_BINARY_DIR})
-  set_tests_properties(test_relay_seal_stamp PROPERTIES TIMEOUT 120)
+  set_tests_properties(test_relay_seal_stamp PROPERTIES TIMEOUT 180)
   # relay-mirror-idle-wake F1: a parked wait never outlives a source that hangs or is cut off.
   foreach(case hung cut-off)
     add_test(NAME test_relay_${case}

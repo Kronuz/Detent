@@ -91,7 +91,7 @@ std::string namespace_session_body(SessionResponsePurpose purpose, const Followi
 		body += ",\"all\":" +
 				std::to_string(following.all->cluster == cluster ? following.all->position : std::uint64_t{0});
 	if (purpose == SessionResponsePurpose::Next) {
-		body += ",\"wait_ms\":" + std::to_string(wait.count());
+		body += ",\"wait_ms\":" + std::to_string(wait.count()) + ",\"seal\":" + std::to_string(following.seal);
 		if (const auto &resume = following.resume) {
 			require(d::valid_namespace_name(resume->name) && resume->offset, "a resumed transfer is named");
 			body += ",\"resume\":[\"" + resume->name + "\",\"" + hex(resume->root) + "\"," +

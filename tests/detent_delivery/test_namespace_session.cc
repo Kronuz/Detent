@@ -341,7 +341,8 @@ void request_bodies() {
 			  twos + "\",5],[\"b\"],[\"c\"]],\"all\":3}");
 	check(t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms) ==
 		  "{\"version\":2,\"session\":\"" + session_hex + "\",\"cluster\":\"" + ones +
-			  "\",\"namespaces\":[[\"a\",\"" + twos + "\",5],[\"b\"],[\"c\"]],\"all\":3,\"wait_ms\":250}");
+			  "\",\"namespaces\":[[\"a\",\"" + twos + "\",5],[\"b\"],[\"c\"]],\"all\":3,\"wait_ms\":250,"
+			  "\"seal\":18446744073709551615}");
 	check(t::namespace_session_body(t::SessionResponsePurpose::Close, {}, false, session_id()) ==
 		  "{\"version\":2,\"session\":\"" + session_hex + "\"}");
 	// What the client writes, the server's parser reads back.
@@ -352,7 +353,7 @@ void request_bodies() {
 	const auto &request = parsed->request();
 	check(request.positions.size() == 3 && request.positions[0].cursor == d::NamespaceCursor{cluster, incarnation, 5} &&
 		  !request.positions[1].cursor && !request.positions[2].cursor &&
-		  request.all == d::DirectoryCursor{cluster, 3} && request.wait_ms == 250);
+		  request.all == d::DirectoryCursor{cluster, 3} && request.wait_ms == 250 && request.seal == UINT64_MAX);
 	// DD3: open asks for page transfers, and for a refused namespace as records; next carries neither.
 	following.pages = true;
 	following.records = {"b", "c"};
@@ -362,7 +363,7 @@ void request_bodies() {
 	check(reopened->request().pages && reopened->request().records.size() == 2 &&
 		  reopened->request().records[1] == "c");
 	const auto next = t::namespace_session_body(t::SessionResponsePurpose::Next, following, false, session_id(), 250ms);
-	check(next.ends_with(",\"wait_ms\":250}"));
+	check(next.ends_with(",\"wait_ms\":250,\"seal\":18446744073709551615}"));
 	auto renext = h::parse_session_request(account, h::RequestKind::Next, next);
 	check(!renext->request().pages && renext->request().records.empty() && !renext->request().resume);
 	// D8: next asks a held transfer's rest; open never does.

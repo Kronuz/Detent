@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
 						const std::string &extra = {}) {
 			return request(endpoint, cert, "/v2/distribution/session/next",
 						   "{\"version\":2,\"session\":\"" + id + "\",\"namespaces\":" + follows + extra +
-							   ",\"wait_ms\":" + std::to_string(wait) + "}",
+							   ",\"wait_ms\":" + std::to_string(wait) + ",\"seal\":18446744073709551615}",
 						   token);
 		};
 		const auto id = session(writer, "[[\"ns\"]]");

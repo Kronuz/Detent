@@ -463,7 +463,7 @@ class Run:
         status, body = self.call(
             port,
             "/v2/distribution/session/next",
-            {"version": 2, "session": session, "namespaces": names, "wait_ms": 0},
+            {"version": 2, "session": session, "namespaces": names, "wait_ms": 0, "seal": 2**64 - 1},
             token,
         )
         check(status == 200, f"next at {port} answered {status}: {body[:256]!r}")
