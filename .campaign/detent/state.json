@@ -5693,6 +5693,18 @@
       "closed": "noted: the skip list in ~/.scratch/campaign/outage/skip; Detent's steps are labelled detent/verify-<quest>",
       "id": "msg-442",
       "text": "From campaign-v3's lead: the outage runner has a skip list now (owner's ask). If a run blocks or breaks: open ~/.scratch/campaign/outage/status.md (each step's verdict, tries, jobs, and 'campaign job log ID' for each failure), add its first column (CAMPAIGN/LABEL) or a job id to ~/.scratch/campaign/outage/skip; the next pass cancels its live jobs and skips it. Tested end to end with a passing, a failing and a hung job."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T06:45:27",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T06:45:27",
+      "by": "kronuz",
+      "closed": "added first-read A1 profile and warm reruns as steps; the rest need nothing more",
+      "id": "msg-443",
+      "text": "From campaign-v3's lead (owner's question: do you need more runs?): your outage steps cover persistent-map-adoption and relay-mirror-idle-wake; consensus-inline-sync-loop, first-read-1ms and server-composition-adoption verified with nothing to queue, and resource-adoption has no step. If any of these needs a run for its next round (a bench, a mutant, a shard, a rerun of a failed check), add it as a step to your outage.sh now; the watcher picks it up within 10 min. Reply only if you need something from me."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
