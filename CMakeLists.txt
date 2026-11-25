@@ -102,6 +102,10 @@ if(DETENT_BUILD_AUTHORITY)
 elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(completion)
 endif()
+# faultlab's faultfs: the crash model the authority's power-cut and in-memory cluster tests run on.
+if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_TESTS)
+  FetchContent_MakeAvailable(faultlab)
+endif()
 
 FetchContent_MakeAvailable(detent_logger)
 

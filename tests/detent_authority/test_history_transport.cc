@@ -4,8 +4,8 @@
 // checkpoints is installed from a snapshot with an empty history directory: it fetches
 // every file from its peers over the fetch lane, and its files and answers are the
 // same bytes as theirs. Voter two serves every file rotten, so voter three passes over it
-// whenever it asks it first (F1), and asks it first for some files. Journals and history directories live in memory (journal's
-// MemoryIO), so the run waits on the transport, not a device; crash safety is the power-cut tests'.
+// whenever it asks it first (F1), and asks it first for some files. Journals and history directories live in memory (faultlab's
+// faultfs), so the run waits on the transport, not a device; crash safety is the power-cut tests'.
 #include "peer_history.hh"
 #include "consensus/transport/tls.h"
 #include <algorithm>
@@ -15,7 +15,7 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
-#include <journal/memory_io.h>
+#include <faultlab/faultfs.h>
 #include <journal/mutation.h>
 #include <openssl/pem.h>
 
@@ -33,9 +33,9 @@ Fingerprint pin(const std::filesystem::path &path) {
 													 X509_free);
 	return certificate_fingerprint(cert.get());
 }
-namespace mem = kronuz::journal::testing;
-std::map<std::string, std::string> files(mem::Disk &disk) {
-	h::Directory history(std::make_shared<mem::MemoryIO>(disk), {});
+namespace fl = kronuz::faultlab;
+std::map<std::string, std::string> files(fl::filesystem &disk) {
+	h::Directory history(std::make_shared<fl::io>(disk), {});
 	std::map<std::string, std::string> out;
 	for (const auto &name : history.names())
 		out[name] = history.read(name);
@@ -46,7 +46,7 @@ std::map<std::string, std::string> files(mem::Disk &disk) {
 int main(int argc, char **argv) {
 	assert(argc == 2);
 	std::filesystem::path certificates(argv[1]);
-	std::array<mem::Disk, 3> journals, histories;
+	std::array<fl::filesystem, 3> journals, histories;
 	asio::io_context io;
 	std::vector<std::unique_ptr<asio::ip::tcp::acceptor>> reservations;
 	std::vector<asio::ip::tcp::endpoint> endpoints;
@@ -78,13 +78,13 @@ int main(int argc, char **argv) {
 		options.context.epoch[0] = 'e';
 		options.configuration = {options.context.cluster, options.context.group, i + 1, {1, 2, 3}};
 		options.application.layout = policy;
-		auto node = std::make_shared<Node>(std::make_unique<mem::MemoryIO>(journals[i]), options);
+		auto node = std::make_shared<Node>(std::make_unique<fl::io>(journals[i]), options);
 		std::vector<NodeId> others;
 		for (NodeId voter = 1; voter <= 3; ++voter)
 			if (voter != i + 1)
 				others.push_back(voter);
 		fetchers.push_back(std::make_shared<PeerHistory>(io.get_executor(), others, 4, 50ms));
-		node->attach_history(std::make_shared<mem::MemoryIO>(histories[i]), fetchers.back()->fetch());
+		node->attach_history(std::make_shared<fl::io>(histories[i]), fetchers.back()->fetch());
 		Identity identity{};
 		identity[0] = static_cast<char>(i + 1);
 		node->create(identity);
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 		for (unsigned j = 0; j != 3; ++j)
 			if (i != j)
 				options.addresses.emplace(j + 1, PeerAddress{endpoints[j].address().to_string(), endpoints[j].port()});
-		options.reader = [read = history_reader(std::make_shared<mem::MemoryIO>(histories[i]), options.fetch_bytes),
+		options.reader = [read = history_reader(std::make_shared<fl::io>(histories[i]), options.fetch_bytes),
 						  &slowest_read_ms, &largest, &rotten, &failing, i](std::string_view name) {
 			if (i == 0 && name == failing)
 				throw std::runtime_error("unreadable history file");
@@ -272,8 +272,8 @@ int main(int argc, char **argv) {
 		const auto *n0 = nodes[0]->history()->layout().table().find(space);
 		const auto *n2 = nodes[2]->history()->layout().table().find(space);
 		assert(n0 && n2 && n0->incarnation == entry->incarnation && n2->incarnation == entry->incarnation);
-		h::Directory left(std::make_shared<mem::MemoryIO>(histories[0]), nodes[0]->state().limits());
-		h::Directory right(std::make_shared<mem::MemoryIO>(histories[2]), nodes[2]->state().limits());
+		h::Directory left(std::make_shared<fl::io>(histories[0]), nodes[0]->state().limits());
+		h::Directory right(std::make_shared<fl::io>(histories[2]), nodes[2]->state().limits());
 		for (Revision r = n0->base.last; r <= entry->position; ++r) {
 			auto a = nodes[0]->history()->layout().answer(space, entry->incarnation, r, entry->position, left);
 			auto b = nodes[2]->history()->layout().answer(space, entry->incarnation, r, entry->position, right);

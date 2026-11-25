@@ -162,6 +162,12 @@
     "source_subdir": "."
   },
   {
+    "name": "faultlab",
+    "repository": "https://github.com/Kronuz/faultlab.git",
+    "revision": "83fbde73c008e15e64ea7aa73c4c3b9b94e0599c",
+    "source_subdir": "."
+  },
+  {
     "name": "metrics",
     "repository": "https://github.com/Kronuz/metrics.git",
     "revision": "4cd64db406a2a4845b00b4be00ed7fd560a85b22",

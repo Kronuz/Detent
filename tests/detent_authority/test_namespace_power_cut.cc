@@ -6,15 +6,27 @@
 // acknowledged before the cut may be lost: no checkpoint outran its history.
 #include "namespace_oracle.hh"
 #include "node.hh"
+#include <algorithm>
 #include <cassert>
+#include <faultlab/faultfs.h>
 #include <iostream>
-#include <journal/memory_io.h>
 #include <variant>
 
 using namespace detent::authority;
 using namespace kronuz::consensus;
-namespace mem = kronuz::journal::testing;
+namespace fl = kronuz::faultlab;
 namespace {
+// A cut ends a run at the first storage primitive the power refuses.
+struct PowerLoss {};
+// Power loss keeps any sector-boundary prefix of an unsynced write, as a device may.
+const fl::crash_policy sector_cut{.size = fl::size_pick::sector};
+// The IO of directory `name` on `disk`, made on first use: the journal and history share one disk and one cut.
+std::unique_ptr<fl::io> directory(fl::filesystem &disk, const std::string &name) {
+	const auto names = disk.list();
+	if (std::find(names.begin(), names.end(), name) == names.end())
+		disk.make_directory(name);
+	return std::make_unique<fl::io>(disk, name);
+}
 Context context() {
 	Context c;
 	c.cluster[0] = 'c';
@@ -94,7 +106,7 @@ std::vector<Step> workload() {
 			write(++s, "c", "y", 9)};
 }
 struct Run {
-	mem::Disk &disk;
+	fl::filesystem &disk;
 	std::unique_ptr<Node> node;
 	std::uint64_t clock = 0, request = 1;
 	std::vector<Completion> completed;
@@ -102,11 +114,10 @@ struct Run {
 		node->service({++clock, 1000});
 		if (auto job = node->worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
-		if (auto job = node->take_history_operation()) {
+		if (auto job = node->take_history_operation())
 			kronuz::journal::drive_synchronously(*job);
-			if (disk.dead())
-				throw mem::PowerLoss{};
-		}
+		if (disk.powered_off())
+			throw PowerLoss{};
 		node->take_network_actions();
 		for (auto &c : node->take_completions())
 			completed.push_back(std::move(c));
@@ -122,8 +133,8 @@ struct Run {
 	}
 	bool created = false, strict = true;
 	void boot(bool recover) {
-		node = std::make_unique<Node>(std::make_unique<mem::MemoryIO>(disk), options());
-		node->attach_history(std::make_shared<mem::MemoryIO>(disk, "history/"));
+		node = std::make_unique<Node>(directory(disk, "journal"), options());
+		node->attach_history(directory(disk, "history"));
 		if (recover)
 			node->recover();
 		else {
@@ -193,7 +204,7 @@ void same_layout(const State &expected, const Node &node) {
 } // namespace
 int main() {
 	const auto steps = workload();
-	mem::Disk reference;
+	fl::filesystem reference;
 	State expected(context());
 	std::uint64_t operations = 0;
 	{
@@ -204,7 +215,7 @@ int main() {
 		expected = run.node->state();
 		run.settle();
 		same_layout(expected, *run.node);
-		operations = reference.operations;
+		operations = reference.mutations();
 		run.node.reset();
 	}
 	assert(expected.positions_enabled() && expected.namespace_entry("a")->position == 5 &&
@@ -212,9 +223,8 @@ int main() {
 		   expected.namespace_entry("c")->position == 3 && expected.directory_position() == 5);
 	unsigned cuts = 0, enabling_acknowledged = 0;
 	for (std::uint64_t cut = 1; cut <= operations; ++cut) {
-		mem::Disk disk;
-		disk.cut = cut;
-		disk.random.seed(cut);
+		fl::filesystem disk;
+		disk.power_off_after(cut - 1);
 		std::size_t acknowledged = 0;
 		bool fresh = true;
 		{
@@ -225,23 +235,22 @@ int main() {
 					run.run(step);
 					++acknowledged;
 				}
-			} catch (const mem::PowerLoss &) {
+			} catch (...) {
+				if (!disk.powered_off())
+					throw;
 			}
 			fresh = !run.created;
 			run.node.reset();
 		}
-		if (!disk.dead())
+		if (!disk.powered_off())
 			continue; // The cut fell past this run's operations.
 		++cuts;
-		disk.power_loss();
-		Run run{disk};
+		disk.crash(cut, sector_cut);
+		// A cut inside creation leaves a store that never became ready: it starts over on a blank disk.
+		fl::filesystem blank;
+		Run run{fresh ? blank : disk};
 		run.strict = false;
-		if (fresh) {
-			// The cut fell inside creation: a store that never became ready starts over.
-			disk = mem::Disk{};
-			run.boot(false);
-		} else
-			run.boot(true);
+		run.boot(!fresh);
 		// Every acknowledged step survives: the producer's sequence and the enabling entry.
 		std::uint64_t sequences = 0;
 		bool enabled = false;
