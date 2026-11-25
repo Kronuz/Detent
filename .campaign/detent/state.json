@@ -8909,7 +8909,8 @@
         "include/consensus/transport/host_transport.h",
         "docs/DRIVER.md",
         "docs/mechanisms/**",
-        "test/transport/**"
+        "test/transport/**",
+        "bench/netlab/**"
       ],
       "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
@@ -8917,12 +8918,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "the quest file named DRIVER.md; the file is docs/DRIVER.md (a path fix, no widening)",
+      "reason": "review F5: netlab pairs InlineCompletion with HostTransport, the pairing DRIVER.md now rules out; it moves to the native completion like detentd and the tests (one shape)",
       "repo": "../consensus",
       "risk": "normal",
       "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T01:45:21",
+      "updated": "2026-11-25T02:09:34",
       "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
