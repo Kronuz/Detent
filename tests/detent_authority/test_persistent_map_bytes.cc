@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 				transact(name(space), std::move(rows));
 			}
 		}
-		for (unsigned n = 0; n < 2400; n += 24) // One namespace, ns0, rewritten and thinned.
+		for (unsigned n = 0; n < 1200; n += 24) // ns0: half its keys rewritten, the other half erased.
 			transact(name(n), {{key(n), definition(n + 1), {}, {}}, {key(n + 24 * 50), std::nullopt, {}, {}}});
 		a::AdministrativeCommand enable{context(), a::AdministrativeKind::EnablePositions, {}, {}, {}};
 		enable.nonce[0] = 'p';
