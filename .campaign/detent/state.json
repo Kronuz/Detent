@@ -8867,6 +8867,8 @@
         "consensus-fetch-alongside-flake",
         "consensus-rpc-host-stream-gap"
       ],
+      "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+      "branch": "quest/detent/consensus-inline-sync-loop",
       "checks": [
         {
           "cmd": "ci:ci",
@@ -8882,6 +8884,7 @@
         "docs/mechanisms/**",
         "test/transport/**"
       ],
+      "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8889,9 +8892,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-23T19:57:28"
+      "updated": "2026-11-25T01:27:31",
+      "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
       "accepted": {},
