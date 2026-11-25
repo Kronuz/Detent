@@ -45,7 +45,7 @@ Jobs at the final head (0793c894 code): build + full ctest b44ae2; split_check 2
 |---|---|
 | A1 | docs/dev/splits.md |
 | A2 | split_check at base a06cbf1c8c77: 261124-115837-303a96; ctest -N before/after: 261124-115848-86a98f |
-| A3 | <lead> |
+| A3 | Lead read the split (2026-11-24): service.cc -> options parsing, Runtime, internal header; state.cc -> codec, application, administrative, image, internal header; moves only (76 non-move lines: CMake lists, includes, inline on helpers lifted from anonymous namespaces into the internal headers). service_runtime.cc stays 2,364 lines: Runtime::run is one ~2,050-line function, a restructure, not a move (follow-up). |
 | A4 | build all + ctest authority/delivery/state: 261124-115843-c31888; CI after push |
 
 ## Result
