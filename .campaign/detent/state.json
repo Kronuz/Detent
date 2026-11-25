@@ -29858,7 +29858,8 @@
         "tests/detent_authority/test_namespace_power_cut.cc",
         "tests/detent_authority/CMakeLists.txt",
         "tests/detent_relay/CMakeLists.txt",
-        "tools/w5/**"
+        "tools/w5/**",
+        "benchmarks/read_response_bench.cc"
       ],
       "history": [
         {
@@ -29978,11 +29979,12 @@
       "provides": [
         "dependency-manifest"
       ],
+      "reason": "A6's get row: the bench's fixture overflows the 16,384-byte definition bound since one-knob-type's 8-byte overrides (broken on main too); key padding fixes the fixture, not the bound",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T23:50:25",
+      "updated": "2026-11-25T00:40:52",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
