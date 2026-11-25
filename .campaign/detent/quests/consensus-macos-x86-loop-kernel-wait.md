@@ -5,16 +5,13 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+On GitHub's macos-x86_64 runner, groups_test's fetch-alongside-consensus case aborts when the watchdog sees a loop that has not turned for about 1.5 s during the 8 MiB fetch rounds: main at consensus:c724c58 (CI 45542770252, node 2 loop 1, 1511 ms) and consensus-inline-sync-loop at consensus:9f14194 (CI 45594592100, node 3 loop 3, 1515 ms). The stuck loop is in state U, a kernel wait; other idle loops turn within 1 ms, and links end with the term lost. It has not reproduced locally (0 of 100 strict runs). consensus:b2fa03b makes the probe take a kernel spindump when the stuck loop is in state U. After this quest the cause is named from such a dump and fixed, or shown to be the runner's, with the case passing on macos-x86_64.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [manual] The cause, named from a spindump of the stuck loop on macos-x86_64 CI: the frame it waits in and why.
+- A2 A test that fails without the fix (a `--fails-without` job), or, if the cause is the runner, [manual] the evidence that it is.
+- A3 The suite passes and `ci:ci` is green at the landed commit, macos-x86_64 included.
 
 ## Contracts
 
