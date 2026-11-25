@@ -120,12 +120,17 @@ static int run_host_owned(const std::filesystem::path &configuration, const dete
 	auto runtime = std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts,
 														registry, mirror, options.service_limits, [wake] { wake.raise(); });
 	auto facade = std::make_unique<Service>(runtime);
-	http::HttpAsioService listener(*facade, 2, options.connections,
-								   http::tls_connection_factory(options.tls_context), options.connections);
+	// The request timeout is the one connection bound; idle, header and inactivity are off.
+	constexpr std::chrono::milliseconds off{0};
+	const http::Limits limits{.max_clients = options.connections, .max_in_flight = options.connections,
+							  .idle_timeout = off, .header_timeout = off, .inactivity_timeout = off,
+							  .request_timeout = std::chrono::seconds(65)};
+	if (!options.tls_context)
+		throw std::invalid_argument("relay listener requires a TLS context");
+	http::HttpAsioService listener(*facade, 2, limits, http::Tls{options.tls_context});
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
 	listener.set_bind_options(bind);
-	listener.set_request_timeout(std::chrono::seconds(65));
 	listener.start(options.endpoint.port());
 	std::promise<void> stop, owner_done;
 	auto stopping = stop.get_future();

@@ -64,7 +64,9 @@ int main(int argc, char **argv) {
 		*context, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
 		reactor::tls::Role::Server);
 	asio::io_context io;
-	http::HttpAsioService service(app, 1, 16, http::tls_connection_factory(context, 100ms), 4);
+	http::HttpAsioService service(
+		app, 1, http::Limits{.max_clients = 4, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms, .tls_handshake = 100ms},
+		http::Tls{context});
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	service.set_bind_options(bind);
@@ -168,13 +170,12 @@ int main(int argc, char **argv) {
 	expired_client.connect(expired_accept.local_endpoint());
 	auto expired_socket = expired_accept.accept();
 	reactor::Reactor expired_owner;
-	http::AsioResponseOptions expired_options;
+	http::detail::ServiceState expired_state(http::Limits{.tls_handshake = 100ms}, http::Tls{context}, 1);
 	bool expired_retired = false;
 	std::exception_ptr expired_failure;
-	auto expired_factory = http::tls_connection_factory(context, 100ms);
 	task::spawn(task::scheduler_ref::of(expired_owner.scheduler()),
-				expired_factory(std::move(expired_socket), &app, &expired_owner, &expired_options,
-								reactor::SessionContext{std::chrono::steady_clock::now() - 200ms, {}}),
+				http::detail::serve_tls_connection(std::move(expired_socket), &app, &expired_owner, &expired_state,
+												   reactor::SessionContext{std::chrono::steady_clock::now() - 200ms, {}}),
 				[&](std::exception_ptr failure) {
 					expired_failure = failure;
 					expired_retired = true;
@@ -186,7 +187,10 @@ int main(int argc, char **argv) {
 	char unexpected_tls_byte = 0;
 	auto expired_bytes = expired_client.read_some(asio::buffer(&unexpected_tls_byte, 1), error);
 	assert(expired_bytes == 0 && error && "queue delay expires before TLS handshake allocation or output");
-	http::HttpAsioService capped(app, 1, 16, http::tls_connection_factory(context, 100ms, 1, 1));
+	http::HttpAsioService capped(app, 1,
+								  http::Limits{.max_clients = 1, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms,
+											   .tls_handshake = 100ms, .tls_handshakes = 1},
+								  http::Tls{context});
 	capped.set_bind_options(bind);
 	capped.start(0);
 	const asio::ip::tcp::endpoint capped_endpoint{asio::ip::address_v4::loopback(), capped.port()};
@@ -214,8 +218,10 @@ int main(int argc, char **argv) {
 	}
 	assert(refunded);
 	capped.stop();
-	http::HttpAsioService timed(app, 1, 16, http::tls_connection_factory(context, 100ms), 1);
-	timed.set_request_timeout(40ms);
+	http::HttpAsioService timed(app, 1,
+								http::Limits{.max_clients = 1, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms,
+											 .request_timeout = 40ms, .tls_handshake = 100ms},
+								http::Tls{context});
 	timed.set_bind_options(bind);
 	timed.start(0);
 	const asio::ip::tcp::endpoint timed_endpoint{asio::ip::address_v4::loopback(), timed.port()};

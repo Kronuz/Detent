@@ -111,8 +111,8 @@ void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &record_fcntl
 void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_fcntl); }
 #elif defined(__linux__)
 int skip_writeback(int) { return 0; }
-void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &skip_writeback); }
-void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_writeback); }
+void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, nullptr, &skip_writeback); }
+void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, nullptr, &skip_writeback); }
 #else
 void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync); }
 void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync); }

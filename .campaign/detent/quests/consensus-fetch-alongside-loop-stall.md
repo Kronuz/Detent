@@ -17,7 +17,7 @@ The log is in `.scratch/detent/ci-pipesim/run-45372452058.log` on the home.
 
 ## Acceptance criteria
 
-- A1 A reproduction that shows a loop held beyond the host's stall with no journal I/O (a job),
+- A1 [manual] A reproduction that shows a loop held beyond the host's stall with no journal I/O (a job),
   with the cause named: which work runs on loops 0 and 1, and why it takes seconds.
 - A2 The fix: the reproduction passes; a `--fails-without` job at main; the test's bounds unchanged.
 - A3 25 runs of the case beside 4 burners: none fail (strict jobs).

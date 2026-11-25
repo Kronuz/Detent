@@ -60,7 +60,7 @@ inline void prepare(const std::filesystem::path &root) {
 	check(::chmod(root.c_str(), 0700) == 0);
 }
 inline std::shared_ptr<c::PosixIO> io_at(const std::filesystem::path &root) {
-	return std::make_shared<c::PosixIO>(root, 0644);
+	return std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644);
 }
 // Deterministic bytes for a name: 40 to 1,063 bytes of a SHA-256 chain.
 inline std::string bytes_of(std::string_view name) {

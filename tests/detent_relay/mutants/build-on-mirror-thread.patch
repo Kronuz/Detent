@@ -1,8 +1,9 @@
 diff --git a/src/detent_relay/mirror_service.cc b/src/detent_relay/mirror_service.cc
 --- a/src/detent_relay/mirror_service.cc
 +++ b/src/detent_relay/mirror_service.cc
-@@ -337,9 +337,9 @@
- 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(options.directory, 0644);
+@@ -337,10 +337,10 @@
+ 			auto io = std::make_shared<kronuz::io::completion::PosixIO>(
+ 				options.directory, kronuz::io::completion::PosixIOOptions{kronuz::io::completion::FlushMode::full}, 0644);
  			relay.emplace(std::move(io), options.cluster, *upstream, MirrorStore::Options{},
  						  [this](std::function<void()> task) {
 +							  task(); // mutant: the build runs on the mirror thread

@@ -11,6 +11,7 @@ Fresh resident first reads (1 and 1,000 namespaces, publisher stopped and runnin
 
 - A1 A profile of the slowest cell names the top costs: a job
 - A2 p99 below 1 ms in all four cells, exclusive interleaved runs against main (`docs/perf/first-read-gate.sh`): jobs
+- A4 [decision] D166: `find` is within main's warm cost for present names and within 1.2x for absent names, on every shape the design's Measure paragraph names (shared-prefix and random names, 4 to 255 bytes), from a strict A/B with an A/A arm at the final head; `table_find_bench` includes names without a shared prefix.
 - A3 The suite and CI pass
 
 ## Contracts

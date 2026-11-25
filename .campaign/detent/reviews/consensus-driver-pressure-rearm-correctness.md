@@ -94,3 +94,61 @@ stuck group, by driver.h:839-842 (not run). That is the poll N1 would remove.
 - No sanitizer run; that is CI's.
 - This review ran as a subagent, not a session titled `detent · reviewer
   consensus-driver-pressure-rearm correctness`.
+
+## Round 2
+
+Commit: consensus:c724c58
+Verdict: APPROVE
+Date: 2026-11-24
+
+What changed since e61ac8f: driver.h, the test (`ahead`, `rest`), CMakeLists.txt and deadlines.md.
+
+- The pressured branch now fires only when the deadline is behind the clock:
+  `if (g.pressured && at <= now) at = now + retry_ns;`. A deadline ahead of the clock, or
+  `never`, is armed as it stands. This takes N1's option (a).
+- The fence catch clears `pressured` (N3).
+- The doc now says "a turn the Worker ends with Pressure" and "is a step of that group or is
+  followed by one" (N2).
+
+**Is the past-deadline case still bounded?** Yes. The branch is the same one that bounded it in
+round 1, so a due deadline still arms at most one `retry_ns` ahead.
+
+My probe script, unchanged, at c724c58 in Debug: job 261124-192909-5b3b7a passed.
+
+| Case | Result |
+|---|---|
+| `hold` | 0 failures |
+| `clears` | 0 failures |
+| `after_clear` | release step armed 194 ms ahead; 3 arms in 500 ms, none retry-shaped; pre-votes 1 → 4 |
+| `long_hold` | 1000 arms in 1 s, 0 in the past; the election runs once on release |
+
+**Can a pressured group with a future deadline miss a release from outside a step?** Only until
+its own deadline. It then sleeps until that deadline or until any wake, as at main.
+
+- Every production release wakes the group (round 1, check 1):
+  - `launch`'s IO completion (driver.h:1184-1196)
+  - `watch`'s turn barrier (driver.h:1202-1209)
+  - `cancel_checkpoint` followed by `mark_ready`
+- The only unwoken releases I found:
+  - a test dropping permits
+  - a turn barrier after shutdown, when `watch` is not re-armed (D8: the group is stopping)
+- In both, the group runs at its next deadline. If the pool is still short then, that deadline
+  is behind the clock and gets the 1 ms floor. Nothing is lost, and the wait is bounded by
+  Core's own deadline.
+- With `maximum` (at rest), Core has nothing to time. A later event steps the group as it would
+  at main.
+
+**The new tests do not pass vacuously.** Each pressure turn is shown to happen by its
+fails-without at 4dc1fd1. `git diff 4dc1fd1 c724c58` is only driver.h, so the mutant is c724c58's
+test with e61ac8f's rule.
+
+| Test | At c724c58 | At 4dc1fd1 (e61ac8f's rule) |
+|---|---|---|
+| `ahead` | 261124-180709-310fda: arms once, at Core's deadline | 261124-180717-874feb: 199 arms, fails |
+| `rest` | 261124-180713-57d06f: 0 arms, no timer | 261124-180721-a113e5: 2 arms, fails |
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1 | no | nit | Under the narrowed rule, the `retry_ns` floor in the doc covers only a due deadline. An unwoken release, which I found only in tests and after shutdown, waits for the group's next deadline, not 1 ms. The doc's "The `retry_ns` is the floor for a release from outside a step" overstates it for a deadline ahead of the clock. | deadlines.md "What the Driver re-arms", second paragraph | Optional: "for a due deadline; one ahead waits for itself". |
+
+Not run in round 2: the suite at c724c58, and CI. Both remain landing gates.

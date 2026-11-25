@@ -121,8 +121,8 @@ void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &record_fcntl
 void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_fcntl); }
 #elif defined(__linux__)
 int skip_writeback(int) { return 0; }
-void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &skip_writeback); }
-void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_writeback); }
+void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, nullptr, &skip_writeback); }
+void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, nullptr, &skip_writeback); }
 #else
 void record(c::PosixIO &io) { io.replace_sync_calls(&record_fsync); }
 void skip(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync); }
@@ -165,7 +165,7 @@ void materialize(const std::filesystem::path &root, const std::map<std::string, 
 		write_file(root / name, bytes);
 }
 std::shared_ptr<c::PosixIO> unrecorded(const std::filesystem::path &root) {
-	auto io = std::make_shared<c::PosixIO>(root, 0644);
+	auto io = std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644);
 	skip(*io);
 	return io;
 }
@@ -276,7 +276,7 @@ Run record_run(const std::filesystem::path &root, Disk start, std::span<const Cy
 	}
 	note("start");
 	try {
-		auto io = std::make_shared<c::PosixIO>(root, 0644);
+		auto io = std::make_shared<c::PosixIO>(root, c::PosixIOOptions{c::FlushMode::full}, 0644);
 		record(*io);
 		l::AgentStore store(io, {profile});
 		recorder.disk.served = store.table().sequence;

@@ -1,4 +1,5 @@
-// Fresh durable Service: 128 knobs × 256 overrides and five strong reads.
+// Fresh durable Service: 128 knobs × 256 overrides and five strong reads; each definition stays
+// within the default 16 KiB definition bound (256 rows of a 44-46 byte key plus 17 bytes).
 // Run without competing builds. --escaped exercises worst-case JSON expansion.
 // Owner histograms cover setup, reads and ordinary reclamation, before Service
 // destruction. Shutdown is timed separately; read timings are wall time.
@@ -54,19 +55,25 @@ int main(int argc, char **argv) {
 
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-read-bench-" + std::to_string(getpid()));
+	std::filesystem::create_directories(directory.parent_path());
 	{
 		auto o = options(directory);
-		o.timeout = std::chrono::seconds(10);
+		o.timeout = std::chrono::seconds(60);
 		auto owner = std::make_unique<Service>(std::move(o));
 		auto &service = *owner;
+		// Election and every commit flush: a loaded disk holds the first open past a second and a
+		// command for seconds, so setup waits on deadlines (untimed), not attempt counts.
 		Writer opened;
-		for (unsigned attempt = 0; attempt < 100; ++attempt) {
+		for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+			 std::chrono::steady_clock::now() < deadline;) {
 			opened = call(service, "/v2/open",
 						  "\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"");
 			if (opened.code == 200)
 				break;
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
+		if (opened.code != 200)
+			std::cerr << "open: " << opened.code << ' ' << opened.body << '\n';
 		require(opened.code == 200);
 		std::string groups, keys;
 		const bool escaped = argc > 1 && std::string_view(argv[1]) == "--escaped";
@@ -75,7 +82,7 @@ int main(int argc, char **argv) {
 				groups += ',';
 			rapidjson::StringBuffer buffer;
 			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-			const auto key = "group" + std::to_string(i) + std::string(46, escaped ? '\x01' : 'k');
+			const auto key = "group" + std::to_string(i) + std::string(38, escaped ? '\x01' : 'k');
 			writer.String(key.data(), key.size());
 			groups.append(buffer.GetString(), buffer.GetSize());
 			groups += ":1";
@@ -100,6 +107,8 @@ int main(int argc, char **argv) {
 			auto ns =
 				std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start)
 					.count();
+			if (reply.code != 200)
+				std::cerr << "read: " << reply.code << ' ' << reply.body << '\n';
 			require(reply.code == 200);
 			std::cout << "{\"trial\":" << trial << ",\"reply_bytes\":" << reply.body.size()
 					  << ",\"read_wall_ns\":" << ns << "}\n";
@@ -132,4 +141,5 @@ int main(int argc, char **argv) {
 	std::cout << "{\"process_user_cpu_ns\":" << user_ns << ",\"process_system_cpu_ns\":" << system_ns
 			  << ",\"max_rss_bytes\":" << rss << "}\n";
 	std::filesystem::remove_all(directory);
+	std::filesystem::remove_all(directory.string() + ".history");
 }
