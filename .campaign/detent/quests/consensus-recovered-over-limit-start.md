@@ -1,36 +1,33 @@
-# consensus-recovered-over-limit-start: A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever
+# consensus-recovered-over-limit-start: a recovered group over its control headroom starts or fails loudly
 
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status consensus-recovered-over-limit-start`.
+Risk: high (liveness at recovery). The lead writes this quest; contributors read it and never edit it.
+Its machine state is in `state.json`: `campaign status consensus-recovered-over-limit-start`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Found by consensus-driver-pressure-rearm (journal, its table's "initialization" row): when a group
+recovers with its store's `used` above `hard - control_pool`, the pre-Start Tick is refused with
+Pressure, so the group never starts. On main nothing wakes it; after consensus-driver-pressure-rearm
+it polls every `retry_ns`, which cannot clear a pool that only the group's own work releases. After
+this quest such a group either starts (its control headroom is reserved so the first control append
+always fits, or recovery frees what it can first), or the open fails with a named status the caller
+sees, never a silent stall.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 First a table: every way recovery can leave a group's store above its control headroom, and
+  what frees space (compaction, retirement, a snapshot) and whether it needs a started group: in the journal
+- A2 A deterministic test recovers a group whose store is above `hard - control_pool`: at the fix it
+  starts (or the open fails with the named status), by value; at main it never starts within the
+  test's bound (`--fails-without`): jobs
+- A3 [artifact] `docs/mechanisms/deadlines.md` or the admission doc states the rule
+- A4 The suite passes and `ci:ci` is green at the landed commit
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+Changes when a recovered group starts; no format change. If the right answer narrows what a caller
+can open (a store that opened before now refuses), that is the owner's call: stop and ask.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
-
-## Tasks
-
-<The steps that build the feature, one agent each: `T1 <what> (files; assignment, tier, effort;
-after T0)`. Each merges into the quest branch on its own tests.>
+None.
