@@ -5440,6 +5440,21 @@
         "todo": "71ffaa4a"
       },
       "text": "to do, critical path first:\ntodo: review relay-mirror-idle-wake (its journal says ready for review; then launch its correctness review; new): `campaign set relay-mirror-idle-wake status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:20:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:20:21",
+      "by": "campaign",
+      "closed": "answered: widened to the next body's files and the W5 spec; D164 rules agents send 2^64-1; contributor resumed",
+      "id": "msg-426",
+      "settles": {
+        "todo": "c3e58f6f"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp; it asks: Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes that body is outside the set. Needed: - include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc (parse the required `seal` on next). - include/detent_deliv\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
