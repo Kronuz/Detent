@@ -5141,6 +5141,21 @@
         "todo": "21130dab"
       },
       "text": "to do, critical path first:\ntodo: unpark consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met; new): `campaign set consensus-driver-pipelined-sim status=active`, or park it again with a reason\ntodo: start consensus-fetch-alongside-loop-stall (launchable; new): `campaign start consensus-fetch-alongside-loop-stall`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:05:44",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:05:43",
+      "by": "campaign",
+      "closed": "its correctness review was accepted earlier; only A3 (green macOS CI) remains, CI 45550615396 running at the merged head",
+      "id": "msg-405",
+      "settles": {
+        "todo": "215589dd"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; new): `campaign set consensus-driver-pipelined-sim status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
