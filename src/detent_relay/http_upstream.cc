@@ -17,6 +17,7 @@ namespace {
 using Clock = std::chrono::steady_clock;
 struct Response {
 	unsigned status = 0;
+	bool early = false; // a parked next answered 204 before its wait: the upstream sealed
 	std::map<std::string, std::string, std::less<>> headers; // lowercase names
 	std::string body;
 	std::string_view header(std::string_view name) const {
@@ -76,13 +77,11 @@ struct HttpUpstream::Impl {
 	Counters stats;
 	std::optional<Partial> partial;
 
-	// One request on `channel`'s own connection, every step bounded by one deadline: the timeout,
-	// `longer` for a parked next.
-	Response exchange(Channel &channel, std::string_view path, std::string_view body,
-					  std::chrono::milliseconds longer = {}, std::stop_token stop = {}) {
+	// One request on `channel`'s own connection, every step bounded by one deadline, the timeout.
+	Response exchange(Channel &channel, std::string_view path, std::string_view body, std::stop_token stop = {}) {
 		++stats.requests;
 		try {
-			return attempt(channel.endpoint, path, body, longer, stop);
+			return attempt(channel.endpoint, path, body, stop);
 		} catch (...) {
 			++stats.failures;
 			refuse(channel);
@@ -99,12 +98,11 @@ struct HttpUpstream::Impl {
 		}
 	}
 	void rotate() { refuse(reading); }
-	Response attempt(std::size_t endpoint, std::string_view path, std::string_view body,
-					 std::chrono::milliseconds longer, std::stop_token stop) {
+	Response attempt(std::size_t endpoint, std::string_view path, std::string_view body, std::stop_token stop) {
 		asio::io_context io;
 		asio::ssl::stream<asio::ip::tcp::socket> socket(io, *options.tls);
 		reactor::tls::bind_hostname(socket.native_handle(), options.hostname);
-		const auto deadline = Clock::now() + options.timeout + longer;
+		const auto deadline = Clock::now() + options.timeout;
 		// A stop closes the socket on the loop: the step in flight fails.
 		std::stop_callback cancel(stop, [&] {
 			asio::post(io, [&] {
@@ -224,7 +222,7 @@ struct HttpUpstream::Impl {
 		const auto path = "/v2/distribution/session/open";
 		const auto response = exchange(
 			channel, path,
-			delivery::namespace_session_body(delivery::SessionResponsePurpose::Open, following, options.compression), {},
+			delivery::namespace_session_body(delivery::SessionResponsePurpose::Open, following, options.compression),
 			stop);
 		require(channel, path, response, 200, "application/json");
 		rapidjson::Document json;
@@ -255,7 +253,8 @@ struct HttpUpstream::Impl {
 		return body;
 	}
 	// W5's next on `channel`, answered 200 or 204: its session opened on first use and once again
-	// after 410; while the session is busy, up to busy_attempts waits doubling from 1 ms.
+	// after 410; while the session is busy, up to busy_attempts waits doubling from 1 ms. A wait parks
+	// at most half the timeout, so a source that answers nothing within the timeout is one that hangs.
 	Response next(Channel &channel, std::span<const Position> positions, std::chrono::milliseconds wait,
 				  std::stop_token stop = {}) {
 		delivery::Following following;
@@ -265,10 +264,13 @@ struct HttpUpstream::Impl {
 		for (int expired = 0, busy = 0;;) {
 			if (!channel.session)
 				channel.session = open(channel, following, stop);
-			const auto parked = std::min(wait, channel.session->maximum_wait);
+			const auto parked = std::min({wait, channel.session->maximum_wait,
+										  std::chrono::duration_cast<std::chrono::milliseconds>(options.timeout / 2)});
 			const auto body = delivery::namespace_session_body(delivery::SessionResponsePurpose::Next, following,
 															   options.compression, channel.session->id, parked);
-			auto response = exchange(channel, "/v2/distribution/session/next", body, parked, stop);
+			const auto sent = Clock::now();
+			auto response = exchange(channel, "/v2/distribution/session/next", body, stop);
+			response.early = response.status == 204 && Clock::now() - sent < parked;
 			if (response.status == 204 || response.status == 200)
 				return response;
 			if (response.status == 409 && response.body.find("\"session_busy\"") != std::string::npos &&
@@ -392,13 +394,15 @@ std::string HttpUpstream::frames(std::span<const Position> positions) {
 	return response.status == 204 ? d::encode_session_frames(std::nullopt, {}) : p.defragment(response);
 }
 
-void HttpUpstream::wait(std::span<const Position> positions, std::chrono::milliseconds limit, std::stop_token stop) {
+bool HttpUpstream::wait(std::span<const Position> positions, std::chrono::milliseconds limit, std::stop_token stop) {
 	auto &p = *impl_;
 	if (const std::size_t at = p.reading.endpoint; p.watching.endpoint != at) {
 		p.watching.session.reset();
 		p.watching.endpoint = at;
 	}
-	p.next(p.watching, positions, limit, stop);
+	const auto response = p.next(p.watching, positions, limit, stop);
+	const auto changed = response.status == 200 || response.early;
 	++p.stats.waits;
+	return changed;
 }
 } // namespace detent::relay

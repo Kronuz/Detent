@@ -14,12 +14,13 @@
 
 - An idle relay's mirror no longer syncs every `interval_ms`. After each good sync it parks one
   W5 next (`wait_ms`, the protocol's own parked read) at its upstream on a second session, and
-  syncs when that returns: on a change, at the wait's deadline (`maximum_wait_ms`, 30 s, bounded by
-  the upstream's `wait_ms`) or on a failure, which keeps the backoff. `interval_ms` is now the least
-  time between syncs. `Upstream::wait` is new; `HttpUpstream::Stats` counts `waits`
-  (docs/mechanisms/relay-mirror-wait.md).
+  syncs on a change, a seal, a failure, or `maximum_wait_ms` (30 s) after its last sync. A wait
+  parks at most half `timeout_ms`, so a source that hangs is read past within the timeout.
+  `interval_ms` is now the least time between syncs. `Upstream::wait` is new; `HttpUpstream::Stats`
+  counts `waits` (docs/mechanisms/relay-mirror-wait.md).
 - detent-authority: a W5 next parked for a change no longer turns the owner loop every millisecond;
-  the owner sleeps until a publish or the next's deadline.
+  the owner sleeps until a publish or the next's deadline. A seal answers parked nexts 204 at once,
+  and a voter that knows no live leader answers its nexts 503 `not_ready`.
 
 ### Pins: workpool, no scheduler
 

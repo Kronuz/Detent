@@ -2,9 +2,10 @@
 
 A single-voter authority and a relay mirroring it at the default 250 ms interval (bench/idle-wakeups'
 Pair). At rest the relay holds one W5 next parked at the authority: over 2 s the relay makes no sync
-and the authority's owner keeps to its health turns (about 20 a second), where a parked next that
+and the authority's owner keeps to its 250 ms health turns (4 a second), where a parked next that
 counts as work turned it every millisecond (about 780 a second). A publish still wakes both: the
-relay syncs within 2 s (the authority seals the write within 1 s), against its 30 s deadline.
+relay syncs its entries within 2 s, against its 30 s deadline, and the write's seal, which moves no
+head, answers the relay's next parked again at once: it fetches the sealed file within 5 s.
 
     test_relay_idle.py BUILD
 """
@@ -37,13 +38,13 @@ def main() -> int:
             return (
                 authority["owner_turn_ns"]["count"],
                 mirror["syncs"],
-                mirror["entries"],
+                mirror["fetched_files"],
                 time.monotonic(),
             )
 
         turns, syncs, _, at = sample()
         time.sleep(2)
-        turns_after, syncs_after, _, at_after = sample()
+        turns_after, syncs_after, fetched, at_after = sample()
         rate = (turns_after - turns) / (at_after - at)
         print(
             f"idle: authority {rate:.1f} owner turns/s, relay {syncs_after - syncs} syncs in 2 s",
@@ -67,6 +68,15 @@ def main() -> int:
             time.sleep(0.01)
         print(
             f"wake: the relay synced after {(time.monotonic() - written) * 1000:.0f} ms"
+        )
+        while sample()[2] == fetched:
+            check(
+                time.monotonic() - written < 5,
+                "the write's seal did not reach the relay",
+            )
+            time.sleep(0.01)
+        print(
+            f"seal: the relay fetched the sealed file after {(time.monotonic() - written) * 1000:.0f} ms"
         )
     return 0
 

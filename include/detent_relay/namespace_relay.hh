@@ -45,11 +45,12 @@ class Upstream {
 	// the mirror's or a refusal to answer: a sync tries each source once before it fails.
 	virtual std::size_t sources() const noexcept { return 1; }
 	virtual void skip() {}
-	// Returns once the upstream may hold something past `positions` (a position with no cursor: once
-	// it holds that namespace), at the latest after `limit` or when `stop` is requested. It may run on
-	// another thread beside the other calls. This default cannot wait and returns at once: its reader
-	// syncs every interval.
-	virtual void wait(std::span<const Position>, std::chrono::milliseconds, std::stop_token) {}
+	// Waits until the upstream may hold something past `positions` (a position with no cursor: once
+	// it holds that namespace), true, or answers that nothing changed by its deadline (at most
+	// `limit`), false; it throws when the source fails or refuses, and returns when `stop` is
+	// requested. It may run on another thread beside the other calls. This default cannot wait and
+	// answers true at once: its reader syncs every interval.
+	virtual bool wait(std::span<const Position>, std::chrono::milliseconds, std::stop_token) { return true; }
 };
 // The upstream answered below its own ring: it sealed between its layout and its frames.
 class UpstreamMoved : public std::runtime_error {

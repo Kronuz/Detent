@@ -620,6 +620,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 									  options_.subscription_requests.opens +
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
+		// The applied index of the latest seal the parked nexts were answered for.
+		std::uint64_t seal_seen = 0;
 		// A leader is known: this node leads, or follows one. Health reports it before has_leader() does.
 		bool leader_known = false;
 		// Last proof a follower's leader is alive: a RoleChanged naming it, or our reply to its append.
@@ -1553,6 +1555,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					if (out->empty())
 						out.reset();
 				};
+				// A seal that moves no head has no frame: the nexts parked across it answer 204 at
+				// once, and a relay syncs its layouts.
+				const auto seal_at = node.sealed() ? node.sealed()->applied_index() : 0;
+				const bool resealed = seal_at != std::exchange(seal_seen, seal_at);
 				for (std::size_t i = 0; i < frames_tasks.size();) {
 					auto held = frames_tasks[i];
 					auto &task = *held;
@@ -1595,6 +1601,12 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							complete(held, result == SessionResult::Accepted ? Reply{204, {}} : session_reply(result));
 							continue;
 						}
+						// A voter that knows no live leader may be cut off from the quorum: its nexts, parked
+						// or new, refuse as its history routes do, and the reader moves to another source.
+						if (!serving()) {
+							complete(held, {503, "{\"error\":\"not_ready\"}"});
+							continue;
+						}
 						if (!task.bound) {
 							const auto result =
 								frames_sessions->begin(task.session, task.frames_principal, now, task.compressed);
@@ -1604,6 +1616,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							}
 							task.bound = true;
 						}
+						const bool was_parked = task.looked != UINT64_MAX;
 						// Every applied entry may change an answer: a write, a seal, the enabling entry.
 						if (!framing && task.looked != node.state().applied_index()) {
 							task.looked = node.state().applied_index();
@@ -1621,7 +1634,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 							}
 							framing.reset();
 						}
-						if (now >= task.poll_deadline) {
+						if (now >= task.poll_deadline || (resealed && was_parked)) {
 							frames_idle.add();
 							complete(held, {204, {}});
 						}

@@ -426,7 +426,7 @@ void backoff(const std::filesystem::path &root) {
 			  << " ms (bound " << bound_calls << "), error \"" << status.error << "\"\n";
 }
 // A voter's history for the chain: one namespace, a base of `keys` real records; publish() seals a
-// base one record longer, the change a mirror reading it adopts.
+// base one record longer, the change a mirror reading it adopts; reseal() seals the same base.
 class Voter final : public r::Upstream {
   public:
 	explicit Voter(std::size_t keys) { rebase(keys); }
@@ -443,6 +443,10 @@ class Voter final : public r::Upstream {
 	void publish() {
 		std::lock_guard lock(mutex_);
 		rebase(current_.last + 1);
+		++seal_;
+	}
+	void reseal() {
+		std::lock_guard lock(mutex_);
 		++seal_;
 	}
 	std::string bytes; // the first base's
@@ -559,6 +563,7 @@ class RelayA {
 	r::MirrorStatus status() const { return mirror_->status(); }
 	void slow_syncs(std::chrono::milliseconds pause) { voter_->sync_ms.store(pause.count()); }
 	void publish() { voter_->publish(); }
+	void reseal() { voter_->reseal(); }
 	static constexpr std::string_view token = "0123456789abcdef0123456789abcdef";
 	std::string bytes;
 	r::MirrorFile file;
@@ -672,6 +677,15 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 	std::cout << "idle: the next sync came after " << std::chrono::duration_cast<std::chrono::milliseconds>(waited).count()
 			  << " ms\n";
 	check(waited >= deadline - 1500ms && waited < deadline + 2000ms);
+	// A seal that moves no head reaches B well before its deadline: A answers B's parked next 204 at once.
+	const auto before = b.status().syncs;
+	const auto sealed = Clock::now();
+	a->reseal();
+	until([&] { return b.status().syncs > before; }, "relay B syncing A's seal");
+	const auto reached = Clock::now() - sealed;
+	std::cout << "idle: A's seal reached B in " << std::chrono::duration_cast<std::chrono::milliseconds>(reached).count()
+			  << " ms\n";
+	check(reached < 1500ms);
 	// A stops: B's wait fails, and B's syncs fail with the backoff (10 ms doubling to 400 ms) rather than
 	// every interval; A returns on its port and B syncs from it again.
 	const auto failures = b.status().sync_failures;
@@ -685,9 +699,10 @@ void idle(Fixture &f, const std::filesystem::path &root) {
 			  << failed << " syncs: \"" << down.error << "\"\n";
 	// 20 + 40 + ... + 320 ms, then one per 400 ms.
 	check(failed >= 2 && failed <= std::uint64_t(gone / 400ms) + 6);
-	// A returns as it was, its change published, so its seal is B's and not one B refuses as older.
+	// A returns as it was, its change and seal published, so its seal is B's and not one B refuses as older.
 	a = std::make_unique<RelayA>(f, root / "a", 200, port);
 	a->publish();
+	a->reseal();
 	const auto back = b.status().syncs;
 	try {
 		until([&] { return b.status().syncs > back && b.status().error.empty(); }, "relay B syncing from A again");
