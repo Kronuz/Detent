@@ -1,6 +1,6 @@
 # split-journal: journal
 
-State: waiting on jobs 261124-155553-798354 (A2); CI on journal:275d9e7 (pushed)
+State: ready for review (A2 job 261124-161154-977be8 and CI on journal:a1d039a pending)
 Quest: .campaign/detent/quests/split-journal.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,16 +18,16 @@ Verdicts (files over 1,000 lines; `git ls-files | xargs wc -l`):
 | test/journal_test.cc | 2376 | split: four topics in one file: the Journal on a memory IO (append, recovery, corruption), checkpoints and artifacts, Store, and the reopen/park cases on a Host with the heap counter. Seams at the test-function boundaries; shared harness (check, MemoryIO model) to a support header; main and the parameterized sweeps stay with the heap hooks |
 | test/host_test.cc | 1424 | split: Host lifecycle, views and handoff (lines 1-922) stay; the idle-group cases (own `namespace idle` model, 12 cases, 923-1402, one design doc) move to host_idle_test.cc; main and its case list stay in host_test.cc, so the CMake case regex is unchanged |
 | test/turn_seal_test.cc | 1180 | keep: one mechanism (TurnDriver::seal), 23 cases sharing Consumer, Model and the staging helpers; the `repeat*` family (about 300 lines) uses the same sealer API and helpers, so each half would be a fragment of the other |
-| include/journal/turn_log.h | 1196 | candidate, not mine (include/**): turn_log_detail (114-496: Emitter, Sectors, RecordReader, manifests) is a recognizable piece to a header of its own; the TurnLog class body (498-1195, 700 lines) is a restructure (SPLITTING.md, large class), not a move |
-| include/journal/host.h | 1068 | candidate, not mine (include/**): host_detail (95-319, shard and range codecs) could be its own header; Host (359-1067) is one 700-line class body, a restructure |
+| include/journal/turn_log.h | 1196 | split (file set widened by the lead): turn_log_format.h (options and record types, turn_log_detail: the on-disk format, 493 lines); turn_log.h keeps the TurnLog class (750 lines, whole: a restructure, not a move) |
+| include/journal/host.h | 1068 | split: host_table.h (HostOptions, GroupEntry, GroupStatus, host_detail: layout and shard codecs, trie, range tables, 311 lines); host.h keeps PrefixIO (37 lines, joins its neighbor) and the Host class (806 lines, whole) |
 
 ## Next
 
-1. On the jobs and CI: answer the lead's A3 read. Pushed: quest/detent/split-journal at journal:275d9e7.
+1. On the jobs and CI: answer the lead's A3 read. Pushed: quest/detent/split-journal at journal:a1d039a. Keep ~/.scratch/journal-split/tools until job 261124-161154-977be8 has run.
 
 ## Blocked on
 
-The two headers (include/**) are outside the file set; listed above and in docs/dev/splits.md for the lead. docs/dev/splits.md itself (A1) is outside test/** and CMakeLists.txt; the quest names it.
+Nothing. Tool bug for the lead: cpp-libraries tools/split_check.py (bc16496) misreads a hex digit separator (`0xffff'ffffu`, turn_log.h:151) as a character literal, so every line after it counts as inside a function and the turn_log_detail run fails ("moved lines ends inside a function"). A2 runs a scratch copy with the one-line fix (~/.scratch/journal-split/tools/split_check.py: the `'` test also requires a hex digit before and after); the stock tool fails at the base's own text.
 
 ## Evidence
 
@@ -38,10 +38,10 @@ jobs no journal names), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `docs/dev/splits.md` (journal:275d9e7): split table, kept-whole table (turn_seal_test.cc), two header candidates outside the file set |
-| A2 | job 261124-155553-798354 (split_check.py --base fc5c59b492ff test); local run at 24b3653: 0 errors, 57 warnings, listed under Rulings |
+| A1 | `docs/dev/splits.md` (journal:a1d039a): split table (4 files), kept-whole table (turn_seal_test.cc) |
+| A2 | job 261124-161154-977be8 (patched copy of split_check.py, `--base fc5c59b492ff include test`); 261124-155553-798354 cancelled (older code); local at a1d039a: 0 errors, 57 warnings |
 | A3 | [manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above |
-| A4 | CI on 275d9e7 (pushed); local: all built journal_host_* and journal_journal ctest entries pass, ctest -N identical (106 tests, ~/.scratch/journal-split/{base,head}-ctest.txt), new headers self-contained (selfcontained.sh -t: 17 ok) |
+| A4 | CI on journal:a1d039a (pushed); local: ctest -N identical (106 tests), 19 headers compile alone (selfcontained.sh -t), built host and journal tests pass |
 
 ## Result
 
@@ -49,7 +49,7 @@ host_test.cc 1424 -> host_test.cc 793 + host_idle_test.cc 515 + host_support.h 1
 journal_test.cc 2376 -> journal_test.cc 640 + journal_artifact_test.cc 557 + journal_store_test.cc 399 +
 journal_reopen_test.cc 637 + journal_support.h 308 (journal:24b3653). turn_seal_test.cc kept whole.
 Each new file is a source of the same executable (CMakeLists.txt target_sources); case names, the
-CMake case regex over host_test.cc and ctest -N are unchanged. Layout note: docs/dev/splits.md.
+CMake case regex over host_test.cc and ctest -N are unchanged. turn_log.h 1196 -> turn_log.h 750 + turn_log_format.h 493; host.h 1068 -> host.h 806 + host_table.h 311 (journal:a1d039a); the headers keep their path and include their piece. Layout note: docs/dev/splits.md. No fnsizes diff: headers only, every piece still in the same translation unit.
 
 ## Rulings I made
 
