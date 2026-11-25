@@ -23735,15 +23735,16 @@
       ],
       "milestone": "M2 Integration (RC-1)",
       "needs": [
-        "pin-wave"
+        "pin-wave",
+        "resource-adoption"
       ],
       "provides": [],
-      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
+      "reason": "msgpack and resource-adoption both rewrite src/detent_distribution/**: serial",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "EX-3: the bounded MessagePack lexer in msgpack",
-      "updated": "2026-11-24T14:21:40"
+      "updated": "2026-11-25T05:00:19"
     },
     "multi-voter-idle-wake": {
       "accepted": {},
