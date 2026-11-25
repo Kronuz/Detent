@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp
+State: working
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -51,6 +51,42 @@ source that hangs by F1a's bound.
 Tests at both upstream kinds (authority and relay A), one value check per row; fails-without by
 one-line mutants at the fix (refs/mutants/), and R4-1's two probes with `--fails-without` at
 13707337 (seal_late_park and seal_window need no wire field, so they run there).
+
+msg (lead, unblocked): set widened as listed; D164 takes option 1 (agents send 2^64-1). Done at
+code 5f601d6b (main 1daf9756 merged at 516d3460, campaign files only):
+- Wire: `seal` required on a v2 next (session_request.cc; refused when absent, negative or not a
+  number). `Following::seal` (default 2^64-1, the agent's value; coordinator.cc unchanged) goes
+  into every next body. `Task::seal` and `MirrorJob::seal` carry it; the authority answers
+  `seal_at > task.seal`, the relay `seal() > job.seal`, at each visit, parked or new.
+- Removed: `NamespaceSessions` back to main (no stamp, no `restamp`); the relay's `Session::seal`
+  and `restamp`; `HttpUpstream::next`'s `watch` early return. `Upstream::wait` takes the stamp; the
+  watcher sends the seal of its last good sync (`Watch{positions, seal}`).
+- Docs: relay-mirror-wait.md "The seal stamp" (the table above, as a doc), namespace-s6.md (W5
+  request and 204), CHANGELOG. SUBSCRIPTIONS_ARCHITECTURE.md describes version 1, which has no
+  seal: unchanged.
+- Tests per row (Release, local `quiet light`, 3 runs of test_http_upstream):
+  | Row | Test, local value | Fails without (refs/mutants/, make4.py) |
+  |---|---|---|
+  | 1, 6 | http "between B's sync and its next" 106-119 ms; stamp `older` 6 ms (authority), 20 ms (relay) | wire-older-r, wire-send-u, wire-copy-r; wire-older-a, wire-copy-a |
+  | 2 | http "while B's next was parked" 155-165 ms; stamp `parked` 2.34/2.38 s (seal_after 1 s after the write) | wire-parked-r; wire-parked-a |
+  | 3 (R4-1) | http `late_park`: A adopted the seal at +1360 ms from B's send, B served it 114 ms later (bound 1.5 s; 10 s deadline); seal_window job | wire-older-r; R4-1 probes at 13707337 |
+  | 4 | http "after an idle answer, before B's wait again" 99-105 ms; stamp `stale` 6/20 ms (same stamp twice) | wire-older-r; wire-state-r (`stale`) |
+  | 5 | stamp `current` parks 1.51/1.53 s; http `idle` 0 syncs in 1.5 s | wire-current-a, wire-current-r, wire-zero-m |
+  | 7 | http `paced`: 1 sync in all (the open costs none); hook "before B's watch session opened" 95-101 ms | wire-open-u |
+  | 8 | stamp `busy` [204, 409], `ended` 410 then a new session parks 1.51/1.53 s | stamp-busy-a/-r, stamp-close-a/-r |
+  | 9 | http deadline sync at 4.1 s | (unchanged) |
+  | D164 | stamp `agent`: 2^64-1 parks 4.0 s through a seal, a write to a answers 200 in 0.39-0.57 s | wire-agent-a, wire-agent-r |
+  | wire | parser: no seal / -1 / "1" refused, 7 and 2^64-1 read; body ends `"seal":18446744073709551615` | wire-optional, wire-body |
+  Mutants all pass `-fsyntax-only` with the build's flags (mutants/syntax.py), so a fails-without
+  fails on the test, not the build.
+- Local `quiet light` at 5f601d6b, all passed: test_http_upstream (x3), test_relay_seal_stamp,
+  test_relay_idle, test_relay_service, test_relay_hung, test_relay_cut-off, test_relay_pages,
+  test_client_reset, test_authority_frames_service, test_distribution_session_request,
+  test_delivery_*, test_namespace_coordinator, test_agent_catch_up, test_pages_coordinator,
+  test_authority_distribution_ownership, test_coordinator_teardown.
+- test_relay_seal_stamp first failed `relay current` (204 after 0.5-0.7 s): the authority sealed
+  twice more after the relay matched it (debug .scratch/relay-mirror-idle-wake/dbg). The relay
+  steps now start once the authority's seal held 2.5 s and the relay serves it.
 
 ### Round 3: the seal stamp (code b76ae636, main a0d804bd merged at 13707337)
 
@@ -231,35 +267,12 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Once the set is widened and the agents' stamp ruled: code the rule (table above), port R4-1's
-   probes into tests, the class tests, mutants; then queue A1, A2, A3, A6 (with fails-without at
-   13707337), the suite, and push.
+1. Queue round 4's jobs at the head (.scratch/relay-mirror-idle-wake/submit4.sh), push, record
+   the ids.
 
 ## Blocked on
 
-Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes
-that body is outside the set. Needed:
-- include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc
-  (parse the required `seal` on next).
-- include/detent_delivery/namespace_session.hh, src/detent_delivery/namespace_session.cc (the body
-  builder and `next_namespace_session` take the stamp), src/detent_delivery/coordinator.cc:1054
-  (the agent's next).
-- src/detent_authority/service.hh (`Task::seal`), src/detent_authority/service.cc:560-571 (copy it).
-- src/detent_relay/service.cc:386 (`job.seal = command.seal`).
-- Tests that write a next body: tests/detent_delivery/test_namespace_session.cc,
-  test_session_request.cc, namespace_server_fixture.hh; tests/detent_authority/test_frames_service.cc,
-  test_distribution_ownership.cc; tests/detent_system/run_trust_negatives.py.
-- The W5 spec: docs/status/namespace-s6.md (the request block), docs/SUBSCRIPTIONS_ARCHITECTURE.md:17.
-
-Decision (lead's, user-visible: agents' wakes): what an agent, which never reads layouts and knows
-no seal, sends as `seal`. Sending 0 would answer every agent next 204 at once, a spin.
-1. Recommended: the field means "answer at once once your seal is above this"; agents send the
-   largest value (2^64-1), so a seal never wakes them, as on main. No answer changes, no agent
-   state, the cheapest; the cost is one documented value with a meaning of its own.
-2. Every next answer (200 and 204) carries the upstream's seal in a header, and agents echo the
-   last one. Agents then wake once per seal while parked (round 3's cost, review note 1), and both
-   upstreams' replies gain headers (service.hh `Reply` and the relay's `control` have none), so the
-   set widens further. A relay could then also drop the timing test, but it no longer needs to.
+Nothing.
 
 ## Evidence
 
@@ -327,12 +340,18 @@ lower, p99 +7 to +16 ms, inside the 250 ms A/A p99 spread (36 ms) but with no 10
   the previous ask, so only back-to-back asks are delayed. No configuration bound on timeout_ms.
 - test_client_reset's source sits in tests/detent_delivery (the widened set) and is registered from
   tests/detent_relay/CMakeLists.txt, which is in the set; the lead may move the registration.
-- Seal signal (N2, round 3): a 204 before the wait, not a new field or status, so no protocol
-  change. Which nexts get it is the session's seal stamp (lead-approved design), not `was_parked`.
-- The authority's stamp lives in the session record and is set by `restamp()` at each visit of a
-  next (a stale one always answers in that visit), not carried in `Task` (service.hh is outside
-  the set). A stamp older than the truth costs one extra 204; a newer one would miss a seal, so
-  every stamp is taken at or before its answer.
+- Seal signal: a 204 before the wait, read against the request's `seal` (D163, round 4); the 204
+  itself is unchanged, so a relay still tells an early 204 from a deadline one by time. A misread
+  late one costs one more wait, answered at once.
+- `Following::seal` defaults to 2^64-1, the agent's value (D164), so the agent's coordinator needs
+  no change; the relay's watch is the only caller that sets it.
+- A v1 next carries no seal (its parser and SUBSCRIPTIONS_ARCHITECTURE.md are unchanged): the
+  stamp is a W5 field.
+- seal_window.py is committed under bench/idle-wakeups (the reviewer's probe, docstring updated);
+  its fails-without job at 13707337 runs the fix's copy through `--ref`, so both run one script.
+- R4-1's seal_late_park becomes test_http_upstream `late_park` (the hook on the wait after an idle
+  answer); its fails-without at 13707337 is the reviewer's own probe, which builds against that
+  head's `Upstream::wait`.
 - MirrorStatus gains `seal` and `parked` so the tests observe A's state instead of timing it.
 - test_relay_seal_stamp.py sits in tests/detent_relay (in the set) though half of it checks the
   authority: one script runs the same table against both upstreams.
