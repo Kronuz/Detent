@@ -107,6 +107,8 @@ int main(int argc, char **argv) {
 			auto ns =
 				std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start)
 					.count();
+			if (reply.code != 200)
+				std::cerr << "read: " << reply.code << ' ' << reply.body << '\n';
 			require(reply.code == 200);
 			std::cout << "{\"trial\":" << trial << ",\"reply_bytes\":" << reply.body.size()
 					  << ",\"read_wall_ns\":" << ns << "}\n";
