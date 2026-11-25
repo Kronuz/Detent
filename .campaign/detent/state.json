@@ -7296,10 +7296,46 @@
         "docs/mechanisms/simulation.md"
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pipelined-sim",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T22:01:00",
+          "ci": {
+            "carried": true,
+            "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+            "runs": [
+              45550615396
+            ]
+          },
+          "commit": "b4516ee01e41e8d14afa1d7b26a5720ced39b557",
+          "criteria": {
+            "A1": "261124-054533-5b8358 (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054538-eaf00b (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054541-b8f48a (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files), 261124-054535-246acf (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files)",
+            "A2": "261124-054533-5b8358 (passed at 8f21d10b20e4; only 5 merges from main since, none touching its files); fails without: 261124-020921-0e0ba5, 261124-020925-4954e1, 261124-052358-086ed2, 261124-054544-8ae5fe",
+            "A3": "`ci:ci`: CI run 45550615396 at 977b94e, green on every job (macos-x86_64 included)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+              "state": "done"
+            },
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "977b94e52085fa320f830f73a80c51457d92d6c5",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "be18ad93cf5205abe56cea54973e1ca69a7674a7",
+          "reason": "",
+          "tested": "b4516ee01e41e8d14afa1d7b26a5720ced39b557"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "consensus-driver-flow",
@@ -7308,9 +7344,9 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "The driver simulation runs pipelined appends end to end",
-      "updated": "2026-11-24T21:37:29",
+      "updated": "2026-11-24T22:01:06",
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-driver-pressure-rearm": {
