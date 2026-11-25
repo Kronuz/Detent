@@ -9246,30 +9246,56 @@
     "consensus-inline-sync-loop": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-25T03:16:39",
+          "at": "2026-11-25T08:00:34",
           "base": "217481b63fbf465d82164ee967664d1d1b3f81e8",
           "blobs": {
+            "CMakeLists.txt": "100644:884642d13b10818373b2679e8ebb8eec8c4c2a16",
             "bench/netlab/node.cc": "100644:d38ed955f6ba47facf9fbfd90e4c01e3390433d3",
-            "docs/DRIVER.md": "100644:b10b47c745ad7dc907e2b164f487b63991c3895d",
-            "docs/mechanisms/host-transport.md": "100644:9eef39cde0b6adc992f237709d9a11dae310285f",
-            "test/transport/groups_test.cc": "100644:48f8d055f4fbebe149acc08a1c4c1edfa0fcf59c",
-            "test/transport/mutant_commit.py": "100755:96e67254ce72183e933cfb6875eef616c8e4283a"
+            "docs/DRIVER.md": "100644:43696e4bddccbe946c870bc11d6c77063ecb6af8",
+            "docs/mechanisms/host-transport.md": "100644:89bd3ea0553112d978a8ad02d702bd5ba7db32d9",
+            "test/transport/groups_test.cc": "100644:49f23cf5843b5926d2e12721aa0344807a639c0d",
+            "test/transport/mutant_commit.py": "100755:884ec421ad4f86090cf09ba27684b8e51b654ae8"
           },
           "by": "review",
-          "commit": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
+          "commit": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3",
           "criteria": "abb9ffcfaf0ee7bf",
           "diffs": {
+            "CMakeLists.txt": "b2ab91ab9d8074fd",
             "bench/netlab/node.cc": "0aad5fa753bb3501",
-            "docs/DRIVER.md": "28c65db95debba57",
-            "docs/mechanisms/host-transport.md": "2e59948bf2cbc4e2",
-            "test/transport/groups_test.cc": "40be8b73092366c0",
-            "test/transport/mutant_commit.py": "7e9d5c5a48ff3e19"
+            "docs/DRIVER.md": "66be833a26b7b71d",
+            "docs/mechanisms/host-transport.md": "c5466735b55969f3",
+            "test/transport/groups_test.cc": "8eac1f9613aeaa59",
+            "test/transport/mutant_commit.py": "f77dd04ca91ba6db"
           },
-          "findings": {},
+          "findings": {
+            "R4-F1": {
+              "jobs": [
+                {
+                  "cmd": "ctest --test-dir .scratch/build --output-on-failure -j2 -R 'consensus_tls_certificates|consensus_transport_groups_|consensus_driver|consensus_blocking_entry|consensus_completion_asio'",
+                  "commit": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261125-071734-376a14",
+                  "level": "light",
+                  "seconds": 85.6,
+                  "state": "done",
+                  "what": "A2 groups_test, driver, blocking-entry and native-completion tests at 80540ca61cf5"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "CMakeLists.txt"
+            ],
+            "reason": "R4-F1's fix is one word in CMakeLists.txt's groups case list, registering fetch-alongside-leader-sync with ctest; it adds no mechanism"
+          },
           "note": "",
-          "review": "0641b887e03d65283b33fbcaa061fae0efcff721",
-          "reviewed": "9f1419472e0014aa6503c164d5ccb119f6d99ae5",
-          "verdict": "APPROVE"
+          "review": "e42bc6ba8365ad5ecd3b1e38b417f1c81957f05a",
+          "reviewed": "624bebe5b88b081413604741ca2d22b50efc5a02",
+          "verdict": "CHANGES"
         }
       },
       "after": [
@@ -9322,7 +9348,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T06:20:50",
+      "updated": "2026-11-25T08:00:34",
       "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
