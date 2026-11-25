@@ -96,7 +96,7 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | manual (who: the lead, 2026-11-25; checked: the 14 jobs 261124-202039-aa80ba, 261124-202039-9c9088, 261124-202042-42c0f3, 261124-202041-4379bb, 261124-202044-26b532, 261124-202043-4374a0, 261124-202040-e47e90, 261124-202041-d8961e, 261124-202043-39475a, 261124-202042-2dd756, 261124-202045-e28f51, 261124-202046-1fe8d9, 261124-202045-76410f, 261124-202046-64d8d4 each done, exit 0, exclusive, at e5fdf9ca, 0 "ran beside") |
+| A1 | manual (who: the lead, 2026-11-25; checked: the 14 jobs ...202039-aa80ba, ...202039-9c9088, ...202042-42c0f3, ...202041-4379bb, ...202044-26b532, ...202043-4374a0, ...202040-e47e90, ...202041-d8961e, ...202043-39475a, ...202042-2dd756, ...202045-e28f51, ...202046-1fe8d9, ...202045-76410f, ...202046-64d8d4 each done, exit 0, exclusive, at e5fdf9ca, 0 "ran beside") |
 | A2 | docs/perf/warm-relay-agent-boot.md |
 | CI | run 45546081249 at e5fdf9ca (previous run 45499703124 at 781b186f failed on macos-x86_64 only, log gone) |
 | Suite | 261125-055754-1ed9d8 (campaign verify at the merged head 60543083, queued; earlier 261124-084506-9cfdb6 exit 0 at 794fe37f) |
