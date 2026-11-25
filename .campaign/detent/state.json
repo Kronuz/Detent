@@ -5069,6 +5069,26 @@
         "todo": "8c751db1"
       },
       "text": "to do, critical path first:\ntodo: resume pin-wave (its journal waits on jobs 261124-182953-399223, which ended (failed) 14 min ago; new): `campaign status pin-wave`, read them, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T19:51:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T19:51:01",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-401",
+      "items": {
+        "consensus-recovered-over-limit-start": "frees include/consensus/driver.h, docs/mechanisms/deadlines.md, CMakeLists.txt for consensus-recovered-over-limit-start"
+      },
+      "settles": {
+        "start": [
+          "consensus-recovered-over-limit-start"
+        ]
+      },
+      "text": "consensus-driver-pressure-rearm landed: unlocks frees include/consensus/driver.h, docs/mechanisms/deadlines.md, CMakeLists.txt for consensus-recovered-over-limit-start"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -9678,6 +9698,8 @@
       "after": [
         "consensus-driver-pressure-rearm"
       ],
+      "base": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+      "branch": "quest/detent/consensus-recovered-over-limit-start",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -9694,6 +9716,7 @@
         "docs/mechanisms/deadlines.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/consensus-recovered-over-limit-start",
       "landed": [],
       "lenses": [
         "correctness"
@@ -9703,9 +9726,10 @@
       "provides": [],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
-      "updated": "2026-11-24T17:31:31"
+      "updated": "2026-11-24T19:51:27",
+      "worktree": "../consensus-wt/detent/consensus-recovered-over-limit-start"
     },
     "consensus-replica-delete": {
       "accepted": {},
