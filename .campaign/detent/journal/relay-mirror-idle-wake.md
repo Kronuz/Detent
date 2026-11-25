@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: ready for review
+State: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,49 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+### Round 4: D163, the seal stamp on the wire (reviewed head 13707337; R4-1)
+
+Lead update (D163 unconditional): A1 and A2 are ordinary criteria, rerun at the final head and
+reported; not routed to the owner.
+
+Rule. Every W5 next carries `seal`, a required field. At each visit of a next (arrival, and every
+re-visit while parked: each owner turn at the authority, each revisit after a relay's own sync),
+the upstream answers 200 when it has frames, else 204 at once when its seal S is above the
+request's `seal`, else parks to its deadline (204). S is the authority's `sealed()->applied_index()`
+(= the layouts table's `seal`, layout_export.cc:39) or a relay's mirror table seal. The upstream
+keeps no seal state: `NamespaceSessions::Session::seal`, `restamp()` (both upstreams) and the
+open's stamp go. The relay sends its mirror table's seal from its last good sync (s_r) on every
+watch next. Its reading of answers stays: 200 or a 204 before the park, counted from the send, is
+a change (sync); a 204 at or past the park is idle (wait again, same heads, same s_r). The watch's
+open no longer reports a change (the open carries no stamp), so it costs no sync.
+
+Why it fixes R4-1: a seal's 204 misread as idle no longer spends anything. The re-wait carries the
+same s_r < S, so it answers 204 from its arrival, one round trip, which is under the park.
+
+Lifecycle table (relay B reading upstream U; B's last sync read s_r = s; the seal moves U's S from
+s to s+1). Each row is checked by hand against the rule:
+
+| # | B's state when U applies the seal | U answers | B reads | B serves the seal | Test (one value check per row) |
+|---|---|---|---|---|---|
+| 1 | Idle, before its next reaches U (in the pacing gap, in flight, setup, queue) | at arrival S > s: 204 at once | 204 before the park: change | after RTT + sync | hook "between B's sync and its next" (both upstream kinds); seal_stamp `older` (stamp s-1 → 204 at once) |
+| 2 | Waiting, parked at U; 204 reaches B before the park | revisit: S > s: 204 at once | change | at once + sync | hook "while B's next was parked"; seal_stamp `parked` |
+| 3 | Waiting; U's 204 reaches B past the park (U started the park late: setup, TLS, U's queue, a relay U's sync ahead; R4-1) | 204 as in 2 | idle: re-wait at the same heads with s | re-wait: at arrival S > s, 204 at once, read early: sync. One extra RTT (no pacing delay: the previous ask was a park ago) | new hook `late_park` (R4-1's seal_late_park: U's mirror held 800 ms in a sync past B's park); seal_window `other` against a real authority |
+| 4 | Answered late: U already answered (idle 204 or a 200) before the seal; the answer is on its way | the answer has no seal | idle: re-wait with s; 200: sync | idle: re-wait answers 204 at once (as 1). 200: the sync reads s+1, or s and then 1 | new hook "after an idle answer, before the re-wait"; seal_stamp `stale` (two nexts with stamp s-1 in one session both answer 204 at once: no state) |
+| 5 | Syncing, before its layouts read | nothing yet | the sync reads s+1: s_r = s+1 | by that sync; its next parks (no spurious wake) | seal_stamp `current` (stamp = S parks the full wait) |
+| 6 | Syncing, after its layouts read (s_r = s) | its next arrives with s < S: 204 at once | change | as 1 | as 1 (CI's case) |
+| 7 | Opening or reopening the watch session (start, after 410, after a move) | the open answers 200; the next carries s_r | as 1 to 3 | as 1 to 3; the open itself causes no sync | test_http_upstream `idle`: 0 syncs at rest from the first sync (was 1 for the open); hook "before B's watch session opened" |
+| 8 | Its next answered 409 or 410 | 409: B retries; 410: B reopens (7) | as before | as 7 | seal_stamp `busy` ([204 or park, 409]), `ended` (410, new session's next with stamp = S parks) |
+| 9 | Deadline 204, no seal | 204 at the park | idle, never early | n/a: past maximum_wait_ms since its last sync B syncs | test_http_upstream deadline sync at 4 s |
+| 10 | B's sync reads a source behind the watch's (after a rotation: s_r < S at the watch) | 204 at once on every next | change each time | syncs at most one an interval (pacing) until its reading source catches up; polling's rate, bounded | none new: rotation steps in test_http_upstream `failed_wait` |
+
+Degenerate case, stated in the doc: when U's round trip reaches the park (setup at least half the
+timeout), row 3's re-wait is misread too and B serves the seal at maximum_wait_ms. That is a
+source that hangs by F1a's bound.
+
+Tests at both upstream kinds (authority and relay A), one value check per row; fails-without by
+one-line mutants at the fix (refs/mutants/), and R4-1's two probes with `--fails-without` at
+13707337 (seal_late_park and seal_window need no wire field, so they run there).
 
 ### Round 3: the seal stamp (code b76ae636, main a0d804bd merged at 13707337)
 
@@ -188,11 +231,35 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Read the round 3 jobs (Doing) and CI; fill Evidence and Result with A1 and A2 at 13707337.
+1. Once the set is widened and the agents' stamp ruled: code the rule (table above), port R4-1's
+   probes into tests, the class tests, mutants; then queue A1, A2, A3, A6 (with fails-without at
+   13707337), the suite, and push.
 
 ## Blocked on
 
-Nothing.
+Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes
+that body is outside the set. Needed:
+- include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc
+  (parse the required `seal` on next).
+- include/detent_delivery/namespace_session.hh, src/detent_delivery/namespace_session.cc (the body
+  builder and `next_namespace_session` take the stamp), src/detent_delivery/coordinator.cc:1054
+  (the agent's next).
+- src/detent_authority/service.hh (`Task::seal`), src/detent_authority/service.cc:560-571 (copy it).
+- src/detent_relay/service.cc:386 (`job.seal = command.seal`).
+- Tests that write a next body: tests/detent_delivery/test_namespace_session.cc,
+  test_session_request.cc, namespace_server_fixture.hh; tests/detent_authority/test_frames_service.cc,
+  test_distribution_ownership.cc; tests/detent_system/run_trust_negatives.py.
+- The W5 spec: docs/status/namespace-s6.md (the request block), docs/SUBSCRIPTIONS_ARCHITECTURE.md:17.
+
+Decision (lead's, user-visible: agents' wakes): what an agent, which never reads layouts and knows
+no seal, sends as `seal`. Sending 0 would answer every agent next 204 at once, a spin.
+1. Recommended: the field means "answer at once once your seal is above this"; agents send the
+   largest value (2^64-1), so a seal never wakes them, as on main. No answer changes, no agent
+   state, the cheapest; the cost is one documented value with a meaning of its own.
+2. Every next answer (200 and 204) carries the upstream's seal in a header, and agents echo the
+   last one. Agents then wake once per seal while parked (round 3's cost, review note 1), and both
+   upstreams' replies gain headers (service.hh `Reply` and the relay's `control` have none), so the
+   set widens further. A relay could then also drop the timing test, but it no longer needs to.
 
 ## Evidence
 
