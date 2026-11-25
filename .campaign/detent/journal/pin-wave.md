@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: working: cascade round 2 (faultlab 1ac0b17 CI, journal f66c16e and consensus 770db9a pushed)
+State: blocked on lead: widen tests/detent_relay/CMakeLists.txt for A4 (Blocked on 1); waiting on jobs 261124-234152-ea3a2e 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -49,12 +49,12 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pins 261124-212452-ddf80d at Detent:d63517c0 (faultlab's two declares remain, Blocked on 1) |
+| A1 | pins 261124-234152-d6560c at Detent:75bb4ac1: 30 libraries, 41 shared declarations, 0 mismatches |
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
-| A4 | native 261124-212452-faeaad at Detent:d63517c0; asan, tsan: CI at d63517c0 |
-| A5 | jobs 261124-212501-23b03e (w5), 261124-212504-2b8b12 (syscalls) at Detent:d63517c0. Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | build 261124-212506-a77bb6; rows 261124-212544-a4d5e6, 261124-212546-b3fa7f, 261124-212548-350859, 261124-212550-ef5234, 261124-212552-6091d8 |
+| A4 | blocked (Blocked on 1): native 261124-212452-faeaad and CI 45553576282 at d63517c0 fail only on test_relay_chain's missing faultlab link |
+| A5 | syscalls 261124-234152-ea3a2e at Detent:75bb4ac1 (2b8b12 at d63517c0 done); w5 blocked (Blocked on 2). Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
+| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get 261124-234154-693af5, reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
 | A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
 | A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
