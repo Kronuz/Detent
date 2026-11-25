@@ -33103,7 +33103,8 @@
         "src/detent_distribution/**",
         "tests/detent_delivery/CMakeLists.txt",
         "tests/detent_local/snapshot_fixture.hh",
-        "tests/detent_local/test_paged_segment_collection.cc"
+        "tests/detent_local/test_paged_segment_collection.cc",
+        "tests/detent_reader/CMakeLists.txt"
       ],
       "history": [
         {
@@ -33217,12 +33218,12 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "D162: pin-wave landed (Detent:dbd4d4f7)",
+      "reason": "test_reader_switch links detent::resources once the ledger headers alias allocators' ReservationBook",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "EX-1: one resource-accounting implementation in allocators",
-      "updated": "2026-11-25T04:58:39"
+      "updated": "2026-11-25T05:55:51"
     },
     "restart-capacity": {
       "accepted": {
