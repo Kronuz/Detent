@@ -1,6 +1,6 @@
 # persistent-map-adoption: journal
 
-State: waiting on jobs 261125-055021-ea057c 261125-055028-de0f76 261125-055647-e5334d 261125-055718-b49932 261125-055733-bfba29 261125-055734-d461d7
+State: resume after the quota reset (2026-11-30 05:00 UTC): A6, A9 and pins done; A5 and A1 failed at CMake configure (hashes::hashes not found, tests/detent_relay/CMakeLists.txt:73); native 1 of 219 (test_authority_restart_wake, likely pre-existing). See HANDOFF.md.
 Quest: .campaign/detent/quests/persistent-map-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
