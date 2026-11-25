@@ -28,24 +28,22 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Round 2 of the cascade (lead msg 2026-11-24, Blocked on 1 option (a)): faultlab:1ac0b17 (on
-   535f606: recorder test passes FlushMode::full; local ctest 18/18 green), journal:f66c16e (on
-   d999ae2, the lead's recovery-refill landing; faultlab -> 1ac0b17), consensus:770db9a (on main
-   b4516ee, branch quest/detent/pin-wave-2: every PosixIO in tests, benches, example, README takes
-   FlushMode::full; pins to the heads above). Each CI green: fast-forward main in that order.
-2. Pin Detent: faultlab 1ac0b17, journal f66c16e, consensus 770db9a, http 24d2416 (main
-   fast-forwarded); cancel the d63517c0 jobs; requeue A1, A4-A6 once at the final head.
+1. Jobs at the final head (listed in State): read A5 syscalls and A6 rows into docs/perf/pin-wave.md
+   and the Evidence table; a 124 row reruns with fewer rounds.
+2. A4 (native, asan, tsan) once Blocked on 1 is ruled: queue native, push for CI.
 
 ## Blocked on
 
-1. faultlab's declares (ruling 13): pins stays red on faultlab:83fbde7's completion d8b538c and
-   journal a412175 declares. faultlab:535f606 (CI 45552204645) fixes faultlab's side, but then
-   journal (declares faultlab 83fbde7) and consensus (faultlab 83fbde7, journal 72bbc89) must
-   re-pin once more. Options: (a) chain faultlab:535f606 -> journal J2 -> consensus C2 -> Detent,
-   one more pin commit in journal and in consensus, three serial CI rounds; (b) check_pins.py (outside
-   the set) skips a manifest library's declare guarded by `if(NOT TARGET ...)` or an OFF option;
-   (c) land the wave with pins red on faultlab only, and a follow-up runs (a). Recommend (a): no tool
-   rule, every pin a head; consensus ff87da4 was cut now to not hold the queue.
+1. tests/detent_relay/CMakeLists.txt (outside the set) needs one token: line 51,
+   `target_link_libraries(test_relay_chain PRIVATE detent::relay_mirror detent_authority_service faultlab::faultlab)`.
+   test_relay_chain includes cluster_harness.hh, which includes faultlab/faultfs.h since the faultfs
+   port (Detent:8a182163); ruling 10 linked the nine authority targets but missed this one. It is
+   the only compile error in Detent CI 45553576282 (every build job) and in native
+   261124-212452-faeaad. Recommend: widen the set by that file; A4 (native, asan, tsan) waits on it.
+2. tools/w5 (outside the set) no longer builds: w5_store.cc includes detent_local/builder.hh, gone
+   from both arms (w5 job 261124-212501-23b03e, exit 2). A5's input-class diff needs tools/w5 ported
+   to the current tree, a quest of its own; A5 stands on the syscall trace meanwhile. Recommend:
+   widen by tools/w5/** or file a follow-up.
 
 ## Evidence
 
@@ -85,9 +83,11 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | 45541900094 success | fast-forwarded |
 | L4 | journal | task 95798a0 -> 477a7d3, completion b4600a8 -> 3061516, allocators -> ae775ab, crc32c 0d5460d -> 52889db | journal:72bbc89 | 45546842361 success | fast-forwarded |
 | L4 | http-parser | enum-reflection a7202ad -> c9a3f04 | http-parser:38950a0 | 45546809878 success | fast-forwarded |
-| L5 | http | radix-router e67543d -> 67454c7, http-parser -> 38950a0, compressors 5566260 -> 54dd2f0, task 18eb516 -> 477a7d3, reactor 6fdd45f -> d28e5e0; stale reactor comment | http:24d2416 | 45550470867 pending | not moved |
-| L5 | consensus | task 95798a0 -> 477a7d3, completion d8b538c -> 3061516, journal 9e11713 -> 72bbc89, reactor ab69cf2 -> d28e5e0, faultlab 5d4df9b -> 83fbde7 (on be18ad9) | consensus:ff87da4 | 45553333430 pending | not moved |
-| L4' | faultlab | completion d8b538c -> 3061516; fixture generator's journal fetch to test/fixtures/memory_io_gen.cmake (ruling 13) | faultlab:535f606 | 45552204645 pending | not moved |
+| L5 | http | radix-router e67543d -> 67454c7, http-parser -> 38950a0, compressors 5566260 -> 54dd2f0, task 18eb516 -> 477a7d3, reactor 6fdd45f -> d28e5e0; stale reactor comment | http:24d2416 | 45550470867 success | fast-forwarded |
+| L5 | consensus | superseded: ff87da4 (on be18ad9) red, PosixIO without flush_mode | consensus:ff87da4 | 45553333430 failure | not moved |
+| L4' | faultlab | completion d8b538c -> 3061516; fixture generator's journal fetch to test/fixtures/memory_io_gen.cmake (ruling 13); recorder test's 7 PosixIOs take FlushMode::full (faultlab:1ac0b17, local ctest 18/18) | faultlab:535f606 + 1ac0b17 | 535f606 45552204645 failure; 1ac0b17 45558784182 success | fast-forwarded to 1ac0b17 |
+| L4'' | journal | faultlab 83fbde7 -> 1ac0b17, on main d999ae2 (lead's recovery-refill) | journal:f66c16e | 45558989609 success | fast-forwarded |
+| L5' | consensus | task -> 477a7d3, completion d8b538c -> 3061516, journal 9e11713 -> f66c16e, reactor ab69cf2 -> d28e5e0, faultlab 5d4df9b -> 1ac0b17, on main b4516ee (pipelined-sim); FlushMode::full at all 32 PosixIOs (tests, benches, example, README); driver_close_test reads evicted() (journal renamed parked) | consensus:770db9a + 72cc58d (branch quest/detent/pin-wave-2) | 770db9a cancelled (superseded); 72cc58d 45563577936 success; local ctest 179/179 | fast-forwarded to 72cc58d |
 
 ## Result
 
@@ -161,3 +161,15 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
    main fast-forwards to that same commit once green, so main never carries a red pin.
+15. Round 2 commits stack (faultlab 535f606 + 1ac0b17, consensus 770db9a + 72cc58d) rather than
+   amend: a force push was refused, so consensus re-pins on b4516ee under quest/detent/pin-wave-2.
+16. Libraries' PosixIO migration (faultlab, consensus) follows ruling 1's shape: one file-scope
+   `constexpr PosixIOOptions full_flush{FlushMode::full}` per file; consensus's README passes
+   `{kronuz::journal::FlushMode::full}` inline. Test runtime: faultlab_recorder 1.56 s; consensus's
+   slowest, driver_close_bytes (600.7 s Debug, loaded host), runs on HeapIO, no PosixIO, so the mode
+   does not touch it; no test nears a timeout from the mode.
+17. journal:72bbc89 renamed TurnDriver::parked to evicted (journal CHANGELOG 2026-11-20); consensus's
+   three driver_close_test checks and DRIVER.md's close row follow the rename, no check loosened.
+18. A/B script (Detent:eb2ce062): first_read_phases linked detent::local_client, removed with
+   detent::Client (Detent:1c878402) before both arms, so A6's build never generated; it links
+   detent::local_view and detent::testing_store now (both targets build locally at the new pins).
