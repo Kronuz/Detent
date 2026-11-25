@@ -128,12 +128,12 @@ owner or root able to write the mapped inode. An in-place write or truncation by
 model: on macOS a private mapping kept the bytes first mapped, and on Linux a truncation raises
 SIGBUS in the reader (security review N1).
 
-### Verified page index (correctness review C2; proposed, awaiting the design check)
+### Verified page index (correctness review C2)
 
-A lookup on a marked page decodes every entry of the page today (a `TableEntry` and a name copy each)
-and scans its padding: 4.8-12.5 us against main's 0.3-0.5 us `StoreTable::find` (job
-261124-160446-6df9d3), paid by every lookup of an unlisted namespace (`View::listed`) and once per
-attached namespace on each refresh. The fix keeps what the first touch verified with its mark.
+Before the index, a lookup on a marked page decoded every entry of the page (a `TableEntry` and a
+name copy each) and scanned its padding: 4.8-12.5 us against main's 0.3-0.5 us `StoreTable::find`
+(job 261124-160446-6df9d3), paid by every lookup of an unlisted namespace (`View::listed`) and once
+per attached namespace on each refresh. The index keeps what the first touch verified with its mark.
 
 Structure. The marks' state gains one array, allocated with the marks at the table read and
 accounted to the same ledger: per page, its entry count and each entry's offset in the page, as
@@ -152,13 +152,15 @@ the marks.
 | Publish | the new table's header and index | a new array | all clear | through the new table |
 | Close | nothing | freed with the marks, returned to the ledger | freed | none |
 
-What a marked page no longer re-checks. Today a marked page re-runs the entry bounds, order, slot,
-last-name and padding checks on every reach. With the index those run once, at the first touch, like
-the hash: the marks already rely on the mapped table never changing (above). `decode()` keeps
-walking every page with every check.
+What a marked page does not re-check: the entry bounds, order, slot, last-name and padding checks run
+once, at the first touch, like the hash; the marks already rely on the mapped table never changing
+(above). `decode()` walks every page with every check. `PagedTable::check` is the one walk: it
+verifies a page, fills the offsets and, with an account, keeps them and sets the mark.
 
-Measure. `reader_bench` warm lookups and a verified-page `find` micro against main's
-`StoreTable::find`, both stated; target within 2x of main.
+Measure. `benchmarks/table_find_bench.cc` (a verified-page `PagedTable::find` against main's
+`StoreTable::find`, 1,000 entries of 16- and 40-byte names, present and absent) and `reader_bench`
+warm lookups, main against the head as interleaved strict pairs (`benchmarks/reader_bench_ab.sh
+find|run`). Target: main's warm `find` cost.
 
 In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
 is remembered for the store word (D4): namespaces already attached keep answering, and a new one

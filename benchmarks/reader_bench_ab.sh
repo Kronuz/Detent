@@ -5,6 +5,9 @@
 #                                         (--generate 50000: 100K knobs over 64 namespaces), under OUT
 #   reader_bench_ab.sh run OUT [PAIRS]    strict: PAIRS base/head pairs per thread count, alternating
 #                                         which goes first; prints each case's median p50 and p99 in ns
+#   reader_bench_ab.sh find OUT [PAIRS]   strict: table_find_bench (built with reader_bench; main's tree
+#                                         gets the target for the build only), PAIRS alternating pairs;
+#                                         prints main's decoded find against the head's paged find
 set -euo pipefail
 
 build() {
@@ -17,6 +20,17 @@ build() {
 			-DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF \
 			-DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_READ_COUNTERS=OFF >/dev/null
 		cmake --build "$src/.scratch/reader-bench-build" -j4 --target reader_bench
+		if [ "$code" = base ]; then
+			cp "$src/benchmarks/CMakeLists.txt" "$out/base-CMakeLists.txt"
+			cp "$PWD/benchmarks/table_find_bench.cc" "$src/benchmarks/"
+			printf 'add_executable(table_find_bench table_find_bench.cc)\ntarget_link_libraries(table_find_bench PRIVATE detent::local_view)\n' >> "$src/benchmarks/CMakeLists.txt"
+		fi
+		cmake --build "$src/.scratch/reader-bench-build" -j4 --target table_find_bench
+		if [ "$code" = base ]; then
+			cp "$out/base-CMakeLists.txt" "$src/benchmarks/CMakeLists.txt"
+			rm "$src/benchmarks/table_find_bench.cc"
+		fi
+		cp "$src/.scratch/reader-bench-build/benchmarks/table_find_bench" "$out/$code/"
 		rm -rf "${out:?}/$code"
 		mkdir -p "$out/$code"
 		cp "$src/.scratch/reader-bench-build/benchmarks/reader_bench" "$out/$code/"
@@ -60,8 +74,33 @@ for (case, threads), arms in sorted(results.items()):
 PY
 }
 
+find_cost() {
+	/usr/local/bin/python3 -I - "$@" <<'PY'
+import json, statistics, subprocess, sys
+from pathlib import Path
+out, pairs = Path(sys.argv[1]).resolve(), int(sys.argv[2]) if len(sys.argv) > 2 else 10
+rows = {}
+for pair in range(pairs):
+    for code in (("head", "base") if pair % 2 else ("base", "head")):
+        for line in subprocess.run([out / code / "table_find_bench"], check=True, capture_output=True,
+                                   text=True).stdout.splitlines():
+            row = json.loads(line)
+            rows.setdefault((code, row["case"]), []).append((row["present_ns"], row["absent_ns"]))
+            print(json.dumps({"code": code, "pair": pair, **row}), flush=True)
+def median(key):
+    return [statistics.median(r[0] for r in rows[key]), statistics.median(r[1] for r in rows[key])]
+for width in (16, 40):
+    main, paged = median(("base", f"decoded/{width}")), median(("head", f"paged/{width}"))
+    print("table_find " + json.dumps({"width": width, "main_decoded_present_absent": main,
+                                      "head_decoded_present_absent": median(("head", f"decoded/{width}")),
+                                      "head_paged_present_absent": paged,
+                                      "paged_over_main": [round(p / m, 2) for p, m in zip(paged, main)]}))
+PY
+}
+
 case ${1:-} in
 build) build "${2:?OUT}" ;;
 run) run "${2:?OUT}" "${@:3}" ;;
-*) echo "usage: $0 build OUT | run OUT [PAIRS]" >&2; exit 2 ;;
+find) find_cost "${2:?OUT}" "${@:3}" ;;
+*) echo "usage: $0 build OUT | run OUT [PAIRS] | find OUT [PAIRS]" >&2; exit 2 ;;
 esac

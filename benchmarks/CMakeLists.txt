@@ -83,3 +83,8 @@ if(TARGET detent::testing_store)
   target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
 endif()
+
+# Warm `selected` lookups (first-read-1ms C2): the decoded table against the paged table's verified pages.
+add_executable(table_find_bench table_find_bench.cc)
+target_compile_definitions(table_find_bench PRIVATE DETENT_PAGED_TABLE)
+target_link_libraries(table_find_bench PRIVATE detent::local_view)

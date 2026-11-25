@@ -103,7 +103,9 @@ class PagedTable {
 		~Mapping();
 	};
 	PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr<distribution::StorageLedger> account);
-	std::optional<TableEntry> walk(std::size_t page, std::string_view name, std::vector<TableEntry> *all) const;
+	// Verifies page `page` (hashed unless marked, every entry check), puts each entry's offset in `offsets`
+	// and, with an account, keeps them with the page's mark. Returns the entry count.
+	std::size_t check(std::size_t page, std::span<std::uint16_t> offsets, std::vector<TableEntry> *all) const;
 
 	std::vector<char> owned_;
 	Mapping mapping_;

@@ -301,6 +301,51 @@ void concurrent_first_touch() {
 	}
 }
 
+// The verified page index ("Verified page index"): a marked page answers each entry and each unlisted
+// name between them from the offsets its first touch kept, hashing nothing; threads first touching
+// the pages together leave the same answers; without an account each reach checks into a local index.
+void page_index() {
+	const auto table = table_of(1000);
+	const auto encoded = l::encode_table(table);
+	const auto answers = [&](const l::PagedTable &paged) {
+		for (std::size_t i = 0; i < table.entries.size(); ++i)
+			if (paged.find(name_of(i)) != table.entries[i] || paged.find(name_of(i) + "x"))
+				return false;
+		return !paged.find("") && !paged.find("0") && !paged.find("zzzz");
+	};
+	{
+		const auto account = std::make_shared<d::StorageLedger>(std::size_t(1) << 30);
+		const l::PagedTable paged(bytes_of(encoded), account);
+		check(answers(paged), "first touches answer every entry and unlisted name");
+		const auto pages = paged.page_verifications();
+		check(pages > 30 && answers(paged) && paged.page_verifications() == pages,
+		      "marked pages answer from their index, hashing nothing");
+	}
+	for (unsigned round = 0; round != 50; ++round) {
+		const auto account = std::make_shared<d::StorageLedger>(std::size_t(1) << 30);
+		const l::PagedTable paged(bytes_of(encoded), account);
+		std::atomic<unsigned> ready{0}, wrong{0};
+		std::vector<std::thread> threads;
+		for (unsigned t = 0; t != 8; ++t)
+			threads.emplace_back([&, t] {
+				for (++ready; ready != 8;)
+					std::this_thread::yield();
+				for (std::size_t i = t; i < table.entries.size(); i += 8)
+					if (paged.find(name_of(i)) != table.entries[i] || paged.find(name_of(i) + "x"))
+						++wrong;
+			});
+		for (auto &thread : threads)
+			thread.join();
+		check(wrong == 0, "concurrent first touches answer every entry");
+		const auto pages = paged.page_verifications();
+		check(answers(paged) && paged.page_verifications() == pages, "the pages they marked answer every entry");
+	}
+	const l::PagedTable unmarked(bytes_of(encoded));
+	check(answers(unmarked), "without an account every entry answers");
+	// Each listed name, each unlisted one below the last, "" and "0" reach a page and hash it.
+	check(unmarked.page_verifications() == 2 * table.entries.size() + 1, "without an account each reach hashes");
+}
+
 // Every single-byte change, truncation and extension of a three-page table: each lookup, before and
 // after its page is marked, answers the original entry, answers not listed for an unlisted name, or
 // refuses; the whole read equals the table or refuses.
@@ -460,6 +505,7 @@ int main() {
 	close();
 	bound();
 	concurrent_first_touch();
+	page_index();
 	mutations();
 	cross_page();
 	std::puts("table pages: ok");

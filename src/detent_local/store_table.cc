@@ -154,8 +154,15 @@ std::string encode_table(const StoreTable &table) {
 	return out;
 }
 
+// A page's index, kept with its mark: its entry count, then each entry's offset in the page. Written
+// before the mark's release and read after its acquire, so a marked page is searched without re-checking.
+constexpr std::size_t page_entries = table_page_bytes / table_entry_bytes(1), page_index = 1 + page_entries;
+using PageOffsets = std::array<std::uint16_t, page_entries>;
+static_assert((page_entries + 1) * table_entry_bytes(1) > table_page_bytes && table_page_bytes <= UINT16_MAX);
+using Offsets = std::vector<std::atomic<std::uint16_t>, distribution::StorageAllocator<std::atomic<std::uint16_t>>>;
 struct PagedTable::State {
 	std::unique_ptr<detail::VerifiedPages> marks; // absent without an account: every reach hashes
+	std::unique_ptr<Offsets> offsets;             // page_index per page, beside the marks
 	std::atomic<std::size_t> verified{0};
 };
 
@@ -238,8 +245,11 @@ PagedTable::PagedTable(std::vector<char> owned, Mapping mapping, std::shared_ptr
 		pages_[k].offset = pages_begin_ + k * table_page_bytes;
 		pages_[k].size = std::min(table_page_bytes, in.size() - pages_[k].offset);
 	}
-	if (account && body)
+	if (account && body) {
 		state_->marks = std::make_unique<detail::VerifiedPages>(body, account);
+		state_->offsets = std::make_unique<Offsets>(pages_.size() * page_index,
+		                                            distribution::StorageAllocator<std::atomic<std::uint16_t>>(account));
+	}
 }
 PagedTable::PagedTable(PagedTable &&) noexcept = default;
 PagedTable &PagedTable::operator=(PagedTable &&) noexcept = default;
@@ -247,7 +257,7 @@ PagedTable::~PagedTable() = default;
 
 std::size_t PagedTable::page_verifications() const noexcept { return state_->verified.load(std::memory_order_relaxed); }
 
-std::optional<TableEntry> PagedTable::walk(std::size_t k, std::string_view name, std::vector<TableEntry> *all) const {
+std::size_t PagedTable::check(std::size_t k, std::span<std::uint16_t> offsets, std::vector<TableEntry> *all) const {
 	const auto &page = pages_[k];
 	const std::span<const char> in(bytes_.data() + page.offset, page.size);
 	const auto &marks = state_->marks;
@@ -258,26 +268,29 @@ std::optional<TableEntry> PagedTable::walk(std::size_t k, std::string_view name,
 		refuse(std::equal(sum.begin(), sum.end(), bytes_.begin() + page.index), "page digest");
 		state_->verified.fetch_add(1, std::memory_order_relaxed);
 	}
-	// Bounded and checked on every reach: entries in order after the previous page's last name, each
-	// slot below `slots`, the index's last name last, then zero padding.
-	std::optional<TableEntry> found;
+	// Entries in order after the previous page's last name, each slot below `slots`, the index's last
+	// name last, then zero padding.
+	std::size_t count = 0, at = 0;
 	std::string_view previous = k ? pages_[k - 1].last : std::string_view();
-	std::size_t at = 0;
 	while (at < in.size() && in[at] != 0) {
 		const auto start = at;
 		auto entry = take_entry(in, at, in.size());
 		refuse(previous < entry.name && entry.slot < slots_, "entry order");
 		previous = std::string_view(in.data() + start + 1, entry.name.size());
+		offsets[count++] = static_cast<std::uint16_t>(start);
 		if (all)
-			all->push_back(entry);
-		if (entry.name == name)
-			found = std::move(entry);
+			all->push_back(std::move(entry));
 	}
 	refuse(at && previous == page.last, "page end");
 	refuse(std::all_of(in.begin() + at, in.end(), [](char byte) { return byte == 0; }), "page padding");
-	if (marks && !marked)
+	if (marks && !marked) {
+		auto *index = state_->offsets->data() + k * page_index;
+		index[0].store(static_cast<std::uint16_t>(count), std::memory_order_relaxed);
+		for (std::size_t i = 0; i < count; ++i)
+			index[1 + i].store(offsets[i], std::memory_order_relaxed);
 		marks->set(page.offset - pages_begin_);
-	return found;
+	}
+	return count;
 }
 
 std::optional<TableEntry> PagedTable::find(std::string_view name) const {
@@ -285,7 +298,38 @@ std::optional<TableEntry> PagedTable::find(std::string_view name) const {
 	                                 [](const Page &page, std::string_view key) { return page.last < key; });
 	if (at == pages_.end())
 		return std::nullopt;
-	return walk(std::size_t(at - pages_.begin()), name, nullptr);
+	const auto k = std::size_t(at - pages_.begin());
+	const std::span<const char> in(bytes_.data() + at->offset, at->size);
+	// A marked page answers from its index; any other reach checks the page into a local one.
+	PageOffsets local;
+	const std::atomic<std::uint16_t> *index = nullptr;
+	std::size_t count;
+	if (state_->marks && state_->marks->test(at->offset - pages_begin_)) {
+		index = state_->offsets->data() + k * page_index;
+		count = index[0].load(std::memory_order_relaxed);
+		++index;
+	} else {
+		count = check(k, local, nullptr);
+	}
+	const auto offset = [&](std::size_t i) -> std::size_t {
+		return index ? index[i].load(std::memory_order_relaxed) : local[i];
+	};
+	// Names compared in place; only the match is decoded.
+	std::size_t low = 0, high = count;
+	while (low < high) {
+		const auto mid = low + (high - low) / 2, o = offset(mid);
+		const std::string_view entry(in.data() + o + 1, static_cast<unsigned char>(in[o]));
+		if (entry < name)
+			low = mid + 1;
+		else
+			high = mid;
+	}
+	if (low == count)
+		return std::nullopt;
+	std::size_t o = offset(low);
+	if (std::string_view(in.data() + o + 1, static_cast<unsigned char>(in[o])) != name)
+		return std::nullopt;
+	return take_entry(in, o, in.size());
 }
 
 StoreTable PagedTable::decode() const {
@@ -294,8 +338,9 @@ StoreTable PagedTable::decode() const {
 	table.directory = directory_;
 	table.profile = profile_;
 	table.entries.reserve(count_);
+	PageOffsets offsets;
 	for (std::size_t k = 0; k < pages_.size(); ++k)
-		walk(k, {}, &table.entries);
+		check(k, offsets, &table.entries);
 	refuse(table.entries.size() == count_, "entry count");
 	std::vector<std::uint32_t> slots;
 	slots.reserve(count_);
