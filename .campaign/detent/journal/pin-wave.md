@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on library CI: reactor 45547295801 (reactor:d28e5e0), journal 45546842361 (journal:72bbc89), http-parser 45546809878 (http-parser:38950a0), all queued on the shared runners
+State: working: http and faultlab CI (45550470867, 45552204645), then Detent pins and A1, A4-A6
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -85,13 +85,15 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L2 | repr | char-classify 25decb5 -> ee25a41 | repr:46fc92e | 45531194490 success | fast-forwarded |
 | L2 | sha256 | endian 6b223e2 -> 5634a08 | sha256:e41c586 | 45531199999 success | fast-forwarded |
 | L2 | hashes | static-string -> a99260d, char-classify -> ee25a41, constexpr-phf 4b669b6 -> 58653a7 | hashes:bae099b | 45531138947 success | fast-forwarded |
-| L3 | reactor | task 18eb516 -> 477a7d3; lag test runs the posted arm (ruling 11) | reactor:d28e5e0 (was 40d1461, red #45541868647) | pending | not moved |
+| L3 | reactor | task 18eb516 -> 477a7d3; lag test runs the posted arm (ruling 11) | reactor:d28e5e0 (was 40d1461, red #45541868647) | 45547295801 success | fast-forwarded |
 | L3 | completion | metrics 9db73de -> 4cd64db, allocators 07de45d -> ae775ab, task 95798a0 -> 477a7d3 | completion:3061516 | 45541875670 success | fast-forwarded |
 | L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | 45541886004 success | fast-forwarded |
 | L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | 45541892260 success | fast-forwarded |
 | L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | 45541900094 success | fast-forwarded |
-| L4 | journal | task 95798a0 -> 477a7d3, completion b4600a8 -> 3061516, allocators -> ae775ab, crc32c 0d5460d -> 52889db | journal:72bbc89 | pending | not moved |
-| L4 | http-parser | enum-reflection a7202ad -> c9a3f04 | http-parser:38950a0 | pending | not moved |
+| L4 | journal | task 95798a0 -> 477a7d3, completion b4600a8 -> 3061516, allocators -> ae775ab, crc32c 0d5460d -> 52889db | journal:72bbc89 | 45546842361 success | fast-forwarded |
+| L4 | http-parser | enum-reflection a7202ad -> c9a3f04 | http-parser:38950a0 | 45546809878 success | fast-forwarded |
+| L5 | http | radix-router e67543d -> 67454c7, http-parser -> 38950a0, compressors 5566260 -> 54dd2f0, task 18eb516 -> 477a7d3, reactor 6fdd45f -> d28e5e0; stale reactor comment | http:24d2416 | 45550470867 pending | not moved |
+| L4' | faultlab | completion d8b538c -> 3061516; fixture generator's journal fetch to test/fixtures/memory_io_gen.cmake (ruling 13) | faultlab:535f606 | 45552204645 pending | not moved |
 
 ## Result
 
@@ -148,6 +150,19 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    LagProbe: none in Detent, http, consensus or journal (grep).
 12. repin.sh's pin loop ended on an unmoved last pin with status false, so set -e killed it after
    sed but before the commit (journal's first run); the loop body now ends with `true`.
+13. faultlab is in Detent's manifest since the faultfs port (Detent:8a182163), so ruling 3's
+   premise is gone and check_pins reads faultlab's declares: completion d8b538c and journal
+   a412175 (the MemoryIO fixture generator, OFF by default). journal pins faultlab, so following
+   journal's head would cycle; and a412175 is a reference to a journal that still has MemoryIO
+   (journal:9f5e846 deletes it), so it never moves. faultlab:535f606 moves that test-only fetch
+   into test/fixtures/memory_io_gen.cmake (check_pins skips test/, as for every library's test
+   declares) and pins completion to head. The generator rebuilds the checked-in fixture byte for
+   byte (local, quiet light). Then journal re-pins faultlab to that head (journal J2), and Detent
+   pins faultlab and journal there.
+14. consensus at c724c58 (its main head: e61ac8f and c724c58, the rearm, driver.h and a test; same
+   declares as fcf7f66), not re-pinned: its pin lines wait for consensus-recovered-over-limit-start
+   (lead, msg 2026-11-24). check_pins fails on consensus's five declares until it re-pins; that
+   bump and its A4 rerun are what remain after it lands.
 7. Linux syscall trace not run: no Linux host here (docker daemon down) and the CI workflow is
    outside the set; docs/perf/pin-wave.md states Linux by completion's sync_call table.
 4. Each repin commit goes to quest/detent/pin-wave in its repo first (CI runs on quest/**), and
