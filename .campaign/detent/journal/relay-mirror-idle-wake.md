@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: round 5: building at the widened set (reply_pump)
+State: ready for review (round 5 at Detent:e200ee50; jobs queued)
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -355,14 +355,31 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Once reply_pump is widened: add the headers parameter, build, run the tests, make5.py mutants
-   (run each pair locally), then queue every criterion once at the head, push, ready for review.
+1. Read round 5's jobs (Evidence); fill Result with A1 and A2 at e200ee50.
 
 ## Blocked on
 
 Nothing. (Lead widened reply_pump.{hh,cc} for D165's 204 header: `send_control` takes headers.)
 
 ## Evidence
+
+Round 5 local (Release, quiet light, at e200ee50): 14 tests pass: test_http_upstream (no park: A
+answered 17 waits at once, B 0 syncs in 1 s, A's seal reached B in 96 ms; late park 102 ms),
+test_relay_seal_stamp (every answer's seal = the upstream's: authority 15..21, relay 21..27),
+test_relay_seal_shortwait (6 of 6 seals in 88-147 ms; 0 syncs at rest), test_relay_service,
+idle, hung, frames_service, distribution_ownership, session_request, namespace_session,
+client_reset. All 28 make5.py mutants compile (-fsyntax-only).
+
+Round 5 jobs at e200ee50 (A3 unless noted; fw = --fails-without at the mutant):
+- http 021cd6; fw: wire-parked-r 678476, wire-send-u 0d2924, wire-zero-m 81831f, wire-open-u f0b893, wire-compare-u ae0046, wire-header-r fad576, paced-off f02b41, skip-off 8308ae
+- stamp 93206e; fw: wire-parked-a 400518, wire-current-a 8c34d0, wire-agent-a c50a01, wire-copy-a d4b574, wire-parked-r 415684, wire-current-r cfc692, wire-agent-r d7f19c, wire-state-r ad76a8, wire-copy-r 4dc5df, wire-header-a daf94a, wire-header200-a 24103d, wire-header-r 436921, wire-header200-r d628fd, wire-pass-r 357c4d, wire-pump dbab8d, stamp-busy-a 7b855a, stamp-close-a 405c3e, stamp-busy-r 1cd5ec, stamp-close-r a7ed6d
+- shortwait 5fbb47; fw wire-header-a d223b9; fw at 5f601d6b (R5-2) d64cca
+- parser 36dd84 (fw wire-optional 207b90); body dbffe9 (fw 291147); client 4b2f11 (fw 75a8a9); idle b8021e; hung 0d8681; cut-off 4b349e
+- R4-1: late-park-fw at 13707337 d0d4dc; window 16f787; window-fw at 13707337 f656b3
+- A1 strict 3344f2; A2 strict 250 ms d5d3f0, 10 ms 00c484 (BASE main e2e9ce35)
+- A5 suite: campaign verify (reruns at ready for review)
+Dropped (R5-3): 9f2de8 and 509945 (wire-older-r: the relay's handler no longer checks the stamp),
+ac469a (wire-older-a). b0740b's class (wire-parked-r on http) is 678476 with a 2 s park.
 
 Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
 Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
