@@ -31241,12 +31241,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "split-detent landed (Detent:a341e8f1): the authority's owner loop moved to service_runtime.cc",
+      "reason": "ready at Detent:9337f6c9",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T17:45:59",
+      "updated": "2026-11-24T17:54:37",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
