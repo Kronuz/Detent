@@ -5156,6 +5156,21 @@
         "todo": "215589dd"
       },
       "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; new): `campaign set consensus-driver-pipelined-sim status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:37:22",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:37:22",
+      "by": "campaign",
+      "closed": "set to review; its correctness review is already accepted, it waits only on CI 45550615396 for A3",
+      "id": "msg-406",
+      "settles": {
+        "todo": "fa2aeaa9"
+      },
+      "text": "to do, critical path first:\ntodo: review consensus-driver-pipelined-sim (its journal says ready for review (A3: CI run 45407143806 at consensus:8f21d10 was queued when written); then launch its correctness review; listed 32 min): `campaign set consensus-driver-pipelined-sim status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
