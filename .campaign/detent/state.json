@@ -32262,12 +32262,11 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "D163: the seal field on next reaches every file that parses, builds, copies or writes a next body, and the W5 spec",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-25T03:17:10",
+      "updated": "2026-11-25T03:44:24",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
