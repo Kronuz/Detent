@@ -4913,6 +4913,21 @@
         ]
       },
       "text": "consensus-next-deadline-removal landed: unlocks frees CMakeLists.txt, docs/mechanisms/deadlines.md for consensus-driver-pressure-rearm"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T16:59:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T16:59:23",
+      "by": "campaign",
+      "closed": "started; contributor launched",
+      "id": "msg-388",
+      "settles": {
+        "todo": "d40f8561"
+      },
+      "text": "to do, critical path first:\ntodo: start consensus-driver-pressure-rearm (launchable; new): `campaign start consensus-driver-pressure-rearm`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
