@@ -7262,21 +7262,56 @@
         "CMakeLists.txt",
         "docs/mechanisms/deadlines.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-driver-pressure-rearm",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T19:50:56",
+          "ci": {
+            "commit": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+            "runs": [
+              45530717595
+            ]
+          },
+          "commit": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "criteria": {
+            "A1": "261124-180700-10aa9c, 261124-180709-310fda, 261124-180713-57d06f; fails without: 261124-172810-68a7c2, 261124-180717-874feb, 261124-180721-a113e5, 261124-180734-8b1fb2",
+            "A2": "261124-180704-d1df01",
+            "A3": "[artifact] docs/mechanisms/deadlines.md, \"What the Driver re-arms\"",
+            "A4": "261124-180739-63d36e"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-192853-e2d77d",
+              "level": "light",
+              "seconds": 841.4,
+              "state": "done",
+              "what": "consensus-driver-pressure-rearm check suite at c724c589b6cd"
+            }
+          ],
+          "final": true,
+          "from": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "reason": "",
+          "tested": "c724c589b6cdf2a931dd3e512c6acb612ce20cae"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at consensus:e61ac8f",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T19:30:20",
-      "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
+      "updated": "2026-11-24T19:51:01",
+      "worktree": ""
     },
     "consensus-drop-memory-io-include": {
       "accepted": {},
