@@ -78,3 +78,64 @@ Probe scripts are under `.scratch/detent/review-consensus-recovered-over-limit-s
   pre-existing journal behavior outside this quest.
 - This review ran as a subagent, not a session titled
   `detent · reviewer consensus-recovered-over-limit-start correctness`.
+
+## Round 2
+
+Commit: consensus:53c8146
+Verdict: APPROVE
+Date: 2026-11-24
+
+### Evidence I relied on
+
+- 261124-204315-ae3e15 (`reclaims`, 17 checks, 0 failures) and 261124-204318-1b1244 (`refuses`,
+  12 checks, 0 failures), both at 53c8146.
+- 261124-204309-3eda32 (`owned` at 53c8146: 4 reclaim steps over 3 files, 7 checks, 0 failures).
+- 261124-204312-01c44d (`owned` at mutant consensus:073e643, which is main's worker.h and driver.h
+  plus the `over_headroom` name, checked with `git diff main 073e643 -- include`). It exits 1 with
+  0 reclaim steps, on "the first refused turn reclaims instead of answering Pressure" and "one step
+  per directory entry". That is the stated reason, and not a build failure: main's Worker has
+  `accounting()` at worker.h:242.
+- 261124-204331-0201ac (the suite at 53c8146: 179 of 179 tests).
+
+### What I checked myself
+
+- **Whole mechanism.** `include/` is unchanged from d03a71b (`git diff d03a71b 53c8146 --stat`), so
+  round 1's state and event check of the pre-Start reclaim still holds:
+  - the states are not reclaimed, async reclaim in flight, reclaimed, started, fenced and closing;
+  - the events are a Pressure turn, a pass completing, a reclaim error (it fences with its own
+    text), Start admitted, and close (retirement never returns Pressure).
+  
+  There is no loop, no starvation, no reclaim after Start, and no fence of a store that would have
+  started.
+- **The table, row by row, at Detent:05ff6b29.**
+  1. Row 1 is right: a lowered `hard` or a raised `control_pool` lands both modes above the
+     headroom. A raised replacement pool does not, because refill is control first.
+  2. Row 2 is right: a Host group cannot reach it (journal.h:136, store.h:78). An owned store gets
+     Pressure and no fence, and Start is still admitted (admission.h, Start plans nothing). The
+     `owned` case's last check shows this by a run. Detent's authority starts (service_runtime.cc:
+     871-873).
+  3. Rows 3-4 are right: each happens only on top of row 1 (Host) or rows 1-2 (owned). What a crash
+     leaves is at most the outstanding Replacement peak, which was funded under the pools in force.
+  4. Row 5 is right.
+  
+  The closing summary and deadlines.md now match the code and the three cases.
+- **The `owned` case** checks by value that:
+  - the recovered control pool is 0;
+  - the first refused turn is Maintenance;
+  - the step count is between 2 and files + 2;
+  - Pressure is final over 8 more turns;
+  - nothing is fenced or removed, and `used` is unchanged;
+  - Start is accepted.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | no | gap | Resolved: the table, test comments and deadlines.md are stated by mode and match the code. | Detent:05ff6b29 journal table; consensus:53c8146 docs/mechanisms/deadlines.md | None. |
+| F2 | no | defect | Tracked as quest journal-recovery-refill. Row 2 points to it. | round 1 probe 261124-202348-6f464f | In that quest. |
+| F3 | no | gap | Resolved: `owned` covers the synchronous branch, and its fails-without fails for the stated reason. | 261124-204309-3eda32, 261124-204312-01c44d | None. |
+| F4 | no | nit | `owned` reclaims nothing (all 3 files are live), so the synchronous branch's credit and refill after a removal is not shown by a run. It is the same `reclaim_step` call that maintenance already makes. | test/recovered_over_limit_test.cc `owned` | Optional: stage an orphaned artifact so the pass removes one, and check that `used` drops. |
+
+### Not run
+
+- CI at 53c8146; A4's gate is the lead's.
