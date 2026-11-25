@@ -22,7 +22,8 @@ add_executable(first_read_core "$root/tests/detent_system/first_read_phases.cc")
 target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
 target_link_libraries(first_read_core PRIVATE detent::reader)
 add_executable(first_read_phases "$root/tests/detent_system/first_read_phases.cc")
-target_link_libraries(first_read_phases PRIVATE detent::local_client detent::testing_store)
+target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(first_read_phases PRIVATE detent::local_view detent::testing_store)
 EOF
 	echo "cmake_language(DEFER CALL include \"$out/targets.cmake\")" > "$out/defer.cmake"
 	for arm in old new; do
