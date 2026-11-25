@@ -19713,7 +19713,32 @@
       "worktree": ""
     },
     "journal-recovery-refill": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T21:45:50",
+          "base": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "blobs": {
+            "docs/mechanisms/admission.md": "100644:839f74e45a38df0ce28b2ef34ab74a57e84d89de",
+            "include/journal/admission.h": "100644:9078cfa4b868b5d28a4ad2a09f5b76757455c778",
+            "test/admission_mutants.py": "100755:4200a8e4e9e50869ae2fbc2da323d2522f11764d",
+            "test/admission_test.cc": "100644:4fb942b5253afe1bc2be27082c15a9a8a3c60cf1"
+          },
+          "by": "review",
+          "commit": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "criteria": "96416d5d49fa57c7",
+          "diffs": {
+            "docs/mechanisms/admission.md": "d8fa371c1fec763c",
+            "include/journal/admission.h": "7d82f42a00dfa646",
+            "test/admission_mutants.py": "609af627dcef04a2",
+            "test/admission_test.cc": "a69162b7695f6226"
+          },
+          "findings": {},
+          "note": "",
+          "review": "c3fb2c477ec45536a2856db81ca4386a7908b568",
+          "reviewed": "46a7a31177cddf4e16007ecb42ec55246323987a",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
       "branch": "quest/detent/journal-recovery-refill",
@@ -19749,7 +19774,7 @@
       "risk": "high",
       "status": "review",
       "title": "a crash never wedges an owned store: recovery refills replacement before it can fund a checkpoint",
-      "updated": "2026-11-24T20:48:11",
+      "updated": "2026-11-24T21:45:50",
       "worktree": "../journal-wt/detent/journal-recovery-refill"
     },
     "journal-reopen-closed": {
