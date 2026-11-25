@@ -5720,6 +5720,21 @@
         "todo": "399ac7ca"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-inline-sync-loop (nothing moved it for 2 h: ready for review (round 3, R3-F1; jobs queued: 261125-051305-f2273d 261125-051306-10a35a 261125-051308-8a339c 261125-051310-b290d2 261125-051312-fd91ad 261125-051313-0412f3 261125-051315-1359b6 261125-051316-363c84 261125-051318-738a52; CI 45621393108); to land: criteria without evidence at 80540ca61cf5: A1-A2, A5-A6 (`campaign status consensus-inline-sync-loop` lists them); new): `campaign status consensus-inline-sync-loop`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T07:34:10",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T07:34:10",
+      "by": "campaign",
+      "closed": "results read and recorded in HANDOFF.md; contributor resumes after the quota reset (99% used)",
+      "id": "msg-445",
+      "settles": {
+        "todo": "dbe30923"
+      },
+      "text": "to do, critical path first:\ntodo: resume persistent-map-adoption (its journal waits on jobs 261125-055021-ea057c, 261125-055028-de0f76, 261125-055647-e5334d, 261125-055718-b49932, 261125-055733-bfba29 and 261125-055734-d461d7, which ended (done, failed) 2 min ago; new): `campaign status persistent-map-adoption`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
