@@ -8020,19 +8020,68 @@
         "docs/mechanisms/rpc*.md",
         "docs/mechanisms/transport*.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-oversize-abort",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T20:59:27",
+          "ci": {
+            "carried": true,
+            "commit": "afe0d312c3c6a636d8330d491b609c629d0e08b2",
+            "runs": [
+              45537067121
+            ]
+          },
+          "commit": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+          "criteria": {
+            "A1": "261124-190014-9de627 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190016-5b17fc (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190018-dd2ea2 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190020-ce04d3 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190023-427796 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190021-1c07c7 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190013-3f0e24 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190025-62d7c8 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files); fails without: 261124-123054-1bea5f, 261124-151258-073436, 261124-151300-44e305, 261124-151302-d24b61, 261124-151304-e49b9a, 261124-151306-086ff4, 261124-165224-4e171d, 261124-190037-d07256, 261124-190039-182c0d, 261124-190041-99193f, 261124-190042-eb913a, 261124-190044-61b5b9, 261124-190046-870cce, 261124-190048-2689f9, 261124-190051-bc3346",
+            "A2": "261124-190103-461c74 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files)",
+            "A3": "[artifact] docs/mechanisms/rpc-lane.md: the fetch bullet and \"A fetch whose connection ends\" (two tables: each way a connection ends x the redial's outcome, the caller's code and time), consensus:afec3fe, 87cb821",
+            "A4": "261124-190605-a9d260 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files), 261124-190107-8ece74 (passed at afe0d312c3c6; only 1 merge from main since, none touching its files)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "afe0d312c3c6a636d8330d491b609c629d0e08b2",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-190605-a9d260",
+              "level": "light",
+              "seconds": 1277.2,
+              "state": "done",
+              "what": "consensus-fetch-oversize-abort check suite at afe0d312c3c6"
+            }
+          ],
+          "final": true,
+          "from": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "reason": "",
+          "tested": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d"
+        }
+      ],
       "lenses": [],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-24T09:24:45",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "answered": "a3ccfe230a2b",
+          "at": "2026-11-24T09:24:45",
+          "by": "lead",
+          "id": "msg-1",
+          "text": "Lead ruling: reproduce on CI's macos-x86_64 with a probe branch looping rpc_host_fetch, plus the d659f76 counters; name why the Bulk link stalls, then fix it. Quest file re-scoped (Outcome). No quarantine, and no landing of counters alone."
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at consensus:ea48bc8",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "rpc_host_fetch on macOS: an oversize fetch ends connection_aborted, not message_size, and takes a concurrent fetch with it",
-      "updated": "2026-11-24T14:14:13",
-      "worktree": "../consensus-wt/detent/consensus-fetch-oversize-abort"
+      "updated": "2026-11-24T20:59:31",
+      "worktree": ""
     },
     "consensus-follower-read": {
       "accepted": {
