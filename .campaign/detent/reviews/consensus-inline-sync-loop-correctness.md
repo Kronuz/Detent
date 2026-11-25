@@ -256,3 +256,6 @@ Date: 2026-11-25
 
 - The suite job 261125-051315-1359b6 (queued) and CI macos-x86_64 at 624bebe (running): their
   results are not in this round.
+
+Round 4 addendum: CI 45621393108 finished all green at 624bebe, macos-x86_64 included. That
+settles A4 at this commit. The verdict stays CHANGES for R4-F1.
