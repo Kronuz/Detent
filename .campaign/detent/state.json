@@ -8000,7 +8000,28 @@
       "worktree": ""
     },
     "consensus-fetch-alongside-loop-stall": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-25T00:11:54",
+          "base": "b4516ee01e41e8d14afa1d7b26a5720ced39b557",
+          "blobs": {
+            "test/transport/groups_test.cc": "100644:ec9640469746099450687140a904b74ecb28abe6",
+            "test/transport/rpc_host_test.cc": "100644:5169ada64c634904c60d33ecd020fe08ab726f7f"
+          },
+          "by": "review",
+          "commit": "0d8263dea24c1caf65be5381ff59c4749979c440",
+          "criteria": "3c2c053c337f4f02",
+          "diffs": {
+            "test/transport/groups_test.cc": "7953d68a3408d6fb",
+            "test/transport/rpc_host_test.cc": "f95dc74ccb0fb5c9"
+          },
+          "findings": {},
+          "note": "",
+          "review": "4ffcac226441fb87a670025490c5185971130edc",
+          "reviewed": "0d8263dea24c1caf65be5381ff59c4749979c440",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "xapiand:consensus-join-v2"
       ],
@@ -8024,7 +8045,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-alongside-loop-stall",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "messages": [
         {
           "announced": {
@@ -8046,7 +8069,7 @@
       "risk": "normal",
       "status": "review",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T22:00:12",
+      "updated": "2026-11-25T00:11:54",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
     },
     "consensus-fetch-lane": {
