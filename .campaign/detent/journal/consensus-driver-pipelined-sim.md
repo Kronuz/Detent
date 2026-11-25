@@ -31,7 +31,7 @@ No message (msg-N) is listed.
 |---|---|
 | A1 | 261124-054533-5b8358 (default cycle, 60 seeds), 261124-054538-eaf00b (depth 4), 261124-054541-b8f48a (depth 16), 261124-054535-246acf (depth 1: 0 extending appends) |
 | A2 | 261124-054533-5b8358; fails without: 261124-054544-8ae5fe (`ack-tip`, pipelining-specific; survives depth 1: 261124-054547-32f2aa), 261124-052358-086ed2 (`ack-tip` at 19c0727), 261124-020921-0e0ba5 (`overlap`), 261124-020925-4954e1 (`previous-term`) |
-| A3 | `ci:ci`: CI run 45407143806 at 8f21d10 (queued when written) |
+| A3 | `ci:ci`: CI run 45550615396 at 977b94e, green on every job (macos-x86_64 included) |
 
 ## Result
 
