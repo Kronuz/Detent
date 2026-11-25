@@ -5363,6 +5363,26 @@
         "todo": "8d946872"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-fetch-alongside-loop-stall (nothing moved it for 2 h: ready for review (correctness CHANGES F1-F3 folded in at consensus:0d8263d; jobs queued: 261124-232245-034e6c 261124-232249-6e4d93 261124-232254-7d11cf 261124-232254-6b4d7b 261124-232255-8bc466 261124-232255-0a3ff3 261124-232300-fe7353; CI 45567716437); to land: criteria without evidence at 217481b63fbf: A1-A4 (`campaign status consensus-fetch-alongside-loop-stall` lists them); new): `campaign status consensus-fetch-alongside-loop-stall`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T22:01:07",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T22:01:06",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-407",
+      "items": {
+        "driver-pipeline": "driver-pipeline"
+      },
+      "settles": {
+        "start": [
+          "driver-pipeline"
+        ]
+      },
+      "text": "consensus-driver-pipelined-sim landed: unlocks driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -8091,8 +8111,42 @@
         "docs/mechanisms/transport*.md",
         "test/transport/rpc_host_test.cc"
       ],
-      "journal": "../Detent-wt/detent/consensus-fetch-alongside-loop-stall",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-25T01:27:01",
+          "ci": {
+            "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+            "runs": [
+              45577085586
+            ]
+          },
+          "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "criteria": {
+            "A1": "manual (who: the lead, 2026-11-25; checked: the reproductions run on pre-fix code by design. groups job ...232245-034e6c at consensus:43ebf5f, the reader still building on the loop, gave CI's link signature; rpc_host jobs ...215634-5e9c39 and ...215638-369ffc at consensus:ee77b26 gave 1537 and 3552 ms gaps against CI's 1564 and 3746-3765 ms with no link ended. At the fix the same knobs no longer stall the loop (reruns ...cb3ac9 and ...caeef6 do not reproduce). rpc_host stays not root-caused, F3)",
+            "A2": "261125-003208-be04ab, 261125-003215-e0d10a; fails without: 261124-212704-2b98ad, 261124-215649-56b54a, 261124-232249-6e4d93",
+            "A3": "261125-003205-204d0b, 261125-003211-31ff7e",
+            "A4": "261125-003148-880546"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-003148-880546",
+              "level": "light",
+              "seconds": 1185.5,
+              "state": "done",
+              "what": "consensus-fetch-alongside-loop-stall check suite at 217481b63fbf"
+            }
+          ],
+          "final": true,
+          "from": "6d710cb70a021dae5d9a4152f7a9f0178d6df433",
+          "reason": "",
+          "tested": "217481b63fbf465d82164ee967664d1d1b3f81e8"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -8115,10 +8169,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-25T01:26:13",
-      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
+      "updated": "2026-11-25T01:27:03",
+      "worktree": ""
     },
     "consensus-fetch-lane": {
       "accepted": {
