@@ -195,7 +195,7 @@ At consensus:afe0d31 (round 3: 3cc679f plus main fcf7f66):
 | A1 | Cause: suite probe run 45453078372 (Doing). Tests at the fix: fetch-dead x20 261124-190013-3f0e24; 10 runs each: fetch-partial 261124-190014-9de627, fetch-twice 261124-190016-5b17fc, fetch-gone 261124-190018-dd2ea2, fetch-unverified 261124-190020-ce04d3, fetch-oversize 261124-190021-1c07c7, fetch-removed 261124-190023-427796; fetch-gone under TSan 261124-190025-62d7c8. Fails without: fetch-dead 261124-190037-d07256 (not-asked-again-2 78da004); fetch-gone 261124-190039-182c0d, fetch-unverified 261124-190041-99193f, fetch-removed 261124-190042-eb913a (any-connection-2 da50dba); fetch-partial 261124-190044-61b5b9 (no-clear-2 ef7adf4); fetch-oversize 261124-190046-870cce (oversize-aborts-2 2cae086); fetch-removed 261124-190048-2689f9 (no-again-map-2 9526d3c); TSan fetch-gone with `_exit` 261124-190051-bc3346 (b056286) |
 | A2 | fetch x100 beside 4 burners twice: 261124-190103-461c74, then 261124-190124-05dbe0 (after it) |
 | A3 | [artifact] docs/mechanisms/rpc-lane.md: the fetch bullet and "A fetch whose connection ends" (two tables: each way a connection ends x the redial's outcome, the caller's code and time), consensus:afec3fe, 87cb821 |
-| A4 | suite 261124-190107-8ece74 (45 min) and CI 45537067121 at afe0d31; earlier CI 45521429248 (ce981be), 45507969326 (87cb821): Doing, round 3 |
+| A4 | suite 261124-190107-8ece74 (45 min), gate suite 261124-190605-a9d260 (campaign verify, 30 min) and CI 45537067121 at afe0d31; earlier CI 45521429248 (ce981be), 45507969326 (87cb821): Doing, round 3 |
 
 Not criteria: admission_nodes_boot x200 beside 4 burners at afe0d31 261124-190125-5a681c and
 at main fcf7f66 261124-190127-80b046 (Doing 2).
