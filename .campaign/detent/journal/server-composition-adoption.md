@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261123-085359-8c5054 (A2/A4 daemon, relay, agent tests at the head, since the brief counts the 4ad9fdbf runs as other code); then waiting on pin-wave (task pin) and multi-voter-idle-wake (service.cc for A4's authority half)
+State: waiting on jobs 261125-050908-6d2c22 (build and A2/A4 tests at the merge of main, 99111d8b)
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,6 +18,16 @@ failures; abandon reported as unfinished, exit EX_TEMPFAIL), D125 for relay and 
 secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
+
+000. Round 4 (2026-11-25). 8c5054 (relay, agent, authority daemon tests at 6fc9eb14) passed. CI at ddc4f263
+   was green on every platform but pin-check, so 25458690's failures are fixed (ddc4f263, c218fe2b). pin-wave
+   landed: merged main (99111d8b), took main's cmake/dependencies.json (task pin gone from this branch). Main
+   moved website/ to site/, replaced http's setters with http::Limits and http::Tls (the three services now
+   build one Limits: max_clients, max_in_flight, idle, request, shutdown_grace, max_body), removed
+   defaults.json and `detent get`'s capacity flags: took main's text everywhere, renamed agent.json and
+   relay.json in it. Authority half of A4 (`--authority` to `--config`) stays out: service.cc is split and held
+   by relay-mirror-idle-wake (review), and multi-voter-idle-wake waits behind it. Next: read 6d2c22, then one
+   job per criterion at the final head, push for CI, set ready for review.
 
 00. Round 3. CI at 25458690: macos x2, linux x86_64 clang and gcc, tsan passed (relay SIGTERM fixed). Failed:
    pin-check (task pin, pin-wave's); test_authority_daemon_sigterm on linux asan and arm64-gcc ("1
