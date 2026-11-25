@@ -5315,6 +5315,24 @@
         "todo": "d3e31f77"
       },
       "text": "to do, critical path first:\ntodo: review pin-wave (its journal says ready for review; jobs at Detent:0b8a0df9 queued: A4 native 261124-234933-d07efb, pins 261124-234933-f5eec6, A5 w5 261124-234929-bde848; A6 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; CI at the pushed head; then launch its correctness review; new): `campaign set pin-wave status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T00:24:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T00:24:35",
+      "by": "campaign xapiand",
+      "closed": "consensus-fetch-alongside-loop-stall changes only test/transport/groups_test.cc and rpc_host_test.cc; no API or contract (group-last included) changes",
+      "id": "msg-418",
+      "settles": {
+        "ours": [
+          "consensus-fetch-alongside-loop-stall"
+        ],
+        "quest": "xapiand:strata-journal-behind"
+      },
+      "text": "xapiand:strata-journal-behind started and builds against contract consensus:group-last, which your consensus-fetch-alongside-loop-stall is changing"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
