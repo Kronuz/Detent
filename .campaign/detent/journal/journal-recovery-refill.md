@@ -1,6 +1,6 @@
 # journal-recovery-refill: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/journal-recovery-refill.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-A2: the probe's two cases as `admission_test recovery`, then the rule in admission.h.
+Nothing: round 1 is code-complete at journal:a6fff53 (pushed); its jobs are queued.
 
 ## Next
 
-1. A2 test commit alone (fails-without at main + test), then the fix commit.
-2. A3 docs/mechanisms/admission.md.
-3. A4 suite (`campaign verify --for A4`) and the consensus integration job (`--ref JOURNAL=`).
+1. Read jobs 261124-204657-f2e321, 261124-204700-cfc2f7, 261124-204704-cc5d9e, 261124-204721-cbd3e6 and CI at a6fff53; a correctness review of the claim.
 
 ## Blocked on
 
@@ -64,15 +62,30 @@ Rules weighed:
 | Criterion | Evidence |
 |---|---|
 | A1 | this table and the rule above |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
+| A2 | job 261124-204657-f2e321 (`journal_admission_test`, recovery + claim, at a6fff53); fails-without 261124-204700-cfc2f7 (`recovery` at 10cd1e1: the test over main's admission.h, Replacement(R) refused in both cases) |
+| A3 | journal `docs/mechanisms/admission.md` (Recovery: the rule and its event table), at a6fff53 |
+| A4 | suite 261124-204704-cc5d9e (`campaign verify --for A4`); integration 261124-204721-cbd3e6 (consensus:d03a71b driver_pressure, recovered_over_limit, core_deadline and worker, journal pinned at a6fff53 via `--ref JOURNAL`); CI on the pushed branch |
 
 Probe read: 261124-202348-6f464f (review F2, both cases reproduce at consensus:d03a71b, journal:9e11713).
 
 ## Result
 
-<pending>
+journal:10cd1e1 the test alone; journal:e57078d the rule in `include/journal/admission.h`;
+journal:a6fff53 `docs/mechanisms/admission.md`. A census keeps the control-first split (every store
+opens as today) and gives replacement a claim on control's available bytes,
+`min(R, T) - replacement_available`; a Replacement permit or its growth spends its pool, then the
+claim; a settlement keeps what it took, a cancellation returns it as far as control lacks it,
+refill caps the claim at replacement's deficit. Contract kept: no public API change; a ledger never
+short after its census admits exactly as before.
+
+Local (not evidence): `admission_test` under ASan/UBSan, 4125 checks, 0 failures; five local
+mutants of the rule (no census claim, no grow claim, no cancel return, no lacking cap, no refill
+cap) each fail named `claim`/`recovery` checks.
+
+Leaves open: ARCHITECTURE.md (outside the file set) does not link the new doc; the live
+grown-store shape (replacement short with no crash) is unchanged, as the contract asks.
+
+Not a session of its own: this ran as a subagent, not `detent · contributor journal-recovery-refill`.
 
 ## Rulings I made
 
