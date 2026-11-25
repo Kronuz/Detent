@@ -1,6 +1,6 @@
 # server-composition-adoption: journal
 
-State: waiting on jobs 261125-050908-6d2c22 (build and A2/A4 tests at the merge of main, 99111d8b)
+State: ready for review, except A4's authority half (waits on relay-mirror-idle-wake's service.cc); evidence jobs 261125-061135-284c58 (A2/A4), 261125-061139-04c733 (A3 relay_pages x3), 261125-061143-6a11a1 (A3 docs, site build, links) at the head
 Quest: .campaign/detent/quests/server-composition-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,6 +18,11 @@ failures; abandon reported as unfinished, exit EX_TEMPFAIL), D125 for relay and 
 secrets file), tests for each, docs/mechanisms/server-composition.md complete.
 
 ## Next
+
+0000. 6d2c22 failed only test_system_managed_relay: evidence.py refused 11454 untracked files under website/ in the
+   job slot (left by an earlier docs job; main renamed website/ to site/, whose .gitignore covers them). Not
+   code: removed the stale slot directory and resubmitted at the head (284c58, 04c733, 6a11a1). All other
+   19 tests in 6d2c22 passed, including both SIGTERM tests, dual_stack, relay_service.
 
 000. Round 4 (2026-11-25). 8c5054 (relay, agent, authority daemon tests at 6fc9eb14) passed. CI at ddc4f263
    was green on every platform but pin-check, so 25458690's failures are fixed (ddc4f263, c218fe2b). pin-wave
@@ -100,9 +105,9 @@ Nothing new; the lead's rulings stand. Still true:
 | Criterion | Evidence |
 |---|---|
 | A1 | docs/mechanisms/server-composition.md (the three mains' tables, deviations with owners, tests) |
-| A2 | authority: 261123-061026-3c4e62 (x20 at ddc4f263); relay/agent: 261123-085359-8c5054; earlier: test_authority_daemon_sigterm in 261122-210356-e066ca; relay: test_system_relay_sigterm in 261122-210358-8be4f9 and x20 in 261122-210409-68087b, old classification fails at the same relay in 261122-210411-d3d9f7 (--fails-without); agent: test_system_agent_sigterm in 261122-210358-8be4f9 |
-| A3 | CI 45191385043 at ddc4f263 green on asan, tsan, arm64-gcc, both macOS, linux clang/gcc (pin-check red: pin-wave's task pin); 261123-061028-5a97da (relay_pages x3); 261122-210359-436a7d (authority-only and relay-only builds, docs check, links with no exceptions left); CI at 4ad9fdbf; pin-check red until pin-wave |
-| A4 | 261123-085359-8c5054 at the head; earlier relay and agent: 261122-210356-e066ca (test_relay_config: secrets mode, link, missing, token in main file refused; test_agent_cli, test_agent_secrets_mode) and 261122-210358-8be4f9 (relay started from detent-relay.json plus secrets; managed-process on detent-agent.json plus managed.json). authority: not done, waits on service.cc (multi-voter-idle-wake holds it) |
+| A2 | 261125-061135-284c58 (merge of main); authority: 261123-061026-3c4e62 (x20 at ddc4f263); relay/agent: 261123-085359-8c5054; earlier: test_authority_daemon_sigterm in 261122-210356-e066ca; relay: test_system_relay_sigterm in 261122-210358-8be4f9 and x20 in 261122-210409-68087b, old classification fails at the same relay in 261122-210411-d3d9f7 (--fails-without); agent: test_system_agent_sigterm in 261122-210358-8be4f9 |
+| A3 | 261125-061139-04c733, 261125-061143-6a11a1 at the merge of main; CI 45191385043 at ddc4f263 green on asan, tsan, arm64-gcc, both macOS, linux clang/gcc (pin-check red: pin-wave's task pin); 261123-061028-5a97da (relay_pages x3); 261122-210359-436a7d (authority-only and relay-only builds, docs check, links with no exceptions left); CI at 4ad9fdbf; pin-check red until pin-wave |
+| A4 | 261125-061135-284c58 at the merge of main; 261123-085359-8c5054 before it; earlier relay and agent: 261122-210356-e066ca (test_relay_config: secrets mode, link, missing, token in main file refused; test_agent_cli, test_agent_secrets_mode) and 261122-210358-8be4f9 (relay started from detent-relay.json plus secrets; managed-process on detent-agent.json plus managed.json). authority: not done, waits on service.cc (multi-voter-idle-wake holds it) |
 
 ## Result
 
