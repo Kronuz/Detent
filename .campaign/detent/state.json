@@ -4948,6 +4948,19 @@
         ]
       },
       "text": "split-detent landed: unlocks relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:49:59",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: steady-tests and wait fixes installed (agent-campaign:823373b); nothing for Detent to act on",
+      "id": "msg-390",
+      "notice": "skill landed 823373be53343c6291bff552aabc822f8156461c",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, installed here: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
