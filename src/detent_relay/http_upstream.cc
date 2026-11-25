@@ -17,7 +17,7 @@ namespace {
 using Clock = std::chrono::steady_clock;
 struct Response {
 	unsigned status = 0;
-	bool early = false; // a parked next answered 204 before its wait: the upstream sealed
+	bool early = false; // 204 before the wait (the upstream sealed), or a watch session just opened
 	std::map<std::string, std::string, std::less<>> headers; // lowercase names
 	std::string body;
 	std::string_view header(std::string_view name) const {
@@ -255,15 +255,20 @@ struct HttpUpstream::Impl {
 	// W5's next on `channel`, answered 200 or 204: its session opened on first use and once again
 	// after 410; while the session is busy, up to busy_attempts waits doubling from 1 ms. A wait parks
 	// at most half the timeout, so a source that answers nothing within the timeout is one that hangs.
+	// With `watch`, a session it opens answers an early 204 at once: the upstream stamps it at its
+	// open, which may follow a seal the last sync did not read.
 	Response next(Channel &channel, std::span<const Position> positions, std::chrono::milliseconds wait,
-				  std::stop_token stop = {}) {
+				  std::stop_token stop = {}, bool watch = false) {
 		delivery::Following following;
 		for (const auto &position : positions)
 			following.namespaces.push_back({position.name, position.cursor});
 		constexpr int busy_attempts = 10;
 		for (int expired = 0, busy = 0;;) {
-			if (!channel.session)
+			if (!channel.session) {
 				channel.session = open(channel, following, stop);
+				if (watch)
+					return {204, true, {}, {}};
+			}
 			const auto parked = std::min({wait, channel.session->maximum_wait,
 										  std::chrono::duration_cast<std::chrono::milliseconds>(options.timeout / 2)});
 			const auto body = delivery::namespace_session_body(delivery::SessionResponsePurpose::Next, following,
@@ -400,7 +405,7 @@ bool HttpUpstream::wait(std::span<const Position> positions, std::chrono::millis
 		p.watching.session.reset();
 		p.watching.endpoint = at;
 	}
-	const auto response = p.next(p.watching, positions, limit, stop);
+	const auto response = p.next(p.watching, positions, limit, stop, true);
 	const auto changed = response.status == 200 || response.early;
 	++p.stats.waits;
 	return changed;

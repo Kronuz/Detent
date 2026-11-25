@@ -51,6 +51,7 @@ struct MirrorService::Impl {
 		Clock::time_point used;
 		bool pages = false;
 		std::vector<std::string> records;
+		std::uint64_t seal = 0; // the stamp: the mirror's seal at its last answer, or at its open
 	};
 	std::map<d::Identity, Session> sessions;
 	struct Parked {
@@ -157,6 +158,10 @@ struct MirrorService::Impl {
 		std::lock_guard lock(mutex);
 		++state.answers;
 	}
+	std::uint64_t seal() const { return relay->mirror().table().seal; }
+	// Stamps the session with the mirror's seal: true when the seal moved since its last answer, so
+	// its next, parked or new, answers 204 now (docs/mechanisms/relay-mirror-wait.md).
+	bool restamp(Session &session) const { return std::exchange(session.seal, seal()) != seal(); }
 	// A next's answer now, or false while every followed namespace is current (it waits).
 	bool answer(MirrorJob &job, Session &session) {
 		auto positions = job.positions;
@@ -185,7 +190,7 @@ struct MirrorService::Impl {
 				break;
 			}
 			auto id = random_identity();
-			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records};
+			sessions[id] = {job.principal, job.compressed, false, now, job.pages, job.records, seal()};
 			control(job, 200, "{\"version\":2,\"session\":\"" + hex(id) +
 								  "\",\"wait_ms\":" + std::to_string(options.maximum_wait_ms) + "}");
 			break;
@@ -209,15 +214,17 @@ struct MirrorService::Impl {
 				control(job, 503, "{\"error\":\"source_behind\"}");
 				break;
 			}
+			const bool sealed = restamp(*session);
 			if (answer(job, *session))
 				break;
-			if (!job.wait_ms) {
+			if (sealed || !job.wait_ms) {
 				control(job, 204, {});
 				count_idle();
 				break;
 			}
 			session->busy = true;
 			parked.push_back({held, now + std::chrono::milliseconds(std::min(job.wait_ms, options.maximum_wait_ms))});
+			count_parked();
 			return; // answered by a later sync, or idle at its deadline
 		}
 		case MirrorJob::Kind::Layouts: {
@@ -279,6 +286,10 @@ struct MirrorService::Impl {
 		std::lock_guard lock(mutex);
 		++state.idle;
 	}
+	void count_parked() {
+		std::lock_guard lock(mutex);
+		state.parked = parked.size();
+	}
 	// True when the mirror reached the upstream.
 	bool sync() {
 		try {
@@ -292,6 +303,7 @@ struct MirrorService::Impl {
 			state.reused_files += stats.files.reused_files;
 			state.collected_files += stats.files.collected_files;
 			state.failed_namespaces = relay->mirror().failed().size();
+			state.seal = seal();
 			state.error.clear();
 			return true;
 		} catch (const std::invalid_argument &error) {
@@ -313,7 +325,7 @@ struct MirrorService::Impl {
 	}
 	// Each parked next after a sync: answered when something changed, idle at its deadline, and
 	// idle at once after a seal that moved no head, so a relay reading this one syncs its layouts.
-	void revisit(Clock::time_point now, bool synced, bool resealed) {
+	void revisit(Clock::time_point now, bool synced) {
 		for (std::size_t i = 0; i < parked.size();) {
 			auto &[job, deadline] = parked[i];
 			const auto found = sessions.find(job->session);
@@ -321,7 +333,9 @@ struct MirrorService::Impl {
 			if (!settled && found == sessions.end()) {
 				control(*job, 410, "{\"error\":\"session_expired\"}");
 				settled = true;
-			} else if (!settled && synced) {
+			}
+			const bool sealed = !settled && restamp(found->second);
+			if (!settled && synced) {
 				try {
 					settled = answer(*job, found->second);
 				} catch (const d::StoragePressure &) {
@@ -334,7 +348,7 @@ struct MirrorService::Impl {
 					settled = true;
 				}
 			}
-			if (!settled && (now >= deadline || resealed)) {
+			if (!settled && (now >= deadline || sealed)) {
 				control(*job, 204, {});
 				count_idle();
 				settled = true;
@@ -349,6 +363,7 @@ struct MirrorService::Impl {
 			parked[i] = std::move(parked.back());
 			parked.pop_back();
 		}
+		count_parked();
 	}
 	void build_loop() {
 		for (;;) {
@@ -461,11 +476,8 @@ struct MirrorService::Impl {
 				}
 			}
 			const bool synced = !watching && now >= next_sync;
-			bool resealed = false;
 			if (synced) {
-				const auto seal = relay->mirror().table().seal;
 				failing = sync() ? 0 : std::min(failing + 1, 16u);
-				resealed = relay->mirror().table().seal != seal;
 				now = Clock::now();
 				next_sync = now + std::min(options.interval * (1u << failing),
 										   options.reconnect_maximum);
@@ -478,7 +490,7 @@ struct MirrorService::Impl {
 					return !entry.second.busy && now - entry.second.used >= options.idle;
 				});
 			}
-			revisit(now, synced || landed, resealed);
+			revisit(now, synced || landed);
 			std::lock_guard lock(mutex);
 			state.pages = relay->pages();
 		}

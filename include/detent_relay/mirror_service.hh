@@ -62,7 +62,8 @@ struct MirrorStatus {
 	std::uint64_t syncs = 0, sync_failures = 0, entries = 0;
 	std::uint64_t fetched_files = 0, fetched_bytes = 0, reused_files = 0, collected_files = 0;
 	std::uint64_t answers = 0, idle = 0;
-	std::size_t sessions = 0, failed_namespaces = 0;
+	std::uint64_t seal = 0; // the mirror's seal at its last good sync
+	std::size_t sessions = 0, parked = 0, failed_namespaces = 0;
 	PagesStats pages;
 	std::string error;
 };

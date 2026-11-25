@@ -1,5 +1,6 @@
 #include "namespace_sessions.hh"
 #include <stdexcept>
+#include <utility>
 
 namespace detent::authority {
 NamespaceSessions::NamespaceSessions(std::shared_ptr<distribution::StorageLedger> account, SessionLimits limits)
@@ -22,7 +23,7 @@ void NamespaceSessions::erase(Sessions::iterator found) noexcept {
 	sessions_.erase(found);
 }
 SessionResult NamespaceSessions::open(const Identity &id, const SessionPrincipal &principal, bool compression,
-									  Clock::time_point now) {
+									  Clock::time_point now, std::uint64_t seal) {
 	if (id == Identity{} || principal.identity == Digest{} || !principal.policy_epoch)
 		throw std::invalid_argument("invalid session binding");
 	if (sessions_.contains(id))
@@ -34,7 +35,7 @@ SessionResult NamespaceSessions::open(const Identity &id, const SessionPrincipal
 		counted = principals_.emplace(principal.identity, 0).first;
 	try {
 		sessions_.emplace(id, Session{principal, compression, false, false, now + limits_.idle_lifetime,
-									  now + limits_.maximum_lifetime});
+									  now + limits_.maximum_lifetime, seal});
 	} catch (...) {
 		if (!counted->second)
 			principals_.erase(counted);
@@ -58,6 +59,10 @@ SessionResult NamespaceSessions::begin(const Identity &id, const SessionPrincipa
 	session.busy = true;
 	compression = session.compression;
 	return SessionResult::Accepted;
+}
+bool NamespaceSessions::restamp(const Identity &id, std::uint64_t seal) noexcept {
+	auto found = sessions_.find(id);
+	return found != sessions_.end() && std::exchange(found->second.seal, seal) != seal;
 }
 void NamespaceSessions::end(const Identity &id, Clock::time_point now) noexcept {
 	auto found = sessions_.find(id);
