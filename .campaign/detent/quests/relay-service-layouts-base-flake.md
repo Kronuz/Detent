@@ -5,16 +5,12 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+test_relay_service.py:790 (`kinds == {"base", "block", "section"}`) fails intermittently: pin-wave's native job 261125-035857-8ad10f, and 7 earlier jobs on commits without pin-wave's pins (legacy-h, managed-failover and system-failover shards; 261123-175720-145715 among them, cited by relay-service-refused-sync-flake for :782 though it failed at :790). Per pin-wave's journal ruling 28, the authority behaves as designed (D136): its 1 s `seal_after` timer seals at write pace, writes take about 0.5 s, and a base needs a cut, so whether a base appears depends on timing. After this quest the case makes a base deterministically (it drives the cut the base needs), and the check is unchanged (D152).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id), `[manual]` (checked by hand) or `[ci]`
-(CI green at the landed commit) when no job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The case passes 50 of 50 strict runs at the fix, and a run that forces the timing (a `--fails-without` job) fails at main.
+- A2 The suite passes and `ci:ci` is green at the landed commit.
 
 ## Contracts
 
