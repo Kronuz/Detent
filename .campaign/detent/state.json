@@ -5300,6 +5300,21 @@
         "todo": "247f446d"
       },
       "text": "to do, critical path first:\ntodo: answer pin-wave (its journal waits on the lead: blocked on lead: widen tests/detent_relay/CMakeLists.txt for A4 (Blocked on 1); waiting on jobs 261124-234152-ea3a2e 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; it asks: 1. tests/detent_relay/CMakeLists.txt (outside the set) needs one token: line 51, `target_link_libraries(test_relay_chain PRIVATE detent::relay_mirror detent_authority_service faultlab::faultlab)`. test_relay_chain includes cluster_harness.hh, which includes faultlab/faultfs.h since the faultfs port\u2026; new): `campaign status pin-wave`, answer it (`campaign message pin-wave TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:50:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:50:09",
+      "by": "campaign",
+      "closed": "set to review; correctness reviewer launched",
+      "id": "msg-417",
+      "settles": {
+        "todo": "d3e31f77"
+      },
+      "text": "to do, critical path first:\ntodo: review pin-wave (its journal says ready for review; jobs at Detent:0b8a0df9 queued: A4 native 261124-234933-d07efb, pins 261124-234933-f5eec6, A5 w5 261124-234929-bde848; A6 261124-234153-aeac1f 261124-234153-bd757f 261124-234154-1a26bd 261124-234154-693af5 261124-234155-f7710c 261124-234155-00f17f; CI at the pushed head; then launch its correctness review; new): `campaign set pin-wave status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
