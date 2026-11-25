@@ -1,6 +1,6 @@
 # relay-mirror-idle-wake: journal
 
-State: ready for review
+State: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss
 Quest: .campaign/detent/quests/relay-mirror-idle-wake.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,6 +23,10 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
    would hide a real miss, so it is not done. The fix (a per-session seal stamp) changes the wait
    mechanism and needs src/detent_authority/namespace_sessions.{hh,cc}, which are outside the set:
    see Blocked on. Lifecycle table: docs/mechanisms/relay-mirror-seal-stamp.md.
+   Local TSan build (.scratch/build-tsan, CI's flags, `quiet light`), 3 runs at 75021884: the seal
+   reached B in 169 ms, 155 ms and 4264 ms (the third failed :761). The result is bimodal, prompt or
+   at the deadline, never in between, so this is a miss, not a slowdown: a slower build would shift
+   every run.
 2. test_authority_readiness_pressure (tsan): the timeout is `child.wait(timeout=5)` right after
    `child.kill()` (test_multivoter.py:486-487). The process had been SIGKILLed, so no Detent code
    ran during the 5 s; what took the time was the kernel tearing the process down (TSan's shadow
@@ -34,6 +38,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 3. A2 14371c and 702b6d failed at head-1: "the parked next answered 204, not the change". Since N2,
    every seal answers parked nexts 204 (R2-5), and the probe treated a 204 as a failure. The probe
    now parks again after a 204, as a W5 reader does (bench/idle-wakeups/relay_latency.py).
+   Local check (Release, 8 samples at 250 ms, `quiet light`, not evidence): p50 26.7 ms, p99 165.6.
+   A2 is not requeued: the head is not final until the ruling. It is queued at the final head.
 A1 2bfd93 (75021884 vs a69f43a4, 3 x 20 s, exclusive): relay 0.076-0.077% of a core against main
 1.047-1.086%, 0 syncs/s against 3.85-3.9; authority 0.121-0.127% against 1.487-1.53%, 4.8 owner
 turns/s against 20.1-20.4. Net -2.39% of a core per relay and authority pair = 2,065 core-s a day
