@@ -118,3 +118,64 @@ Answers to the lead's questions:
   probe's ledger-level refusal, and it does not block.
 - This review ran as a subagent, not a session titled
   `detent · reviewer journal-recovery-refill correctness`.
+
+## Round 2
+
+Commit: journal:46a7a31177cddf4e16007ecb42ec55246323987a
+Verdict: APPROVE
+Date: 2026-11-24
+
+The fix round changes only tests and docs. `git diff a6fff53..46a7a31 -- include/` is empty, so
+this round re-checks the whole claim mechanism, every event in the doc's table, against the same
+code with the new tests.
+
+### Evidence I relied on
+
+- 261124-213010-aaea95 (A2, `admission_test` at 46a7a31): 3650586 checks, 0 failures.
+  261124-213014-836945 (`short_schedules`) and 261124-213017-d8c48c (`claim`) passed.
+- 261124-213046-c80acd (suite): 106 of 106 passed.
+- 261124-213048-5a3b35 (integration): consensus:be18ad9 with journal pinned at 46a7a31 through
+  `--ref JOURNAL`; 9 of 9 passed.
+- Each fails-without fails at its named check:
+  1. 261124-213022-4bd2fc, cap-ignores-held: 19 failures, "replacement never passes its pool".
+  2. 261124-213026-23aa96, take-ignores-control: 1 failure, the ledger's own "resource vector
+     subtraction underflow" exception. A take beyond control can surface only there.
+  3. 261124-213029-039f92, grow-unrecorded: 139 failures, "reserve, grow and cancel round-trip
+     the ledger".
+  4. 261124-213033-a6b133, lacking-ignores-held: 130 failures, "control never passes its pool".
+  5. 261124-213037-283680, claim-is-deficit: 1 failure, "the claim is min(R, T) minus
+     replacement's share, not its whole deficit".
+- Slot safety: `test/admission_mutants.py` edits the header in the quest's shared slot and does
+  not restore it. The runner resets every slot job with `checkout --force` and refuses a dirty
+  slot (campaign runner.py `prepare`), so later jobs there run on the commit's own header.
+
+### What I checked myself
+
+- 261124-213549-4b64a1 (`run.sh mutants` at 46a7a31): the new `admission_test` kills all ten of
+  my mutants, including the four that survived round 1 and claim-is-deficit.
+- 261124-213550-46741c (`run.sh probe` at 46a7a31): 50480414 checks, 0 failures. The traces
+  against main are identical where the quest claims no change (906000 lines each on a whole
+  census and with no Replacement work); on a short census with Replacement work, 11065 lines
+  differ, as they should.
+- `short_schedules` checks the public pool bounds against the live permits' peaks, the hard
+  limit, taint, and the cancel round trip, over 3000 seeds that include reopens. The F3 case in
+  `claim` pins the census formula by value: T < C, a reclaim, then Replacement(150) is refused
+  and Replacement(100) takes exactly the claim.
+- F2 ruling (keep): admission.md now states the trade and names consensus `request_install`.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | no | gap | Closed: `short_schedules` kills the four mutants. | 261124-213022-4bd2fc, -213026-23aa96, -213029-039f92, -213033-a6b133; 261124-213549-4b64a1 | None. |
+| F2 | no | nit | Closed by the lead's ruling to keep the trade, which the doc now states. | docs/mechanisms/admission.md Recovery | None. |
+| F3 | no | nit | Closed: the census formula is pinned by value. | 261124-213037-283680 | None. |
+| F4 | no | nit | Open, deferred: the lead adds the ARCHITECTURE.md link after landing. | lead's message | After landing. |
+| F5 | no | nit | `take-ignores-control` is killed only by the ledger's underflow exception, not by a named check. It is still a kill, and an overdrawn control can show up nowhere else. | 261124-213026-23aa96 | None needed. |
+
+### Not run
+
+- CI at 46a7a31 and the sanitizer builds are CI's.
+- Consensus tests beyond the integration job's set, as in round 1.
+- This review ran as a subagent, not a session titled
+  `detent · reviewer journal-recovery-refill correctness`.
