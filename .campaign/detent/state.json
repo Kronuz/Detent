@@ -5765,6 +5765,36 @@
         "todo": "61cb3713"
       },
       "text": "to do, critical path first:\ntodo: resume persistent-map-adoption (its journal waits on jobs 261125-055021-ea057c, 261125-055028-de0f76, 261125-055647-e5334d, 261125-055718-b49932, 261125-055733-bfba29 and 261125-055734-d461d7, which ended (done, failed) 12 min ago; listed 10 min): `campaign status persistent-map-adoption`, read them, or park it with a reason\ntodo: finish server-composition-adoption (nothing moved it for 2 h: ready for review, except A4's authority half (waits on relay-mirror-idle-wake's service.cc); evidence jobs 261125-061135-284c58 (A2/A4), 261125-061139-04c733 (A3 relay_pages x3), 261125-061143-6a11a1 (A3 docs, site build, links) at the head; to land: main changed 12 files since quest/detent/server-composition-adoption branched (e.g. docs/measurements/warm-relay-agent-boot/boot.py): merge main into it (`campaign land server-composition-adoption --merge-main`); listed 5 min): `campaign land server-composition-adoption --merge-main`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T04:57:58",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T04:57:58",
+      "by": "campaign",
+      "closed": "superseded",
+      "id": "msg-432",
+      "items": {
+        "consensus-replica-delete": "frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete",
+        "consensus-transport-budgets": "frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets",
+        "driver-pipeline": "driver-pipeline",
+        "multi-voter-idle-wake": "multi-voter-idle-wake (until pin-wave met: `campaign set multi-voter-idle-wake status=active`)",
+        "server-composition-adoption": "server-composition-adoption (until pin-wave met: `campaign set server-composition-adoption status=active`)",
+        "split-consensus": "frees include/consensus/**, test/** for split-consensus"
+      },
+      "settles": {
+        "start": [
+          "consensus-replica-delete",
+          "consensus-transport-budgets",
+          "driver-pipeline",
+          "multi-voter-idle-wake",
+          "server-composition-adoption",
+          "split-consensus"
+        ]
+      },
+      "text": "pin-wave landed: unlocks multi-voter-idle-wake (until pin-wave met: `campaign set multi-voter-idle-wake status=active`); server-composition-adoption (until pin-wave met: `campaign set server-composition-adoption status=active`); frees include/consensus/**, src/**, test/**, docs/mechanisms/** for consensus-replica-delete; frees include/consensus/transport/**, test/transport/**, docs/mechanisms/** for consensus-transport-budgets; frees include/consensus/**, test/** for split-consensus; driver-pipeline"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -9321,8 +9351,39 @@
         "bench/netlab/**",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/consensus-inline-sync-loop",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-25T08:00:54",
+          "ci": {
+            "commit": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3",
+            "runs": [
+              45633096498
+            ]
+          },
+          "commit": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3",
+          "criteria": {
+            "A1": "261125-071727-9dab9b; fails without: 261125-014240-315596, 261125-022319-78e2a5, 261125-040054-7adede, 261125-051310-b290d2",
+            "A2": "261125-071734-376a14, 261125-071739-99997f; fails without: 261125-022340-33344a",
+            "A3": "[artifact] docs/DRIVER.md \"Where syncs run\" (consensus:624bebe): native and InlineCompletion, where a sync runs and whether the loop turns; a busy Core does not drive, so a leader's own slow sync costs its term on any completion, a follower's holds only it; a Driver on a link loop syncs off the loop on the native completion; what an inline sync there costs. docs/mechanisms/host-transport.md Placement points to it",
+            "A4": "`ci:ci` (CI run 45621393108 at 624bebe)",
+            "A5": "261125-071729-0e48aa, 261125-071731-b9d4b9, 261125-071720-27cbfc, 261125-071722-224dcc, 261125-071725-256d07; fails without: 261125-051306-10a35a",
+            "A6": "261125-071736-802e60"
+          },
+          "evidence": [
+            {
+              "check": "ci",
+              "ci": "ci:ci",
+              "commit": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "217481b63fbf465d82164ee967664d1d1b3f81e8",
+          "reason": "",
+          "tested": "80540ca61cf5deef48a42e0c2fed88fcf9f6e2d3"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
@@ -9346,10 +9407,10 @@
       "reason": "R4-F1: fetch-alongside-leader-sync gets its ctest entry (one word in the groups case list)",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T08:00:34",
-      "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
+      "updated": "2026-11-25T08:00:57",
+      "worktree": ""
     },
     "consensus-install-test-faultfs": {
       "accepted": {},
