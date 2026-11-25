@@ -3,6 +3,7 @@
 #include "detent_distribution/storage.hh"
 #include "detent_local/disk_store.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/layout.hh"
 #include "detent_local/store_table.hh"
 #include <algorithm>
 #include <array>
@@ -14,6 +15,7 @@
 #include <memory>
 #include <sha256.h>
 #include <optional>
+#include <span>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -349,6 +351,104 @@ void mutations() {
 	}
 	std::printf("table mutations: %zu cases, %zu refused at the read\n", cases, refused);
 }
+
+// The table's layout offsets: the index's first record, the pages' first byte, and the page count.
+struct Layout {
+	std::size_t pages, pages_begin;
+};
+Layout layout_of(const std::vector<char> &bytes) {
+	const auto pages = std::size_t(l::read_integer(std::span<const char>(bytes), 60, 4));
+	std::size_t at = 72;
+	for (std::size_t k = 0; k < pages; ++k)
+		at += 33 + std::size_t(std::uint8_t(bytes[at + 32]));
+	return {pages, at + 32};
+}
+std::array<char, 32> sha(std::span<const char> bytes) {
+	SHA256 hash;
+	hash.add(bytes.data(), bytes.size());
+	std::array<char, 32> sum{};
+	hash.getHash(reinterpret_cast<unsigned char *>(sum.data()));
+	return sum;
+}
+// Signs every page's digest into its index record, then the table digest over the header and index:
+// a table damaged this way passes every digest, so only the structural checks can refuse it.
+std::vector<char> resign(std::vector<char> bytes) {
+	const auto [pages, begin] = layout_of(bytes);
+	for (std::size_t k = 0, record = 72; k < pages; ++k) {
+		const auto at = begin + k * l::table_page_bytes;
+		if (at >= bytes.size())
+			break; // a body shorter than its index: only the table digest is signed
+		const auto sum = sha(std::span<const char>(bytes).subspan(at, std::min(l::table_page_bytes, bytes.size() - at)));
+		std::copy(sum.begin(), sum.end(), bytes.begin() + std::ptrdiff_t(record));
+		record += 33 + std::size_t(std::uint8_t(bytes[record + 32]));
+	}
+	const auto sum = sha(std::span<const char>(bytes).first(begin - 32));
+	std::copy(sum.begin(), sum.end(), bytes.begin() + std::ptrdiff_t(begin - 32));
+	return bytes;
+}
+
+// Each structural check refuses a table whose digests are all re-signed (correctness review C3): 28
+// entries of 8-byte names fill a page, so 70 entries take three.
+void cross_page() {
+	const auto table = table_of(70);
+	const auto encoded = bytes_of(l::encode_table(table));
+	const auto [pages, begin] = layout_of(encoded);
+	check(pages == 3 && entry_at(encoded, name_of(28)) == begin + l::table_page_bytes, "three pages");
+	check(l::PagedTable(resign(encoded)).decode() == table, "a re-signed whole table reads whole");
+	const auto rename = [](std::vector<char> &bytes, std::size_t at, const std::string &name) {
+		std::copy(name.begin(), name.end(), bytes.begin() + std::ptrdiff_t(at));
+	};
+	{ // Order across pages: page 1 starts with page 0's last name, a duplicate name.
+		auto bytes = encoded;
+		rename(bytes, entry_at(bytes, name_of(28)) + 1, name_of(27));
+		const l::PagedTable paged(resign(std::move(bytes)));
+		check(paged.find(name_of(27)) == table.entries[27], "page 0 keeps answering");
+		check(refuses([&] { paged.find(name_of(29)); }), "a page starting at the previous page's last name refuses");
+		check(refuses([&] { paged.decode(); }), "a duplicate name across pages refuses the whole read");
+	}
+	{ // Page bytes: a body a page and a byte short of its page count refuses at the read.
+		auto bytes = encoded;
+		bytes.resize(begin + l::table_page_bytes * (pages - 1) - 1);
+		check(refuses([&] { l::PagedTable{resign(std::move(bytes))}; }), "a body shorter than its pages refuses");
+	}
+	{ // Index order: two index records' last names swapped.
+		auto bytes = encoded;
+		rename(bytes, 72 + 33, name_of(55));
+		rename(bytes, 72 + 33 + 8 + 33, name_of(27));
+		check(refuses([&] { l::PagedTable{resign(std::move(bytes))}; }), "an index out of order refuses");
+	}
+	{ // Entry count: the header counts one entry fewer than the pages hold.
+		auto bytes = encoded;
+		bytes[15] = 69;
+		const l::PagedTable paged(resign(std::move(bytes)));
+		check(paged.find(name_of(69)) == table.entries[69], "lookups do not count entries");
+		check(refuses([&] { paged.decode(); }), "a wrong entry count refuses the whole read");
+	}
+	{ // Slots: the header's `slots` above the highest slot plus one.
+		auto bytes = encoded;
+		bytes[67] = 71;
+		check(refuses([&] { l::PagedTable(resign(std::move(bytes))).decode(); }), "slots above max + 1 refuses");
+	}
+	{ // An entry's slot at `slots`.
+		auto bytes = encoded;
+		const auto at = entry_at(bytes, name_of(5)) + 1 + 8 + 16 + 16 + 8;
+		bytes[at + 3] = 70;
+		const l::PagedTable paged(resign(std::move(bytes)));
+		check(refuses([&] { paged.find(name_of(5)); }), "an entry's slot at `slots` refuses its page");
+	}
+	{ // Page end: page 0's index record names an earlier last entry than the page holds.
+		auto bytes = encoded;
+		rename(bytes, 72 + 33, name_of(26));
+		const l::PagedTable paged(resign(std::move(bytes)));
+		check(refuses([&] { paged.find(name_of(0)); }), "a page whose last entry is not the index's refuses");
+	}
+	{ // Page padding: a nonzero byte after page 0's zero padding starts.
+		auto bytes = encoded;
+		bytes[begin + l::table_page_bytes - 1] = 1;
+		const l::PagedTable paged(resign(std::move(bytes)));
+		check(refuses([&] { paged.find(name_of(0)); }), "a nonzero byte in a page's padding refuses");
+	}
+}
 } // namespace
 
 int main() {
@@ -361,5 +461,6 @@ int main() {
 	bound();
 	concurrent_first_touch();
 	mutations();
+	cross_page();
 	std::puts("table pages: ok");
 }

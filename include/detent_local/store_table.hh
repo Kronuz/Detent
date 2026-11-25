@@ -83,7 +83,7 @@ class PagedTable {
 	std::optional<TableEntry> find(std::string_view name) const;
 	// Every entry, every page verified, with the checks that span pages.
 	StoreTable decode() const;
-	// Pages hashed so far: a marked page is not hashed again.
+	// Pages verified so far (hashed, digest matching); a marked page is not hashed again.
 	std::size_t page_verifications() const noexcept;
 	// The table digest commits to the header and every page.
 	bool operator==(const PagedTable &other) const noexcept { return digest_ == other.digest_; }
