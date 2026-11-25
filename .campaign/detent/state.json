@@ -5039,6 +5039,21 @@
       "id": "msg-397",
       "notice": "skill installed 415543381cec09bf864b42d067ed8ca5e358e7ab",
       "text": "campaign skill: agent-campaign:4155433 installed here, 9 commits: agent-campaign:8999516 file-holds: set files= refuses widening into a holder's files; agent-campaign:eefeb40 file-holds: format the cross-overlap warning; journal: blocked on cli.py; agent-campaign:c972859 file-holds: set refuses outright; no --force on set; agent-campaign:8b51087 file-holds: journal: waiting on the evidence round; agent-campaign:ed7b2ea file-holds: journal: A1 green; shards pending; agent-campaign:b1820e2 file-holds: a holder that waits for a quest never blocks its start; agent-campaign:8cd3cd6 file-holds: journal: round 2 (A1, A4) submitted; agent-campaign:5e96ecc file-holds: journal moves to the campaign-v3 home; agent-campaign:4155433 Merge branch 'main' into quest/campaign-v3/file-holds"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T19:06:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T19:06:52",
+      "by": "campaign",
+      "closed": "answered as a campaign message; a fresh contributor builds C2",
+      "id": "msg-399",
+      "settles": {
+        "todo": "64ce45e4"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (C2, docs/perf/first-read-1ms.md \"Verified page index\") and widening run_relay_pages.py, dense_reader_measure.py (msg-398); C1, C3, C4 committed at `Detent:08cca469`; waiting on jobs 261124-182421-35bcef 261124-182431-301852 261124-182433-9d39d1 261124-182435-760c57; it asks: 1. Lead: design check of the C2 lifecycle table (docs/perf/first-read-1ms.md \"Verified page index\"). Recommendation: accept; the offsets are written before the release mark and read after its acquire. 2. Lead (msg-398): widen tests/detent_system/run_relay_pages.py and dense_reader_measure.py (patch\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
