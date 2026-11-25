@@ -5240,6 +5240,21 @@
         "todo": "dedbef6c"
       },
       "text": "to do, critical path first:\ntodo: finish relay-mirror-idle-wake (nothing moved it for 3 h: ready for review; to land: criteria without evidence at 6f58aa77ad02: A1-A3, A5 (`campaign status relay-mirror-idle-wake` lists them); new): `campaign status relay-mirror-idle-wake`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T23:13:17",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T23:13:17",
+      "by": "campaign",
+      "closed": "answered on record; contributor resumed",
+      "id": "msg-413",
+      "settles": {
+        "todo": "33d11aa9"
+      },
+      "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md and a ruling on the seal miss; it asks: Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss (CI item 1). Options: - (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on a session whose stamp is older answers 204 at once. A wait that opens its session r\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
