@@ -1,7 +1,9 @@
 #include "detent_relay/configuration.hh"
+#include "detent/config_trust_internal.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
 #include <rapidjson/document.h>
+#include <reactor_tls.h>
 #include <set>
 #include <sha256.h>
 
@@ -46,48 +48,91 @@ std::filesystem::path path(const Value &value, const std::filesystem::path &base
 	auto result = std::filesystem::path(text(value));
 	return (result.is_absolute() ? result : base / result).lexically_normal();
 }
+distribution::Identity identity(const Value &value) {
+	const auto hex = text(value, 32);
+	distribution::Identity out{};
+	auto digit = [](char c) {
+		require((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'), "invalid relay identity digit");
+		return c <= '9' ? c - '0' : c - 'a' + 10;
+	};
+	require(hex.size() == 32, "a relay identity is 32 hex digits");
+	for (std::size_t i = 0; i < out.size(); ++i)
+		out[i] = static_cast<char>(digit(hex[2 * i]) << 4 | digit(hex[2 * i + 1]));
+	require(out != distribution::Identity{}, "zero relay identity");
+	return out;
+}
+// The relay as a W8 reader: its mirror directory, the names it mirrors and the upstream it reads
+// (the authority's voters or another relay), with a credential and no consensus.
+ConfiguredMirror mirror(const Value &object, const std::filesystem::path &base, const std::string &ca) {
+	fields(object, {"directory", "cluster", "namespaces", "upstreams", "hostname", "ca", "token", "interval_ms",
+					"reconnect_maximum_ms", "timeout_ms", "compression", "sessions", "answer_bytes"});
+	ConfiguredMirror result;
+	auto &service = result.service;
+	service.directory = path(field(object, "directory"), base);
+	service.cluster = identity(field(object, "cluster"));
+	const auto &names = field(object, "namespaces");
+	require(names.IsArray() && !names.Empty() && names.Size() <= 4096, "relay mirror namespace count");
+	for (const auto &name : names.GetArray()) {
+		auto value = text(name, 198);
+		require(distribution::valid_namespace_name(value) &&
+					(service.namespaces.empty() || service.namespaces.back() < value),
+				"relay mirror namespaces must be valid names in increasing order");
+		service.namespaces.push_back(std::move(value));
+	}
+	service.interval = std::chrono::milliseconds(number(object, "interval_ms", 250, 1, 60000));
+	service.reconnect_maximum = std::chrono::milliseconds(
+		number(object, "reconnect_maximum_ms", std::max<std::uint64_t>(30000, service.interval.count()),
+			   service.interval.count(), 86400000));
+	service.sessions = number(object, "sessions", service.sessions, 1, 65536);
+	result.answer_bytes = number(object, "answer_bytes", result.answer_bytes, 1024 * 1024, 1ull << 32);
+	auto &upstream = result.upstream;
+	const auto &upstreams = field(object, "upstreams");
+	require(upstreams.IsArray() && !upstreams.Empty() && upstreams.Size() <= 64, "relay mirror upstream count");
+	for (const auto &value : upstreams.GetArray()) {
+		fields(value, {"address", "port"});
+		upstream.endpoints.emplace_back(asio::ip::make_address(text(field(value, "address"), 253)),
+										number(value, "port", 0, 1, 65535));
+	}
+	upstream.hostname = object.HasMember("hostname") ? text(object["hostname"], 253) : "localhost";
+	require(upstream.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay upstream hostname");
+	upstream.token = text(field(object, "token"), 128);
+	require(upstream.token.find_first_of("\r\n") == std::string::npos, "invalid relay upstream token");
+	upstream.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 10000, 1, 600000));
+	if (object.HasMember("compression")) {
+		require(object["compression"].IsBool(), "relay mirror compression is a boolean");
+		upstream.compression = object["compression"].GetBool();
+	}
+	upstream.tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+	reactor::tls::configure(*upstream.tls,
+							{"", "", object.HasMember("ca") ? path(object["ca"], base).string() : ca},
+							reactor::tls::Role::Client);
+	return result;
+}
 } // namespace
-HostOptions load_host_options(const std::filesystem::path &configuration, bool system) {
-	auto bytes = delivery::read_private_configuration(configuration);
+HostOptions load_host_options(const std::filesystem::path &configuration) {
+	auto bytes = detent::internal::read_private_configuration(configuration);
 	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16),
 			"relay configuration JSON bound");
 	rapidjson::Document object;
 	object.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
 																						 bytes.size());
 	require(!object.HasParseError(), "invalid relay configuration JSON");
-	fields(object,
-		   {"address", "port", "hostname", "certificate", "private_key", "ca", "bundles", "credentials",
-			"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits"});
+	fields(object, {"address", "port", "hostname", "certificate", "private_key", "ca", "mirror", "credentials",
+					"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits"});
 	HostOptions result;
 	result.connections = number(object, "connections", result.connections, 1, 65536);
 	if (object.HasMember("service_limits")) {
 		const auto &value = object["service_limits"];
-		fields(value, {"opens", "polls", "closes", "bootstrap_transfers", "catchup_transfers", "sessions",
-					   "per_principal", "idle_ms", "maximum_ms"});
+		fields(value, {"opens", "polls", "closes"});
 		auto &limits = result.service_limits;
 		limits.opens = number(value, "opens", limits.opens, 1, 65536);
 		limits.polls = number(value, "polls", limits.polls, 1, 65536);
 		limits.closes = number(value, "closes", limits.closes, 1, 65536);
-		limits.bootstrap_transfers =
-			number(value, "bootstrap_transfers", std::min(limits.bootstrap_transfers, limits.polls), 1,
-				   limits.polls);
-		limits.catchup_transfers = number(value, "catchup_transfers",
-										  std::min(limits.catchup_transfers, limits.polls), 1, limits.polls);
-		limits.sessions.sessions = number(value, "sessions", limits.sessions.sessions, 1, 65536);
-		limits.sessions.per_principal =
-			number(value, "per_principal", std::min(limits.sessions.per_principal, limits.sessions.sessions),
-				   1, limits.sessions.sessions);
-		limits.sessions.idle_lifetime =
-			std::chrono::milliseconds(number(value, "idle_ms", 60000, 1, 86400000));
-		limits.sessions.maximum_lifetime =
-			std::chrono::milliseconds(number(value, "maximum_ms", 600000, 1, 86400000));
-		require(limits.sessions.maximum_lifetime >= limits.sessions.idle_lifetime,
-				"relay maximum session lifetime must cover idle lifetime");
 	}
 	const auto base = std::filesystem::absolute(configuration).parent_path();
 	if (object.HasMember("address"))
 		result.endpoint.address(asio::ip::make_address(text(object["address"], 253)));
-	result.endpoint.port(number(object, "port", 8318, 1, 65535));
+	result.endpoint.port(number(object, "port", 8318, 0, 65535));
 	if (object.HasMember("hostname"))
 		result.hostname = text(object["hostname"], 253);
 	require(result.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay TLS hostname");
@@ -96,43 +141,10 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 		number(object, "control_bytes", result.control_bytes, 16 * 1024 * 1024, 1ull << 30);
 	result.baseline_bytes = number(object, "baseline_bytes", result.baseline_bytes, 1024 * 1024, 1ull << 30);
 	result.heap_bytes = result.control_bytes + result.baseline_bytes;
-	const auto &bundles = field(object, "bundles");
-	require(bundles.IsArray() && !bundles.Empty() && bundles.Size() <= 256, "relay bundle count");
-	std::set<std::filesystem::path> directories;
-	for (const auto &value : bundles.GetArray()) {
-		fields(value, {"source", "directory", "mode", "cache_bytes", "retained_edges"});
-		auto directory = path(field(value, "directory"), base);
-		require(directories.insert(std::filesystem::weakly_canonical(directory)).second,
-				"duplicate relay durable directory");
-		auto mode = local::StoreOpenMode::ExistingManaged;
-		if (value.HasMember("mode")) {
-			const auto configured = text(value["mode"], 16);
-			require(configured == "existing" || configured == "fresh", "invalid relay store mode");
-			if (configured == "fresh")
-				mode = local::StoreOpenMode::FreshEmpty;
-		}
-		ConfiguredBundle bundle;
-		bundle.source =
-			delivery::load_managed_options(path(field(value, "source"), base), directory, mode, system);
-		require(!bundle.source.delivery_mode_explicit ||
-					bundle.source.coordinator.delivery_mode == delivery::DeliveryMode::Subscription,
-				"relay sources require subscription delivery");
-		bundle.source.coordinator.delivery_mode = delivery::DeliveryMode::Subscription;
-		bundle.source.disk.artifact_mode = 0600;
-		bundle.cache_bytes = number(value, "cache_bytes", bundle.cache_bytes, 1024 * 1024, maximum_heap_bytes);
-		bundle.retained_edges = number(value, "retained_edges", bundle.retained_edges, 1, 256);
-		for (const auto &prior : result.bundles)
-			require(!prior.source.coordinator.source.configured.same_identity(
-						bundle.source.coordinator.source.configured),
-					"duplicate relay bundle identity");
-		for (const auto amount : {bundle.source.heap_bytes, bundle.cache_bytes}) {
-			require(result.heap_bytes <= maximum_heap_bytes &&
-					amount <= maximum_heap_bytes - result.heap_bytes,
-					"relay aggregate heap funding exceeds host limit");
-			result.heap_bytes += amount;
-		}
-		result.bundles.push_back(std::move(bundle));
-	}
+	result.mirror = mirror(field(object, "mirror"), base, result.certificate_authority);
+	require(result.mirror.answer_bytes <= maximum_heap_bytes - result.heap_bytes,
+			"relay aggregate heap funding exceeds host limit");
+	result.heap_bytes += result.mirror.answer_bytes;
 	const auto minimum_heap = result.heap_bytes;
 	result.heap_bytes = number(object, "heap_bytes", minimum_heap, minimum_heap, maximum_heap_bytes);
 	const auto &credentials = field(object, "credentials");
@@ -140,7 +152,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 			"relay credential count");
 	std::set<std::array<unsigned char, 32>> tokens;
 	for (const auto &value : credentials.GetArray()) {
-		fields(value, {"token", "principal", "policy_epoch", "bundles"});
+		fields(value, {"token", "principal", "policy_epoch", "namespaces"});
 		const auto token = text(field(value, "token"), 128);
 		require(token.size() >= 32 && std::all_of(token.begin(), token.end(),
 												  [](unsigned char c) { return c >= 32 && c != 127; }),
@@ -150,36 +162,18 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 		hash.add(token.data(), token.size());
 		hash.getHash(credential.token_hash.data());
 		require(tokens.insert(credential.token_hash).second, "duplicate relay credential token");
-		const auto principal = text(field(value, "principal"), 128);
-		const auto policy = number(value, "policy_epoch", 1, 1, UINT64_MAX);
-		credential.authorization.principal = {distribution::canonical_scope_identity(principal, 1, {}),
-											  policy};
-		const auto &grants = field(value, "bundles");
-		require(grants.IsArray() && !grants.Empty() && grants.Size() <= result.bundles.size(),
-				"relay bundle grants");
-		for (const auto &grant : grants.GetArray()) {
-			require(grant.IsUint() && grant.GetUint() < result.bundles.size(), "invalid relay bundle grant");
-			const auto index = grant.GetUint();
-			const auto &source = result.bundles[index].source;
-			require(source.principal == principal && source.policy_epoch == policy &&
-						!credential.authorization.allows(index),
-					"relay grant principal, policy or duplicate mismatch");
-			credential.authorization.bundles[index / 64] |= std::uint64_t{1} << (index % 64);
-		}
-		class SHA256 fingerprint;
-		constexpr std::string_view domain = "detent-relay-bundle-grants-v1";
-		fingerprint.add(domain.data(), domain.size());
-		for (std::size_t index = 0; index < result.bundles.size(); ++index)
-			if (credential.authorization.allows(index)) {
-				const auto &cursor = result.bundles[index].source.coordinator.source.configured;
-				fingerprint.add(cursor.cluster.data(), cursor.cluster.size());
-				fingerprint.add(cursor.group.data(), cursor.group.size());
-				fingerprint.add(cursor.restore_epoch.data(), cursor.restore_epoch.size());
-				fingerprint.add(cursor.scope.data(), cursor.scope.size());
-			}
-		unsigned char digest[32];
-		fingerprint.getHash(digest);
-		std::copy_n(reinterpret_cast<const char *>(digest), 32, credential.authorization.grants.begin());
+		credential.principal = {distribution::canonical_scope_identity(text(field(value, "principal"), 128), 1, {}),
+								number(value, "policy_epoch", 1, 1, UINT64_MAX)};
+		// W13 patterns for sessions and the history routes.
+		const auto &patterns = field(value, "namespaces");
+		require(patterns.IsArray() && !patterns.Empty() &&
+					patterns.Size() <= distribution::NamespaceGrants::maximum_patterns,
+				"relay namespace grants");
+		std::vector<std::string> owned;
+		for (const auto &pattern : patterns.GetArray())
+			owned.push_back(text(pattern, 200));
+		const std::vector<std::string_view> views(owned.begin(), owned.end());
+		credential.namespaces = std::make_shared<const distribution::NamespaceGrants>(views);
 		result.credentials.push_back(std::move(credential));
 	}
 	std::sort(result.credentials.begin(), result.credentials.end(),

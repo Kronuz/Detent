@@ -48,11 +48,11 @@ Node* owner(const Pair& value) {
     std::abort();
 }
 int attempt(unsigned key, long limit) {
-    detent::BoolDef definition;
+    detent::KnobDef definition;
     std::array<std::string, 3> groups;
     for (unsigned i = 0; i < 3; ++i) {
         groups[i] = std::string(128, 'g'); groups[i].back() = static_cast<char>('0' + i);
-        definition.overrides.emplace(groups[i], i % 2 == 0);
+        definition.overrides.emplace(groups[i], std::int64_t(i % 2 == 0));
     }
     detent::SnapshotPatch patch;
     std::array<unsigned, 40> order;
@@ -77,10 +77,10 @@ int attempt(unsigned key, long limit) {
     for (unsigned i = 0; i < 40; ++i) {
         auto found = patch.knobs.find(name(i * 2));
         check(found != patch.knobs.end() && found->second.has_value());
-        const auto& actual = std::get<detent::BoolDef>(*found->second);
+        const auto& actual = *found->second;
         check(actual.overrides.size() == 3);
         for (unsigned group = 0; group < 3; ++group)
-            check(std::get<bool>(actual.overrides.at(groups[group])) == (group % 2 == 0));
+            check(std::get<std::int64_t>(actual.overrides.at(groups[group])) == (group % 2 == 0));
     }
     patch.knobs.verify();
     return refused ? 0 : 1;

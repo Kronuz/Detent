@@ -1,4 +1,16 @@
-# Active qualification work
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-05) Dense pages is the only active campaign. The owner parks the broader handoff.
+
+# Dense pages
+
+| Piece | Branch | State |
+| --- | --- | --- |
+| Codec, packer and full builds | `phase/dense-pages` | Implementing; codec/packer checkpoint `Detent:8b041fa` |
+| Reads, validation and recovery | `phase/dense-pages-reads` | Implementing in parallel |
+| Deltas and relocation | `phase/dense-pages-deltas` | Implementing in parallel |
+
+The [plan](../PLAN.md) defines the owner's streamlined workflow. The [lead ledger](campaign-lead.md) records evidence and parked work. Whole-feature reviews follow implementation; the architect gives the final merge ruling.
+
+## Earlier qualification evidence (2026-10-29)
 
 **Updated:** 2026-10-29. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
 
@@ -18,7 +30,7 @@
 | Reader metadata capsule | Complete implementation passes correctness checks; 5M fresh-read acceptance fails | [Real publisher trial](../measurements/reader-capsule-managed-5m-20261029/README.md): canonical native 230 passes/one privileged skip; live private 199/200 and canonical 200/200 below 1 ms, stopped 198/200 and 193/200; no adoption |
 | Shared HTTP clients | Qualification active on an isolated candidate | Both framing findings have conditional source approval. Native HTTP tests pass 14/14; the public-pin consumer and main fixture repair each pass six hosted jobs. HTTP adoption remains blocked by costs: the latest paired plain blocking screen retains +13.2% caller CPU for 100K identity responses and about 8–9 microseconds more CPU per small request. Later buffer/socket changes pass all 16 hosted jobs in run 40714309738; their paired cost screen still blocks adoption. The resource candidate remains isolated; HTTP integration does not waive its performance gate. |
 | Storage barriers | Blueprint validated; implementation pending | [Grouped preparation](../STORAGE_BARRIER_ARCHITECTURE.md), preserving file syncs and ownership-before-payload ordering |
-| Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
+| Capacity increases | Raised at a coordinated restart (D141) | `keys`, `state_bytes` and `image_bytes` rise when every voter restarts with larger values; each recorded entry replays under its own limits ([capacity raise](../mechanisms/authority-capacity-raise.md)). Online increases are not planned |
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.
 
@@ -34,9 +46,9 @@ The [extraction checklist](../EXTRACTION_CHECKLIST.md) preserves the remaining r
 4. Keep the complete product suite, permission review and real-process reader checks green before pushing the reader component.
 5. Continue the original release gates after the diagnostic component; do not replace capacity, recovery, extraction or deployment qualification with a profiling result.
 
-## Session quota policy
+## Historical session quota policy (2026-10-29)
 
-Work proceeds serially. Reuse existing binaries and captured evidence before building or measuring again. Use at most one agent at a time, only for a narrow independent review or a measured task that earns its cost. Give that call a small token and experiment budget; do not repeat broad repository surveys. Full suites run at component boundaries, with focused checks for subsequent isolated fixes. Preserve interrupted work and ledgers before resuming it.
+The October session uses serial work and at most one agent. Current execution follows the November handoff and the campaign plan above. Existing binaries and captured evidence remain preferable to duplicate runs; full suites run at component boundaries, with focused checks for isolated fixes.
 
 The authority multi-process fixture requires all nodes to answer health checks before the workload and retries initial startup only after an exited daemon explicitly reports a bind collision (three attempts maximum). A real occupied-port injection exercises recovery and completes snapshot catch-up, failover and restart checks. Main run 40675654919 passes all six required jobs. The isolated public-pin HTTP consumer also passes six required jobs in run 40675608079; this establishes functional qualification for that closure, while its cost gate remains open.
 

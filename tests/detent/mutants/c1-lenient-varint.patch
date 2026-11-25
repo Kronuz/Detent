@@ -1,0 +1,19 @@
+diff --git a/src/detent_local/paged_definition.cc b/src/detent_local/paged_definition.cc
+index c5e229ff..498e63d7 100644
+--- a/src/detent_local/paged_definition.cc
++++ b/src/detent_local/paged_definition.cc
+@@ -25,7 +25,13 @@ std::size_t put_varint(std::span<char> bytes, std::size_t offset, std::uint64_t
+ std::uint64_t get_varint(std::span<const char> bytes, std::size_t &offset) {
+ 	const char *at = bytes.data() + offset;
+ 	std::uint64_t value = 0;
+-	require(leb128::decode(&at, bytes.data() + bytes.size(), value));
++	for (unsigned shift = 0; at != bytes.data() + bytes.size() && shift < 64;) {
++		const auto byte = static_cast<unsigned char>(*at++);
++		value |= std::uint64_t(byte & 0x7f) << shift;
++		shift += 7;
++		if (!(byte & 0x80))
++			break;
++	}
+ 	offset = at - bytes.data();
+ 	return value;
+ }

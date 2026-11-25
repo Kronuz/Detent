@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/namespace_relay.cc b/src/detent_relay/namespace_relay.cc
+index 222dc996..28cbf7a7 100644
+--- a/src/detent_relay/namespace_relay.cc
++++ b/src/detent_relay/namespace_relay.cc
+@@ -187,7 +187,7 @@ SyncStats NamespaceRelay::Impl::attempt(std::span<const std::string> names) {
+ 	const auto answer = upstream.layouts(names);
+ 	const auto &layouts = answer.entries;
+ 	const auto &table = store.table();
+-	if (answer.seal < table.seal)
++	if (false)
+ 		throw UpstreamBehind("relay: the upstream answered a seal older than the mirror's");
+ 	std::vector<std::string> dropped;
+ 	for (const auto &name : names)

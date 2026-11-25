@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(detent LANGUAGES CXX)
 
+# Static dependencies are linked into the shared reader and test-writer libraries.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Default to Release, not CMake's usual empty (unoptimized, unstripped)
 # build type: an empty CMAKE_BUILD_TYPE emits ~5x larger binaries on this
 # codebase (measured: detent-agent 1.15MB -> 242KB Release+stripped) purely
@@ -13,6 +16,11 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Builds without NDEBUG count task frames, so the teardown tests and the hosts' own checks can assert
+# that none stays alive (docs/design/http-coroutines.md T13). Set before any dependency is added:
+# every translation unit of a program must agree (task.hh, ODR).
+add_compile_definitions($<$<NOT:$<CONFIG:Release,RelWithDebInfo,MinSizeRel>>:TASK_COUNT_FRAMES=1>)
 
 # A C++20 language mode does not establish standard-library thread support.
 # libc++ 19 gates jthread behind an explicit experimental-library opt-in.
@@ -35,15 +43,20 @@ endif()
 
 option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
-option(DETENT_BUILD_DISTRIBUTOR "Build the detent distributor server (pulls Asio + the Kronuz http/reactor/cluster stack)" ON)
 option(DETENT_BUILD_RELAY "Build the optional durable relay daemon" OFF)
 option(DETENT_BUILD_MANAGED_AGENT "Build managed binary authority delivery support" ON)
-option(DETENT_BUILD_AUTHORITY "Build the opt-in durable authority against reviewed cluster sources" OFF)
+option(DETENT_BUILD_AUTHORITY "Build detent-authority, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
-option(DETENT_BUILD_PYTHON "Build the Python binding (pybind11, requires Python3 dev headers)" OFF)
-option(DETENT_BUILD_RUST "Build the Rust binding (cxx, requires cargo/rustc)" OFF)
+option(DETENT_BUILD_PYTHON "Build the Python binding (a C extension over libdetent_reader; requires Python3 dev headers)" OFF)
+option(DETENT_BUILD_RUST "Build the Rust binding (over libdetent_reader; requires cargo/rustc)" OFF)
+option(DETENT_INSTALL_TESTING "Build the shared libdetent_reader and libdetent_testing (tests and bindings also build them); `cmake --install --component development` installs them (D149)" OFF)
+# Counts first-read and lookup work (include/detent_local/read_counters.hh); off, it compiles to nothing.
+option(DETENT_READ_COUNTERS "Count directory trust, record opens, table bytes, segment opens, pages verified and bytes hashed" OFF)
+if(DETENT_READ_COUNTERS)
+  add_compile_definitions(DETENT_READ_COUNTERS=1)
+endif()
 
-# Must precede any add_subdirectory() that calls add_test() (detentd/,
+# Must precede any add_subdirectory() that calls add_test() (src/,
 # tests/): CMake only wires a subdirectory's CTestTestfile.cmake into the
 # root aggregate for subdirectories added AFTER enable_testing() runs.
 if(DETENT_BUILD_TESTS)
@@ -60,7 +73,6 @@ include(cmake/DependencyPins.cmake)
 # RapidJSON supplies headers only; keep its legacy build disabled.
 # Compression is shared by all HTTP consumers.
 FetchContent_MakeAvailable(
-  allocators
   rapidjson
   char_classify
   strict_stox
@@ -69,33 +81,52 @@ FetchContent_MakeAvailable(
   sha256
   atomic_shared_ptr
   random_lib
-  compressors)
+  compressors
+  varint)
 
 ########################################################################
 # detent core library
 ########################################################################
 # Populate only the libraries required by this build profile.
-if(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  FetchContent_MakeAvailable(reactor)
+if(DETENT_BUILD_AUTHORITY OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+  FetchContent_MakeAvailable(reactor task)
 endif()
-if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
+if(DETENT_BUILD_AUTHORITY OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(http_lib)
 endif()
-if(DETENT_BUILD_DISTRIBUTOR)
-  FetchContent_MakeAvailable(http_lib cluster generation_cache)
-endif()
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+# completion loads first, with its asio driver: journal, which consensus loads, sets COMPLETION_ASIO OFF.
+set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
+if(DETENT_BUILD_AUTHORITY)
   set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(consensus)
-elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+  FetchContent_MakeAvailable(completion consensus)
+elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(completion)
+endif()
+# faultlab's faultfs: the crash model the authority's power-cut and in-memory cluster tests run on.
+if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_TESTS)
+  FetchContent_MakeAvailable(faultlab)
 endif()
 
 FetchContent_MakeAvailable(detent_logger)
-if(DETENT_BUILD_DISTRIBUTOR)
-  FetchContent_MakeAvailable(http_log)
-endif()
 
+# Limits a shared library to exactly the C functions LIST names, one per line: a version script for
+# GNU ld and lld, an exported-symbols list for Apple ld, both written from LIST at configure time.
+function(detent_export_only target list)
+  file(STRINGS "${list}" names)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${list}")
+  if(APPLE)
+    list(TRANSFORM names PREPEND "_")
+    string(JOIN "\n" text ${names})
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${target}.exports" "${text}\n")
+    target_link_options(${target} PRIVATE "LINKER:-exported_symbols_list,${CMAKE_CURRENT_BINARY_DIR}/${target}.exports")
+  else()
+    string(JOIN "; " text ${names})
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${target}.map" "{ global: ${text}; local: *; };\n")
+    target_link_options(${target} PRIVATE "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
+  endif()
+endfunction()
+
+include(GNUInstallDirs)
 add_subdirectory(src)
 
 if(DETENT_BUILD_EXAMPLES)

@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Reader configuration ACL admission
 
 **State:** Native macOS regression and independent security recheck pass; platform conditions remain.

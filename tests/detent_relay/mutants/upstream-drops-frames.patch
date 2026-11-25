@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/http_upstream.cc b/src/detent_relay/http_upstream.cc
+index 90c26e9d..44b6b0d6 100644
+--- a/src/detent_relay/http_upstream.cc
++++ b/src/detent_relay/http_upstream.cc
+@@ -262,7 +262,7 @@ std::string HttpUpstream::frames(std::span<const Position> positions) {
+ 		const auto body = delivery::namespace_session_body(delivery::SessionResponsePurpose::Next, following,
+ 														   p.options.compression, p.session->id, {});
+ 		auto response = p.exchange("/v2/distribution/session/next", body);
+-		if (response.status == 204)
++		if (response.status == 204 || response.status == 200)
+ 			return d::encode_session_frames(std::nullopt, {});
+ 		if (response.status == 200)
+ 			return p.defragment(response);

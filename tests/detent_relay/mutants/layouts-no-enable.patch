@@ -1,0 +1,13 @@
+diff --git a/src/detent_authority/service_runtime.cc b/src/detent_authority/service_runtime.cc
+index 224490ff..77c5dde1 100644
+--- a/src/detent_authority/service_runtime.cc
++++ b/src/detent_authority/service_runtime.cc
+@@ -1632,7 +1632,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
+ 				// session, which a follower answers only once positions are enabled. A durable leader waits
+ 				// for its history, which cuts the entry's seal 0.
+ 				if (node.worker().role() == kronuz::consensus::Role::Leader && (!node.history() ||
+-					node.history()->ready()) && !node.state().positions_enabled() && now >= enabling_at) {
++					node.history()->ready()) && !node.state().positions_enabled() && false && now >= enabling_at) {
+ 					enabling_at = now + std::chrono::seconds(1);
+ 					AdministrativeCommand enable{options_.node.context, AdministrativeKind::EnablePositions, {}, {},
+ 												 {}, {}};

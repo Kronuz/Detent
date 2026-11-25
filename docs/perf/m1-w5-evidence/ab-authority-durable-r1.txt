@@ -1,0 +1,9 @@
+row                                   old        new  old/new      range    A/A  n  verdict
+load_ms                         665601000  676747000    0.975  0.89-1.04  0.994  7   slower
+durable_ack_ms_per_transaction   33508299   33332995    0.999  0.98-1.02  0.997  7    noise
+checkpoint_ms                   232850000  228948000    1.002  0.95-1.05  0.999  7    noise
+
+runs: old 7, new 7, A/A 7; a ratio above 1 means new is faster
+geomean 0.992 over 3 rows (min 0.975 load_ms; max 1.002 checkpoint_ms)
+per-run geomean: min 0.961, median 0.989, max 1.020 over 7 runs
+A/A geomean 0.997

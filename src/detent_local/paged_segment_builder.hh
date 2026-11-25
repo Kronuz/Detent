@@ -1,18 +1,18 @@
 #pragma once
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
-#include "paged_page_builder.hh"
+#include "paged_packer.hh"
 
 namespace detent::local::detail {
 class SegmentBuilder {
   public:
-	SegmentBuilder(std::shared_ptr<distribution::StorageLedger>, StorageIdentity storage,
-				   GenerationId publication, std::uint64_t ordinal);
+	// The segment's id derives from `publication` and `ordinal` (D8.1).
+	SegmentBuilder(std::shared_ptr<distribution::StorageLedger>, GenerationId publication, std::uint64_t ordinal);
 	~SegmentBuilder();
 	SegmentBuilder(SegmentBuilder &&) noexcept;
 	SegmentBuilder(const SegmentBuilder &) = delete;
-	bool fits(const PageBuilder &) const;
-	void append(const PageBuilder &);
+	bool fits(const SealedPage &) const;
+	void append(const SealedPage &);
 	void step(ValidationBudget &);
 	bool page_ready() const noexcept;
 	paged::Reference reference() const;

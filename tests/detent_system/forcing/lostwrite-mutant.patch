@@ -1,0 +1,51 @@
+diff --git a/tests/detent_authority/test_multivoter.py b/tests/detent_authority/test_multivoter.py
+index d81d4d5c..b3175c92 100644
+--- a/tests/detent_authority/test_multivoter.py
++++ b/tests/detent_authority/test_multivoter.py
+@@ -7,10 +7,12 @@ import http.client
+ import json
+ import os
+ import shutil
++import signal
+ import socket
+ import ssl
+ import subprocess
+ import sys
++import threading
+ import time
+ from collections.abc import Callable
+ from pathlib import Path
+@@ -295,6 +297,10 @@ def main() -> None:
+         lost = http.client.HTTPSConnection(
+             "localhost", ports[index + 3], timeout=2, context=context
+         )
++        # forced window: the leader stalls 4 s, past an election, before it reads the write
++        lost.connect()
++        os.kill(children[index].pid, signal.SIGSTOP)
++        threading.Timer(4, os.kill, (children[index].pid, signal.SIGCONT)).start()
+         try:
+             lost.request(
+                 "POST",
+@@ -311,21 +317,7 @@ def main() -> None:
+                     break
+                 time.sleep(0.02)
+             else:
+-                # A leader deposed before replicating drops the write: unless its reply says
+-                # committed, the outcome is unknown and the same-sequence retry below settles it.
+-                try:
+-                    status = lost.getresponse().status
+-                except (OSError, http.client.HTTPException):
+-                    status = 0
+-                if status == 200:
+-                    _, observed = successful(
+-                        "/v2/read", {"namespace": "ns", "keys": ["ns:key"]}
+-                    )
+-                    assert observed["key_revisions"]["ns:key"] == 2, observed
+-                print(
+-                    f"lost transaction unsettled after 5 s (reply {status})",
+-                    file=sys.stderr,
+-                )
++                raise AssertionError("unconsumed-response transaction did not commit")
+         finally:
+             # Deliberately discard the original HTTP response without reading it.
+             lost.close()

@@ -31,17 +31,16 @@ int main() {
 		}
 	} cleanup{directory};
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
-	l::StorageIdentity storage{}, generation{}, next{};
-	storage.fill('s');
+	l::GenerationId generation{}, next{};
 	generation.fill('g');
 	next.fill('n');
-	l::detail::PagedSnapshotBuilder snapshot(source, storage, generation);
+	l::detail::PagedSnapshotBuilder snapshot(source, generation);
 	while (!snapshot.done()) {
 		l::ValidationBudget b;
 		snapshot.step(b);
 	}
 	auto image = snapshot.take();
-	install(directory, image, storage);
+	install(directory, image);
 	auto heap = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(1024 * 1024);
 	{
@@ -55,24 +54,20 @@ int main() {
 		const auto page = std::size_t(::sysconf(_SC_PAGESIZE));
 		{
 			auto delta = progress(base->descriptor().cursor, heap);
-			l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
+			l::detail::PagedPlanBuilder builder(*base, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
 			}
 			auto plan = builder.take();
 			const auto descriptor = plan.descriptor();
-			const auto name = l::generation_name(next);
-			write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
-			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership({storage, next, descriptor.length, descriptor.checksum, 2}));
-			write(directory / "selected", l::encode_descriptor(descriptor));
+			trusted_records::stage(directory, descriptor, plan.bytes()->view());
 		}
 		std::optional<l::RecoveredGeneration> current;
 		{
 			auto pressure = mappings->admit(mappings->limit() - baseline - page);
 			current.emplace(l::recover_generation(directory, limits, {}, &*base));
-			require(current->view().cursor().revision == 45 && current->view().size() == 2);
+			require(current->view().cursor().position == 45 && current->view().size() == 2);
 			require(current->view().get("app", "count").value() == std::numeric_limits<std::int64_t>::min());
 			current.reset();
 			wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
@@ -95,7 +90,7 @@ int main() {
 		write(directory / names.owner_name(), l::encode_segment_ownership(mismatched));
 		rejects([&] { l::recover_generation(directory, limits, {}, &*current); });
 		write(directory / names.owner_name(), owner);
-		require(current->view().eval("app", "flag", {}, "beta").has_value());
+		require(current->view().get("app", "flag", {}, "beta").has_value());
 		base.reset();
 		const int lease = ::open((directory / (l::generation_name(generation) + ".lease")).c_str(), O_RDWR);
 		require(lease >= 0);
@@ -104,11 +99,11 @@ int main() {
 		{
 			l::GenerationReader reader(directory, limits);
 			require(reader.refresh());
-			require(reader.read_view().cursor().revision == 45);
+			require(reader.read_view().cursor().position == 45);
 			auto delta = progress(current->descriptor().cursor, heap);
 			l::GenerationId later;
 			later.fill('p');
-			l::detail::PagedPlanBuilder builder(*current, delta, later, domain);
+			l::detail::PagedPlanBuilder builder(*current, delta, domain);
 			while (!builder.done()) {
 				l::ValidationBudget b;
 				builder.step(b);
@@ -116,17 +111,12 @@ int main() {
 			{
 				auto plan = builder.take();
 				const auto descriptor = plan.descriptor();
-				const auto name = l::generation_name(later);
-				write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
-				write(directory / (name + ".lease"),
-					  l::encode_generation_ownership(
-						  {storage, later, descriptor.length, descriptor.checksum, 2}));
-				write(directory / "selected", l::encode_descriptor(descriptor));
+				trusted_records::stage(directory, descriptor, plan.bytes()->view());
 			}
 			const auto installed_bytes = mappings->used();
 			auto pressure = mappings->admit(mappings->limit() - installed_bytes - page);
 			require(reader.refresh());
-			require(reader.read_view().cursor().revision == 48 && !reader.refresh());
+			require(reader.read_view().cursor().position == 48 && !reader.refresh());
 			require(reader.read_view().get("app", "count").has_value());
 		}
 		std::filesystem::remove_all(directory);

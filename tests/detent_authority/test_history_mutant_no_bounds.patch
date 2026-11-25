@@ -1,0 +1,12 @@
+diff --git a/src/detent_authority/history.cc b/src/detent_authority/history.cc
+index 08106b52..07d1be3e 100644
+--- a/src/detent_authority/history.cc
++++ b/src/detent_authority/history.cc
+@@ -561,7 +561,6 @@ void History::seal(const State &sealed) {
+ 		std::optional<std::string> table;
+ 		if (step.table)
+ 			table = encode(*step.table);
+-		bounded(step, table, previous);
+ 		Write write;
+ 		write.groups.push_back({{seal_name(step.seal.index), std::move(step.bytes)}}); // In seal order.
+ 		if (!step.written.empty())

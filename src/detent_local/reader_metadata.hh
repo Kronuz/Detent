@@ -5,7 +5,6 @@
 namespace detent::local::detail {
 inline constexpr std::size_t reader_metadata_bytes = prepared_metadata_bytes;
 struct ReaderMetadata {
-	StorageIdentity storage{};
 	GenerationId generation{};
 	paged::Digest root_checksum{};
 	PagedStateCounts counts;
@@ -15,4 +14,6 @@ struct ReaderMetadata {
 std::array<char, reader_metadata_bytes> encode_reader_metadata(const ReaderMetadata &);
 ReaderMetadata decode_reader_metadata(std::span<const char>);
 void validate_reader_metadata_prefix(std::span<const char>, const ReaderMetadata &binding);
+// The SHA-256 of a whole `.read`: what `.live` and the store's table bind.
+paged::Digest reader_metadata_digest(std::span<const char>);
 } // namespace detent::local::detail

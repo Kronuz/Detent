@@ -1,4 +1,5 @@
 #include "service.hh"
+#include "support/handler_harness.hh"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -9,25 +10,25 @@
 
 using namespace detent::authority;
 namespace {
-struct Writer : http::ResponseWriter {
-	int code = 0;
-	std::string body;
-	void status(int c) override { code = c; }
-	void set_header(std::string_view, std::string_view) override {}
-	void write(std::string_view s) override { body += s; }
-	void end() override {}
-	void set_close() override {}
-};
-struct DeferredWriter : Writer {
-	std::shared_ptr<http::detail::DeferredExchange> exchange;
-	std::weak_ptr<void> admission;
-	std::unique_ptr<http::DeferredReply> defer(http::DeferredOptions options) override {
-		admission = options.request_retention;
-		exchange = std::make_shared<http::detail::DeferredExchange>(std::move(options), [] {});
-		return std::make_unique<http::DeferredReply>(exchange);
+using Writer = detent_test::Writer;
+// A reader holds its own request and loop thread, like another connection.
+struct Read {
+	http::Request request;
+	Writer writer;
+	std::unique_ptr<detent_test::Async> run;
+	// The handler is back: the request, with its admission, ends here as a connection's does.
+	void done() {
+		run->finish();
+		request.extension.reset();
 	}
 };
-void wait_released(const DeferredWriter &writer) {
+void start_read(Service &service, Read &read, std::string_view token, std::string_view keys) {
+	read.request.method = "POST";
+	read.request.path = "/v2/read";
+	read.request.headers.emplace_back("Authorization", "Bearer " + std::string(token));
+	read.run = std::make_unique<detent_test::Async>(service, read.request, read.writer, keys);
+}
+void wait_released(const Writer &writer) {
 	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 	while (!writer.admission.expired()) {
 		assert(std::chrono::steady_clock::now() < deadline);
@@ -42,11 +43,13 @@ Writer call(Service &service, std::string path, std::string fields) {
 	r.method = "POST";
 	r.path = std::move(path);
 	r.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-	auto sink = service.on_request_body(r);
-	sink->write("{" + authority + fields + "}");
-	sink->end();
 	Writer w;
-	service.handle(r, w);
+	try {
+		detent_test::run_handler(service, r, w, "{" + authority + fields + "}");
+	} catch (const http::RequestRejected &error) {
+		w.code = error.status(); // what the connection answers
+		w.body = error.what();
+	}
 	return w;
 }
 ServiceOptions options(const std::filesystem::path &directory) {
@@ -59,6 +62,8 @@ ServiceOptions options(const std::filesystem::path &directory) {
 	o.node.configuration.configuration = o.node.context.group;
 	o.node.configuration.local = 1;
 	o.node.configuration.voters = {1};
+	// Core's default timing is the production profile (1-2 s elections); the fixture elects in ~100 ms.
+	o.node.timing = {.heartbeat = 20, .rpc_timeout = 40, .election_min = 100, .election_max = 200};
 	o.credentials.push_back({"0123456789abcdef0123456789abcdef", "writer", {"ns"}});
 	o.timeout = std::chrono::milliseconds(3000);
 	return o;
@@ -68,6 +73,9 @@ int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
 	std::filesystem::create_directories(directory.parent_path());
+	// A crashed earlier run with this pid leaves its state behind; the checks below need none.
+	for (auto suffix : {"", "-read-only", "-admission", ".history", "-read-only.history", "-admission.history"})
+		std::filesystem::remove_all(directory.string() + suffix);
 	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
 		auto invalid = options(directory);
 		invalid.timeout = timeout;
@@ -109,6 +117,99 @@ int main() {
 			} catch (const std::invalid_argument &) {
 			}
 			assert(accepted == (std::string_view(flag) == "true" || std::string_view(flag) == "false"));
+		}
+		// Loads a configuration with extra top-level members; returns the refusal message, or empty.
+		auto refusal = [&](const std::string &extra, ServiceOptions *loaded = nullptr) {
+			{
+				std::ofstream file(config);
+				file << "{" << authority << "\"directory\":\"retained-state\",\"credentials\":[{"
+					 << "\"token\":\"0123456789abcdef0123456789abcdef\",\"producer\":\"agent\","
+					 << "\"namespaces\":[\"ns\"]}]" << extra << "}";
+			}
+			assert(::chmod(config.c_str(), 0600) == 0);
+			try {
+				auto options = load_service_options(config);
+				if (loaded) *loaded = std::move(options);
+				return std::string();
+			} catch (const std::invalid_argument &error) {
+				return std::string(error.what());
+			}
+		};
+		{
+			// A configuration without the object keeps today's envelope: the operating defaults.
+			const kronuz::consensus::Limits defaults;
+			for (const auto *extra : {"", ",\"retained_state\":{}"}) {
+				ServiceOptions loaded;
+				assert(refusal(extra, &loaded).empty());
+				const auto &retained = loaded.node.scheduling.retained;
+				assert(retained.command_bytes == defaults.command_bytes && retained.log_bytes == defaults.log_bytes &&
+					   retained.log_entries == defaults.log_entries && retained.batch_bytes == defaults.rpc_bytes &&
+					   retained.batch_entries == defaults.rpc_entries);
+			}
+			ServiceOptions loaded;
+			assert(refusal(R"(,"retained_state":{"command_bytes":2097152,"log_bytes":100663296,)"
+						   R"("log_entries":131072,"batch_bytes":4194304,"batch_entries":512})",
+						   &loaded).empty());
+			const auto &retained = loaded.node.scheduling.retained;
+			assert(retained.command_bytes == 2097152 && retained.log_bytes == 100663296 &&
+				   retained.log_entries == 131072 && retained.batch_bytes == 4194304 && retained.batch_entries == 512);
+			// Lowering the operating limits leaves the envelope alone.
+			assert(refusal(R"(,"consensus_limits":{"log_entries":64,"log_bytes":2097152})", &loaded).empty());
+			assert(loaded.node.consensus.log_bytes == 2097152 &&
+				   loaded.node.scheduling.retained.log_bytes == defaults.log_bytes &&
+				   loaded.node.scheduling.retained.log_entries == defaults.log_entries);
+			// Each bound sits at its equality boundary with the operating limit, and one below is refused.
+			assert(refusal(R"(,"retained_state":{"log_bytes":67108864})").empty());
+			assert(refusal(R"(,"retained_state":{"log_bytes":67108863})") ==
+				   "authority retained_state.log_bytes 67108863 is below the operating limit 67108864; "
+				   "raise retained_state.log_bytes");
+			assert(refusal(R"(,"retained_state":{"log_entries":65535})") ==
+				   "authority retained_state.log_entries 65535 is below the operating limit 65536; "
+				   "raise retained_state.log_entries");
+			assert(refusal(R"(,"retained_state":{"command_bytes":1048575})") ==
+				   "authority retained_state.command_bytes 1048575 is below the operating limit 1048576; "
+				   "raise retained_state.command_bytes");
+			assert(refusal(R"(,"retained_state":{"batch_bytes":2097151})") ==
+				   "authority retained_state.batch_bytes 2097151 is below the operating limit 2097152; "
+				   "raise retained_state.batch_bytes");
+			assert(refusal(R"(,"retained_state":{"batch_entries":255})") ==
+				   "authority retained_state.batch_entries 255 is below the operating limit 256; "
+				   "raise retained_state.batch_entries");
+			assert(refusal(R"(,"retained_state":{"log_bytes":0})") ==
+				   "authority retained_state.log_bytes 0 is outside 1 to 17179869184");
+			assert(refusal(R"(,"retained_state":{"log_bytes":17179869185})") ==
+				   "authority retained_state.log_bytes 17179869185 is outside 1 to 17179869184");
+			for (const auto *invalid :
+				 {R"({"unknown":1})", R"({"log_bytes":-1})", R"({"log_bytes":"1"})", R"({"log_bytes":1.5})",
+				  R"({"log_bytes":67108864,"log_bytes":67108864})", "null", "[]", "1"}) {
+				assert(!refusal(std::string(",\"retained_state\":") + invalid).empty());
+			}
+		}
+		{
+			// The replacement pool funds the application image, the retained suffix and 4096 bytes.
+			const std::string pool = R"(,"journal_limits":{"replacement_bytes":)";
+			const Limits application;
+			const auto suffix = kronuz::consensus::checkpoint_detail::encoded_bound(
+				{kronuz::consensus::Limits{}.log_entries, kronuz::consensus::Limits{}.log_bytes});
+			const std::uint64_t required = application.image_bytes + suffix + 4096;
+			assert(required == 336931316);
+			assert(refusal(pool + std::to_string(required) + "}").empty());
+			assert(refusal(pool + std::to_string(required - 1) + "}") ==
+				   "authority runtime cannot fund configured limits: the replacement pool holds 336931315 bytes "
+				   "but the application image (" + std::to_string(application.image_bytes) +
+				   ") + the encoded retained suffix (" + std::to_string(suffix) +
+				   ") + the publication allowance (4096) need 336931316, short by 1 byte; raise "
+				   "journal_limits.replacement_bytes, or lower application_limits.image_bytes or "
+				   "retained_state.log_bytes and log_entries");
+			// Lowering the operating limits does not lower the requirement.
+			assert(refusal(R"(,"consensus_limits":{"log_entries":64,"log_bytes":2097152})" + pool +
+						   std::to_string(required - 1) + "}").find("short by 1 byte;") != std::string::npos);
+			// A larger envelope raises it.
+			const auto large = refusal(R"(,"retained_state":{"log_bytes":134217728})" + pool +
+									   std::to_string(required) + "}");
+			assert(large.find("short by 67108864 bytes;") != std::string::npos);
+			assert(refusal(R"(,"retained_state":{"log_bytes":134217728})" + pool +
+						   std::to_string(required + 67108864) + "}").empty());
 		}
 		for (const auto *capacity : {
 			 R"({"keys":5000000,"state_bytes":268435456,"image_bytes":402653184})",
@@ -152,7 +253,7 @@ int main() {
 			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
 			bool rejected = false;
 			try {
-				service.on_request_body(request);
+				request.extension = service.create_extension(request);
 			} catch (const http::RequestRejected &error) {
 				rejected = error.status() == 403;
 			}
@@ -163,13 +264,13 @@ int main() {
 			request.method = "POST";
 			request.path = path;
 			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-			assert(service.on_request_body(request));
+			assert(service.create_extension(request));
 		}
 	}
 	std::filesystem::remove_all(directory.string() + "-read-only");
 	const std::string transaction =
 		"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key\",\"value\":{"
-		"\"type\":\"int\",\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
+		"\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
 	{
 		Service service(options(directory));
 		Writer opened;
@@ -197,13 +298,13 @@ int main() {
 		probe.path = "/v1/health";
 		probe.method = "GET";
 		Writer health;
-		service.handle(probe, health);
+		detent_test::run_handle(service, probe, health);
 		// Publication is bounded to four snapshots per second. Wait for a
 		// settled write to appear rather than asserting against startup data.
 		auto telemetry_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 		for (;;) {
 			health = Writer{};
-			service.handle(probe, health);
+			detent_test::run_handle(service, probe, health);
 			rapidjson::Document sample;
 			sample.Parse(health.body.c_str());
 			assert(!sample.HasParseError() && sample.IsObject());
@@ -233,7 +334,7 @@ int main() {
 		unauthorized.method = "POST";
 		bool rejected = false;
 		try {
-			service.on_request_body(unauthorized);
+			unauthorized.extension = service.create_extension(unauthorized);
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
@@ -245,7 +346,7 @@ int main() {
 			invalid.headers.emplace_back("Authorization", "Bearer " + token);
 			bool denied = false;
 			try {
-				service.on_request_body(invalid);
+				invalid.extension = service.create_extension(invalid);
 			} catch (const http::RequestRejected &error) {
 				denied = true;
 			}
@@ -259,14 +360,14 @@ int main() {
 		for (auto &request : held) {
 			request.path = "/v2/open";
 			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-			service.on_request_body(request);
+			request.extension = service.create_extension(request);
 		}
 		http::Request excess;
 		excess.path = "/v2/open";
 		excess.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
 		bool rejected = false;
 		try {
-			service.on_request_body(excess);
+			excess.extension = service.create_extension(excess);
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
@@ -274,8 +375,8 @@ int main() {
 		held.clear();
 	}
 	std::filesystem::remove_all(directory.string() + "-admission");
-	DeferredWriter delayed;
-	std::optional<http::Response> held_reply;
+	Writer delayed;
+	std::optional<Writer::Held> held_reply;
 	{
 		Service service(options(directory));
 		Writer retained;
@@ -292,38 +393,30 @@ int main() {
 		request.method = "POST";
 		request.path = "/v2/read";
 		request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-		auto sink = service.on_request_body(request);
-		sink->write("{" + authority + "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]}");
-		sink->end();
-		service.handle(request, delayed);
+		detent_test::intake(service, request, "{" + authority + "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]}");
+		detent_test::run_handle(service, request, delayed);
 		assert(delayed.exchange && delayed.code == 0 && delayed.body.empty());
-		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
-		while (delayed.exchange->phase() == http::detail::DeferredExchange::Phase::Waiting &&
-			   std::chrono::steady_clock::now() < deadline) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		}
-		held_reply = delayed.exchange->take_response();
+		held_reply = delayed.pull();
 		assert(held_reply && held_reply->status == 200 &&
 			   held_reply->body.find("\"default\":10") != std::string::npos);
-		request.user_data.reset();
-		sink.reset();
+		request.extension.reset();
 		assert(!delayed.admission.expired());
 		std::string groups;
 		for (unsigned index = 0; index != 40; ++index) {
 			if (!groups.empty()) {
 				groups += ',';
 			}
-			groups += "\"region:group" + std::to_string(index) + "\":true";
+			groups += "\"region:group" + std::to_string(index) + "\":1";
 		}
 		auto wide = call(service, "/v2/transactions",
 						 "\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:"
-						 "wide\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" +
+						 "wide\",\"value\":{\"default\":1,\"overrides\":{" +
 							 groups + "}}}]");
 		assert(wide.code == 200);
 	}
 	assert(!delayed.admission.expired()); // socket IO still owns ingress after service retirement
+	assert(delayed.release(*held_reply));
 	held_reply.reset();
-	assert(delayed.exchange->settle(http::ReplySettlement::Written));
 	assert(delayed.admission.expired());
 	{
 		auto small = options(directory);
@@ -343,28 +436,17 @@ int main() {
 		assert(oversized.code == 413 && oversized.body.find("reply_bound") != std::string::npos);
 		// Counted reads wait for existing egress credit without allocating a
 		// second body. Original write settlement releases the same reservation.
-		auto deferred_read = [&](DeferredWriter &writer) {
-			http::Request request;
-			request.method = "POST";
-			request.path = "/v2/read";
-			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-			auto sink = service.on_request_body(request);
-			sink->write("{" + authority + "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]}");
-			sink->end();
-			service.handle(request, writer);
-			assert(writer.exchange);
+		auto deferred_read = [&](Read &read) {
+			read.request.method = "POST";
+			read.request.path = "/v2/read";
+			read.request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
+			read.run = std::make_unique<detent_test::Async>(
+				service, read.request, read.writer, "{" + authority + "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]}");
 		};
-		auto wait_ready = [](DeferredWriter &writer) {
-			auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-			while (writer.exchange->phase() == http::detail::DeferredExchange::Phase::Waiting) {
-				assert(std::chrono::steady_clock::now() < deadline);
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			}
-		};
-		DeferredWriter first, second;
+		Read first, second;
 		deferred_read(first);
-		wait_ready(first);
-		auto first_body = first.exchange->take_response();
+		first.done();
+		auto first_body = first.writer.pull();
 		assert(first_body && first_body->status == 200);
 		const auto expected = first_body->body;
 		assert(2 * (expected.size() + 256) > 1024);
@@ -375,7 +457,7 @@ int main() {
 		auto quota_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 		for (;;) {
 			Writer writer;
-			service.handle(probe, writer);
+			detent_test::run_handle(service, probe, writer);
 			rapidjson::Document health;
 			health.Parse(writer.body.c_str());
 			assert(!health.HasParseError());
@@ -387,32 +469,28 @@ int main() {
 			assert(std::chrono::steady_clock::now() < quota_deadline);
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
-		assert(second.exchange->phase() == http::detail::DeferredExchange::Phase::Waiting);
+		assert(!second.writer.exchange); // still waiting on the owner for credit
+		assert(first.writer.release(*first_body));
 		first_body.reset();
-		assert(first.exchange->settle(http::ReplySettlement::Written));
-		wait_released(first);
-		wait_ready(second);
-		auto second_body = second.exchange->take_response();
+		wait_released(first.writer);
+		second.done();
+		auto second_body = second.writer.pull();
 		assert(second_body && second_body->status == 200 && second_body->body == expected);
-		second_body.reset();
-		assert(second.exchange->settle(http::ReplySettlement::Written));
-		wait_released(second);
-		DeferredWriter blocked_by, expires;
+		assert(second.writer.release(*second_body));
+		wait_released(second.writer);
+		Read blocked_by, expires;
 		deferred_read(blocked_by);
-		wait_ready(blocked_by);
-		auto held = blocked_by.exchange->take_response();
+		blocked_by.done();
+		auto held = blocked_by.writer.pull();
 		assert(held && held->status == 200);
 		deferred_read(expires);
-		wait_ready(expires);
-		auto expired = expires.exchange->take_response();
-		assert(expired && expired->status == 503 &&
-			   expired->body.find("outcome_unknown") != std::string::npos);
-		expired.reset();
-		assert(expires.exchange->settle(http::ReplySettlement::Written));
-		wait_released(expires);
-		held.reset();
-		assert(blocked_by.exchange->settle(http::ReplySettlement::Disconnected));
-		wait_released(blocked_by);
+		expires.done();
+		auto expired = expires.writer.pull();
+		assert(expired && expired->status == 503 && expired->body.find("outcome_unknown") != std::string::npos);
+		assert(expires.writer.release(*expired));
+		wait_released(expires.writer);
+		assert(blocked_by.writer.release(*held, http::ReplySettlement::Disconnected));
+		wait_released(blocked_by.writer);
 	}
 	{
 		auto constrained = options(directory);
@@ -422,25 +500,24 @@ int main() {
 		held.method = "POST";
 		held.path = "/v2/read";
 		held.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-		auto sink = service.on_request_body(held);
+		held.extension = service.create_extension(held);
 		http::Request rejected;
 		rejected.method = held.method;
 		rejected.headers = held.headers;
 		rejected.path = "/v2/transactions";
 		bool pressure = false;
 		try {
-			service.on_request_body(rejected);
+			rejected.extension = service.create_extension(rejected);
 		} catch (const http::RequestRejected &failure) {
 			pressure = failure.status() == 503;
 		}
-		assert(pressure && !rejected.user_data && "capacity rejection precedes body and consensus admission");
-		sink.reset();
-		held.user_data.reset();
+		assert(pressure && !rejected.extension && "capacity rejection precedes body and consensus admission");
+		held.extension.reset();
 		Writer committed;
 		for (unsigned attempt = 0; attempt < 100; ++attempt) {
 			committed = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:pressure\",\"value\":{\"type\":\"bool\",\"default\":true}}]");
+							 "\"ns:pressure\",\"value\":{\"default\":1}}]");
 			if (committed.code != 503) {
 				break;
 			}
@@ -469,14 +546,14 @@ int main() {
 		for (unsigned i = 0; i < 31; ++i) {
 			if (!groups.empty())
 				groups += ',';
-			groups += "\"group" + std::to_string(i) + std::string(46, 'k') + "\":true";
+			groups += "\"group" + std::to_string(i) + std::string(31, 'k') + "\":{\"rollout_pct\":50}";
 		}
 		std::string operations;
 		for (unsigned i = 0; i < 128; ++i) {
 			if (!operations.empty())
 				operations += ',';
 			operations += "{\"key\":\"ns:heavy" + std::to_string(i) +
-						  "\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" + groups + "}}}";
+						  "\",\"value\":{\"default\":1,\"rollout_value\":1,\"overrides\":{" + groups + "}}}";
 		}
 		auto large = [&](unsigned sequence) {
 			return "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
@@ -494,7 +571,7 @@ int main() {
 		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 		for (;;) {
 			Writer writer;
-			service.handle(probe, writer);
+			detent_test::run_handle(service, probe, writer);
 			rapidjson::Document health;
 			health.Parse(writer.body.c_str());
 			assert(!health.HasParseError());
@@ -515,22 +592,14 @@ int main() {
 				keys += ',';
 			keys += "\"ns:heavy" + std::to_string(i) + "\"";
 		}
-		std::vector<DeferredWriter> readers(16);
-		for (auto &reader : readers) {
-			http::Request request;
-			request.method = "POST";
-			request.path = "/v2/read";
-			request.headers.emplace_back("Authorization", "Bearer fedcba9876543210fedcba9876543210");
-			auto sink = service.on_request_body(request);
-			sink->write("{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
-			sink->end();
-			service.handle(request, reader);
-			assert(reader.exchange);
-		}
+		std::vector<Read> readers(16);
+		for (auto &reader : readers)
+			start_read(service, reader, "fedcba9876543210fedcba9876543210",
+					   "{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
 		auto backlog_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 		for (;;) {
 			Writer writer;
-			service.handle(probe, writer);
+			detent_test::run_handle(service, probe, writer);
 			rapidjson::Document health;
 			health.Parse(writer.body.c_str());
 			assert(!health.HasParseError());
@@ -545,46 +614,61 @@ int main() {
 		}
 		auto progress = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
+							 "\"ns:heavy0\",\"value\":{\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
-		for (unsigned i = 0; i < readers.size(); ++i) {
-			auto ready_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-			while (readers[i].exchange->phase() == http::detail::DeferredExchange::Phase::Waiting) {
-				assert(std::chrono::steady_clock::now() < ready_deadline);
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		unsigned frozen = 0;
+		// Readers are served in the order the owner gives them credit, not the order they were started.
+		std::vector<bool> served(readers.size());
+		for (unsigned count = 0; count < readers.size(); ++count) {
+			unsigned i = readers.size();
+			for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30); i == readers.size();
+				 std::this_thread::sleep_for(std::chrono::milliseconds(1))) {
+				for (unsigned j = 0; j < readers.size() && i == readers.size(); ++j)
+					if (!served[j] && readers[j].run->finished())
+						i = j;
+				assert(std::chrono::steady_clock::now() < deadline);
 			}
-			auto reply = readers[i].exchange->take_response();
+			served[i] = true;
+			readers[i].done();
+			auto reply = readers[i].writer.pull();
 			assert(reply && reply->status == 200);
 			rapidjson::Document body;
 			body.Parse(reply->body.c_str());
 			assert(!body.HasParseError());
-			assert(body["version"].GetUint64() == (i < 5 ? 1 : 2));
+			const auto version = body["version"].GetUint64();
+			assert(version == 1 || version == 2);
+			frozen += version == 1;
 			assert(body["namespace_revision"].GetUint64() == body["version"].GetUint64());
 			assert(body["key_revisions"]["ns:heavy0"].GetUint64() == body["version"].GetUint64());
-			if (i < 5)
-				assert(body["knobs"]["ns:heavy0"]["default"].GetBool());
+			if (version == 1)
+				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 1);
 			else
 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
-			reply.reset();
-			assert(readers[i].exchange->settle(http::ReplySettlement::Written));
-			wait_released(readers[i]);
+			assert(readers[i].writer.release(*reply));
+			wait_released(readers[i].writer);
 		}
-		std::vector<DeferredWriter> terminal_readers(16);
-		for (auto &reader : terminal_readers) {
-			http::Request request;
-			request.method = "POST";
-			request.path = "/v2/read";
-			request.headers.emplace_back("Authorization", "Bearer fedcba9876543210fedcba9876543210");
-			auto sink = service.on_request_body(request);
-			sink->write("{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
-			sink->end();
-			service.handle(request, reader);
-			assert(reader.exchange);
+		assert(frozen == 5); // the capture frozen before the progress commit serves the same five readers as before
+		// A settled read's admission stays held until the owner retires its task; the reader's
+		// producer is at its cap of 16, so wait for every admission before admitting 16 more.
+		for (auto idle_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);;) {
+			Writer writer;
+			detent_test::run_handle(service, probe, writer);
+			rapidjson::Document health;
+			health.Parse(writer.body.c_str());
+			assert(!health.HasParseError());
+			if (health["requests"].GetUint64() == 0)
+				break;
+			assert(std::chrono::steady_clock::now() < idle_deadline);
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
+		std::vector<Read> terminal_readers(16);
+		for (auto &reader : terminal_readers)
+			start_read(service, reader, "fedcba9876543210fedcba9876543210",
+					   "{" + authority + "\"namespace\":\"ns\",\"keys\":[" + keys + "]}");
 		auto terminal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 		for (;;) {
 			Writer writer;
-			service.handle(probe, writer);
+			detent_test::run_handle(service, probe, writer);
 			rapidjson::Document health;
 			health.Parse(writer.body.c_str());
 			assert(!health.HasParseError());
@@ -593,17 +677,86 @@ int main() {
 			assert(std::chrono::steady_clock::now() < terminal_deadline);
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
-		owner.reset();
+		// D10: the stop answers every waiting reader by the outcome contract, buffered, and only then
+		// does the service go.
+		service.begin_shutdown();
 		unsigned canceled = 0;
 		for (auto &reader : terminal_readers) {
-			auto reply = reader.exchange->take_response();
-			assert(reply && (reply->status == 200 || reply->status == 503));
-			canceled += reply->status == 503;
-			reply.reset();
-			assert(reader.exchange->settle(http::ReplySettlement::Written));
-			wait_released(reader);
+			reader.done();
+			if (auto reply = reader.writer.pull()) {
+				assert(reply->status == 200);
+				assert(reader.writer.release(*reply));
+				wait_released(reader.writer);
+			} else {
+				// Answered buffered because the wait ended on the stop: a reply that was ready, or the
+				// outcome contract's 503 (stopping for a read the runtime had not started).
+				const auto &body = reader.writer.body;
+				assert(reader.writer.code == 200 ||
+					   (reader.writer.code == 503 && (body.find("outcome_unknown") != std::string::npos ||
+													  body.find("\"stopping\"") != std::string::npos)));
+				canceled += reader.writer.code == 503;
+			}
 		}
+		owner.reset();
 		assert(canceled >= 10);
+	}
+	{
+		// D141: a voter restarted below its recorded limits refuses to start and names the field;
+		// restarted above them it keeps its receipts and grows past the old ceiling.
+		const auto raise = std::filesystem::path(directory.string() + "-raise");
+		std::filesystem::remove_all(raise);
+		std::filesystem::remove_all(raise.string() + ".history");
+		auto keyed = [](unsigned sequence, const std::string &key) {
+			return "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
+				   ",\"namespace\":\"ns\",\"operations\":[{\"key\":\"" + key + "\",\"value\":{\"default\":1}}]";
+		};
+		auto ready = [&](Service &service) {
+			Writer opened;
+			for (unsigned attempt = 0; attempt < 100 && opened.code != 200; ++attempt) {
+				opened = call(service, "/v2/open", open);
+				if (opened.code != 200)
+					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			assert(opened.code == 200);
+		};
+		auto limited = [&](std::size_t keys) {
+			auto o = options(raise);
+			o.node.application.keys = keys;
+			return o;
+		};
+		std::string refused;
+		{
+			Service service(limited(1));
+			ready(service);
+			assert(call(service, "/v2/transactions", keyed(1, "ns:a")).code == 200);
+			auto full = call(service, "/v2/transactions", keyed(2, "ns:b"));
+			assert(full.code == 429 && full.body.find("\"capacity\"") != std::string::npos);
+			refused = full.body;
+		}
+		std::string lowered;
+		try {
+			auto o = limited(1);
+			o.node.application.mutations = 64;
+			Service service(std::move(o));
+		} catch (const std::exception &error) {
+			lowered = error.what();
+		}
+		if (lowered.find("application_limits.mutations 64 differs from the recorded 128") == std::string::npos)
+			std::cerr << "refusal: " << lowered << "\n";
+		assert(lowered.find("application_limits.mutations 64 differs from the recorded 128") != std::string::npos);
+		{
+			Service service(limited(2));
+			Writer retried;
+			for (unsigned attempt = 0; attempt < 100 && retried.code != 429; ++attempt) {
+				retried = call(service, "/v2/transactions", keyed(2, "ns:b"));
+				if (retried.code != 429)
+					std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+			assert(retried.body == refused);
+			assert(call(service, "/v2/transactions", keyed(3, "ns:b")).code == 200);
+		}
+		std::filesystem::remove_all(raise);
+		std::filesystem::remove_all(raise.string() + ".history");
 	}
 	std::filesystem::remove_all(directory);
 	std::cout << "authority ingress, quota and replay passed\n";

@@ -6,7 +6,7 @@ This is an ongoing audit: entries record their triggering conditions and qualifi
 
 ## Deployment limits
 
-The legacy HTTP/UDP cluster profile has no built-in authentication or TLS and uses volatile Raft state. It requires an access-controlled network and an authenticated TLS proxy for remote publishers. See [legacy clustering](../src/detentd/CLUSTERING.md). The additive authority profile provides authenticated transport and durable consensus; its [component review](AUTHORITY_COMPONENT_REVIEW.md) and [readiness gates](AUTHORITY_READINESS.md) describe its qualification and remaining production limits.
+The authority provides authenticated transport and durable consensus; its [component review](AUTHORITY_COMPONENT_REVIEW.md) and [readiness gates](AUTHORITY_READINESS.md) describe its qualification and remaining production limits.
 
 The production agent’s legacy shared-memory path uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. The new [immutable local views](LOCAL_IMAGE_FORMAT.md) remain under Stage 4 integration; their library qualification does not replace that production path. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
 
@@ -76,7 +76,7 @@ Clang 23 with libc++ exposes missing declarations for `std::exception_ptr` and `
 
 ## Durable authority scope
 
-The opt-in authority adds a separate durable single-voter store and credential-bound loopback API. The legacy deployment limits above still apply to the legacy HTTP/multicast distributor. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated transport and source retirement have a [consolidated source review](AUTHORITY_COMPONENT_REVIEW.md), with the remaining production pressure and telemetry gates tracked in [readiness](AUTHORITY_READINESS.md). The binary codec and immutable image/publication modules are implemented and under component qualification; actual agent integration and fleet distribution remain pending.
+The authority adds a separate durable single-voter store and credential-bound loopback API. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated transport and source retirement have a [consolidated source review](AUTHORITY_COMPONENT_REVIEW.md), with the remaining production pressure and telemetry gates tracked in [readiness](AUTHORITY_READINESS.md). The binary codec and immutable image/publication modules are implemented and under component qualification; actual agent integration and fleet distribution remain pending.
 
 
 ### Fresh-build filesystem fixtures

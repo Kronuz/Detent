@@ -1,7 +1,7 @@
 # Documentation findings and feature gaps
 
 **Date:** 2026-10-09
-**Context:** Written while building the public documentation website in `website/` (published at https://kronuz.github.io/Detent/). Every item below was found by reading the source, running the built binaries, or attempting a clean build. The website already documents each user-visible gap with an "unimplemented" note and collects them on its Roadmap page (`website/src/content/docs/roadmap.md`). When an item is resolved, please update that page and remove the matching note.
+**Context:** Written while building the public documentation website in `site/` (published at https://kronuz.github.io/Detent/). Every item below was found by reading the source, running the built binaries, or attempting a clean build. The website already documents each user-visible gap with an "unimplemented" note and collects them on its Roadmap page (`site/src/content/docs/roadmap.md`). When an item is resolved, please update that page and remove the matching note.
 
 Items are ordered by priority within each section.
 
@@ -33,25 +33,24 @@ The project still has no semantic `VERSION` or release tags. The website display
 
 1. **Confusing error for an unknown `detent get` flag (resolved 2026-10-09).** The reader validates options before reading configuration or starting an agent. Unknown options, missing values and extra positional arguments produce one argument error and exit 1, including when `--default` is supplied. Negative integer defaults remain accepted. The CLI regression checks that invalid invocations create no runtime artifacts.
 2. **Legacy agent capacity vs. client limits.** The client accepts up to 100,000 knobs and 16 MiB, but the legacy shared-memory mapping is a fixed 4 MiB, so large snapshots are accepted by the agent's client and then fail to publish (logged as a capacity failure). Either size the mapping from the accepted snapshot or reject earlier with a clear message.
-3. **`detent_publish` output noise.** Plain bool knobs are written as `"overrides":{},"rollout_pct":null`. Valid, but omit empty fields to match what `detentd` serves.
-4. **`detent get` silently ignores `--hash`/`--switch` for int knobs.** Matches the spec, but a one-line stderr note would catch mistakes.
+3. **`detent get` silently ignores `--hash`/`--switch` for int knobs.** Matches the knob model (`docs/design/knob-model.md`), but a one-line stderr note would catch mistakes.
 
-## 4. Specification items not implemented
+## 4. Designed features not implemented
 
-From `justknobs-implementation-spec.md`; each is marked unimplemented on the website.
+Each is marked unimplemented on the website.
 
 1. Python `check()` alias and category-specific exceptions (`KeyError`, `ValueError`, `SystemError`, `OverflowError`); the binding raises one `DetentError`.
-2. `allow_test_disable_env` and the deterministic test-disable environment switch (Section 11).
-3. A shipped `--just-knob name=value` flag parser and `--just-knobs-config-path` (Section 11); only `parse_cli_overrides()` exists.
-4. File source watching the parent directory with 100 ms coalescing (Section 10); the implementation polls mtime/size.
-5. Metric export with the Section 12 names (`jk_reads_total`, `jk_snapshot_staleness_seconds`, ...); counters exist but nothing exports them.
+2. `allow_test_disable_env` and the deterministic test-disable environment switch.
+3. A shipped repeatable `name=value` override flag parser and a config-path flag; only `parse_cli_overrides()` exists.
+4. File source watching the parent directory with 100 ms coalescing; the implementation polls mtime/size.
+5. Metric export with stable names for the read, refresh and staleness metrics; counters exist but nothing exports them.
 
 ## 5. Binding gaps
 
-1. Python and Rust expose only the file source: no HTTP poll source, no managed generation source, no `read_view()`.
+1. Python and Rust expose only the file source: no managed generation source, no `read_view()`.
 2. No `get_as`, no `_or_panic`, no Rust error enum, no Rust test guard.
 3. No `.pyi` stubs, no wheel, no crate publication.
-4. No Go or Java bindings (the spec mentions both), and no documented stable reader ABI for the shared snapshot.
+4. No Go or Java bindings (planned), and no documented stable reader ABI for the shared snapshot.
 
 ## 6. Features worth considering
 
@@ -65,20 +64,19 @@ Proven useful in other configuration systems (Xapiand's own tooling, LaunchDarkl
 6. **More value types**: string, float, JSON; and group overrides for int knobs.
 7. **Targeting rules** beyond exact group names (attribute predicates, segments), and **scheduled changes** (apply at a time, or ramp on a schedule).
 8. **Change notification API** for applications. `on_update` exists but is documented as the agent's hook, is exclusive with `read_source`, and isn't called for the initial snapshot.
-9. **Optional bearer-token check on the classic distributor**, a cheap improvement for deployments that can't adopt the authority yet.
-10. **Packaging**: Homebrew tap and container image (Xapiand ships both and its docs lead with them), Debian/RPM, FreeBSD port.
-11. **CI** on Linux/macOS/FreeBSD with sanitizers, once 1.1 is fixed. The website's header shows the Pages build badge only, because there is no CI workflow to point at.
-12. **Versioned schema for the authority health document**, so dashboards can depend on it.
+9. **Packaging**: Homebrew tap and container image (Xapiand ships both and its docs lead with them), Debian/RPM, FreeBSD port.
+10. **CI** on Linux/macOS/FreeBSD with sanitizers, once 1.1 is fixed. The website's header shows the Pages build badge only, because there is no CI workflow to point at.
+11. **Versioned schema for the authority health document**, so dashboards can depend on it.
 
 ## 7. Keeping the website in sync
 
-The website lives in `website/` (Astro + Starlight, the same theme as the Xapiand docs) and deploys from `main` through `.github/workflows/pages.yml` whenever `website/**` changes. When changing user-visible behavior, please update the matching page:
+The website lives in `site/` (Astro + Starlight, the same theme as the Xapiand docs) and deploys from `main` through `.github/workflows/pages.yml` whenever `site/**` changes. When changing user-visible behavior, please update the matching page:
 
 | Change | Page |
 | --- | --- |
-| CLI flags or output | `website/src/content/docs/reference/cli/*.md` |
-| HTTP endpoints, headers, status codes | `website/src/content/docs/reference/http-api/*.md` |
-| Config fields, env vars, directories | `website/src/content/docs/reference/configuration.md` |
-| Public C++ API | `website/src/content/docs/reference/cpp-api/*.md` |
-| Limits | `website/src/content/docs/reference/limits.md` |
-| Status of any item above | `website/src/content/docs/roadmap.md` |
+| CLI flags or output | `site/src/content/docs/reference/cli/*.md` |
+| HTTP endpoints, headers, status codes | `site/src/content/docs/reference/http-api/*.md` |
+| Config fields, env vars, directories | `site/src/content/docs/reference/configuration.md` |
+| Public C++ API | `site/src/content/docs/reference/cpp-api/*.md` |
+| Limits | `site/src/content/docs/reference/limits.md` |
+| Status of any item above | `site/src/content/docs/roadmap.md` |

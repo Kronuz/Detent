@@ -43,7 +43,6 @@ Today every capacity limit is a compiled-in default:
 | --- | --- | --- |
 | Authority (`src/detent_authority/state.hh`, `Limits`) | 500,000 keys, 1,024 producers, 4,096 namespaces, 256 MiB image, 256 results per producer | No; `authority.json` has no field. Code ceilings are 1M keys, 65,536 producers and a 1 GiB image |
 | Distribution and image (`detent_distribution/protocol.hh`, `messagepack.hh`, `detent_local/view.hh`) | 500,000 records, 256 MiB | No |
-| Classic client (`InitOptions::max_knobs`) | 100,000 knobs, 16 MiB | A C++ caller only |
 
 The authority limits are also part of the replicated semantic profile. Recovery rejects a store whose limits changed (`"changed replicated semantic limits"` in `state.cc`), so raising them today means exporting into a new authority.
 
@@ -83,7 +82,7 @@ Each step must be possible without downtime and without migrating data. Adding a
 | Authority live keys | 500,000 | `src/detent_authority/state.hh` |
 | Local image records | 500,000 | Image admission limits |
 | Local image size, string bytes | 256 MiB, 128 MiB | Image admission limits |
-| Legacy JSON snapshot | 100,000 knobs, 16 MiB | `InitOptions::max_knobs`, `kDefaultMaxBytes` |
+| JSON snapshot | 100,000 knobs, 16 MiB | The JSON parsers' `max_knobs`, `kDefaultMaxBytes` |
 
 Measured at 500,000 knobs (`benchmarks/local-image-measurements.json`): a 14.2 MB wire snapshot and a 41.0 MB local image. Building the image takes 296–304 ms and validating it 84–93 ms. At 1,000,000 knobs that projects to about 28 MB on the wire, an 82 MB image, and about 0.6 s plus 0.2 s per complete rebuild.
 
@@ -139,15 +138,13 @@ Measured today:
 | Read path | Per read | Source |
 | --- | ---: | --- |
 | C++, managed mapped image, 500,000 knobs, random keys | ~1.4 µs | 100,000 lookups in 143–145 ms, 3 runs |
-| C++, legacy shared memory, 4 threads | 27.6 ns | `detent_agent_shm_bench` |
-| C++, in-process `detent::Client` | 149 ns | `detent_read_bench` |
 | Shell, `detent get`, warm agent | 5.2 ± 0.4 ms | 300 runs, `hyperfine` |
 
 All of the in-process numbers are loop averages from one Intel Mac; no percentiles exist. `detent get` is dominated by starting a process.
 
 Required:
 
-1. **Mapped reader for every language.** Bind `detent::local_client` in Python and Rust, so Python and Rust applications read the mapped image in-process. Document the image and descriptor as a stable reader ABI, so other languages can map it directly.
+1. **Mapped reader for every language.** Python and Rust bind the reader core's C ABI (`libdetent_reader`), so Python and Rust applications read the mapped image in-process. Document the image and descriptor as a stable reader ABI, so other languages can map it directly.
 2. **No full validation on open.** A reader currently verifies the image checksum and validates every row before its first lookup: 84–93 ms of row validation at 500,000 knobs, projected near 200 ms at 1M plus the checksum. The agent validates once at publication, and readers trust its selection (ownership, link count, mode and lease checks) instead of re-validating. Keep bounds checks on every lookup, so a corrupt image fails safely rather than reading out of range.
 3. **A sub-millisecond shell path.** Either a resident reader (a client library a long-running process loads once), or a `detent get` startup budget under 1 ms measured cold. Spawning a process is unlikely to reach that, so treat `detent get` as the script interface and make the libraries the latency interface.
 

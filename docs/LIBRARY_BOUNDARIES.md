@@ -55,7 +55,7 @@ The `http`, `reactor`, `cpp-btree`, `sha256` and `varint` changes are generic im
 
 | Directory | Lines (code + docs) | Depends on | Used by |
 | --- | ---: | --- | --- |
-| root: `bus.h`, `raft.h`, `length.h` | ~970 | `reactor`, `varint` | Xapiand, Detent's legacy `detentd` |
+| root: `bus.h`, `raft.h`, `length.h` | ~970 | `reactor`, `varint` | Xapiand, Detent's classic distributor (removed) |
 | `completion/` | 4,389 | Threads (Asio optional) | `journal`, Detent `detent_local` |
 | `journal/` | 3,361 | `completion` | `consensus`, Detent authority |
 | `consensus/` | 3,738 | `journal` | Detent authority |
@@ -85,7 +85,7 @@ These files contain no knob concepts and depend only on library types.
 | Component | Location | Lines | What it is |
 | --- | --- | ---: | --- |
 | Authority peer transport | `src/detent_authority/transport/` | 1,267 | Raft over TLS: peer hello, `DTC1` codec, control and bulk lanes, snapshot writes, RPC timing. Uses only `consensus::` and `journal::` types |
-| HTTP clients (three) | `detent_http/http_client.*`, `detent_delivery/client.*` + `response.*`, `transport/https_client.hh` | ~1,770 | A blocking keep-alive poller, an Asio coroutine TLS streaming client, and a TLS status probe |
+| HTTP clients (two) | `detent_delivery/client.*` + `response.*`, `transport/https_client.hh` | ~1,300 | An Asio coroutine TLS streaming client and a TLS status probe |
 | TLS plumbing | `detent_transport/tls.hh`, `transport/tls.hh`, `transport/session.hh` | 382 | Context setup, chain and pin verification, deadline-bound sessions. `http` has its own `http_asio_tls.h` |
 | Persistent map | `src/detent_authority/persistent_map.hh` | 215 | Immutable AVL tree with path copying and budgeted collection; no includes |
 | Bounded MessagePack | `include/detent_distribution/messagepack.hh` | 312 | Narrow, allocation-bounded tuple encoder and decoder; no includes |
@@ -119,7 +119,7 @@ The semantics differ in ways that matter (concurrent versus single-owner, refund
 | `Kronuz/ledger` (new) | Capacity ledger and permits (single-owner and concurrent flavors), PMR adapter, budgeted retirement | none |
 | `Kronuz/completion` (new, from `cluster/completion`) | Completion I/O backends, image publication, directory scan | `metrics`, `ledger` |
 | `Kronuz/journal` (new, from `cluster/journal`) | Durable journal, artifacts, mutations, reclamation, inventory | `completion` |
-| `Kronuz/consensus` (new, from `cluster/consensus`) | Strict durable Raft `Core` and `Worker`, checkpoints, snapshot channel; `transport/` with Detent's peer transport | `journal`; `reactor` for `transport/` only |
+| `Kronuz/consensus` (new, from `cluster/consensus`) | Strict durable Raft `Core` and `Worker`, checkpoints, snapshot channel; `transport/` with Detent's peer transport; `transport/seeds`: multicast seed discovery, `DTSD0001` datagrams of at most 512 B carrying 1-8 named service ports per host ([seeds](https://github.com/Kronuz/consensus/blob/main/docs/mechanisms/seeds.md)) | `journal`; `reactor` for `transport/` only |
 | `Kronuz/cluster` | `bus.h`, `raft.h`, `length.h`, liveness | `reactor`, `varint` |
 | `Kronuz/http` | Server as today, plus a client (blocking keep-alive and Asio coroutine) | `reactor` |
 | `Kronuz/reactor` | Adds the shared TLS context and session layer used by `http` and `consensus/transport` | Asio, OpenSSL (optional) |
@@ -134,13 +134,12 @@ Two smaller candidates stay in Detent until a second consumer shows up:
 ### Who depends on what after the split
 
 ```text
-Detent ──> consensus ──> journal ──> completion        durable authority (--authority)
-   └─────> cluster ──> reactor, varint                 classic clustering (--cluster)
+Detent ──> consensus ──> journal ──> completion        durable authority
 
 consensus does not depend on cluster; Xapiand depends only on cluster
 ```
 
-Detent keeps both dependencies. `src/detentd/` (`detentd.cc`, `raft_delegate.*`, `main.cc`) uses `cluster::Bus` and `cluster::Raft` for classic `--cluster` mode, and `src/detent_authority/` uses consensus and journal. If the authority later replaces classic clustering, Detent drops `cluster` entirely. That retirement is a separate product decision, not part of this plan.
+Detent depends on consensus and journal through `src/detent_authority/`, and does not depend on `cluster`.
 
 Nothing in `consensus`, `journal` or `completion` includes `bus.h`, `raft.h` or `length.h`. The only tie is the namespace: the durable code lives in `cluster::consensus` while journal already uses `kronuz::journal`. The split renames it to `kronuz::consensus` (about 90 references in Detent).
 
@@ -189,7 +188,7 @@ Each step lands and qualifies independently, in this order, so every intermediat
 3. **Consensus transport.** Move `src/detent_authority/transport/` (except `https_client.hh`) into `consensus/transport/` as an optional target that needs `reactor` and OpenSSL. Rename `detent::transport` to `kronuz::consensus::transport`. The `DTHL0001` and `DTC1` wire tags stay byte-identical; rename them only with a versioned format change.
 4. **Remove legacy APIs.** Drop the "legacy" halves of `completion/image.h` and similar dual paths, since Detent is the only consumer.
 5. **`ledger`.** Extract the shared core: a capacity, a move-only permit, explicit settlement, pressure, and the retirement runtime. Keep `journal::Admission`, `DiskLedger` and `StorageLedger` as thin domain wrappers over it. Behavior and tests must not change.
-6. **HTTP client and TLS.** Add the client half to `http` with two front ends: a blocking keep-alive client (today's `detent_http`) and an Asio coroutine client with absolute deadlines and streaming bodies (today's `detent_delivery` transport). Move TLS context and session handling into `reactor`, and have `http_asio_tls.h` and `consensus/transport` use it. Detent keeps only request and response semantics.
+6. **HTTP client and TLS.** Add the client half to `http` as an Asio coroutine client with absolute deadlines and streaming bodies (today's `detent_delivery` transport). Move TLS context and session handling into `reactor`, and have `http_asio_tls.h` and `consensus/transport` use it. Detent keeps only request and response semantics.
 7. **`persistent-map` and `msgpack`.** Move the files with their tests; Detent includes them as dependencies.
 8. **Pin revisions.** Every `FetchContent_Declare` in Detent, `cluster` and the new libraries uses a tested commit instead of `main`. This is already open in `docs/DOCUMENTATION_FINDINGS.md`.
 9. **Rewrite the library READMEs.** Each one says what the library is, shows a minimal example, and states its guarantees and limits. Qualification evidence moves to Detent's `docs/` (or a `CHANGELOG`), and no library README names Detent.
@@ -205,7 +204,7 @@ Each step lands and qualifies independently, in this order, so every intermediat
 
 ## Next steps
 
-Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k lines out of `cluster`) at the lowest risk, because the stack already compiles as separate targets. Steps 3 through 7 can follow in any order once the new repositories exist, and the legacy Raft comparison (step 10) can start as soon as step 2 lands. Report the before-and-after line counts per repository in this document when each step lands, and update the Roadmap and Dependencies pages in `website/` to match.
+Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k lines out of `cluster`) at the lowest risk, because the stack already compiles as separate targets. Steps 3 through 7 can follow in any order once the new repositories exist, and the legacy Raft comparison (step 10) can start as soon as step 2 lands. Report the before-and-after line counts per repository in this document when each step lands, and update the Roadmap and Dependencies pages in `site/` to match.
 
 ## Progress
 
@@ -225,7 +224,6 @@ The source directories separate application roles and optional dependency closur
 | `detent_delivery` | Receiving updates, source selection, authenticated sessions and local-publication coordination | Detent delivery semantics; separate generic HTTP client mechanics |
 | `detent_distribution` | Snapshot/delta schemas, cursors, encoding, framing and subscription admission | Detent protocol; extract generic codecs and resource primitives |
 | `detent_distribution_http` | HTTP binding shared by authority and relay, including reply pumping and session headers | Protocol-specific HTTP metadata; evaluate generic pumping separately |
-| `detent_http` | Optional blocking HTTP polling source for the classic SDK/agent path | Source adapter; consolidate generic client mechanics into `http` |
 | `detent_local` | Flat/paged local images, readers, validation, atomic publication, leases and collection | Knob layouts and ownership rules; reuse lower-level I/O and residency where their contracts fit |
 | `detent_relay` | Scoped fanout from upstream delivery through durable local bundles | Relay authorization, bundle routing and serving policy |
 
@@ -258,7 +256,7 @@ Decisions made while splitting:
 4. **Compatibility debris removed.** `journal/`'s eight forwarding headers are deleted; callers include `completion/` headers directly (Detent's `<journal/posix.h>`, `<journal/native_completion.h>`, and `<journal/asio_completion.h>` lines changed accordingly). The test that needed `consensus` (`completion_asio_test`) moved to `consensus`.
 5. **READMEs.** Commands, names, and paths are corrected; the rewrite of qualification logs into library documentation remains step 9.
 
-Detent: the top-level `CMakeLists.txt` fetches `cluster` only for the distributor's classic mode, `consensus` for the authority, and `completion` otherwise, each new one pinned. The authority links `consensus::consensus` instead of reaching `consensus/` through `cluster`'s include root; `terminal_retirement_bench` links `reactor::reactor`, since it uses Asio directly; about 90 references move from `cluster::consensus` to `kronuz::consensus`.
+Detent: the top-level `CMakeLists.txt` fetches `consensus` for the authority and `completion` otherwise, each new one pinned. The authority links `consensus::consensus` instead of reaching `consensus/` through `cluster`'s include root; `terminal_retirement_bench` links `reactor::reactor`, since it uses Asio directly; about 90 references move from `cluster::consensus` to `kronuz::consensus`.
 
 Acceptance:
 
@@ -277,7 +275,7 @@ Next: step 3 (the authority peer transport into `consensus/transport/`), then st
 The authority peer transport lives in `consensus` as the optional target `consensus::transport` (`include/consensus/transport/`, namespace `kronuz::consensus::transport`): codec, hello, peers, RPC observation, session, snapshot writes, TLS pinning, and the profile fingerprint. The `DTHL0001` hello, the `DTC1` codec, and the `DTPROF01` fingerprint are byte-identical.
 
 - **Decoupled from Detent.** `Peers` was built on Detent's `authority::Node` and `NodeOptions`; it is now `Peers<Host>` for any host with `worker()` and `channel()` (the `PeerHost` concept), configured by a `PeerConfiguration` (voters, consensus limits, cluster, group, epoch, profile). `profile_fingerprint` takes the application's profile bytes instead of Detent's `Limits`, and hashes through OpenSSL's EVP (the same SHA-256; the `sha256` library's `SHA256` class and OpenSSL's `SHA256()` function collide once both are visible). Detent's binding is `src/detent_authority/peers.hh`: `AuthorityPeers` (`Peers<Node>`) and `peer_configuration(NodeOptions)`, which fingerprints `semantic_profile(application)`.
-- **TLS in `reactor`.** `detent_transport/tls.hh` became `reactor_tls.h` (target `reactor::tls`, when OpenSSL 3 is found): `reactor::tls::Options`, `Role::{Peer, Server, Client}`, `configure()`, and `bind_hostname()` (the publisher-client binding). The peer transport, Detent's delivery client and configuration, the relay, `detentd`, and the HTTPS health client all use it, and `include/detent_transport/tls.hh` is gone. Detent pins `reactor` itself, ahead of `http` and `cluster`, so a managed-agent-only build has it too. The HTTPS client (`detent_transport/https_client.hh`) stays in Detent until the rest of step 6.
+- **TLS in `reactor`.** `detent_transport/tls.hh` became `reactor_tls.h` (target `reactor::tls`, when OpenSSL 3 is found): `reactor::tls::Options`, `Role::{Peer, Server, Client}`, `configure()`, and `bind_hostname()` (the publisher-client binding). The peer transport, Detent's delivery client and configuration, the relay, `detent-authority`, and the HTTPS health client all use it, and `include/detent_transport/tls.hh` is gone. Detent pins `reactor` itself, ahead of `http` and `cluster`, so a managed-agent-only build has it too. The HTTPS client (`detent_transport/https_client.hh`) stays in Detent until the rest of step 6.
 - **Tests.** `consensus` takes the transport tests that do not need Detent's node (codec, TLS sessions over sockets and pipes, certificate authentication, ownership, RPC observation) with the certificate fixture, and adds a test that instantiates `Peers` over a minimal host: 14 tests pass. Detent keeps `test_transport_peers` (three voters over its node, with and without completion storage), `test_transport_https`, and the multi-voter process tests.
 
 Acceptance: `reactor` 5 tests (with the new TLS test) and `consensus` 14 pass on macOS. Detent with every option on builds and, run serially, passes 174 of its 175 tests (181 before, less the 6 that moved); the remaining one is the in-progress `test_local_paged_compaction`, which does not compile in either state.

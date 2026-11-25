@@ -3,13 +3,15 @@
 # diagram gets overloaded. Extracted from `cmake --graphviz` (ground
 # truth); leaf system libraries (ZLIB/lz4/zstd) are the actual compression
 # codecs `http` can negotiate via Content-Encoding.
-direction: right
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+direction: down
 
 http: http (framework) {
-  tooltip: Used by detentd only, to serve GET/PUT /knobs over HTTP/1.1
+  tooltip: Used by detent-authority only, to serve GET/PUT /knobs over HTTP/1.1
 }
 cluster: cluster {
-  tooltip: Used by detentd only, for UDP multicast peer gossip
+  tooltip: Used by detent-authority only, for UDP multicast peer gossip
 }
 
 http_parser: http-parser {tooltip: "HTTP/1.1 request line + header tokenizer"}

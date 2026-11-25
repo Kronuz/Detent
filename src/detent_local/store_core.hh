@@ -1,15 +1,16 @@
 #pragma once
-#include "paged_root_prefix.hh"
-#include "detent_local/collector.hh"
+#include "detent_local/agent_store.hh"
 #include "detent_local/disk_store.hh"
 #include "leased_paged_root.hh"
-#include "paged_certificate.hh"
 #include "paged_publication_artifacts.hh"
+#include "paged_root_prefix.hh"
 #include "recovery_context.hh"
+#include <algorithm>
+#include <map>
 namespace detent::local::detail {
-struct BootstrapCommitment {
-	std::shared_ptr<void> caller;
-	DiskUsage usage;
+// A test's hook on each store's PosixIO before the store opens it: completion's sync seam.
+struct DiskStoreTesting {
+	static void install(void (*)(kronuz::io::completion::PosixIO &) noexcept) noexcept;
 };
 struct StoreCore {
 	StoreCore(std::shared_ptr<distribution::StorageLedger> account, DiskStoreOptions options,
@@ -20,66 +21,41 @@ struct StoreCore {
 	DiskStoreOptions options;
 	DiskLedger ledger;
 	std::optional<distribution::RetirementFactory> factory;
-	std::optional<RecoveryContext> legacy_recovery;
-	distribution::RetirementHandle<PagedPublicationArtifacts> pending_paged_recovery;
-	const MappedRecoveryAdmission *recovery_attempt = nullptr;
-	std::shared_ptr<BootstrapCommitment> bootstrap;
-	std::shared_ptr<StorageSession> session;
-	std::shared_ptr<CollectorControls> controls;
-	StorageIdentity identity{};
+	// Per namespace (D8): a published generation awaiting its confirmed recovery, the attempt
+	// recovering it, and the pages its last confirmed recovery verified.
+	struct Namespace {
+		distribution::RetirementHandle<PagedPublicationArtifacts> pending;
+		const MappedRecoveryAdmission *attempt = nullptr;
+		distribution::RetirementHandle<LeasedPagedRoot> verified;
+	};
+	std::map<std::string, Namespace, std::less<>> namespaces;
+	bool pending_recovery() const noexcept {
+		return std::any_of(namespaces.begin(), namespaces.end(), [](const auto &entry) { return bool(entry.second.pending); });
+	}
+	// The one writer of the directory (D8). Disk work touches it off the owner, one job at a time.
+	std::unique_ptr<AgentStore> agent;
+	std::optional<std::string> refusal; // the LayoutRefused this store opened past, if any
+	SyncCounters synced, startup_sync, publication_sync;
 	DirectoryIdentity directory_identity{};
-	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
-	std::optional<Descriptor> verified;
-	distribution::RetirementHandle<LeasedPagedRoot> verified_paged;
-	static constexpr std::size_t certificate_capacity = 64;
-	std::array<distribution::RetirementHandle<PagedDependencyCertificate>, certificate_capacity> certificates;
-	std::size_t certificate_position = 0;
-	void drop_certificates() noexcept {
-		for (auto &entry : certificates)
-			entry.reset();
+	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}, {}, {}};
+	void retain_recovered(const std::string &name, const RecoveredGeneration &generation) {
+		namespaces[name].verified = generation.paged_;
 	}
-	const PagedDependencyCertificate *certificate(const Descriptor &descriptor) const {
-		for (const auto &entry : certificates)
-			if (entry && entry->descriptor() == descriptor)
-				return entry.get();
-		return nullptr;
-	}
-	void cache_recovered(const RecoveredGeneration &generation) {
-		if (!generation.paged_ || certificate(generation.descriptor()))
-			return;
-		try {
-			auto candidate = factory->make<PagedDependencyCertificate>(account, *factory);
-			candidate->capture(generation, verified ? certificate(*verified) : nullptr);
-			certificates[certificate_position] = std::move(candidate);
-		} catch (const distribution::StoragePressure &) {
-			certificates[certificate_position].reset();
-		} catch (const std::bad_alloc &) {
-			certificates[certificate_position].reset();
-		}
-		certificate_position = (certificate_position + 1) % certificates.size();
-	}
-	void retain_recovered(const RecoveredGeneration &generation) {
-		cache_recovered(generation);
-		verified = generation.descriptor();
-		verified_paged = generation.paged_;
-	}
-	void confirm_paged(const RecoveredGeneration &generation) {
-		const auto &plan = pending_paged_recovery->plan();
-		if (!generation.paged_ || generation.paged_->storage_identity() != identity ||
+	void confirm_paged(const std::string &name, const RecoveredGeneration &generation) {
+		const auto &plan = namespaces.at(name).pending->plan();
+		if (!generation.paged_ ||
 			paged::encode_root(generation.paged_->root(), paged_format_limits()) != paged::encode_root(plan.root(), paged_format_limits()))
 			throw std::invalid_argument("paged recovered graph differs from publication plan");
 		const auto counts = generation.paged_->counts(), expected = plan.counts();
-		if (counts.bools != expected.bools || counts.ints != expected.ints ||
+		if (counts.records != expected.records ||
 			counts.overrides != expected.overrides || counts.strings != expected.strings ||
 			counts.maximum_overrides != expected.maximum_overrides)
 			throw std::invalid_argument("paged recovered counts differ from publication plan");
-		retain_recovered(generation);
+		retain_recovered(name, generation);
 	}
-	std::uint64_t owner = 0;
 	StoreStatus status = StoreStatus::Starting;
 	std::exception_ptr failure;
 	bool closing = false, collect = false;
-	std::optional<GenerationId> active_generation;
 	void fence(std::exception_ptr error) noexcept {
 		if (!failure)
 			failure = error;

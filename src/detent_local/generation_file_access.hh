@@ -1,6 +1,8 @@
 #pragma once
+#include "detent_local/read_counters.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/store_table.hh"
 #include "generation_mapping.hh"
 #include <array>
 #include <cerrno>
@@ -8,28 +10,73 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <sys/stat.h>
 #include <vector>
 
 namespace detent::local::detail {
+// Qualification hook after a record's open and before its checks, on the installing thread.
+struct RecordTesting {
+	static void install(void (*)(std::string_view name, void *), void *) noexcept;
+};
+void record_opened(std::string_view name) noexcept;
+// Why a record descriptor fails the owner, link, mode and extent checks, or null; fills `info`.
+inline const char *generation_file_refusal(int fd, struct stat &info, uid_t owner, std::uint64_t length) {
+	return fd < 0 || ::fstat(fd, &info) != 0 ? "unreadable"
+	       : !S_ISREG(info.st_mode)           ? "not a regular file"
+	       : info.st_uid != owner             ? "owner"
+	       : info.st_nlink != 1               ? "link count"
+	       : (info.st_mode & 0022)            ? "group or other write"
+	       : info.st_size < 0 || std::uint64_t(info.st_size) != length ? "size"
+	                                                                    : nullptr;
+}
+[[noreturn]] inline void refuse_generation_file(const char *refused, const struct stat &info) {
+	throw std::runtime_error(std::string("invalid local generation descriptor: ") + refused + " (links " +
+	                         std::to_string(info.st_nlink) + ", size " + std::to_string(info.st_size) + ")");
+}
 inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
 	struct stat info{};
-	if (fd < 0 || ::fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != owner ||
-	    info.st_nlink != 1 || (info.st_mode & 0022) || info.st_size < 0 ||
-	    std::uint64_t(info.st_size) != length)
-		throw std::runtime_error("invalid local generation descriptor");
+	if (const auto refused = generation_file_refusal(fd, info, owner, length))
+		refuse_generation_file(refused, info);
+}
+// check_generation_file, except that a regular file renamed over or collected since its open
+// (no links left) reports false, so the caller opens the name again.
+inline bool checked_or_unlinked(int fd, uid_t owner, std::uint64_t length) {
+	struct stat info{};
+	const auto refused = generation_file_refusal(fd, info, owner, length);
+	if (refused && fd >= 0 && S_ISREG(info.st_mode) && info.st_nlink == 0)
+		return false;
+	if (refused)
+		refuse_generation_file(refused, info);
+	return true;
 }
 inline void read_generation_record(int fd, std::span<char> bytes) {
+	DETENT_COUNT(table_bytes, bytes.size());
 	for (std::size_t offset = 0; offset < bytes.size();) {
 		const auto count = ::pread(fd, bytes.data() + offset, bytes.size() - offset, offset);
 		if (count < 0 && errno == EINTR)
 			continue;
 		if (count <= 0)
-			throw std::runtime_error("invalid local generation descriptor");
+			throw std::runtime_error("invalid local generation descriptor: short read");
 		offset += static_cast<std::size_t>(count);
 	}
 }
+// `selected` is the agent store's table (docs/status/namespace-s7.md): an entry per namespace, each naming
+// its selected generation, whose cursor its image holds (D88). Absent, GenerationUnavailable; nullopt
+// when the image it names is gone, so the table moved on and the caller reads it again.
+struct Selected {
+	Descriptor descriptor;
+};
+// The table entry `name` (D8), or the table's only entry when `name` is empty.
+std::optional<Selected> read_selected(int directory, uid_t owner, std::string_view name = {});
+// The whole table, checked as a record; nullopt when a publish renamed the next one over it since the open.
+std::optional<StoreTable> read_store_table(int directory, uid_t owner);
+// One entry of a table read by read_store_table: nullopt when the image it names is gone.
+std::optional<Selected> select_entry(int directory, uid_t owner, const StoreTable &, const TableEntry &);
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
+	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)
 		throw std::invalid_argument("invalid publisher directory path");
 	const auto absolute = path.is_absolute() ? path : std::filesystem::current_path() / path;

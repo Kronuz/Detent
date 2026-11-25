@@ -1,0 +1,113 @@
+[enum] enum W5Role !+#6k"v\x190\x12\x1c\xe4\xfd\xde7 h=aa031e7128310b46
+  old: member 5
+  new: out_of_range
+[enum] enum W5Role &n1g)\x02\x1a\x17\x01+*&\xae\xfc\x89 h=c1e711c6e286c83a
+  old: member 1
+  new: out_of_range
+[enum] enum W5Role &n1g)\x02\x1a\x17\x07:"<\xb4\xfc\x89 h=656a9e29fd4be8e5
+  old: member 2
+  new: out_of_range
+
+  enum: (absent) -> member 33: 2
+  enum: (absent) -> member 34: 2
+  enum: (absent) -> out_of_range: 110
+  enum: member 0 -> out_of_range: 12
+  enum: member 1 -> out_of_range: 12
+  enum: member 10 -> out_of_range: 8
+  enum: member 100 -> out_of_range: 4
+  enum: member 101 -> out_of_range: 4
+  enum: member 102 -> out_of_range: 4
+  enum: member 11 -> out_of_range: 8
+  enum: member 12 -> out_of_range: 8
+  enum: member 13 -> out_of_range: 8
+  enum: member 14 -> out_of_range: 8
+  enum: member 15 -> out_of_range: 8
+  enum: member 16 -> out_of_range: 8
+  enum: member 17 -> out_of_range: 8
+  enum: member 18 -> out_of_range: 8
+  enum: member 19 -> out_of_range: 8
+  enum: member 2 -> out_of_range: 12
+  enum: member 20 -> out_of_range: 8
+  enum: member 200 -> out_of_range: 4
+  enum: member 201 -> out_of_range: 4
+  enum: member 202 -> out_of_range: 4
+  enum: member 203 -> out_of_range: 4
+  enum: member 204 -> out_of_range: 4
+  enum: member 205 -> out_of_range: 4
+  enum: member 206 -> out_of_range: 4
+  enum: member 207 -> out_of_range: 4
+  enum: member 208 -> out_of_range: 4
+  enum: member 21 -> out_of_range: 8
+  enum: member 22 -> out_of_range: 8
+  enum: member 226 -> out_of_range: 4
+  enum: member 23 -> out_of_range: 8
+  enum: member 24 -> out_of_range: 8
+  enum: member 25 -> out_of_range: 8
+  enum: member 26 -> out_of_range: 8
+  enum: member 27 -> out_of_range: 8
+  enum: member 28 -> out_of_range: 8
+  enum: member 29 -> out_of_range: 8
+  enum: member 3 -> out_of_range: 12
+  enum: member 30 -> out_of_range: 4
+  enum: member 300 -> out_of_range: 4
+  enum: member 301 -> out_of_range: 4
+  enum: member 302 -> out_of_range: 4
+  enum: member 303 -> out_of_range: 4
+  enum: member 304 -> out_of_range: 4
+  enum: member 305 -> out_of_range: 4
+  enum: member 307 -> out_of_range: 4
+  enum: member 308 -> out_of_range: 4
+  enum: member 31 -> out_of_range: 4
+  enum: member 32 -> out_of_range: 4
+  enum: member 4 -> out_of_range: 12
+  enum: member 400 -> out_of_range: 4
+  enum: member 401 -> out_of_range: 4
+  enum: member 402 -> out_of_range: 4
+  enum: member 403 -> out_of_range: 4
+  enum: member 404 -> out_of_range: 4
+  enum: member 405 -> out_of_range: 4
+  enum: member 406 -> out_of_range: 4
+  enum: member 407 -> out_of_range: 4
+  enum: member 408 -> out_of_range: 4
+  enum: member 409 -> out_of_range: 4
+  enum: member 410 -> out_of_range: 4
+  enum: member 411 -> out_of_range: 4
+  enum: member 412 -> out_of_range: 4
+  enum: member 413 -> out_of_range: 4
+  enum: member 414 -> out_of_range: 4
+  enum: member 415 -> out_of_range: 4
+  enum: member 416 -> out_of_range: 4
+  enum: member 417 -> out_of_range: 4
+  enum: member 421 -> out_of_range: 4
+  enum: member 422 -> out_of_range: 4
+  enum: member 423 -> out_of_range: 4
+  enum: member 424 -> out_of_range: 4
+  enum: member 426 -> out_of_range: 4
+  enum: member 428 -> out_of_range: 4
+  enum: member 429 -> out_of_range: 4
+  enum: member 431 -> out_of_range: 4
+  enum: member 451 -> out_of_range: 4
+  enum: member 5 -> out_of_range: 12
+  enum: member 500 -> out_of_range: 4
+  enum: member 501 -> out_of_range: 4
+  enum: member 502 -> out_of_range: 4
+  enum: member 503 -> out_of_range: 4
+  enum: member 504 -> out_of_range: 4
+  enum: member 505 -> out_of_range: 4
+  enum: member 506 -> out_of_range: 4
+  enum: member 507 -> out_of_range: 4
+  enum: member 508 -> out_of_range: 4
+  enum: member 510 -> out_of_range: 4
+  enum: member 511 -> out_of_range: 4
+  enum: member 6 -> out_of_range: 8
+  enum: member 7 -> out_of_range: 8
+  enum: member 8 -> out_of_range: 8
+  enum: member 9 -> out_of_range: 8
+
+class                       cases  different
+enum                         6768        626
+enum-length                    16          0
+enum-random                  8000          0
+method_str                     50          0
+status_str                     11          0
+total                       14845        626

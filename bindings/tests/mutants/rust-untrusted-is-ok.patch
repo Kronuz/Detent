@@ -1,0 +1,13 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..b95830a1 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -259,7 +259,7 @@ impl Reader {
+             detent_get(self.handle, text(name), optional(hash), optional(switch_value), fallback, &mut out)
+         };
+         match raw {
+-            0 => Ok(out),
++            0 | 6 => Ok(out),
+             raw => Err(Status::from_raw(raw)),
+         }
+     }

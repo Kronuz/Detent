@@ -1,0 +1,126 @@
+---
+title: "Durable Authority"
+---
+
+Operating the durable authority: identities, credentials, multi-voter
+TLS, storage and service management. For a walkthrough, start with the
+[Durable Authority guide](/Detent/guides/durable-authority/).
+
+---
+
+## What You Get
+
+| Property | Durable authority |
+| --- | --- |
+| Publish unit | Atomic per-namespace transaction |
+| Versions | Assigned by the authority |
+| Concurrency control | Compare-and-set on keys and namespaces |
+| Retries | Exactly-once results per session sequence |
+| Authentication | Bearer tokens, namespace authorization |
+| Transport security | Publisher TLS; mutual TLS between voters |
+| Consensus state | Durable terms, votes and log |
+| Applying a change | Copies the affected tree paths only |
+| Distribution | Authenticated snapshots and deltas to managed agents |
+
+---
+
+## Configuration Reference
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `cluster`, `group`, `epoch` | yes | Independent nonzero 128-bit identities, 32 hex digits |
+| `directory` | yes | Storage directory, relative to the config file |
+| `credentials` | yes | Producer and reader credentials (below) |
+| `node` | with `voters` | This process's voter ID |
+| `voters` | multi-voter | 3 or 5 voters: `id`, IP `host`, `port`, `certificate_sha256` |
+| `peer_tls` | multi-voter | `certificate`, `key`, `ca` for mutual TLS between voters |
+| `publisher_tls` | multi-voter, or any non-loopback bind | `certificate`, `key`, `ca` for publisher HTTPS |
+| `publisher_bind` | no | Publisher listen address, loopback by default |
+| `publisher_name` | no | Certificate name `--status` verifies, `localhost` by default |
+| `consensus_limits` | no | `log_entries` (64–65,536) and `log_bytes` (2–64 MiB) |
+| `retained_state` | no | Local recovery envelope: `command_bytes` (1 MiB), `log_bytes` (64 MiB), `log_entries` (65,536), `batch_bytes` (2 MiB), `batch_entries` (256). Each is at least its operating limit; see below |
+| `journal_limits` | no | `hard_bytes`, `hard_entries`, `control_bytes`, `control_entries`, `replacement_bytes` (512 MiB), `replacement_entries` |
+| `delivery_limits` | no | `heap_bytes` (default 128 MiB) and `wire_bytes` (default 256 MiB) |
+| `storage_backend` | no | `auto`, or `native`/`fallback` on Linux |
+
+The replacement pool (`journal_limits.replacement_bytes`) must hold the
+application image, the encoded retained log (`retained_state.log_bytes` and
+`log_entries`) and 4096 bytes: 336,931,316 bytes with the defaults. A node that
+falls short refuses to start and names each term and the shortfall, for example
+`the replacement pool holds 72690163 bytes but the application image (4194304)
++ the encoded retained suffix (68491764) + the publication allowance (4096)
+need 72690164, short by 1 byte`. Lowering `consensus_limits` does not lower
+this requirement.
+
+Each credential:
+
+| Field | Meaning |
+| --- | --- |
+| `token` | Bearer token, at least 32 characters, unique |
+| `producer` | Unique producer name |
+| `namespaces` | Namespaces this credential may write and read |
+| `principal` | Optional stable principal for scope identity; defaults to the producer |
+| `policy_epoch` | Optional nonzero policy epoch, default `1`; bump it when grants change |
+| `publish` | Optional, default `true`; `false` makes a read-only agent credential |
+
+Rotating a token while keeping the producer name preserves the producer's
+session; changing the restore identity fences older requests.
+
+---
+
+## Multi-Voter Deployment
+
+1. Generate fresh `cluster`, `group` and `epoch` identities and fresh, empty
+   stores for every voter.
+2. Issue each voter a leaf certificate and record the SHA-256 fingerprint of
+   its DER encoding in every voter's `voters` list. A peer is admitted only if
+   its certificate chains to `peer_tls.ca` **and** matches its pin.
+3. Give every voter the same identities, voter list and limits; set `node` per
+   process. A voter with a different quorum or application profile fails peer
+   admission before any data is exchanged.
+4. Configure `publisher_tls` for publishers; non-loopback publisher binds
+   require it.
+
+The replicated profile uses a 100 ms heartbeat, a 500 ms RPC deadline and
+randomized 1–2 s elections. TLS below 1.2, early data and renegotiation are
+disabled.
+
+:::hint[Membership is fixed]{.caution}
+Editing the voter list of an existing store is rejected at recovery. To change
+membership, export the state, import it into a new group with a new restore
+epoch, and switch writers.
+:::
+
+---
+
+## Storage
+
+The authority persists Raft terms, votes and log entries, and periodic
+application checkpoints, to its directory. Checkpoints start automatically when
+retained entries or bytes reach half their configured limits; old files are
+reclaimed by bounded maintenance afterwards.
+
+On macOS and FreeBSD the authority drives storage through a completion-based
+backend; on Linux it uses io_uring when available, with a fallback.
+`storage_backend` makes that choice explicit on Linux. Startup recovery is
+synchronous and completes before requests are admitted.
+
+:::hint[Durability scope]{.info}
+Process-kill tests trace every acknowledged result across restarts. Power-loss
+and filesystem-level qualification on specific hardware hasn't been done.
+:::
+
+---
+
+## Service Management
+
+Run `detent-authority --authority CONFIG` in the foreground under the service manager;
+see [System Services](/Detent/operations/services/). Use a private state
+directory owned by the service account.
+
+```sh
+detent-authority --status --authority /etc/detent/authority.json
+```
+
+With publisher TLS, `--status` checks the HTTPS endpoint with CA and name
+verification and a two-second deadline.

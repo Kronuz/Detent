@@ -1,0 +1,8 @@
+# Type checking for the Python tools: pyrefly check --config tools/pyrefly.toml
+preset = "strict"
+python-version = "3.9"
+project-includes = ["."]
+
+[errors]
+# unittest's setUp is overridden without typing.override, which needs Python 3.12.
+missing-override-decorator = false

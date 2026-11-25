@@ -1,3 +1,4 @@
+#include "history_format.hh"
 #include "node.hh"
 #include "prepared.hh"
 #include <cassert>
@@ -5,7 +6,9 @@
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sys/stat.h>
+#include <type_traits>
 #include <unistd.h>
 
 using namespace detent::authority;
@@ -50,7 +53,7 @@ Command transaction(std::uint64_t sequence, int value) {
 	c.generation = 1;
 	c.sequence = sequence;
 	c.name_space = "ns";
-	c.mutations.push_back({"ns:key", detent::IntDef{value}, {}, {}});
+	c.mutations.push_back({"ns:key", detent::KnobDef{value}, {}, {}});
 	return c;
 }
 std::vector<Completion> pump(Node &node, unsigned limit = 200) {
@@ -73,9 +76,13 @@ std::vector<Completion> pump(Node &node, unsigned limit = 200) {
 	}
 	return completed;
 }
-void submit(Node &node, std::uint64_t request, const Command &c) {
+template <class C> void submit(Node &node, std::uint64_t request, const C &c) {
 	for (unsigned i = 0; i < 200; ++i) {
-		auto result = node.propose(request, {c});
+		SubmitResult result;
+		if constexpr (std::is_same_v<C, AdministrativeCommand>)
+			result = node.propose_administrative(request, c);
+		else
+			result = node.propose(request, {c});
 		if (result == SubmitResult::Accepted) {
 			return;
 		}
@@ -84,8 +91,99 @@ void submit(Node &node, std::uint64_t request, const Command &c) {
 	}
 	assert(false);
 }
+std::string refusal(const NodeOptions &profile) {
+	try { validate_node_options(profile); }
+	catch (const std::invalid_argument &error) { return error.what(); }
+	return {};
+}
+std::uint64_t funding_requirement(const NodeOptions &profile) {
+	const auto &policy = profile.scheduling.retained;
+	return profile.application.image_bytes + checkpoint_detail::encoded_bound({policy.log_entries, policy.log_bytes}) + 4096;
+}
+void retained_envelope_defaults() {
+	const kronuz::consensus::Limits defaults;
+	const auto policy = NodeOptions{}.scheduling.retained;
+	assert(policy.command_bytes == defaults.command_bytes && policy.log_bytes == defaults.log_bytes &&
+		   policy.log_entries == defaults.log_entries && policy.batch_bytes == defaults.rpc_bytes &&
+		   policy.batch_entries == defaults.rpc_entries);
+	// The test profile lowers the operating log bound; the envelope stays at the defaults.
+	const auto profile = options();
+	assert(profile.consensus.log_bytes < policy.log_bytes && profile.scheduling.retained == policy);
+	assert(funding_requirement(NodeOptions{}) == 336931316);
+	assert(refusal(profile).empty());
+}
+void retained_funding(const std::filesystem::path &directory) {
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	auto profile = options();
+	const auto required = funding_requirement(profile);
+	const auto suffix = required - profile.application.image_bytes - 4096;
+	assert(suffix == 68491764 && required == 72690164);
+	// The boundary: the pool that funds the image, the envelope's suffix and 4096 bytes starts, one byte less does not.
+	profile.storage.replacement_pool.logical_bytes = required;
+	assert(refusal(profile).empty());
+	{ Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile); }
+	profile.storage.replacement_pool.logical_bytes = required - 1;
+	assert(refusal(profile) ==
+		   "authority runtime cannot fund configured limits: the replacement pool holds 72690163 bytes but "
+		   "the application image (4194304) + the encoded retained suffix (68491764) + the publication "
+		   "allowance (4096) need 72690164, short by 1 byte; raise journal_limits.replacement_bytes, or lower "
+		   "application_limits.image_bytes or retained_state.log_bytes and log_entries");
+	std::filesystem::remove_all(directory);
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	bool refused = false;
+	try { Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile); }
+	catch (const std::invalid_argument &) { refused = true; }
+	assert(refused && std::filesystem::is_empty(directory));
+	// A larger envelope raises the requirement by its extra suffix bytes and entries.
+	profile = options();
+	profile.scheduling.retained.log_bytes *= 2;
+	profile.scheduling.retained.log_entries *= 2;
+	profile.storage.replacement_pool.logical_bytes = funding_requirement(profile);
+	assert(refusal(profile).empty() && funding_requirement(profile) - required == 67108864 + 65536 * 21);
+	--profile.storage.replacement_pool.logical_bytes;
+	assert(refusal(profile).find("short by 1 byte;") != std::string::npos);
+	// A pool that fits the operating suffix alone is refused.
+	profile = options();
+	profile.storage.replacement_pool.logical_bytes = profile.application.image_bytes +
+		checkpoint_detail::maximum_size(profile.consensus) + 4096;
+	assert(profile.storage.replacement_pool.logical_bytes < required && !refusal(profile).empty());
+	// Sums past 64 bits are refused with a lower bound.
+	profile = options();
+	profile.storage.replacement_pool.logical_bytes = UINT64_MAX;
+	profile.application.image_bytes = std::numeric_limits<std::size_t>::max() - 2048;
+	assert(refusal(profile).find("need more than 18446744073709551615, short by more than 0 bytes;") !=
+		   std::string::npos);
+	std::filesystem::remove_all(directory);
+}
+void retained_validation() {
+	auto reduce = [](auto field, std::size_t value) {
+		auto profile = options();
+		profile.scheduling.retained.*field = value;
+		return refusal(profile);
+	};
+	using Policy = kronuz::consensus::RetainedStatePolicy;
+	const auto profile = options();
+	// Each bound is accepted at its operating limit and refused one below, at zero and above its ceiling.
+	struct Case { const char *name; std::size_t Policy::*field; std::size_t operating, ceiling; };
+	for (const auto &bound : {Case{"command_bytes", &Policy::command_bytes, profile.consensus.command_bytes, ceilings.command_bytes},
+							  Case{"log_bytes", &Policy::log_bytes, profile.consensus.log_bytes, ceilings.log_bytes},
+							  Case{"log_entries", &Policy::log_entries, profile.consensus.log_entries, ceilings.log_entries},
+							  Case{"batch_bytes", &Policy::batch_bytes, profile.consensus.rpc_bytes, ceilings.rpc_bytes},
+							  Case{"batch_entries", &Policy::batch_entries, profile.consensus.rpc_entries, ceilings.rpc_entries}}) {
+		const std::string field = std::string("retained_state.") + bound.name;
+		assert(reduce(bound.field, bound.operating).empty());
+		assert(reduce(bound.field, bound.operating - 1) == "authority " + field + " " +
+			   std::to_string(bound.operating - 1) + " is below the operating limit " +
+			   std::to_string(bound.operating) + "; raise " + field);
+		assert(reduce(bound.field, 0) == "authority " + field + " 0 is outside 1 to " + std::to_string(bound.ceiling));
+		assert(reduce(bound.field, bound.ceiling + 1) == "authority " + field + " " +
+			   std::to_string(bound.ceiling + 1) + " is outside 1 to " + std::to_string(bound.ceiling));
+	}
+}
 void retained_application_range(const std::filesystem::path &directory, bool invalid_middle,
-								bool grouped = false, bool backlog = false) {
+								bool grouped = false, bool backlog = false, unsigned lowered = 0) {
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() { std::filesystem::remove_all(directory); }
@@ -93,13 +191,17 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	std::filesystem::create_directories(directory);
 	assert(::chmod(directory.c_str(), 0700) == 0);
 	auto profile = options();
+	if (lowered == 1) {
+		profile.application.request_bytes = 1024;
+		profile.application.definition_bytes = 1024;
+	}
 	if (backlog) {
 		profile.consensus.log_entries = 64;
 		profile.consensus.rpc_entries = 4;
 	}
 	const std::uint64_t through = invalid_middle ? 5 : (grouped ? 3 : 32);
 	{
-		kronuz::journal::PosixIO io(directory);
+		kronuz::journal::PosixIO io(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 		kronuz::journal::Journal journal(io, 4 * 1024 * 1024);
 		kronuz::journal::Identity identity{};
 		identity[0] = 'r';
@@ -118,6 +220,8 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 				for (unsigned sequence = 1; sequence <= 32; ++sequence)
 					commands.push_back(transaction(sequence, static_cast<int>(sequence)));
 				bytes = encode_batch(commands, profile.application, profile.consensus.command_bytes);
+				if (lowered == 1)
+					assert(bytes.size() > 2048);
 			}
 			entries.push_back({index, 1, EntryKind::Command, std::move(bytes)});
 		}
@@ -135,7 +239,36 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 				encode_storage_batch({HardState{1, 1, through}, LogMutation{1, std::move(entries)}}));
 		}
 	}
-	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
+	// Historical groups written under a larger command limit stay readable after the limit drops.
+	if (lowered == 1)
+		profile.consensus.command_bytes = 2048;
+	// Fewer operating entries than the stored log hold: the envelope still recovers it.
+	if (lowered >= 4) {
+		profile.consensus.log_entries = 4;
+		profile.consensus.control_entries = 1;
+		profile.consensus.rpc_entries = 4;
+	}
+	if (lowered == 5) {
+		// An explicit envelope below the stored history refuses recovery and leaves the store untouched.
+		profile.scheduling.retained.log_entries = 4;
+		profile.scheduling.retained.batch_entries = 4;
+		auto sizes = [&] {
+			std::map<std::string, std::uintmax_t> result;
+			for (const auto &entry : std::filesystem::recursive_directory_iterator(directory))
+				if (entry.is_regular_file()) result[entry.path().string()] = entry.file_size();
+			return result;
+		};
+		const auto before = sizes();
+		bool refused = false;
+		{
+			Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
+			try { node.recover(); }
+			catch (const std::exception &error) { refused = true; std::cerr << "recover: " << error.what() << "\n"; }
+		}
+		assert(refused && sizes() == before);
+		return;
+	}
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 	node.recover();
 	while (!node.worker().ready()) {
 		node.service({0, Timing{}.election_min});
@@ -164,7 +297,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		}
 
 		// Retain host output for ownership tests; backlog must permit new ranges.
-		if (backlog)
+		if (backlog || lowered >= 4)
 			node.take_network_actions();
 		if (node.state().applied_index() >= through)
 			break;
@@ -189,6 +322,161 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		assert(node.worker().applied_index() >= through);
 	}
 }
+// D141: voters restarted with raised limits replay every entry under the limits it carries.
+void restart_raise(const std::filesystem::path &directory) {
+	struct Cleanup {
+		std::filesystem::path directory;
+		~Cleanup() { std::filesystem::remove_all(directory); }
+	} cleanup{directory};
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	auto old = options();
+	old.application.keys = 2;
+	auto raised = old;
+	raised.application.keys = 4;
+	raised.application.state_bytes = 3 * 1024 * 1024;
+	auto keyed = [](std::uint64_t sequence, const char *key) {
+		auto command = transaction(sequence, static_cast<int>(sequence));
+		command.mutations.front().key = key;
+		return command;
+	};
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), old);
+		Identity id{};
+		id[0] = 'k';
+		node.create(id);
+		pump(node);
+		node.start();
+		pump(node);
+		submit(node, 1, open());
+		pump(node);
+		submit(node, 2, keyed(1, "ns:a"));
+		pump(node);
+		submit(node, 3, keyed(2, "ns:b"));
+		pump(node);
+		// The image records the old limits; the group that fails stays in the log tail.
+		assert(node.checkpoint());
+		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() == node.state().applied_index());
+		submit(node, 4, keyed(3, "ns:c"));
+		auto full = pump(node);
+		assert(full.size() == 1 && full[0].results[0].status == Status::Capacity && node.state().size() == 2);
+	}
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), raised);
+		node.recover();
+		pump(node);
+		node.start();
+		pump(node);
+		assert(node.worker().role() == Role::Leader);
+		assert(node.state().limits() == raised.application);
+		// A1: the group that failed at the old ceiling replays with the same result.
+		assert(node.state().size() == 2 && !node.state().find("ns:c") &&
+			   node.state().lookup("p", 1, 3).status == Status::Capacity);
+		// A3: its retry returns the original receipt; a new sequence grows past the old ceiling.
+		submit(node, 5, keyed(3, "ns:c"));
+		auto retried = pump(node);
+		assert(retried.size() == 1 && retried[0].results[0].status == Status::Capacity && node.state().size() == 2);
+		submit(node, 6, keyed(4, "ns:c"));
+		pump(node);
+		submit(node, 7, keyed(5, "ns:d"));
+		auto grown = pump(node);
+		assert(grown.size() == 1 && grown[0].results[0].status == Status::Applied && node.state().size() == 4);
+		assert(node.checkpoint());
+		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() == node.state().applied_index());
+	}
+	// A2: a voter restarted below the recorded limits refuses to start and names the field.
+	auto lowered = raised;
+	lowered.application.keys = 3;
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), lowered);
+	std::string reason;
+	try {
+		node.recover();
+	} catch (const std::invalid_argument &error) {
+		reason = error.what();
+	}
+	assert(reason == "authority application_limits.keys 3 is below the recorded 4; limits only rise");
+}
+// D141: an administrative entry replays under the limits it carries; a raise under which the
+// group's layout policy writes history files above a peer fetch refuses to start, naming image_bytes.
+void restart_raise_layout(const std::filesystem::path &directory) {
+	struct Cleanup {
+		std::filesystem::path directory;
+		~Cleanup() { std::filesystem::remove_all(directory); }
+	} cleanup{directory};
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	// Each policy alone writes files a fetch carries; files written across the change outgrow the
+	// old fetch and fit the raised one.
+	LayoutPolicy previous, next;
+	previous.seal_bytes = 1;
+	previous.alpha_num = 4;
+	previous.alpha_den = 1;
+	auto old = options();
+	old.application.layout = previous;
+	auto raised = old;
+	raised.application.image_bytes = 32 * 1024 * 1024;
+	raised.storage.replacement_pool.logical_bytes = funding_requirement(raised);
+	assert(history::file_bytes(old.application, previous) <= history::fetch_bytes(old.application) &&
+		   history::file_bytes(old.application, next) <= history::fetch_bytes(old.application) &&
+		   history::file_bytes(old.application, next, previous) > history::fetch_bytes(old.application) &&
+		   history::file_bytes(raised.application, next, previous) <= history::fetch_bytes(raised.application));
+	AdministrativeCommand enable{context(), AdministrativeKind::EnablePositions, {}, {}};
+	enable.nonce[0] = 'n';
+	const AdministrativeCommand layout{context(), AdministrativeKind::SetLayout, {}, {}, {}, next};
+	LayoutPolicy enabled;
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), old);
+		Identity id{};
+		id[0] = 'l';
+		node.create(id);
+		pump(node);
+		node.start();
+		pump(node);
+		submit(node, 1, enable);
+		auto on = pump(node);
+		assert(on.size() == 1 && on[0].results[0].status == Status::Applied && node.state().positions_enabled());
+		enabled = node.state().policy();
+		// The image records the old limits; the SetLayout that fails stays in the log tail.
+		assert(node.checkpoint());
+		pump(node);
+		assert(!node.checkpoint_busy() && node.worker().base_index() > 0);
+		submit(node, 2, layout);
+		auto refused = pump(node);
+		assert(refused.size() == 1 && refused[0].results[0].status == Status::Conflict &&
+			   !node.state().pending_policy());
+	}
+	{
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), raised);
+		node.recover();
+		pump(node);
+		node.start();
+		pump(node);
+		assert(node.worker().role() == Role::Leader && node.state().limits() == raised.application);
+		// A2: the SetLayout replays from the log tail with the result it had under the old limits.
+		assert(node.state().policy() == enabled && !node.state().pending_policy());
+		// The same entry proposed under the raised limits applies.
+		submit(node, 3, layout);
+		auto applied = pump(node);
+		assert(applied.size() == 1 && applied[0].results[0].status == Status::Applied &&
+			   node.state().pending_policy());
+	}
+	// Raising state_bytes without image_bytes would let block files outgrow a peer fetch. The
+	// configured layout seeds only an enabling entry, so the default passes construction.
+	auto beyond = raised;
+	beyond.application.state_bytes = 24 * 1024 * 1024;
+	beyond.application.layout = {};
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), beyond);
+	std::string reason;
+	try {
+		node.recover();
+	} catch (const std::runtime_error &error) {
+		reason = error.what();
+	}
+	assert(reason == "authority application_limits.image_bytes 33554432 is below the 42074367-byte history "
+					 "files the group's layout policy writes; raise it with state_bytes");
+}
 } // namespace
 void terminal_state_retirement(const std::filesystem::path &path) {
 	struct Cleanup {
@@ -197,7 +485,7 @@ void terminal_state_retirement(const std::filesystem::path &path) {
 	} cleanup{path};
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
-	Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 	Identity id{};
 	id[0] = 'T';
 	node.create(id);
@@ -209,9 +497,9 @@ void terminal_state_retirement(const std::filesystem::path &path) {
 	auto command = transaction(1, 42);
 	command.mutations.clear();
 	for (unsigned key = 0; key < 128; ++key) {
-		detent::BoolDef value{false, {}};
+		detent::KnobDef value;
 		for (unsigned group = 0; group < 31; ++group)
-			value.overrides.emplace("group" + std::to_string(group), true);
+			value.overrides.emplace("group" + std::to_string(group), std::int64_t{1});
 		command.mutations.push_back({"ns:k" + std::to_string(key), std::move(value), {}, {}});
 	}
 	submit(node, 2, command);
@@ -248,7 +536,7 @@ void rejected_read_kind(const std::filesystem::path &path) {
 	chmod(path.c_str(), 0700);
 	auto profile = options();
 	profile.configuration.voters = {1, 2, 3};
-	Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 	Identity id{};
 	id[0] = 'R';
 	node.create(id);
@@ -305,12 +593,20 @@ int main(int argc, char **argv) {
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
+	retained_envelope_defaults();
+	retained_validation();
+	retained_funding(path / "retained-funding");
 	rejected_read_kind(path / "rejected-read");
 	terminal_state_retirement(path / "terminal-state");
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);
 	retained_application_range(path / "grouped-application", false, true);
+	retained_application_range(path / "lowered-grouped-application", false, true, false, 1);
+	retained_application_range(path / "lowered-count-application", false, false, false, 4);
+	retained_application_range(path / "lowered-envelope-application", false, false, false, 5);
 	retained_application_range(path / "backlogged-application", false, false, true);
+	restart_raise(path / "restart-raise");
+	restart_raise_layout(path / "restart-raise-layout");
 	auto prepare = [](const Command &command) {
 		CommandEncoder encoder(command, options().application);
 		while (!encoder.done()) {
@@ -348,7 +644,7 @@ int main(int argc, char **argv) {
 	{
 		auto profile = options();
 		profile.waiters = 1;
-		Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 		Identity id{};
 		id[0] = 's';
 		node.create(id);
@@ -393,13 +689,13 @@ int main(int argc, char **argv) {
 		assert(tail.size() == 1 && node.state().revision() == revision + 1);
 	}
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+		Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 		node.recover();
 		pump(node);
 		node.start();
 		pump(node);
 		assert(node.state().revision() == revision + 1 && node.worker().base_index() == checkpoint_index);
-		assert(std::get<detent::IntDef>(*node.state().find("ns:key")->value).default_value == 20);
+		assert((*node.state().find("ns:key")->value).default_value == 20);
 		submit(node, 4, transaction(1, 10));
 		auto retried = pump(node);
 		assert(retried.size() == 1 && retried[0].results[0].revision == revision &&
@@ -412,7 +708,7 @@ int main(int argc, char **argv) {
 	std::filesystem::create_directories(plain);
 	chmod(plain.c_str(), 0700);
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), options());
+		Node node(std::make_unique<kronuz::journal::PosixIO>(plain, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 		Identity id{};
 		id[0] = 'p';
 		node.create(id);
@@ -422,7 +718,7 @@ int main(int argc, char **argv) {
 		submit(node, 1, open());
 		pump(node);
 		auto command = transaction(1, 1);
-		command.mutations.push_back({"ns:second", detent::IntDef{2}, {}, {}});
+		command.mutations.push_back({"ns:second", detent::KnobDef{2}, {}, {}});
 		submit(node, 2, command);
 		auto result = pump(node);
 		assert(result.size() == 1 && result[0].results[0].status == Status::Applied &&
@@ -434,9 +730,10 @@ int main(int argc, char **argv) {
 			profile.application.keys = 1;
 		else
 			profile.application.results = 1;
-		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), profile);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(plain, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 		node.recover();
 		std::uint64_t node_clock = 0;
+		std::string reason;
 		for (unsigned i = 0; i < 1000 && !node.worker().ready(); ++i) {
 			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
@@ -446,14 +743,20 @@ int main(int argc, char **argv) {
 		}
 		assert(node.worker().ready());
 		node.start();
-		for (unsigned i = 0; i < 1000 && !node.worker().fenced(); ++i) {
+		// The Fenced action reaches the host on the turn after the worker fences.
+		for (unsigned i = 0; i < 1000 && reason.empty(); ++i) {
 			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
-			node.take_network_actions();
+			for (auto &action : node.take_network_actions())
+				if (auto *fenced = std::get_if<Fenced>(&action))
+					reason = fenced->reason;
 		}
 		assert(node.worker().fenced() && node.state().size() == 0);
+		assert(reason == (change_keys ? "authority application_limits.keys 1 is below the recorded 500000; limits only rise"
+									  : "authority application_limits.results 1 differs from the recorded 256; only keys, "
+										"state_bytes and image_bytes rise at a restart"));
 	}
 	std::filesystem::remove_all(plain);
 	std::filesystem::remove_all(path);

@@ -1,7 +1,10 @@
 #pragma once
 #include "paged_disk_fixture.hh"
-inline std::shared_ptr<const d::ValidatedDelta> progress(d::Cursor base,
+// A progress update three positions past `at`, in the fixture's v1 identity.
+inline std::shared_ptr<const d::ValidatedDelta> progress(const d::NamespaceCursor &at,
 														 std::shared_ptr<d::StorageLedger> account) {
+	auto base = cursor();
+	base.revision = at.position;
 	std::string out;
 	m::array(out, 5);
 	m::unsigned_integer(out, 1);

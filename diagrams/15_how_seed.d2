@@ -1,0 +1,20 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+direction: right
+
+up: "Relay or\nauthority"
+agent: "detent-agent\nin a container"
+image: "Read-only image layer" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  files: "selected, change,\ngenerations, packs" {style.multiple: true}
+}
+own: "Agent's own files" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  new: "storage.meta, .lease,\nnew generations" {style.fill: "#E8E2F0"}
+}
+
+up -> agent: "(R, h]"
+agent -> image.files: "adopts\nread-only"
+agent -> own.new: "writes"

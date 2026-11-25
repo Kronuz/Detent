@@ -4,14 +4,19 @@
 #include "state.hh"
 #include <memory>
 #include <optional>
+#include <string_view>
+#include <vector>
 namespace detent::authority {
 struct HistoryOptions {
 	std::size_t transactions = 4096, payload_capacity = 16 * 1024 * 1024, transaction_bytes = 256 * 1024;
 };
 // Internal canonical changed-only transaction. Its name is borrowed exclusively
 // from its retained byte owner, never from an authority definition or root.
+// It carries its group revision, for today's delta wire, and its namespace position.
 struct CachedChange {
-	std::uint64_t revision = 0, overrides = 0, strings = 0;
+	std::uint64_t revision = 0, position = 0, overrides = 0, strings = 0;
+	Identity incarnation{};
+	bool wire = false; // Its position is its group revision, as the delta wire requires.
 	std::uint32_t mutations = 0;
 	std::size_t maximum_definition_bytes = 0, maximum_overrides = 0;
 	std::size_t namespace_offset = 0, namespace_length = 0;
@@ -51,10 +56,16 @@ class ChangeHistory final : public AppliedChangeRecorder {
 	void publish(const Context &, std::uint64_t index, std::uint64_t revision) noexcept override;
 	void abandon_batch() noexcept override;
 	void reset(const Context &, std::uint64_t revision) noexcept override;
+	void covered(std::uint64_t revision) noexcept override;
 	bool pending() const noexcept override;
 	void collect(CommandWorkBudget &) noexcept override;
 	bool covers(const Context &, std::uint64_t base, std::uint64_t target) const noexcept;
 	std::shared_ptr<const CachedChange> find(std::uint64_t revision) const noexcept;
+	// The lowest R whose entries (R, position] of the namespace the ring holds, all of them.
+	std::uint64_t floor(std::string_view name, const Identity &incarnation, std::uint64_t position) const noexcept;
+	// The namespace's entries above `after`, oldest first.
+	std::vector<std::shared_ptr<const CachedChange>> entries(std::string_view name, const Identity &incarnation,
+															 std::uint64_t after) const;
 	std::size_t size() const noexcept;
 	std::size_t payload_capacity() const noexcept;
 	std::uint64_t coverage_floor() const noexcept;

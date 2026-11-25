@@ -1,0 +1,13 @@
+diff --git a/src/detent_relay/service.cc b/src/detent_relay/service.cc
+index 75feedbd..e7f21570 100644
+--- a/src/detent_relay/service.cc
++++ b/src/detent_relay/service.cc
+@@ -53,7 +53,7 @@ void parse_history(std::string_view path, std::string_view body, MirrorJob &job)
+ 		}
+ 		return;
+ 	}
+-	const bool ranged = json.HasMember("offset");
++	const bool ranged = false;
+ 	require(json.MemberCount() == (ranged ? 4 : 2));
+ 	job.kind = MirrorJob::Kind::File;
+ 	job.name_space = member(json, "namespace");

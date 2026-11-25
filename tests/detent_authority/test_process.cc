@@ -35,7 +35,7 @@ Command transaction(std::uint64_t sequence) {
 	c.generation = 1;
 	c.sequence = sequence;
 	c.name_space = "ns";
-	c.mutations.push_back({"ns:key", detent::IntDef{static_cast<std::int64_t>(sequence)}, {}, {}});
+	c.mutations.push_back({"ns:key", detent::KnobDef{static_cast<std::int64_t>(sequence)}, {}, {}});
 	return c;
 }
 std::uint64_t clock_value = 0;
@@ -98,7 +98,7 @@ int main() {
 	if (!child) {
 		::close(channel[0]);
 		try {
-			Node node(std::make_unique<kronuz::journal::PosixIO>(directory), options());
+			Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 			Identity id{};
 			id[0] = 's';
 			node.create(id);
@@ -142,7 +142,7 @@ int main() {
 	if (!child) {
 		::close(channel[0]);
 		try {
-			Node node(std::make_unique<kronuz::journal::PosixIO>(directory), options());
+			Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 			node.recover();
 			start(node);
 			assert(node.state().lookup("writer", 1, 1).revision == 1);
@@ -163,7 +163,7 @@ int main() {
 	killed(child);
 	::close(channel[0]);
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), options());
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 		node.recover();
 		start(node);
 		assert(node.state().lookup("writer", 1, 1).revision == 1 &&

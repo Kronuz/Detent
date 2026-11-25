@@ -1,0 +1,13 @@
+diff --git a/src/detent_authority/service.cc b/src/detent_authority/service.cc
+index 1ea643e4..282398b5 100644
+--- a/src/detent_authority/service.cc
++++ b/src/detent_authority/service.cc
+@@ -1231,7 +1231,7 @@ Service::Reply Service::history_reply(const Task &task, Node &node, LayoutExport
+ 				held.reset();
+ 				return {416, "{\"error\":\"range_not_satisfiable\"}"};
+ 			}
+-			const auto count = std::min({length, maximum, size - offset});
++			const auto count = std::min(length, size - offset);
+ 			auto body = held->bytes.substr(offset, count);
+ 			if (offset + count == size)
+ 				held.reset();

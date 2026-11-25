@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/derived_ids.cc b/src/detent_local/derived_ids.cc
+index 6b3316c2..3642b70c 100644
+--- a/src/detent_local/derived_ids.cc
++++ b/src/detent_local/derived_ids.cc
+@@ -70,7 +70,7 @@ std::uint32_t build_ordinal(const std::optional<Descriptor> &selected, const dis
+ 		return 0;
+ 	if (selected->ordinal == std::numeric_limits<std::uint32_t>::max())
+ 		throw std::overflow_error("build ordinal exhausted at an unchanged head");
+-	return selected->ordinal + 1;
++	return selected->ordinal;
+ }
+ 
+ std::string namespace_name(const distribution::Cursor &cursor) {

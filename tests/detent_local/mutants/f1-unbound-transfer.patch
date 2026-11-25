@@ -1,0 +1,22 @@
+diff --git a/src/detent_local/paged_transfer.cc b/src/detent_local/paged_transfer.cc
+index 1f6369d6..33407758 100644
+--- a/src/detent_local/paged_transfer.cc
++++ b/src/detent_local/paged_transfer.cc
+@@ -167,8 +167,6 @@ struct Receiver {
+ 		if (node.kind != p::PageKind::Branch) {
+ 			if (path.size() + node.prefix.size() > 202)
+ 				refuse(TransferRefusal::Page, "key longer than 202 bytes");
+-			if (!name_space.empty())
+-				bound(node);
+ 			if (alone)
+ 				order.push_back(i);
+ 			return next;
+@@ -382,7 +380,7 @@ ReceivedTransfer receive_transfer(std::shared_ptr<distribution::StorageLedger> a
+ 		if (references.back().digest != target.root)
+ 			refuse(TransferRefusal::RootDigest, "root digest mismatch");
+ 		// A named full copy holds its namespace's one watermark.
+-		if (!target.name_space.empty() && !base && out.namespaces != 1)
++		if (false)
+ 			refuse(TransferRefusal::Leaf, "a full copy without its namespace's one leaf");
+ 		out.tree = references.back();
+ 	} catch (const TransferRefused &) {

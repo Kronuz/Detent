@@ -1,12 +1,12 @@
 name: Deploy Docs to Pages
 
-# Build the Astro/Starlight documentation site (website/) and deploy it to GitHub
+# Build the Astro/Starlight documentation site (site/) and deploy it to GitHub
 # Pages. Requires the repository's Pages source to be "GitHub Actions".
 on:
   push:
     branches: [main]
     paths:
-      - 'website/**'
+      - 'site/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,13 +29,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: site/package-lock.json
       - name: Install dependencies
         run: npm ci
-        working-directory: website
+        working-directory: site
       - name: Install D2 (build-time diagram renderer)
         # ```d2 fences render to SVG at build time by shelling out to the d2 CLI
-        # (see website/src/lib/renderD2.mjs); without it those pages build empty.
+        # through starlight-core; without it those pages build empty.
         run: |
           mkdir -p .scratch/d2
           curl --fail --location --retry 3 --output .scratch/d2/release.tar.gz \
@@ -46,11 +46,11 @@ jobs:
           .scratch/d2/d2-v0.9.0/bin/d2 --version
       - name: Build site
         run: npm run build
-        working-directory: website
+        working-directory: site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website/dist
+          path: site/dist
 
   deploy:
     needs: build

@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index f47390a1..974c7ead 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -13,7 +13,7 @@
+ namespace detent::local::detail {
+ namespace {
+ // Resource exhaustion says nothing about the pack: the step throws and the pass stays where it is.
+-bool transient(int error) noexcept { return error == EMFILE || error == ENFILE || error == ENOMEM; }
++bool transient(int error) noexcept { return error == EMFILE + 100000; }
+ } // namespace
+ PackScrub::PackScrub(std::uint64_t bytes_per_second, std::size_t slice_bytes)
+ 	: rate_(bytes_per_second), slice_(slice_bytes), buffer_(slice_bytes) {

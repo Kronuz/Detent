@@ -1,5 +1,6 @@
 #include "paged_cursor.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include "read_root.hh"
 namespace detent::local::detail {
 namespace p = paged;
@@ -8,6 +9,8 @@ struct PagedCursor::Impl {
 	struct Frame {
 		p::Reference reference;
 		p::PageHeader header;
+		p::NodeView node;
+		p::NodeAt at;
 		std::span<const char> bytes;
 		std::size_t before = 0, length = 0, next = 0;
 		bool entered = false;
@@ -86,15 +89,16 @@ void PagedCursor::step(ValidationBudget &budget) {
 					if (index == segments.size())
 						throw std::logic_error("missing checked cursor segment");
 					frame.bytes = checked_page_bytes(segments[index], frame.reference);
-					frame.header = p::decode_page_header(frame.bytes);
+					frame.header = p::decode_page_header(frame.bytes, paged_format_limits());
 				}
-				if (!s.grant(p::page_header_bytes + frame.header.prefix, budget))
+				frame.node = frame.at.decode(frame.bytes, paged_format_limits());
+				if (!s.grant(frame.node.end - frame.at.offset(), budget))
 					return;
-				if (frame.header.prefix > s.key.size() - frame.before)
+				if (frame.node.prefix.size() > s.key.size() - frame.before)
 					throw std::logic_error("paged cursor key overflow");
-				std::copy_n(frame.bytes.data() + p::page_header_bytes, frame.header.prefix,
+				std::copy_n(frame.node.prefix.data(), frame.node.prefix.size(),
 							s.key.data() + frame.before);
-				frame.length = frame.before + frame.header.prefix;
+				frame.length = frame.before + frame.node.prefix.size();
 				frame.entered = true;
 				const char first = s.kind == p::PageKind::Definition ? 'K' : 'W';
 				if (frame.length && s.key[0] != first) {
@@ -103,14 +107,14 @@ void PagedCursor::step(ValidationBudget &budget) {
 						s.finished = true;
 					continue;
 				}
-				if (frame.header.kind != p::PageKind::Branch) {
-					if (frame.header.kind != s.kind)
+				if (frame.node.kind != p::PageKind::Branch) {
+					if (frame.node.kind != s.kind)
 						throw std::logic_error("paged cursor leaf type mismatch");
 					s.ready = true;
 					return;
 				}
 			}
-			if (frame.next == frame.header.children) {
+			if (frame.next == frame.node.labels.size()) {
 				if (!s.grant(1, budget))
 					return;
 				--s.depth;
@@ -120,15 +124,26 @@ void PagedCursor::step(ValidationBudget &budget) {
 			}
 			if (!s.grant(p::child_bytes, budget))
 				return;
-			const auto offset = p::page_header_bytes + frame.header.prefix + frame.next++ * p::child_bytes;
-			const auto child = p::decode_child(frame.bytes.subspan(offset, p::child_bytes));
+			const auto child = frame.next++;
+			const auto slot = frame.node.slot(child);
+			const auto label = static_cast<unsigned char>(frame.node.labels[child]);
 			const char first = s.kind == p::PageKind::Definition ? 'K' : 'W';
-			if (!frame.length && child.label != static_cast<unsigned char>(first))
+			if (!frame.length && label != static_cast<unsigned char>(first))
 				continue;
 			if (frame.length == s.key.size() || s.depth == s.frames.size())
-				throw std::logic_error("paged cursor depth overflow");
-			s.key[frame.length] = static_cast<char>(child.label);
-			s.frames[s.depth++] = Impl::Frame{child.reference, {}, {}, frame.length + 1};
+				throw ReadSourceFailure("paged cursor depth overflow");
+			s.key[frame.length] = static_cast<char>(label);
+			auto &next = s.frames[s.depth++];
+			next = {};
+			next.before = frame.length + 1;
+			if (slot & 0x8000)
+				next.reference = p::decode_external(frame.bytes, slot & 0x7fff, paged_format_limits());
+			else {
+				next.reference = frame.reference;
+				next.header = frame.header;
+				next.bytes = frame.bytes;
+				next.at = p::NodeAt::child(frame.node, slot);
+			}
 		}
 	} catch (...) {
 		s.failed = true;
@@ -145,7 +160,7 @@ PagedLeaf PagedCursor::leaf() const {
 	return {f.reference,
 			f.header,
 			{s.key.data(), f.length},
-			f.bytes.subspan(p::page_header_bytes + f.header.prefix, f.header.body)};
+			f.node.body};
 }
 void PagedCursor::consume() {
 	leaf();

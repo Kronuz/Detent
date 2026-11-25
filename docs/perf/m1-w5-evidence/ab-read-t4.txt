@@ -1,0 +1,7 @@
+row    old    new  old/new      range    A/A   n  verdict
+t4   370.4  359.0    1.000  0.82-1.11  0.991  14    noise
+
+runs: old 14, new 14, A/A 14; a ratio above 1 means new is faster
+geomean 1.000 over 1 rows (min 1.000 t4; max 1.000 t4)
+per-run geomean: min 0.819, median 1.000, max 1.113 over 14 runs
+A/A geomean 0.991

@@ -2,7 +2,7 @@
 
 **Status:** Complete bounded authority component, with consolidated Architect source GO and native/sanitizer qualification. This component follows cluster `99d01be` and Detent `5778aeb`; additive Worker provenance accessors are cluster `a44c991`. Authenticated multi-node transport and completion-based IO follow the [next validated blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md).
 
-The component contains the authority state machine, owned durable Worker integration and an opt-in loopback single-voter daemon profile. The existing legacy distributor stays available. Authenticated multi-node sockets are the next service component.
+The component contains the authority state machine, owned durable Worker integration and an opt-in loopback single-voter daemon profile. Authenticated multi-node sockets are the next service component.
 
 ## Validated Architectural Blueprint
 
@@ -15,7 +15,7 @@ The component contains the authority state machine, owned durable Worker integra
 
 Producers register explicitly. Open compares the previous generation and binds a retry nonce; Close fences the current generation. Keep the bounded producer registry after closure. Transactions use contiguous sequence numbers, with a high-water mark and the last 256 fixed-size results in the current generation. Retained same-content retries return their original outcome; changed contents conflict. Evicted results return ResultUnavailable and never execute again. Older and closed generations stay fenced. There is no wall-clock expiry.
 
-Initial application limits are 500,000 live knobs, 4,096 namespace records, 1,024 producers, 128 operations per transaction, 256 KiB canonical requests, 16 KiB definitions and 256 overrides. Live logical bytes and maximum image bytes have separate limits. Empty namespaces retain their last revision and consume a namespace slot. Credentials remain outside images. Startup must fund the maximum application image and receiver-local bundle in the Store replacement pool.
+Initial application limits are 500,000 live knobs, 4,096 namespace records, 1,024 producers, 128 operations per transaction, 256 KiB canonical requests, 16 KiB definitions and 256 overrides. Live logical bytes and maximum image bytes have separate limits. Empty namespaces retain their last revision and consume a namespace slot. Credentials remain outside images. Startup must fund the maximum application image, the encoded retained suffix and a 4096-byte publication allowance in the Store replacement pool, and refuses to start otherwise, naming each term and the shortfall ([retained-state envelope](mechanisms/authority-retained-state.md)).
 
 The internal command codec uses a versioned canonical semantic representation, including authority identities and preconditions. Replicated batch framing (`DTABAT02`) binds all ten semantic limits before any command is applied, so differently configured replicas or pre-checkpoint recovery fail closed rather than changing acknowledged outcomes. Mutation order and override insertion order do not change SHA-256 identity. This internal codec does not select the public Protobuf/MessagePack/JSON transport comparison.
 
@@ -39,7 +39,7 @@ Automatic checkpoints begin after retained entries or retained command payload b
 
 ## Loopback daemon profile
 
-Build with `-DDETENT_BUILD_AUTHORITY=ON` and reviewed sibling sources supplied through `-DFETCHCONTENT_SOURCE_DIR_CLUSTER=/path/to/cluster` and `-DFETCHCONTENT_SOURCE_DIR_SHA256=/path/to/sha256`. The profile defaults off while its shared library changes are local. The application-only library and state tests build independently of the distributor.
+Build with `-DDETENT_BUILD_AUTHORITY=ON` and reviewed sibling sources supplied through `-DFETCHCONTENT_SOURCE_DIR_CLUSTER=/path/to/cluster` and `-DFETCHCONTENT_SOURCE_DIR_SHA256=/path/to/sha256`. The application-only library and state tests build independently of the daemon.
 
 Create a configuration owned by the service user or root, with mode `0600` (or controlled group-readable `0640`). The state directory is resolved relative to this configuration; its parent must already exist. Use independent, nonzero 128-bit identities and a randomly generated bearer token. These illustrative values belong only in tests:
 
@@ -57,10 +57,24 @@ Create a configuration owned by the service user or root, with mode `0600` (or c
 }
 ```
 
+Optional objects tune the limits below; each rejects unknown, duplicate and malformed members, and an omitted member keeps its default. `application_limits` and `journal_limits` are in [runtime capacity profiles](CAPACITY_RUNTIME.md), `consensus_limits` in [authority transport](AUTHORITY_TRANSPORT.md). `retained_state` sets the local recovery and retained-allocation envelope:
+
+```json
+"retained_state": {
+  "command_bytes": 1048576,
+  "log_bytes": 67108864,
+  "log_entries": 65536,
+  "batch_bytes": 2097152,
+  "batch_entries": 256
+}
+```
+
+The values shown are the defaults. Each must be at least the operating limit it covers and at most the library ceiling; the envelope is not part of the replicated semantic profile, so it never changes peer admission or batch framing. The replacement pool (`journal_limits.replacement_bytes`, default 512 MiB) must fund the application image, the encoded `log_bytes`/`log_entries` suffix and 4096 bytes; the defaults need 336,931,316 bytes. A node whose pool falls short refuses to start with `authority runtime cannot fund configured limits: the replacement pool holds N bytes but the application image (A) + the encoded retained suffix (S) + the publication allowance (4096) need R, short by D bytes; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or retained_state.log_bytes and log_entries`.
+
 ```sh
-detentd --authority authority.json
-detentd --authority authority.json --daemonize
-detentd --status
+detent-authority --authority authority.json
+detent-authority --authority authority.json --daemonize
+detent-authority --status
 ```
 
 The authority binds `127.0.0.1` and defaults to port 8317. It rejects legacy multicast and legacy persistence overrides. Service managers should run it in the foreground; use the configuration and directory ownership conventions in [SERVICES.md](SERVICES.md). This profile has one voter and local disk durability, with no replicated availability. It does not serve legacy `/v1/snapshot` distribution to agents; that integration follows the authenticated transport component.
@@ -76,29 +90,11 @@ Each request uses `Authorization: Bearer TOKEN` and carries the exact `cluster`,
 | `POST /v2/result` | `generation`, `sequence` |
 | `GET /v1/health` | None; loopback status is unauthenticated |
 
-An operation supplies `key` and `value`, using the existing bool/int definition schema (`{"type":"int","default":42}`) or `null` for deletion. Omit `expected_revision` for unconditional replacement, use a positive modification revision to compare an existing key, or use zero together with `absent_namespace_revision` to compare absence.
+An operation supplies `key` and `value`, using the knob definition schema (`{"default":42}`, or `{"default":0,"rollout_pct":10,"rollout_value":1}`) or `null` for deletion. Omit `expected_revision` for unconditional replacement, use a positive modification revision to compare an existing key, or use zero together with `absent_namespace_revision` to compare absence.
 
 Responses carry authority identity and compact outcomes. `applied` and `no_change` are terminal successes; a retained retry returns the original outcome and revision. Conflict, logical capacity rejection and revision exhaustion also consume the next sequence. `outcome_unknown` after a timeout requires retrying the same generation, sequence and contents. Strong reads and cached result lookup use a quorum barrier. Never advance sequence solely because the connection disappeared.
 
 The adapter reserves the maximum 256 KiB body before buffering, with a 16 MiB aggregate reservation, 1,024 request slots and at most 16 admitted requests per producer. One logical transaction per producer can be outstanding. Up to 64 different producers share a Raft entry within its encoded byte limit and a 5 ms grouping window. The Asio transport transfers response authority into an owned deferred capability with a 5-second deadline. Parsing may use the bounded HTTP worker pool, but waiting for Raft does not occupy a worker. Request and accepted reply leases survive until original socket IO settlement; separate ingress and egress reservations default to 16 MiB. Slow readers retain only their selected response, not a historical State root. Owner-side reads encode into a buffer that checks the actual JSON bound before each byte, using only one definition DOM at a time; oversized selections return `reply_bound`. Authentication and body-admission failures close the connection before buffering because the framework's body hook has no early error-response seam.
-
-## Explicit migration
-
-Import only into a new, separate authority directory, with writers stopped until verification completes:
-
-```sh
-detent-authority-admin import authority.json legacy-snapshot.json
-```
-
-The tool validates the bounded legacy document, applies namespace-scoped batches within transaction limits, compares every resulting definition with the source, and publishes an application checkpoint. Import requires a single voter. Legacy version numbers never become authority revisions. A failed import leaves a directory for inspection; it cannot be silently resumed or overwrite an existing authority. The import session consumes one producer slot.
-
-Stop the authority before a rollback export. Supply an explicit legacy version greater than the destination's last accepted version:
-
-```sh
-detent-authority-admin export authority.json rollback-snapshot.json 1000
-```
-
-The storage lock excludes a running daemon. Export replays the selected voter's durable committed cut as a follower without advancing election time, including stores from a three-voter group. That cut can lag the group's latest commit; export does not contact a quorum. It creates a new `0600` output file and refuses to overwrite an existing file. The legacy output uses file and parent `fsync`; the stronger backup durability contract is part of the pending [restore component](RESTORE_ARCHITECTURE.md). Verify and publish through the destination's ordinary interface before switching writers. A lower version will be rejected by the legacy destination.
 
 ## Qualification evidence
 

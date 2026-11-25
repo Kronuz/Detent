@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_node_step.hh b/src/detent_local/paged_node_step.hh
+index 80340197..58aaa26d 100644
+--- a/src/detent_local/paged_node_step.hh
++++ b/src/detent_local/paged_node_step.hh
+@@ -9,7 +9,7 @@ class NodeAt {
+ 	constexpr NodeAt() noexcept = default;
+ 	static NodeAt after(const NodeView &node) noexcept { return NodeAt(node.end); }
+ 	static NodeAt child(const NodeView &parent, std::uint16_t slot) {
+-		if (slot & 0x8000 || slot < parent.end)
++		if (slot & 0x8000)
+ 			throw std::invalid_argument("inline slot does not progress");
+ 		return NodeAt(slot);
+ 	}

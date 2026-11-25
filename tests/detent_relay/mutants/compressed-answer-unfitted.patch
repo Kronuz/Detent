@@ -1,0 +1,27 @@
+diff --git a/src/detent_distribution/frame_encoder.cc b/src/detent_distribution/frame_encoder.cc
+index 57740464..f15c366f 100644
+--- a/src/detent_distribution/frame_encoder.cc
++++ b/src/detent_distribution/frame_encoder.cc
+@@ -202,21 +202,7 @@ std::shared_ptr<const OwnedBuffer> OwnedFragmentEncoder::take() {
+ 	p.terminal = p.final;
+ 	p.active = p.ready = false;
+ 	p.input.reset();
+-	auto output = std::exchange(p.output, {});
+-	// A fragment that fills at most half its buffer (compressed, or a short last one) is held at its
+-	// own size, so an answer admits the bytes it sends; the full buffer stays when the copy is refused.
+-	if (2 * output->size() > maximum_wire_bytes())
+-		return output;
+-	try {
+-		auto fitted = make_owned_buffer(p.account, output->size());
+-		fitted->append(output->view());
+-		fitted->seal();
+-		return fitted;
+-	} catch (const StoragePressure &) {
+-		return output;
+-	} catch (const std::bad_alloc &) {
+-		return output;
+-	}
++	return std::exchange(p.output, {});
+ }
+ bool OwnedFragmentEncoder::discard(WorkBudget &budget) noexcept {
+ 	auto &p = *impl_;

@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index a68cae87..c11e79b6 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -643,7 +643,7 @@ struct Coordinator::Impl {
+ 			}
+ 			// D1: a records frame that names its sender's root publishes only a build that reaches it;
+ 			// otherwise the namespace is fetched again as a full copy, as pages when the source has them.
+-			if (!pages && input->root() != d::RootDigest{} && built->plan) {
++			if (false) {
+ 				const auto commitment = l::paged::state_commitment(built->plan->root());
+ 				if (!std::equal(commitment.begin(), commitment.end(), input->root().begin())) {
+ 					++diagnostic.transfers.diverged;

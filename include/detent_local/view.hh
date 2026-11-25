@@ -2,16 +2,12 @@
 #include "detent/errors.hh"
 #include "detent/result.hh"
 #include "detent_distribution/retirement.hh"
-#include "layout.hh"
 #include "paged_layout.hh"
 #include <memory>
 #include <optional>
 
 namespace detent::local {
 namespace detail {
-class PinnedImageSource;
-class FlatStateRows;
-class CandidateFlatValidator;
 class PagedCursor;
 class GraphValidator;
 class PagedProgressView;
@@ -33,63 +29,30 @@ struct ViewLimits {
 	// Mapped virtual bytes are counted separately from managed heap capacity.
 	std::shared_ptr<distribution::StorageLedger> mapping_account;
 	std::uint64_t pages = paged::Limits{}.pages, segments = paged::Limits{}.segments;
-	std::size_t verification_cache_bytes = 1024 * 1024;
 };
-class ImageValidator;
 class ReadView {
   public:
 	ReadView() = default;
 	explicit operator bool() const noexcept { return static_cast<bool>(root_); }
-	const distribution::Cursor &cursor() const;
+	const distribution::NamespaceCursor &cursor() const;
 	std::uint32_t size() const noexcept;
-	std::uint32_t bool_count() const noexcept;
-	std::uint32_t int_count() const noexcept;
 	bool contains(std::string_view name_space, std::string_view key) const;
 	// Absence is represented without constructing an allocating KnobError.
-	std::optional<Result<bool, KnobError>> try_eval(std::string_view name_space, std::string_view key,
-													std::optional<std::string_view> hash = {},
-													std::optional<std::string_view> switch_value = {}) const;
-	std::optional<Result<std::int64_t, KnobError>> try_get(std::string_view name_space,
-														   std::string_view key) const;
-	Result<bool, KnobError> eval(std::string_view name_space, std::string_view key,
-								 std::optional<std::string_view> hash = {},
-								 std::optional<std::string_view> switch_value = {}) const;
-	Result<std::int64_t, KnobError> get(std::string_view name_space, std::string_view key) const;
+	std::optional<Result<std::int64_t, KnobError>> try_get(std::string_view name_space, std::string_view key,
+														   std::optional<std::string_view> hash = {},
+														   std::optional<std::string_view> switch_value = {}) const;
+	Result<std::int64_t, KnobError> get(std::string_view name_space, std::string_view key,
+										std::optional<std::string_view> hash = {},
+										std::optional<std::string_view> switch_value = {}) const;
 
   private:
 	struct Root;
 	explicit ReadView(distribution::RetirementHandle<Root> root) : root_(std::move(root)) {}
 	distribution::RetirementHandle<Root> root_;
-	friend class ImageValidator;
-	friend class detail::PinnedImageSource;
-	friend class detail::FlatStateRows;
 	friend class detail::PagedCursor;
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
 	friend class detail::MappedRecoveryAdmission;
 	friend class detail::PreparedReader;
-};
-// The supplied lease retains the immutable byte region through all views.
-// GenerationReader will supply a mapped image and its acquired kernel lease.
-// No view can escape before every region and semantic row validates.
-class ImageValidator {
-  public:
-	ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes, ViewLimits limits = {},
-				   std::optional<distribution::Cursor> expected = {});
-	~ImageValidator();
-	ImageValidator(ImageValidator &&) noexcept;
-	ImageValidator(const ImageValidator &) = delete;
-	void step(ValidationBudget &budget);
-	bool done() const noexcept;
-	ReadView take();
-
-  private:
-	ImageValidator(std::shared_ptr<const void>, std::span<const char>, ViewLimits,
-				   std::optional<distribution::Cursor>, distribution::RetirementFactory,
-				   std::shared_ptr<distribution::StorageLedger>);
-	friend class detail::RecoveryEngine;
-	friend class detail::CandidateFlatValidator;
-	struct Impl;
-	distribution::StorageOwner<Impl> impl_;
 };
 } // namespace detent::local

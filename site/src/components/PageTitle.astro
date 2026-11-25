@@ -1,0 +1,28 @@
+---
+// Render the page title. Edit links live in the footer (EditLink.astro).
+
+const route = Astro.locals.starlightRoute;
+const title = route.entry.data.title;
+// Splash/landing pages (the home) supply their own display heading, so don't
+// render the stock page <h1> (it would show a stray "Detent" title above the
+// custom hero content).
+const isSplash = route.entry.data.template === 'splash';
+---
+
+{
+	!isSplash && (
+		<h1 id="_top">{title}</h1>
+	)
+}
+
+<style>
+	h1 {
+		flex: 1 1 auto;
+		min-width: 0;
+		margin-top: 1rem;
+		font-size: var(--sl-text-h1);
+		line-height: var(--sl-line-height-headings);
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+</style>

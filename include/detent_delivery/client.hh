@@ -1,8 +1,8 @@
 #pragma once
 #include "reactor_tls.h"
 #include "response.hh"
+#include "task_asio.hh"
 #include <asio/any_io_executor.hpp>
-#include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 #include <chrono>
 #include <stdexcept>
@@ -18,31 +18,19 @@ struct ConnectionCacheStats {
 std::shared_ptr<ConnectionCache> make_connection_cache(asio::any_io_executor, std::size_t capacity,
 													   std::shared_ptr<distribution::StorageLedger>);
 ConnectionCacheStats connection_cache_stats(const std::shared_ptr<ConnectionCache> &);
-namespace detail {
-struct ProbeAccess;
-}
 struct ClientOptions {
 	asio::ip::tcp::endpoint endpoint;
 	std::string hostname, token;
 	// Prepared on the startup/configuration worker. Runtime requests never
 	// reopen certificate files or relax chain/hostname verification.
 	std::shared_ptr<asio::ssl::context> tls_context;
-	distribution::Cursor configured;
-	std::optional<distribution::Cursor> base;
-	std::vector<std::string> namespaces;
 	distribution::Limits limits;
 	std::chrono::milliseconds timeout{60000};
 	std::size_t request_bytes = 256 * 1024;
 	bool compression = true;
 	std::shared_ptr<ConnectionCache> connections;
-};
-// One absolute deadline covers connect, handshake, request and incremental
-// reception. Cancellation reaps original network work and budgeted candidate
-// disposal before returning. No complete response body is accumulated.
-asio::awaitable<ReceivedUpdate> receive(ClientOptions);
-struct PublicationFeedback {
-	std::uint64_t window;
-	distribution::Cursor cursor;
+	// The loop every operation, timer and socket of a call runs on; required.
+	task::asio_scheduler *scheduler = nullptr;
 };
 enum class SessionResetReason {
 	HistoryLost,
@@ -75,42 +63,4 @@ class SessionResetError : public std::runtime_error {
   private:
 	SessionResetReason reason_;
 };
-struct SessionOffer {
-	std::uint64_t window;
-	ReceivedUpdate update;
-};
-struct SessionIdle {};
-struct SessionReset {
-	SessionResetReason reason;
-};
-using SessionEvent = std::variant<SessionOffer, SessionIdle, SessionReset>;
-// One owner executor operates a handle. Accepted work retains its admitted state.
-class SessionHandle {
-  public:
-	struct State;
-	SessionHandle() = default;
-	SessionHandle(SessionHandle &&) noexcept = default;
-	SessionHandle &operator=(SessionHandle &&) noexcept = default;
-	SessionHandle(const SessionHandle &) = delete;
-	SessionHandle &operator=(const SessionHandle &) = delete;
-	bool valid() const noexcept;
-	distribution::Identity identity() const noexcept;
-	std::chrono::milliseconds maximum_wait() const noexcept;
-
-  private:
-	friend struct detail::ProbeAccess;
-	std::shared_ptr<State> state_;
-	friend asio::awaitable<SessionHandle> open_session(ClientOptions, bool);
-	friend asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
-													  std::optional<PublicationFeedback>,
-													  std::chrono::milliseconds);
-	friend asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
-};
-asio::awaitable<SessionHandle> open_session(ClientOptions, bool force_snapshot = false);
-asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
-										   std::optional<PublicationFeedback> = {},
-										   std::chrono::milliseconds wait = std::chrono::seconds(30));
-// Invalidates Next immediately. A failed Close may be explicitly retried;
-// authenticated 204/410 settles it and makes subsequent Close calls local no-ops.
-asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
 } // namespace detent::delivery

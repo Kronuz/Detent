@@ -1,0 +1,19 @@
+diff --git a/src/detent_relay/mirror.cc b/src/detent_relay/mirror.cc
+index 13d76ef3..39aa2d5c 100644
+--- a/src/detent_relay/mirror.cc
++++ b/src/detent_relay/mirror.cc
+@@ -439,12 +439,8 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
+ 					continue;
+ 				if (errno != EEXIST)
+ 					throw std::system_error(errno, std::generic_category(), "relay mirror link");
+-				c::File *sync[] = {want.handle.get()};
+-				s.io->sync_files(sync);
+-				primitive("sync replacement");
+-				s.io->replace(want.temporary, want.name);
+-				primitive("rename replacement");
+-				break;
++				s.io->remove(want.name);
++				primitive("unlink orphan");
+ 			}
+ 			want.temporary.clear();
+ 		}

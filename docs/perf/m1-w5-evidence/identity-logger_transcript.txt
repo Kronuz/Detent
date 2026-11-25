@@ -1,0 +1,12 @@
+475c475,478
+< == after finish (1)
+---
+> == after finish (7)
+> 6 PE TS \x1b[0m\x1b[0m\x1b[0mafter finish 1
+> 5 PE TS \x1b[0m\x1b[0m\x1b[0mafter finish 2
+> 3 PE TS \x1b[0m\x1b[0m\x1b[0mafter finish 3
+476a480,482
+> 4 PE TS \x1b[0m\x1b[0m\x1b[0mwatchdog 6
+> 5 PE TS \x1b[0m\x1b[0m\x1b[0mdone 6
+> 3 PE TS \x1b[0m\x1b[0m\x1b[0mfuture severe line
+exit 1

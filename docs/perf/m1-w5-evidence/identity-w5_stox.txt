@@ -1,0 +1,47 @@
+[float] float 0.00000000000000000000000000000000000000...(1003) len=1003 h=e3d2aa1bcafe6e12
+  old: d=0000000000000000 e=0 idx=63 noidx=0000000000000000 e=22 f=00000000 e=0 idx=63
+  new: d=0000000000000000 e=34 idx=99999 noidx=0000000000000000 e=34 f=00000000 e=34 idx=99999
+[float] float 0.00000000000000000000000000000000000000...(103) len=103 h=9f23d09a8ee5f762
+  old: d=0000000000000000 e=0 idx=63 noidx=0000000000000000 e=22 f=00000000 e=0 idx=63
+  new: d=2b1bff2ee48e0530 e=0 idx=103 noidx=2b1bff2ee48e0530 e=0 f=00000000 e=34 idx=99999
+[int] int base 0 +000000000000000000000000000000000000000...(1020) len=1020 h=05c8aaf8ce37a5e6
+  old: ll=0 e=0 idx=63 noidx=0 e=22 ull=0 e=0 idx=63 i=0 e=22 throw-api=invalid_argument
+  new: ll=0 e=0 idx=1001 noidx=0 e=22 ull=0 e=0 idx=1001 i=0 e=22 throw-api=invalid_argument
+[int] int base 0 +000000000000000000000000000000000000000...(120) len=120 h=2387457d68dede46
+  old: ll=0 e=0 idx=63 noidx=0 e=22 ull=0 e=0 idx=63 i=0 e=22 throw-api=invalid_argument
+  new: ll=0 e=0 idx=101 noidx=0 e=22 ull=0 e=0 idx=101 i=0 e=22 throw-api=invalid_argument
+
+  float: d=0000000000000000 e=0 -> d=0000000000000000 e=34: 6
+  float: d=0000000000000000 e=0 -> d=2af665bf1d3e6a8d e=0: 1
+  float: d=0000000000000000 e=0 -> d=2b1bff2ee48e0530 e=0: 1
+  float: d=0000000000000000 e=0 -> d=32059165a6ddda5b e=0: 1
+  float: d=0000000000000000 e=0 -> d=322af5bf109550f2 e=0: 1
+  float: d=0000000000000000 e=0 -> d=323af5bf109550f2 e=0: 1
+  float: d=0000000000000000 e=0 -> d=3260d9976a5d5297 e=0: 1
+  float: d=0000000000000000 e=0 -> d=3270d9976a5d5297 e=0: 1
+  float: d=0000000000000000 e=0 -> d=32950ffd44f4a73d e=0: 1
+  float: d=0000000000000000 e=0 -> d=32a50ffd44f4a73d e=0: 1
+  float: d=0000000000000000 e=0 -> d=32ca53fc9631d10d e=0: 1
+  float: d=0000000000000000 e=0 -> d=32da53fc9631d10d e=0: 1
+  float: d=0000000000000000 e=0 -> d=3300747ddddf22a8 e=0: 1
+  float: d=0000000000000000 e=0 -> d=3949f623d5a8a733 e=0: 1
+  float: d=0000000000000000 e=0 -> d=4014000000000000 e=0: 8
+  float: d=3fbc71c71c71c71c e=0 -> d=40c5b38e38e38e39 e=0: 9
+  float: d=3fd5555555555555 e=0 -> d=3fd5555555555555 e=0: 9
+  float: d=4ccf1d75a5709c1b e=0 -> d=3ff0000000000000 e=0: 9
+  float: d=4d03726987666191 e=0 -> d=0000000000000000 e=34: 3
+  float: d=4d03726987666191 e=0 -> d=4d384f03e93ff9f5 e=0: 1
+  float: d=4d03726987666191 e=0 -> d=4d6e62c4e38ff872 e=0: 1
+  float: d=4d03726987666191 e=0 -> d=4da2fdbb0e39fb47 e=0: 1
+  float: d=4d03726987666191 e=0 -> d=54b249ad2594c37d e=0: 1
+  int: ll=0 e=0 -> ll=-5 e=0: 32
+  int: ll=0 e=0 -> ll=0 e=0: 57
+  int: ll=0 e=0 -> ll=0 e=34: 16
+  int: ll=0 e=0 -> ll=5 e=0: 28
+  int: ll=0 e=0 -> ll=9223372036854775807 e=0: 8
+  int: ll=9223372036854775807 e=0 -> ll=0 e=34: 6
+
+class                       cases  different
+float                         474         61
+int                           615        147
+total                        1089        208

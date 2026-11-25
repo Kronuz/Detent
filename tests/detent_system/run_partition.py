@@ -58,38 +58,30 @@ async def run(arguments: argparse.Namespace) -> None:
                     scenario.producers,
                 )
                 await cohort.start()
-                revision = max(
-                    int(receipt["revision"])
-                    for receipt in writers.receipts
-                    if receipt is not None
-                )
-                await cohort.wait_selected(revision)
+                await cohort.wait_selected(cohort.positions(writers))
                 old = await authority.leader()
                 deadline = time.monotonic() + 10
                 while True:
-                    code, health = await authority.request(old, "/v1/health")
-                    if (
-                        code == 200
-                        and health.get("subscription_idle_responses", 0)
-                        >= scenario.durable_agents
-                    ):
+                    # A W5 session parks on whichever voter it opened at.
+                    idle_before = 0
+                    for index in range(3):
+                        code, health = await authority.request(index, "/v1/health")
+                        if code == 200:
+                            idle_before += int(health.get("frames_idle", 0))
+                    if idle_before >= scenario.durable_agents:
                         break
                     if time.monotonic() >= deadline:
                         raise RuntimeError(
-                            "managed subscriptions did not reach idle before partition"
+                            "managed sessions did not reach idle before partition"
                         )
                     await asyncio.sleep(0.05)
-                idle_before = int(health["subscription_idle_responses"])
                 evidence.record(
                     "partition_requested", old_leader=old, idle_before=idle_before
                 )
                 authority.excluded.add(old)
                 await mesh.isolate(old)
-                new = await authority.leader()
-                if old == new:
-                    raise RuntimeError(
-                        "isolated member remained the fixture writer route"
-                    )
+                # CheckQuorum steps an isolated leader down after election_max, so the
+                # stale leader is observed leading now, and only reachable afterwards.
                 code, old_health = await authority.request(old, "/v1/health")
                 if (
                     code != 200
@@ -99,23 +91,33 @@ async def run(arguments: argparse.Namespace) -> None:
                     raise RuntimeError(
                         "fixture did not preserve the reachable stale leader"
                     )
+                new = await authority.leader()
+                if old == new:
+                    raise RuntimeError(
+                        "isolated member remained the fixture writer route"
+                    )
+                code, elected_health = await authority.request(old, "/v1/health")
+                if code != 200 or elected_health.get("fenced"):
+                    raise RuntimeError("old leader unreachable after the election")
                 evidence.record(
                     "majority_elected",
                     old_leader=old,
                     new_leader=new,
                     old_https_role=old_health["role"],
+                    old_role_at_election=elected_health["role"],
                 )
                 await writers.phase("mutate", time.monotonic() + 5)
                 await writers.phase("verify")
                 await cohort.verify(writers)
                 code, old_health = await authority.request(old, "/v1/health")
-                if code != 200 or old_health.get("role") != 2:
+                if code != 200 or old_health.get("fenced"):
                     raise RuntimeError(
                         "old leader did not remain reachable through verification"
                     )
                 evidence.record(
                     "partition_verified",
-                    old_idle_responses=old_health["subscription_idle_responses"],
+                    old_idle_responses=old_health["frames_idle"],
+                    old_role_after_verification=old_health["role"],
                     counts=dict(writers.counts),
                 )
                 await cohort.close()

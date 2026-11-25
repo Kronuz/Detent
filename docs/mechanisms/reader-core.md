@@ -1,0 +1,93 @@
+> Status: CURRENT (2026-11-23) Reader design D1, D2, D4, D5, D7 (C++), D10 (`docs/design/reader.md`, step S6), over namespace delivery's table (an entry per namespace, D150).
+
+# Reader core
+
+How `libdetent_reader` answers a lookup from the agent's mapped generation with no lock, allocation or syscall once warm, switches generations without a thread, and survives `fork`. Code: `src/detent_reader/core.cc`; public faces `include/detent/reader.h` (C ABI) and `include/detent/reader.hh` (C++); test seams `src/detent_reader/testing.hh`.
+
+## Objects
+
+```
+detent_reader (handle)
+  directory fd (trusted once)   ring[4]: Slot { 64 padded counters, atomic View * }   current (seq)
+                                                       |
+                  View (immutable): change *, store_seen, table *, entries[] (by name)
+                         /                      |                         \
+  Change { ChangeMapping, dev/ino, views }      |             Entry { name, Generation *, sequence *, seen }
+                       Table { StoreTable, sequences[], views }          |
+              Generation { name, slot, AttachedGeneration (lease fd, records), PageTable, PagedReadState, views }
+```
+
+- A **Generation** is one attached table entry, named by its namespace and `change` slot: the lease descriptor holding a shared `flock`, the checked records from `PreparedReader::attach` (which takes the store's directory descriptor, so attach never repeats directory trust), a `PageTable` (D3's segment table and verified bitmap, plain ownership: destruction unmaps) and the `PagedReadState` a lookup walks.
+- A **Change** is one read-only mapping of the store's `change` file (`docs/mechanisms/change-file.md`), a member of every view built over it.
+- A **Table** is one read of `selected`, namespace delivery's table (`namespace-delivery.md` D8): an entry per namespace, sorted by name, each naming its generation and its `change` slot (reader.md A1-A2). It keeps the sequences loaded before the read (D4 rule 1), through the highest slot it names.
+- A **View** is what a lookup reads: the store word it loaded, the table it read after it, and its attached entries, sorted by name. `find` is a binary search of the attached entries alone, so a lookup's cost does not grow with the table and grows with the attached namespaces only logarithmically: over 20,000 knob pairs, a hot lookup's p50 is 958 ns with 1 namespace and 1,017 ns with 1,000 attached (steady_clock per call included; 0 allocations), and scattered lookups 1,503 and 1,280 ns (`benchmarks/reader_namespaces.sh`, job 261123-204301-53e01c, strict). Generations, tables and changes carry a count of the views holding them; only the holder of `refreshing` changes those counts, so they are plain integers.
+
+## A lookup
+
+1. Validate `ns:key` (split at the first colon, each part 1-198 name characters, 200 together) and the handle's namespace list (`DETENT_NOT_OPENED`). No handle state is touched for a refused name.
+2. Pin (D5): load `current` (acquire), add 1 to this lookup's stripe of slot `current % 4` (seq_cst), reload `current` (seq_cst); a different value undoes the increment and retries. The stripe is a hash of a stack address (`>> 12`, multiplicative hash, 64 stripes), computed once per lookup.
+3. Find the namespace's entry. Load its sequence (acquire) through the view's slot pointer. Equal to the entry's `seen`: walk the generation, evaluate (`detent::local::evaluate`), unpin. That is the warm path: two read-modify-writes on the stripe's line, two loads of `current`, one load of the sequence, the trie walk, and no clock, lock, allocation or syscall. Each page on the walk is a slot load and a bitmap test; a verified page is answered after comparing the reference's length, keys, height and digest with its header's raw fields, as `checked_page_bytes` does, and a first touch decodes the header, compares it, verifies the page and its nodes, then sets the bit. The walk then reads the page's external count raw to place its nodes end; every node and external decode refuses an end or offset outside the page.
+4. A moved sequence: unless a failure is remembered at this store word or the refusal backoff is running, try `refreshing` (compare-and-swap). The winner unpins, refreshes, and retries on the new view. Everyone else answers from the installed view without waiting.
+5. No entry (first lookup in the namespace): an unchanged store word whose table does not list the namespace answers `DETENT_UNAVAILABLE`. Otherwise the lookup takes `refreshing` and attaches that namespace's entry; a loser waits on `refreshing` (C++20 atomic wait) and retries, so no lookup answers a real knob with its default because it lost the race (D2).
+
+`detent_get` is the one lookup: every knob holds one `int64` and takes the hash and switch alike (one-knob-type); a flag is fallback 0 or 1. It writes the caller's fallback for every status but `DETENT_OK`. The C++ `Reader::get_as<T>` returns the default when the value is outside `T` (for `bool`, other than 0 or 1).
+
+## A refresh (only the holder of `refreshing`)
+
+1. **Free, then the next slot.** Every refresh, whatever its outcome, first frees each view outside the installed slot whose counters sum to zero (seq_cst loads), returning its mapping charge to the cap; a view a lookup pinned across a commit is freed by the first refresh after the pin drops. If slot `(current + 1) % 4` still holds a view, the publish is refused before anything is built: `refused` counts it and a backoff starts (1 ms doubling to 200 ms, reset by a successful publish).
+2. **Store.** With no `change` mapped yet (Q6), the open is retried at most once per 200 ms: directory trust (`open_publisher_directory`) the first time, then `change`. `detent_refresh` also re-stats `change` and remaps a replaced file (Limit 2).
+3. **Load before read (D4 rule 1).** Load the store word and the sequences through the highest slot the last table named (4,096 at first, never the whole `change`, which may be large), then read `selected` whole. A table naming a higher slot loads through it and reads again; a slot past the mapping remaps `change` first (rule 4). A first attach (not `detent_refresh`) at the installed view's store word and `change` mapping reads nothing: it takes the view's table and the sequences loaded before it, so the first lookup after `detent_open` reads `selected` no more, and a publish since the open still moves its namespace's sequence.
+4. **Build.** Every attached namespace follows its entry: kept while the entry names the same generation id at the same slot, attached again otherwise (A4: a regression within one incarnation is refused); one the table no longer lists keeps answering from its generation and watches the store word, so the publish that re-adds it at any slot makes its next lookup attach the new entry. The per-transition table is `docs/design/client-local-source.md` D7. A first lookup's namespace is attached from its entry. Each entry records its slot's sequence from step 3. Attach starts from the entry step 3 read and takes the generation's lease; a lease already gone reads the namespace's entry again through `detail::read_selected` (a table naming an image already gone is read again), up to three times; a record whose file a collection unlinked between the open and the check is opened again, up to three times, then reported unavailable. Nothing new: no publish.
+5. **Publish.** Count the new view's members, store the view in the next slot (release), store `current + 1` (seq_cst), then free every other slot whose counters sum to zero.
+
+A namespace whose attach fails fails alone: it keeps its generation and records the sequence it failed at, so it retries when that sequence moves or at `detent_refresh`, which returns the status; the handle's other namespaces publish. A first attach that fails is remembered at the store word, as below. A failure of the whole refresh (store, `change` or table) frees what it built, keeps the installed view and remembers the status at the store word the attempt read; lookups answer from the installed view (or return that status for an unattached namespace) until the store word moves or a `detent_refresh` that does not fail; the next first lookup then attaches. A publish that lands during the attempt has already moved the word, so the lookup retries at once.
+
+The Dekker pair: a reader's seq_cst increment and recheck against the publisher's seq_cst `current` store and counter scan. Either the recheck sees the new sequence and the reader backs off without reading the view, or the scan sees the increment and keeps the view. Sequences never repeat, so a reader that pinned a reused slot fails its recheck.
+
+## Open and close
+
+`detent_open` copies the store path and namespace list, takes `refreshing` itself and runs one refresh that attaches nothing: directory trust, `change`, the table. A handle opened with a namespace list attaches only those; one opened with none attaches any namespace the table lists, including later ones (A2). A store with no directory or no `change` yet opens (Q6 (a)); a `selected` without a valid `change` is refused (`DETENT_SOURCE_FAILURE`, D4 rule 5); an untrusted directory is `DETENT_UNTRUSTED`. `detent_close` runs alone (D1 item 7): it unregisters the handle and frees every slot. The core starts no thread and does not use a `RetirementDomain`.
+
+## Bounds
+
+Each handle charges one ledger, the mapping cap `detent_open_options.mapping_bytes` (reader.md D3, D143): 512 MiB when zero or when the caller's options struct ends before the field, as main's client mapping account (`src/detent_local/view.cc`). It counts each segment mapping rounded to pages and every allocation of each generation's page table: the segment table, the segment objects and the verified bitmaps. The page table takes it as both its heap and its mapping account; the core has no heap ledger. A cap below `DETENT_MINIMUM_MAPPING_BYTES`, one full pack and its bitmap, fails `detent_open` with `DETENT_INVALID_ARGUMENT`. An attach whose segment table the cap cannot hold fails with `DETENT_NO_MEMORY`, remembered like any attach failure. A cold miss past the cap maps nothing and fails that lookup alone with the fallback and `DETENT_NO_MEMORY` (the page access raises `ReadAdmissionRefused`, a `ReadSourceFailure` to its other callers); the generation keeps answering from the segments it holds. Nothing is evicted: segments leave with their generation, when a refresh frees its last view (step 1 of a refresh), as on main's client, whose default account refuses the same way. A full read of a store larger than the cap needs a raised cap: `tests/detent_reader/reader_capacity_probe.cc` reads a store at the default and at a raised cap. `change` is not charged; it is mapped whole.
+
+## Fork (D10)
+
+The first open registers `pthread_atfork` handlers; a refused registration fails that open with `DETENT_NO_MEMORY`, and the next open tries again. Later opens read one atomic flag and take no lock, so a child forked while another thread is inside `detent_open` opens too. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
+
+## Fork and cold preparation
+
+Each `PageTable` has a `frozen` bit and an active-preparation count. A cold segment miss waits for an unfrozen table, increments the count, then rechecks the bit. If freezing raced admission, it drops the count and retries. An admitted miss keeps its count until its candidate is published or destroyed. The sequence is the same counter-and-recheck shape as view pinning; all gate operations are sequentially consistent.
+
+Prepare acquires every handle's `refreshing` flag before freezing the page tables reachable from all live ring views, then waits for each active count to drain. The flags pin those generations' lifetimes. Existing pinned lookups can remain parked while forking; only cold segment preparation must finish. Parent unfreezes every table. Child zeroes inherited view pins and preparation counts, then unfreezes the tables; neither handler allocates or performs file I/O.
+
+1. A candidate segment owns no mapping or allocation before acquiring preparation admission. The warm segment hit bypasses this admission entirely.
+2. Either prepare observes an admitted miss and waits for its candidate to become reachable or be destroyed, or the miss observes freezing and backs out before allocation. The sequentially consistent store, count increment and recheck establish this ordering.
+3. A failed attempt may increment after prepare has observed zero. It cannot allocate while frozen. Child clears these inherited transient counts because those parent threads do not exist there; parent retains its counts for the live threads to release.
+4. Every reachable table is frozen after all handle refresh flags are acquired, so generation replacement and destruction cannot race the table traversal. Shared generations appearing in several views may be frozen and thawed repeatedly.
+5. Parent and child both reopen cold admission. Parent lookups retain their pins and active counts; child starts with neither. Each process frees its own candidate ownership and all published mappings on close.
+
+Without the freeze, a fork while one handle is parked at `LazyPageWindow::Publish` beside a second live handle leaves the child an orphaned candidate mapping: both child reads succeed, but closing both handles leaves one mapping above the baseline. `test_reader_switch`'s cold-preparation cases (admitted miss in flight, miss starting across freezing, late count after the drain) require the child's mappings and descriptors back at baseline.
+
+## Status mapping
+
+`GenerationUnavailable` is `DETENT_UNAVAILABLE`; `bad_alloc` and ledger pressure `DETENT_NO_MEMORY`; `system_error` `DETENT_IO`; a refused directory `DETENT_UNTRUSTED`; everything else from a record, page or `change` check `DETENT_SOURCE_FAILURE`.
+
+A cold segment miss whose open, `fstat` or `mmap` fails for want of a resource (`EMFILE`, `ENFILE`, `ENOMEM`, `EAGAIN`, `EINTR` on open; any `fstat` or `mmap` errno) raises a `system_error`: that lookup answers `DETENT_IO` with the fallback, the generation stays usable, and the next lookup of the key retries the miss. Any other refusal of a page or segment marks the generation failed, and every later lookup in it answers `DETENT_SOURCE_FAILURE` until a new generation is attached.
+
+## Mapped bytes after verification
+
+A page is verified once, at first touch, and later lookups read it in place from the private mapping (reader.md Limit 5). Only the publisher's account or root can write a generation file: packs, leases, records and `change` must be owned by the publisher, have one link, no group or other write, and a mode-only ACL (`generation_file_access.hh`, `change_file.cc`). On Linux a write to the file after first touch shows in the mapping until the page is copied on write; on macOS it does not. Either way the walk stays inside the page: it places a page's nodes end from the raw external count (`paged_read_state.cc`), and `decode_node` and `decode_external` (`paged_layout.cc`) refuse any end or offset past the page's bytes, so damaged bytes give an in-page read or a refusal. `test_dense_reads`' `damaged_counts` checks that under ASan.
+
+## File admission and replacement
+
+Required regular files (`change`, selected records, leases and packs) open with `O_NONBLOCK` before their descriptor-based shape, ownership, link, extent and ACL checks. A FIFO therefore reaches the regular-file refusal without waiting for a peer. Regular files retain their ordinary reads and mappings; `test_reader_files` checks their value alongside six refused shapes (FIFO, directory, symlink, hard link, mode, short) of each of five files (`change`, `selected`, image, lease, pack), with a two-second alarm per child.
+
+`ChangeMapping` retains the device and inode from the descriptor it validates and maps. Explicit refresh compares the pathname with this identity. A replacement between mapping inode A and installing its view cannot label A as inode B. `test_reader_core` replaces the file in that window, requires an explicit refresh to remap it, and checks value and revision 2 after the next publication.
+
+## Test seams
+
+`RecordTesting` provides a hook, on the installing thread, after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.
+
+Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `ForkPrepared`, `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, `Freeing`, `ChangeMapped`, `Registering`, per-handle stats (live views, publishes, refused, attached, generations, `current`, the mapping cap and its charge) and `refuse_atfork` (a failed fork-handler registration).

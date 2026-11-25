@@ -1,0 +1,14 @@
+diff --git a/bindings/rust/src/lib.rs b/bindings/rust/src/lib.rs
+index 3dc3d362..3833998a 100644
+--- a/bindings/rust/src/lib.rs
++++ b/bindings/rust/src/lib.rs
+@@ -130,8 +130,7 @@ impl Knob for bool {
+     fn from_knob(value: i64) -> Option<Self> {
+         match value {
+             0 => Some(false),
+-            1 => Some(true),
+-            _ => None,
++            _ => Some(true),
+         }
+     }
+ }

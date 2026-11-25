@@ -2,7 +2,6 @@
 // Usage: detent_scale_bench [knobs=100000] [iterations=3]
 #include "detent/json_schema.hh"
 #include "detent/json_patch.hh"
-#include "shm_writer.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -39,14 +38,15 @@ int main(int argc, char** argv) {
 		snapshot.version = 1;
 		for (std::size_t i = 0; i < count; ++i) {
 			auto name = "namespace" + std::to_string(i % 100) + ":service/feature_" + std::to_string(i);
-			if (i % 2) snapshot.knobs[name] = detent::IntDef{static_cast<std::int64_t>(i)};
+			detent::KnobDef definition;
+			if (i % 2) definition.default_value = static_cast<std::int64_t>(i);
 			else {
-				detent::BoolDef flag;
-				flag.rollout_pct = 25;
-				flag.overrides["internal_employees"] = true;
-				flag.overrides["production"] = detent::GroupRollout{5};
-				snapshot.knobs[name] = std::move(flag);
+				definition.rollout_pct = 25;
+				definition.rollout_value = 1;
+				definition.overrides["internal_employees"] = std::int64_t{1};
+				definition.overrides["production"] = detent::GroupRollout{5};
 			}
+			snapshot.knobs[name] = std::move(definition);
 		}
 		std::string json;
 		auto serialize_ms = median_ms(repeats, [&] { json = detent::serialize_snapshot(snapshot); });
@@ -56,16 +56,14 @@ int main(int argc, char** argv) {
 		});
 		detent::SnapshotPatch patch;
 		patch.version = 2;
-		patch.knobs[snapshot.knobs.begin()->first] = detent::BoolDef{};
+		patch.knobs[snapshot.knobs.begin()->first] = detent::KnobDef{};
 		auto patch_ms = median_ms(repeats, [&] {
 			auto applied = detent::apply_patch(snapshot, patch, count);
 			if (!applied || applied.value().knobs.size() != count) throw std::runtime_error("patch failed");
 		});
-		std::vector<std::uint8_t> image;
-		auto image_ms = median_ms(repeats, [&] { image = detent_agent::serialize_for_shm(snapshot); });
 		auto default_parse = detent::parse_source_snapshot(json, "scale");
-		std::printf("{\"knobs\":%zu,\"iterations\":%zu,\"json_bytes\":%zu,\"image_bytes\":%zu,\"single_knob_patch_bytes\":%zu,\"serialize_ms\":%.3f,\"parse_ms\":%.3f,\"single_knob_patch_ms\":%.3f,\"image_ms\":%.3f,\"fits_default_json_limits\":%s,\"fits_legacy_4mib_image\":%s}\n",
-			count, repeats, json.size(), image.size(), detent::serialize_patch(patch).size(), serialize_ms, parse_ms, patch_ms, image_ms,
-			default_parse ? "true" : "false", image.size() <= 4u * 1024 * 1024 ? "true" : "false");
+		std::printf("{\"knobs\":%zu,\"iterations\":%zu,\"json_bytes\":%zu,\"single_knob_patch_bytes\":%zu,\"serialize_ms\":%.3f,\"parse_ms\":%.3f,\"single_knob_patch_ms\":%.3f,\"fits_default_json_limits\":%s}\n",
+			count, repeats, json.size(), detent::serialize_patch(patch).size(), serialize_ms, parse_ms, patch_ms,
+			default_parse ? "true" : "false");
 	} catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
 }

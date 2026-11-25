@@ -1,0 +1,26 @@
+# transport-admission: Pre-authentication admission favors configured peers; transport-connection's notes
+
+Risk: normal. The lead writes this quest; contributors read it and never edit it. Its machine state
+(status, branch, checks, reviews) is in `state.json`: `campaign status transport-admission`.
+
+## Outcome
+
+The host's pre-authentication pool can't be churned into refusing the cluster's own peers: a dial from an address membership names is admitted ahead of unknown sources, and transport-connection's open review notes are closed.
+
+## Acceptance criteria
+
+- A1 N9 (transport-connection security review round 2): under the reviewer's churn probe (about 3,200 connects/s from one unknown address), dials from configured peer addresses still link; an unknown flood cannot evict a configured peer's pending handshake: a test, and a mutant without the priority killed
+- A2 The round 2 notes N10-N13 and the journal's N5 test, N6 and N7 are fixed or each dropped with a reason in the journal: tests for the fixed ones
+- A3 N14 (transport-connection security review round 3): a test that stalls only one end proves the peer-timing waits (dead-peer, stuck write, handshake, lookup, dial) keep the late extension; with the dead-peer wait set to not extend it fails on its first attempt, with no rerun absorbing it (probe 261117-032945-3c2d82): a test and that mutant killed
+
+## Contracts
+
+Internal to `consensus:transport`; no wire change.
+
+## Decisions
+
+Lead: N9 lands as a follow-up, since the flood needs both ends hit and is bounded by the handshake deadline; priority by membership needs transport-identity's membership view.
+
+## May land early
+
+Tests.

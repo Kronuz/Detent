@@ -1,0 +1,11 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+direction: right
+
+open: "Open\ndirectory trust,\nchange, selected"
+attach: "First lookup\nattaches namespace"
+touch: "First touch\nmaps segment,\nchecks page"
+warm: "Warm lookup\none load,\nbit tests" {style.fill: "#E8E2F0"}
+
+open -> attach -> touch -> warm
+warm -> attach: "sequence moved" {style.stroke-dash: 4}

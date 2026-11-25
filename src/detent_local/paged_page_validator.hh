@@ -4,11 +4,12 @@
 #include "detent_local/view.hh"
 
 namespace detent::local::detail {
-// The owner retains immutable page bytes; this validates framing, not the graph.
+// The owner retains immutable page bytes; this validates framing, not the graph. Digests are
+// compared unless the caller proves another validator already compared this page's.
 class PageValidator {
   public:
 	PageValidator(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> owner,
-				  std::span<const char> bytes, paged::Reference, paged::Limits = {});
+				  std::span<const char> bytes, paged::Reference, paged::Limits = {}, bool compare_digests = true);
 	~PageValidator();
 	PageValidator(PageValidator &&) noexcept;
 	PageValidator(const PageValidator &) = delete;

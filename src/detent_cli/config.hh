@@ -8,6 +8,7 @@
 namespace detent_cli {
 
 inline constexpr int kDefaultPort = 8317;
+inline constexpr char kLoopbackHost[] = "127.0.0.1";
 using Config = std::map<std::string, std::string>;
 enum class FieldKind { String, Path, PositiveInt, NonnegativeInt, PositiveUint64, NonnegativeUint64, StringOrUint64 };
 struct ConfigField { std::string flag; FieldKind kind; bool trusted = false; };
@@ -19,6 +20,9 @@ std::filesystem::path system_config_dir();
 std::filesystem::path default_runtime_dir(bool system = false);
 std::filesystem::path default_state_dir(bool system = false);
 std::filesystem::path default_agent_state_dir(bool system = false);
+// Options a program no longer has. A flag, an environment variable or a config field that names
+// one fails with an error that says so, instead of "unknown argument".
+void reject_removed_options(const std::string& program, const std::vector<std::string>& args);
 ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema);
 
 } // namespace detent_cli

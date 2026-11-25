@@ -11,33 +11,48 @@ using namespace std::chrono_literals;
 struct App : http::HttpHandler {
 	std::mutex mutex;
 	std::condition_variable ready;
-	std::unique_ptr<http::DeferredReply> pending;
-	bool should_offload(const http::Request &) const override { return false; }
-	void handle(const http::Request &request, http::ResponseWriter &writer) override {
+	http::OwnedStreamCapability pending;
+	std::condition_variable writable_ready;
+	bool writable = false;
+	task::task<void> handle(http::Request &request, http::ResponseWriter &writer) override {
 		if (request.path == "/v1/health") {
 			writer.send(200, "healthy");
-			return;
+			co_return;
 		}
 		if (request.path == "/fast") {
 			writer.send(200, "fast");
-			return;
+			co_return;
 		}
-		http::DeferredOptions options;
-		options.deadline = std::chrono::steady_clock::now() + 3s;
+		// The reply leaves later, through the owned stream: the connection keeps reading meanwhile.
+		http::StreamOptions options;
+		options.reply.deadline = std::chrono::steady_clock::now() + 3s;
+		options.on_writable = [this] {
+			{
+				std::lock_guard lock(mutex);
+				writable = true;
+			}
+			writable_ready.notify_one();
+		};
 		std::lock_guard lock(mutex);
-		pending = writer.defer(std::move(options));
+		pending = writer.stream(std::move(options));
 		ready.notify_one();
 	}
-	std::unique_ptr<http::BodySink> on_request_body(http::Request &request) override {
+	std::unique_ptr<http::RequestExtension> create_extension(const http::Request &request) override {
 		if (request.path == "/reject") {
 			throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
 		}
 		return {};
 	}
-	std::unique_ptr<http::DeferredReply> take() {
+	http::OwnedStreamCapability take() {
 		std::unique_lock lock(mutex);
 		assert(ready.wait_for(lock, 2s, [&] { return bool(pending); }));
 		return std::move(pending);
+	}
+	// A chunk is accepted once the header write has settled; until then publish() answers Busy.
+	void wait_writable() {
+		std::unique_lock lock(mutex);
+		assert(writable_ready.wait_for(lock, 2s, [&] { return writable; }));
+		writable = false;
 	}
 };
 int main(int argc, char **argv) {
@@ -49,14 +64,14 @@ int main(int argc, char **argv) {
 		*context, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
 		reactor::tls::Role::Server);
 	asio::io_context io;
-	asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
-	auto endpoint = reservation.local_endpoint();
-	reservation.close();
-	http::HttpAsioService service(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 4);
+	http::HttpAsioService service(
+		app, 1, http::Limits{.max_clients = 4, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms, .tls_handshake = 100ms},
+		http::Tls{context});
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	service.set_bind_options(bind);
-	service.start(endpoint.port());
+	service.start(0);
+	const asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), service.port()};
 	asio::ssl::context client_context(asio::ssl::context::tls);
 	reactor::tls::configure(client_context, {"", "", (cert / "ca.pem").string()},
 									 reactor::tls::Role::Client);
@@ -70,8 +85,12 @@ int main(int argc, char **argv) {
 	asio::write(client, asio::buffer("G", 1));
 	std::this_thread::sleep_for(20ms);
 	http::Response response;
-	response.body = "deferred";
-	assert(reply->complete(std::move(response)) == http::ReplySubmit::Accepted);
+	response.content_type = "text/plain";
+	auto deferred = std::make_shared<const std::string>("deferred");
+	assert(reply->start(response, deferred->size(), true) == http::StreamSubmit::Accepted);
+	app.wait_writable();
+	assert(reply->publish({deferred, std::string_view(*deferred)}) == http::StreamSubmit::Accepted);
+	assert(reply->finish() == http::StreamSubmit::Accepted);
 	asio::write(client, asio::buffer(std::string(
 							"ET /fast HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")));
 	std::string wire;
@@ -107,35 +126,74 @@ int main(int argc, char **argv) {
 		timed_out = true;
 	}
 	assert(timed_out && std::chrono::steady_clock::now() - began < 500ms);
+	// The plain probe reads one 200 body, and rejects other statuses, oversized bodies and silent peers.
+	const auto plain = [](const std::string &reply, std::size_t bound) {
+		asio::io_context server_io;
+		asio::ip::tcp::acceptor acceptor(server_io, {asio::ip::address_v4::loopback(), 0});
+		std::thread server([&] {
+			asio::ip::tcp::socket socket(server_io);
+			acceptor.accept(socket);
+			asio::streambuf request;
+			asio::read_until(socket, request, "\r\n\r\n");
+			asio::error_code ignored;
+			asio::write(socket, asio::buffer(reply), ignored);
+		});
+		struct Join {
+			std::thread &thread;
+			~Join() { thread.join(); }
+		} join{server};
+		return detent::transport::http_health(acceptor.local_endpoint(), "localhost", 2s, bound);
+	};
+	assert(plain("HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\nhealthy", 65536) == "healthy");
+	for (const auto &[reply, bound] : std::vector<std::pair<std::string, std::size_t>>{
+			 {"HTTP/1.1 503 Unavailable\r\nContent-Length: 2\r\nConnection: close\r\n\r\nno", 65536},
+			 {"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n" + std::string(100, 'x'), 16}}) {
+		bool rejected = false;
+		try {
+			plain(reply, bound);
+		} catch (const std::exception &) {
+			rejected = true;
+		}
+		assert(rejected);
+	}
+	timed_out = false;
+	const auto plain_began = std::chrono::steady_clock::now();
+	try {
+		detent::transport::http_health(silent.local_endpoint(), "localhost", 20ms);
+	} catch (const std::exception &) {
+		timed_out = true;
+	}
+	assert(timed_out && std::chrono::steady_clock::now() - plain_began < 500ms);
 	service.stop();
 	asio::ip::tcp::acceptor expired_accept(io, {asio::ip::address_v4::loopback(), 0});
 	asio::ip::tcp::socket expired_client(io);
 	expired_client.connect(expired_accept.local_endpoint());
 	auto expired_socket = expired_accept.accept();
-	reactor::Reactor expired_owner(0, 0);
-	http::AsioResponseOptions expired_options;
+	reactor::Reactor expired_owner;
+	http::detail::ServiceState expired_state(http::Limits{.tls_handshake = 100ms}, http::Tls{context}, 1);
 	bool expired_retired = false;
 	std::exception_ptr expired_failure;
-	auto expired_factory = http::tls_connection_factory_timed(context, 100ms);
-	asio::co_spawn(io,
-				   expired_factory(std::move(expired_socket), &app, &expired_owner, &expired_options,
-								   reactor::SessionContext{std::chrono::steady_clock::now() - 200ms}),
-				   [&](std::exception_ptr failure) {
-					   expired_failure = failure;
-					   expired_retired = true;
-				   });
-	io.restart();
-	io.run();
+	task::spawn(task::scheduler_ref::of(expired_owner.scheduler()),
+				http::detail::serve_tls_connection(std::move(expired_socket), &app, &expired_owner, &expired_state,
+												   reactor::SessionContext{std::chrono::steady_clock::now() - 200ms, {}}),
+				[&](std::exception_ptr failure) {
+					expired_failure = failure;
+					expired_retired = true;
+				});
+	expired_owner.run();
+	expired_owner.scheduler().close();
+	expired_owner.scheduler().destroy_roots();
 	assert(expired_retired && !expired_failure);
 	char unexpected_tls_byte = 0;
 	auto expired_bytes = expired_client.read_some(asio::buffer(&unexpected_tls_byte, 1), error);
 	assert(expired_bytes == 0 && error && "queue delay expires before TLS handshake allocation or output");
-	asio::ip::tcp::acceptor capped_reservation(io, {asio::ip::address_v4::loopback(), 0});
-	const auto capped_endpoint = capped_reservation.local_endpoint();
-	capped_reservation.close();
-	http::HttpAsioService capped(app, 1, 0, 16, http::tls_connection_factory(context, 100ms, 1, 1));
+	http::HttpAsioService capped(app, 1,
+								  http::Limits{.max_clients = 1, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms,
+											   .tls_handshake = 100ms, .tls_handshakes = 1},
+								  http::Tls{context});
 	capped.set_bind_options(bind);
-	capped.start(capped_endpoint.port());
+	capped.start(0);
+	const asio::ip::tcp::endpoint capped_endpoint{asio::ip::address_v4::loopback(), capped.port()};
 	asio::ssl::stream<asio::ip::tcp::socket> held(io, client_context);
 	reactor::tls::bind_hostname(held.native_handle(), "localhost");
 	held.next_layer().connect(capped_endpoint, error);
@@ -160,13 +218,13 @@ int main(int argc, char **argv) {
 	}
 	assert(refunded);
 	capped.stop();
-	asio::ip::tcp::acceptor timed_reservation(io, {asio::ip::address_v4::loopback(), 0});
-	const auto timed_endpoint = timed_reservation.local_endpoint();
-	timed_reservation.close();
-	http::HttpAsioService timed(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 1);
-	timed.set_request_timeout(40ms);
+	http::HttpAsioService timed(app, 1,
+								http::Limits{.max_clients = 1, .max_in_flight = 16, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms,
+											 .request_timeout = 40ms, .tls_handshake = 100ms},
+								http::Tls{context});
 	timed.set_bind_options(bind);
-	timed.start(timed_endpoint.port());
+	timed.start(0);
+	const asio::ip::tcp::endpoint timed_endpoint{asio::ip::address_v4::loopback(), timed.port()};
 	for (const auto &prefix : std::vector<std::string>{
 			 "", "GET /fast HTTP/1.1\r\nH",
 			 "POST /fast HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000\r\n\r\nx"}) {
@@ -212,5 +270,5 @@ int main(int argc, char **argv) {
 	}
 	timed.stop();
 	assert(timed.connection_stats().active == 0);
-	std::cout << "HTTPS deferred reply preserves pipelined plaintext input\n";
+	std::cout << "HTTPS owned-stream reply preserves pipelined plaintext input\n";
 }

@@ -230,9 +230,7 @@ CRC-32C compatibility names must forward to one engine immediately. Shared direc
 
 ## Online capacity snapshot admission, October 23
 
-Detent's [validated online-capacity blueprint](ONLINE_CAPACITY_ARCHITECTURE.md) needs explicit durable activation metadata and old/new application-image admission. Consensus main `61149a2` currently accepts one application format; current strata branches do not implement a compatible-format policy. Detent agrees to a minimal additive extension of the existing Worker and capture metadata, preserving current defaults, existing descriptors and old-format sourcing. The exact API and consumer/platform qualification are pending; no library behavior or production pin changes with this record.
-
-Use the finalized transport's existing authenticated per-voter state, with a bounded public readiness query only if needed. First activation requires every fixed voter under the versioned contract, not merely a quorum. Keep durable replies behind the existing synced barrier. Align the contract change with the already-approved finalized-v2 restart, with no second flag day. New image bytes require a new application-format tag; old logs retain exact profile semantics. Record each additive library commit's immutable consumer closure and test results in `LIBRARY_BOUNDARIES.md`.
+Withdrawn (D141): Detent raises capacity at a coordinated restart instead of online, so consensus needs no old/new application-image admission. See [ONLINE_CAPACITY_ARCHITECTURE.md](ONLINE_CAPACITY_ARCHITECTURE.md).
 
 ## Grouped image preparation proposal, October 25
 
@@ -292,3 +290,25 @@ lives. The adoption is no longer an optional candidate: its first-read gate (196
 195/200 migrated under 1 ms) is a regression to attribute and fix, in `allocators` when the cost is
 there, not a reason to keep Detent's copy. The work rebases `track/resource-adoption`
 (`Detent:52246e2`) onto `main` with `allocators` at its head, the same pin completion declares.
+
+## Grouped file sync dependency closure (November 4)
+
+Detent's `namespace/s1-s2` candidate requires completion's staged-file policy at `completion:560c288`. Its current journal pin, `journal:bfad97f`, declares `completion:9acfba3`, so the candidate fails the dependency-consistency check in CI run 41974346242. Journal's remote main, `journal:5bbeedc`, declares the same older completion revision; taking that head alone does not close the mismatch. Detent main retains the consistent older closure.
+
+The owner authorizes the Detent campaign to take temporary ownership of this pin-only update while the Xapiand owner is asleep (November 5). Journal advances its completion declaration, consensus advances its journal declaration, and Detent takes both qualified commits. No shared API, runtime code or pin-checker change is included. Each library's CI must be green before its qualified pin is adopted. The later general pin wave remains separate.
+
+Journal's existing main `journal:5bbeedc` passes all executed jobs after its cancelled macOS ARM job is rerun (CI 41883608106). Work proceeds in isolated `maintenance/detent-completion-pin` and `maintenance/detent-journal-pin` worktrees, preserving the owner's working copies. The handback note records landed commits and CI results here, and the peer campaign receives the same summary through its agent inbox.
+
+Handback (November 5): `journal:e5f6ff1` is on main with branch CI 42027535122 and main CI 42028116518 green. `consensus:ab05507` is on main with branch CI 42027615149 and main CI 42028627552 green. Each commit changes one dependency declaration. Original working copies are preserved. Detent's production pins are unchanged; the owner narrows this campaign to Dense pages, so no further pin adoption or library work is scheduled here. Ownership returns to the Xapiand campaign.
+
+## The November pin wave (November 24)
+
+Detent moves every Kronuz pin in `cmake/dependencies.json` to its library's default-branch head.
+Asked in msg-358 with the heads named; the Xapiand lead's reply, relayed by the Detent lead:
+"Agreed: the wave at those heads, FlushMode::full at each PosixIO." Detent passes
+`PosixIOOptions{FlushMode::full}` at each PosixIO it builds.
+
+The Xapiand lead also asks that the wave cascade the libraries' own pins to heads first, bottom-up,
+so that each Detent pin equals what every declaring library pins. Detent's campaign makes one pin
+commit per library on its main, each level's CI green before the next; the table of repositories,
+old and new pins and CI runs is in `CHANGELOG.md`.

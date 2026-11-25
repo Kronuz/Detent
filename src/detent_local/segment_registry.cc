@@ -4,13 +4,12 @@
 #include <stdexcept>
 namespace detent::local::detail {
 SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> account,
-								 StorageIdentity storage, paged::Limits limits)
+								 paged::Limits limits)
 	: mappings_(distribution::StorageAllocator<MappingHandle>(account)),
 	  inputs_(distribution::StorageAllocator<SegmentInput>(account)),
-	  reachable_(distribution::StorageAllocator<SegmentReachability>(account)), storage_(storage),
+	  reachable_(distribution::StorageAllocator<SegmentReachability>(account)),
 	  limits_(limits) {
-	if (!std::any_of(storage.begin(), storage.end(), [](char c) { return c != 0; }) ||
-		limits.segments > mappings_.max_size() || limits.segments > inputs_.max_size() ||
+	if (limits.segments > mappings_.max_size() || limits.segments > inputs_.max_size() ||
 		limits.segments > reachable_.max_size())
 		throw std::invalid_argument("invalid segment registry admission");
 	identity_ =
@@ -22,12 +21,12 @@ SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> ac
 void SegmentRegistry::append(MappingHandle mapping) {
 	if (sealed_)
 		throw std::logic_error("sealed segment registry");
-	if (!mapping || !mapping->has_ownership() || inputs_.size() == limits_.segments || mapping->ownership().storage != storage_ ||
+	if (!mapping || !mapping->has_ownership() || inputs_.size() == limits_.segments ||
 		mapping->ownership().length > limits_.bytes - physical_bytes_ ||
 		(!inputs_.empty() &&
 		 std::memcmp(inputs_.back().ownership.segment.data(), mapping->ownership().segment.data(), 16) >= 0))
 		throw std::invalid_argument("invalid segment registry entry");
-	inputs_.push_back({mapping->ownership(), mapping->bytes()});
+	inputs_.push_back({mapping->ownership(), mapping->bytes(), mapping->first_touch()});
 	reachable_.push_back({});
 	physical_bytes_ += mapping->ownership().length;
 	mappings_.push_back(std::move(mapping));
@@ -36,6 +35,19 @@ void SegmentRegistry::seal() {
 	if (sealed_)
 		throw std::logic_error("sealed segment registry");
 	sealed_ = true;
+}
+void SegmentRegistry::certify_digests(const paged::Root &root) {
+	if (!sealed_ || compared_root_)
+		throw std::logic_error("segment registry digests cannot be certified");
+	compared_root_ = root;
+}
+void SegmentRegistry::adopt_derived(const paged::Root &root, std::span<const SegmentReachability> live,
+									std::span<const std::uint32_t, 257> histogram) {
+	if (!sealed_ || validated_root_ || live.size() != reachable_.size() || root.segments != reachable_.size())
+		throw std::logic_error("segment registry cannot adopt derived state");
+	std::copy(live.begin(), live.end(), reachable_.begin());
+	std::copy(histogram.begin(), histogram.end(), override_histogram_.begin());
+	validated_root_ = root;
 }
 std::span<const SegmentInput> SegmentRegistry::inputs() const {
 	if (!sealed_)

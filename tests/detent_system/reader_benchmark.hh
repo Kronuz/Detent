@@ -1,4 +1,7 @@
 #pragma once
+#include "detent/reader.hh"
+#include "detent_local/read_counters.hh"
+#include "detent_local/view.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -10,6 +13,24 @@
 #include <random>
 #include <sys/resource.h>
 #include <vector>
+
+// The two paths measured side by side: the reader core, and a pinned view of one generation. Each says
+// whether a lookup returned the expected value; the core's fallback differs from it, so a failed lookup
+// cannot pass.
+struct CoreApi {
+	const detent::Reader &reader;
+	bool is(std::string_view key, std::optional<std::string_view> hash, std::int64_t expected) const {
+		return reader.get(key, ~expected, hash) == expected;
+	}
+};
+struct PinnedApi {
+	const detent::local::ReadView &view;
+	bool is(std::string_view key, std::optional<std::string_view> hash, std::int64_t expected) const {
+		const auto colon = key.find(':');
+		const auto result = view.get(key.substr(0, colon), key.substr(colon + 1), hash);
+		return result && result.value() == expected;
+	}
+};
 
 class ReaderBenchmark {
   public:
@@ -40,7 +61,9 @@ class ReaderBenchmark {
 		else
 			queries_[slot] = std::move(query);
 	}
-	template <class Client, class View> void run(const Client &client, const View &view) const {
+	void run(const detent::Reader &reader, const detent::local::ReadView &view) const {
+		const CoreApi core{reader};
+		const PinnedApi pinned{view};
 		if (!enabled())
 			return;
 		for (unsigned kind = 0; kind != 3; ++kind) {
@@ -53,11 +76,11 @@ class ReaderBenchmark {
 			for (bool hot : {true, false}) {
 				for (unsigned repetition = 0; repetition != 4; ++repetition) {
 					if (repetition % 2) {
-						measure(view, selected, kind, hot, "pinned-view", repetition);
-						measure(client, selected, kind, hot, "client", repetition);
+						measure(pinned, selected, kind, hot, "pinned-view", repetition);
+						measure(core, selected, kind, hot, "reader", repetition);
 					} else {
-						measure(client, selected, kind, hot, "client", repetition);
-						measure(view, selected, kind, hot, "pinned-view", repetition);
+						measure(core, selected, kind, hot, "reader", repetition);
+						measure(pinned, selected, kind, hot, "pinned-view", repetition);
 					}
 				}
 			}
@@ -84,19 +107,12 @@ class ReaderBenchmark {
 			throw std::invalid_argument("benchmark requires positive lookup and query counts");
 		return value;
 	}
-	template <class Reader>
-	void measure(const Reader &reader, const std::vector<const Query *> &queries,
+	template <class Api>
+	void measure(const Api &api, const std::vector<const Query *> &queries,
 				 unsigned kind, bool hot, const char *path, unsigned repetition) const {
 		auto lookup = [&](const Query &query) {
-			bool correct;
-			if (!kind) {
-				const auto result = reader.get(query.key);
-				correct = result && result.value() == query.value;
-			} else {
-				const auto result = kind == 1 ? reader.eval(query.key)
-					: reader.eval(query.key, std::string_view("cohort-A"));
-				correct = result && result.value() == (kind == 1 ? bool(query.value) : query.rollout);
-			}
+			const bool correct = kind != 2 ? api.is(query.key, std::nullopt, query.value)
+			                               : api.is(query.key, std::string_view("cohort-A"), std::int64_t(query.rollout));
 			if (!correct)
 				throw std::runtime_error("reader benchmark result mismatch: " + query.key);
 		};
@@ -104,6 +120,7 @@ class ReaderBenchmark {
 			lookup(*queries[index]);
 		std::vector<std::int64_t> latency(calls_);
 		const auto before = usage();
+		const auto counted = detent::local::counters::snapshot();
 		const auto begin = std::chrono::steady_clock::now();
 		for (std::size_t index = 0; index != calls_; ++index) {
 			const auto &query = *queries[hot ? 0 : index % queries.size()];
@@ -114,6 +131,7 @@ class ReaderBenchmark {
 		}
 		const auto end = std::chrono::steady_clock::now();
 		const auto after = usage();
+		const auto counts = detent::local::counters::snapshot() - counted;
 		std::sort(latency.begin(), latency.end());
 		auto percentile = [&](unsigned percent) {
 			return latency[(calls_ / 100 * percent + (calls_ % 100 * percent + 99) / 100) - 1];
@@ -128,7 +146,15 @@ class ReaderBenchmark {
 			<< ",\"p50_ns\":" << percentile(50) << ",\"p95_ns\":" << percentile(95)
 			<< ",\"p99_ns\":" << percentile(99) << ",\"maximum_ns\":" << latency.back()
 			<< ",\"process_minor_faults\":" << after.ru_minflt - before.ru_minflt
-			<< ",\"process_major_faults\":" << after.ru_majflt - before.ru_majflt << "}\n";
+			<< ",\"process_major_faults\":" << after.ru_majflt - before.ru_majflt;
+		if (detent::local::counters::enabled)
+			std::cout << ",\"counters\":{\"directory_trust\":" << counts.directory_trust
+				<< ",\"record_opens\":" << counts.record_opens << ",\"table_bytes\":" << counts.table_bytes
+				<< ",\"segment_opens\":" << counts.segment_opens
+				<< ",\"pages_verified\":" << counts.pages_verified
+				<< ",\"bytes_hashed\":" << counts.bytes_hashed
+				<< ",\"pages_verified_per_lookup\":" << double(counts.pages_verified) / calls_ << "}";
+		std::cout << "}\n";
 	}
 	std::uint64_t calls_ = 0, capacity_ = 0, seen_ = 0;
 	std::mt19937_64 random_{0x524541444552};

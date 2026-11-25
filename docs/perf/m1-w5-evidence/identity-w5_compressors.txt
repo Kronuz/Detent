@@ -1,0 +1,32 @@
+[crafted] crafted lz4 good then 65535 via lz4-oneshot
+  old: crash:signal-6
+  new: throw LZ4CorruptVolume
+[crafted] crafted lz4 good then 65535 via lz4-stream
+  old: crash:signal-6
+  new: throw LZ4CorruptVolume
+[flip] flip lz4-oneshot 1000 0.3
+  old: throw LZ4Exception
+  new: throw LZ4CorruptVolume
+[flip] flip lz4-oneshot 1000 0.7
+  old: throw LZ4Exception
+  new: throw LZ4CorruptVolume
+
+  crafted: crash:signal-6 -> throw LZ4CorruptVolume: 3
+  crafted: hang -> throw ZstdCorruptVolume: 2
+  crafted: ok 0 -> throw DeflateException: 1
+  crafted: throw LZ4Exception -> throw LZ4CorruptVolume: 15
+  flip: throw LZ4Exception -> throw LZ4CorruptVolume: 322
+  flip: throw bad_alloc -> throw ZstdCorruptVolume: 2
+
+class                       cases  different
+concatenated                   12          0
+crafted                        32         21
+empty                           6          0
+flip                         6120        324
+garbage                       384          0
+trailing                       12          0
+truncate                     2040          0
+valid                          72          0
+xxh32                          36          0
+zstd                            8          0
+total                        8722        345

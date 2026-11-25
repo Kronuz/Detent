@@ -1,0 +1,13 @@
+diff --git a/src/detent_authority/service_runtime.cc b/src/detent_authority/service_runtime.cc
+index 224490ff..118b5a62 100644
+--- a/src/detent_authority/service_runtime.cc
++++ b/src/detent_authority/service_runtime.cc
+@@ -1912,7 +1912,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
+ 					// W8: this voter's own history, by name; immutable files need no quorum read. A
+ 					// voter that knows no live leader may be cut off from the quorum: it refuses, and the
+ 					// relay reads another.
+-					complete(first, serving() ? Service::history_reply(*first, node, layout_export, held_file,
++					complete(first, true || serving() ? Service::history_reply(*first, node, layout_export, held_file,
+ 																		options_.reply_bytes - 256)
+ 											: Reply{503, "{\"error\":\"not_ready\"}"});
+ 					first.reset();

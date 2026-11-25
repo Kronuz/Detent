@@ -13,8 +13,6 @@ MappedRecoveryAdmission::MappedRecoveryAdmission(std::shared_ptr<d::StorageLedge
 }
 void MappedRecoveryAdmission::append(SegmentOwnership ownership) {
 	encode_segment_ownership(ownership);
-	if (ownership.storage != storage_)
-		throw std::invalid_argument("mapped admission storage mismatch");
 	const auto found =
 		std::lower_bound(rows_.begin(), rows_.end(), ownership.segment, [](const Row &row, const auto &id) {
 			return std::memcmp(row.ownership.segment.data(), id.data(), id.size()) < 0;
@@ -33,10 +31,9 @@ bool MappedRecoveryAdmission::warm() const {
 		throw std::logic_error("unpopulated mapped admission");
 	return warm_;
 }
-void MappedRecoveryAdmission::bind(Descriptor target, DirectoryIdentity directory,
-								   StorageIdentity storage) const {
+void MappedRecoveryAdmission::bind(Descriptor target, DirectoryIdentity directory) const {
 	warm();
-	if (target != target_ || directory != directory_ || storage != storage_)
+	if (target != target_ || directory != directory_)
 		throw std::invalid_argument("mapped admission target binding mismatch");
 }
 void MappedRecoveryAdmission::bind_selection(Descriptor target, DirectoryIdentity directory) const {
@@ -53,7 +50,7 @@ void MappedRecoveryAdmission::bind_resources(const std::shared_ptr<d::StorageLed
 	if (!warm_)
 		return;
 	if (!prior || prior->descriptor() != base_ || prior->directory_identity() != directory_ ||
-		prior->storage_identity() != storage_ || !prior->registry()->uses_account(heap_))
+		!prior->registry()->uses_account(heap_))
 		throw std::invalid_argument("mapped admission recovery base mismatch");
 	for (std::size_t i = 0; i < prior->registry()->inputs().size(); ++i)
 		if (prior->registry()->mapping(i)->storage_account() != mappings_)
@@ -115,12 +112,12 @@ ReadView MappedRecoveryAdmission::take_view() {
 		throw std::logic_error("mapped admission view already consumed");
 	const auto root = capability_->root();
 	const auto counts = capability_->counts();
-	if (counts.bools != expected_counts_.bools || counts.ints != expected_counts_.ints ||
+	if (counts.records != expected_counts_.records ||
 		counts.overrides != expected_counts_.overrides || counts.strings != expected_counts_.strings ||
 		counts.maximum_overrides != expected_counts_.maximum_overrides)
 		throw std::invalid_argument("mapped recovery counts differ from admitted plan");
-	view_->install_paged(capability_hook_, {root, capability_->registry()->inputs()}, counts.bools,
-						 counts.ints, counts.overrides, counts.strings);
+	view_->install_paged(capability_hook_, {root, capability_->registry()->inputs()}, counts.overrides,
+						 counts.strings);
 	return ReadView(std::move(view_));
 }
 void MappedRecoveryAdmission::claim_attempt() {

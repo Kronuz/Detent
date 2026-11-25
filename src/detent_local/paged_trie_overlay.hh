@@ -1,11 +1,13 @@
 #pragma once
 #include "paged_graph_validator.hh"
+#include "paged_node_step.hh"
 namespace detent::local::detail {
 struct OverlayNode;
 struct OverlayReference {
-	const char *old = nullptr;
+	std::optional<paged::Reference> old;
 	OverlayNode *fresh = nullptr;
-	explicit operator bool() const noexcept { return old || fresh; }
+	paged::NodeAt at;
+	explicit operator bool() const noexcept { return old.has_value() || fresh; }
 };
 struct OverlayChild {
 	std::uint8_t label = 0;
@@ -18,20 +20,27 @@ struct OverlayNode {
 	std::span<const char> body;
 	std::span<OverlayChild> children;
 	std::size_t capacity = 0;
+	std::span<const char> relocation_bytes;
+	paged::Reference relocation_reference;
 };
-// Worker-owned structural recipes borrow checked mappings; they grant no IO authority.
+// Worker-owned structural recipes borrow checked mappings; they grant no IO
+// authority.
 class TrieOverlay {
   public:
-	TrieOverlay(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> immutable_owner,
-				std::span<const SegmentInput>, paged::Root, paged::Limits = {});
+	TrieOverlay(std::shared_ptr<distribution::StorageLedger>,
+				std::shared_ptr<const void> immutable_owner, std::span<const SegmentInput>,
+				paged::Root, paged::Limits = {});
 	~TrieOverlay();
 	TrieOverlay(TrieOverlay &&) noexcept;
 	TrieOverlay(const TrieOverlay &) = delete;
-	// The optional body stays borrowed until this operation completes or is discarded.
+	// The optional body stays borrowed until this operation completes or is
+	// discarded.
 	void change(std::string_view typed_key, std::optional<std::span<const char>> body);
-	void begin_relocation(std::span<const StorageIdentity>, std::size_t maximum_recipes);
+	void begin_relocation(std::span<const SegmentId>, std::size_t maximum_recipes);
 	void step(ValidationBudget &);
 	std::uint64_t visited_pages() const;
+	// Extent comparisons over every removed-page dedupe lookup, first inserts included.
+	std::uint64_t removal_probes() const noexcept;
 	std::size_t relocated_pages() const;
 	bool operation_done() const noexcept;
 	bool changed() const;
@@ -39,6 +48,8 @@ class TrieOverlay {
 	void seal();
 	OverlayReference root() const;
 	std::span<const SegmentReachability> removed() const;
+	std::span<const paged::Reference> touched_pages() const;
+	std::uint32_t namespaces() const;
 	bool discard(ValidationBudget &);
 
   private:

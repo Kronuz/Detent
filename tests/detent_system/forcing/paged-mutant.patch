@@ -1,0 +1,19 @@
+diff --git a/tests/detent_local/test_paged_publication_artifacts.cc b/tests/detent_local/test_paged_publication_artifacts.cc
+index 4821dee8..19c0f25a 100644
+--- a/tests/detent_local/test_paged_publication_artifacts.cc
++++ b/tests/detent_local/test_paged_publication_artifacts.cc
+@@ -70,13 +70,13 @@ int main() {
+ 					plan.emplace(construction.take());
+ 				}
+ 				// The builder's work and input owners retire on the runtime thread; the plan is left.
+-				eventually([&] { return domain.residents() == 1; });
+ 				next = l::next_generation(recovered.descriptor(), plan->descriptor().cursor, plan->descriptor().profile,
+ 										  false)
+ 						   .id;
+ 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
+ 				if (pressure) {
+ 					auto admission = account->admit(account->limit() - account->used());
++					std::this_thread::sleep_for(std::chrono::milliseconds(50)); // forced window
+ 					rejects<d::StoragePressure>([&] { artifacts->populate(*plan); });
+ 					rejects<std::logic_error>([&] { artifacts->artifacts(); });
+ 					require(plan->descriptor().generation == next);

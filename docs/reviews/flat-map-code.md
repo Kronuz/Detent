@@ -87,7 +87,7 @@ Fix one of two ways: build the table with `flat_map_builder` and keep the error 
 
 ### CR9 (non-blocking): public API reference
 
-`website/src/content/docs/reference/cpp-api/client.md` shows the new field types but does not say that `value_type` is `pair<Key, T>` (key is not const) and that any insert or erase invalidates every iterator and reference. The header comment states both. Link the header from the reference.
+`site/src/content/docs/reference/cpp-api/client.md` shows the new field types but does not say that `value_type` is `pair<Key, T>` (key is not const) and that any insert or erase invalidates every iterator and reference. The header comment states both. Link the header from the reference.
 
 ## Blocking items
 

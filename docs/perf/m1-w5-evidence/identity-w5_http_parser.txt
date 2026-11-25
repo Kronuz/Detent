@@ -1,0 +1,36 @@
+[request] request bare-lf-end strict bytewise
+  old: parsed=26/26 eof=0 errno=HPE_OK up=0 | B U</>F<Host>V<a>H(1.1 m=GET st=0 cl=18446744073709551615 up=0 ka=1) M 
+  new: parsed=25/26 eof=0 errno=HPE_CR_EXPECTED up=0 | B U</>F<Host>V<a>
+[request] request bare-lf-end strict whole
+  old: parsed=26/26 eof=0 errno=HPE_OK up=0 | B U</>F<Host>V<a>H(1.1 m=GET st=0 cl=18446744073709551615 up=0 ka=1) M 
+  new: parsed=25/26 eof=0 errno=HPE_CR_EXPECTED up=0 | B U</>F<Host>V<a>
+[response] response 100-with-cl strict bytewise
+  old: parsed=49/49 eof=0 errno=HPE_OK up=0 | B S<Continue>F<Content-Length>V<5>H(1.1 m=- st=100 cl=5 up=0 ka=1) D<hello>M 
+  new: parsed=44/49 eof=0 errno=HPE_INVALID_CONSTANT up=0 | B S<Continue>F<Content-Length>V<5>H(1.1 m=- st=100 cl=5 up=0 ka=1) M 
+[response] response 100-with-cl strict whole
+  old: parsed=49/49 eof=0 errno=HPE_OK up=0 | B S<Continue>F<Content-Length>V<5>H(1.1 m=- st=100 cl=5 up=0 ka=1) D<hello>M 
+  new: parsed=44/49 eof=0 errno=HPE_INVALID_CONSTANT up=0 | B S<Continue>F<Content-Length>V<5>H(1.1 m=- st=100 cl=5 up=0 ka=1) M 
+
+  request: HPE_INVALID_METHOD -> HPE_CR_EXPECTED: 2
+  request: HPE_INVALID_METHOD -> HPE_INVALID_CONTENT_LENGTH: 4
+  request: HPE_INVALID_METHOD -> HPE_INVALID_TRANSFER_ENCODING: 22
+  request: HPE_OK -> HPE_CR_EXPECTED: 8
+  request: HPE_OK -> HPE_INVALID_CHUNK_SIZE: 4
+  request: HPE_OK -> HPE_INVALID_CONTENT_LENGTH: 2
+  request: HPE_OK -> HPE_INVALID_HEADER_TOKEN: 4
+  request: HPE_OK -> HPE_INVALID_TRANSFER_ENCODING: 6
+  request: HPE_OK -> HPE_INVALID_VERSION: 8
+  response: HPE_OK -> HPE_CR_EXPECTED: 4
+  response: HPE_OK -> HPE_INVALID_CONSTANT: 8
+  response: HPE_OK -> HPE_INVALID_HEADER_TOKEN: 2
+  response: HPE_OK -> HPE_INVALID_STATUS: 4
+  response: HPE_OK -> HPE_INVALID_VERSION: 2
+
+class                       cases  different
+errno                          33          0
+request                       548         60
+response                      188         20
+url                            18          0
+url-connect                    18          0
+url-prefix                     35          0
+total                         840         80

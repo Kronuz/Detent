@@ -1,0 +1,79 @@
+asan T3 1/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 2/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 3/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 4/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 5/20 passed
+load: 19 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 6/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 7/20 passed
+load: 20 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 8/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 9/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 10/20 passed
+load: 19 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 11/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 12/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 13/20 passed
+load: 14 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 14/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 15/20 passed
+load: 21 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 16/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 17/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 18/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 19/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+asan T3 20/20 passed
+load: 18 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 1/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 2/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 3/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 4/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 5/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 6/20 passed
+load: 19 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 7/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 8/20 passed
+load: 17 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 9/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 10/20 passed
+load: 14 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 11/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 12/20 passed
+load: 16 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 13/20 passed
+load: 14 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 14/20 passed
+load: 13 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 15/20 passed
+load: 15 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 16/20 passed
+load: 13 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 17/20 passed
+load: 13 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 18/20 passed
+load: 14 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 19/20 passed
+load: 14 on 16 CPUs, above 12: start no new build or test until it drops
+tsan T3 20/20 passed

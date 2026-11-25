@@ -68,9 +68,11 @@ inline std::string semantic(d::UpdateKind kind = d::UpdateKind::Snapshot, std::u
 	m::unsigned_integer(out, 0);
 	m::string(out, "ns:k00000000");
 	m::unsigned_integer(out, kind == d::UpdateKind::Snapshot ? revision : 0);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
+	m::array(out, 4); // [default, rollout %, rollout value, overrides]
 	m::signed_integer(out, 7);
+	out.push_back('\xc0');
+	out.push_back('\xc0');
+	m::array(out, 0);
 	return out;
 }
 inline std::array<unsigned char, 32> digest(std::string_view bytes) {

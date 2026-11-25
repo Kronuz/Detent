@@ -4,33 +4,33 @@
 #include "../detent_cli/logging.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/directory.hh"
+#include "detent_transport/await_io.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
+#include <cassert>
 #include <functional>
 #include <future>
+#include <optional>
 
 namespace detent_agent {
 namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace l = detent::local;
 namespace detail {
-bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared) noexcept {
-	if (!state.initialized || state.phase == t::CoordinatorPhase::Fenced ||
-		state.phase == t::CoordinatorPhase::Closing || state.phase == t::CoordinatorPhase::Closed)
-		return false;
-	if (state.selected.knowledge == l::SelectionKnowledge::Absent)
-		return !state.selected.descriptor;
-	return state.selected.knowledge == l::SelectionKnowledge::Known && state.selected.descriptor &&
-		(!require_prepared || state.prepared_ready);
+// Ready when every followed namespace is published or the source has answered for it (C4).
+bool may_announce_ready(const t::CoordinatorStatus &state) noexcept {
+	return state.initialized && state.ready && state.phase != t::CoordinatorPhase::Fenced &&
+		   state.phase != t::CoordinatorPhase::Closing && state.phase != t::CoordinatorPhase::Closed;
 }
-asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
-							 bool require_prepared, std::chrono::milliseconds preparation_timeout) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						 detent_cli::Ready ready, std::chrono::milliseconds preparation_timeout) {
+	asio::steady_timer timer(scheduler.executor());
 	bool announced = false;
 	bool timed_out = false;
 	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
-	std::optional<d::Cursor> reported;
-	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0;
+	std::uint64_t reported = 0;
+	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0, damaged_packs = 0;
+	l::SyncCounters published_sync;
+	t::TransferStatus transfers;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
@@ -38,12 +38,9 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			timed_out = true;
 			coordinator->close();
 		}
-		if (!announced && !timed_out && may_announce_ready(state, require_prepared)) {
-			if (state.selected.descriptor)
-				L_INFO("detent-agent: managed local store ready, selected generation {}",
-					   state.selected.descriptor->cursor.revision);
-			else
-				L_INFO("detent-agent: managed delivery running, awaiting its first generation");
+		if (!announced && !timed_out && may_announce_ready(state)) {
+			L_INFO("detent-agent: managed local store ready, {} namespaces selected",
+				   state.selected.namespaces.size());
 			try {
 				ready();
 			} catch (...) {
@@ -52,10 +49,10 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			}
 			announced = true;
 		}
-		if (state.acknowledged != reported) {
-			L_DEBUG("detent-agent: managed publication acknowledged at revision {}",
-					state.acknowledged ? state.acknowledged->revision : 0);
-			reported = state.acknowledged;
+		if (state.responses != reported) {
+			L_DEBUG("detent-agent: managed publication of response {}, {} namespaces selected", state.responses,
+					state.selected.namespaces.size());
+			reported = state.responses;
 		}
 		if (state.source_rotations != rotations) {
 			L_INFO("detent-agent: managed source endpoint {} after {} rotations", state.source_endpoint_index,
@@ -65,6 +62,28 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 		if (state.quorum_refresh_failures != refresh_failures) {
 			L_WARNING("detent-agent: managed quorum refresh failures {}", state.quorum_refresh_failures);
 			refresh_failures = state.quorum_refresh_failures;
+		}
+		if (!(state.sync.publication == published_sync)) {
+			published_sync = state.sync.publication;
+			L_INFO("detent-agent: publication synced {} files in {} groups, {} directory syncs, {} device flushes; "
+				   "{} device flushes since start (startup {})",
+				   published_sync.files, published_sync.groups, published_sync.directory_syncs,
+				   published_sync.device_flushes, state.sync.total.device_flushes,
+				   state.sync.startup.device_flushes);
+			L_INFO("detent-agent: hashed {} bytes since start: {} to build, {} to check, {} in frames",
+				   state.hash.total_bytes(), state.hash.built_bytes(), state.hash.checked_bytes(),
+				   state.hash.frame.bytes);
+		}
+		if (state.transfers.received != transfers.received || state.transfers.refused != transfers.refused) {
+			transfers = state.transfers;
+			L_INFO("detent-agent: page transfers {} received ({} bytes), {} refused", transfers.received,
+				   transfers.bytes, transfers.refused);
+		}
+		if (state.scrub.damaged_packs != damaged_packs) {
+			L_WARNING("detent-agent: managed scrub found {} damaged packs in the selected generation after {} "
+					  "passes; reads of their pages fail with a source failure",
+					  state.scrub.damaged_packs, state.scrub.passes);
+			damaged_packs = state.scrub.damaged_packs;
 		}
 		if (state.last_quorum_open != quorum_open) {
 			L_DEBUG("detent-agent: managed quorum Open succeeded at endpoint {}",
@@ -87,7 +106,7 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			failures = state.failures;
 		}
 		timer.expires_after(std::chrono::milliseconds(20));
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 	if (timed_out)
 		throw std::runtime_error("managed preparation timed out after draining accepted work");
@@ -104,16 +123,16 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 }
 } // namespace detail
 namespace {
-asio::awaitable<void> supervise(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
-							   bool require_prepared) {
-	using namespace asio::experimental::awaitable_operators;
-	co_await (coordinator->run() && detail::monitor(coordinator, std::move(ready), require_prepared,
-		managed_startup_timeout));
+task::task<void> supervise(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						   detent_cli::Ready ready) {
+	co_await task::when_all(coordinator->run(), detail::monitor(scheduler, coordinator, std::move(ready),
+																managed_startup_timeout));
 }
 } // namespace
-int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
+static int run_managed_owned(const std::filesystem::path &configuration, const std::filesystem::path &directory,
 				detent::local::StoreOpenMode mode, bool system, const detent_cli::Ready &ready) {
 	asio::io_context io(1);
+	task::asio_scheduler scheduler(io.get_executor());
 	asio::thread_pool worker(1);
 	// Configuration, TLS files, entropy, census and semantic startup recovery
 	// belong on the configuration worker, before owner admission starts.
@@ -137,8 +156,8 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
-														io.get_executor(), queue, true);
-	const bool require_prepared = options.coordinator.image_format == t::LocalImageFormat::PagedV2;
+														scheduler, queue, true);
+	options.coordinator.source.scheduler = &scheduler;
 	auto coordinator = t::prepare_coordinator(std::move(options.coordinator), driver, domain, worker);
 	std::promise<std::shared_ptr<l::DiskStore>> opened;
 	auto opening = opened.get_future();
@@ -166,7 +185,13 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 		if (!error)
 			coordinator->close();
 	});
-	auto done = asio::co_spawn(io, supervise(coordinator, ready, require_prepared), asio::use_future);
+	std::exception_ptr failure;
+	bool supervised = false;
+	task::spawn(task::scheduler_ref::of(scheduler), supervise(scheduler, coordinator, ready),
+				[&](std::exception_ptr error) {
+					failure = error;
+					supervised = true;
+				});
 	// The signal wait must not retain an otherwise drained io_context forever.
 	asio::steady_timer shutdown(io);
 	std::function<void(const asio::error_code &)> watch;
@@ -183,12 +208,11 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	shutdown.expires_after(std::chrono::milliseconds(20));
 	shutdown.async_wait(watch);
 	io.run();
-	std::exception_ptr failure;
-	try {
-		done.get();
-	} catch (...) {
-		failure = std::current_exception();
-	}
+	// Teardown (D15): the loop has stopped, so close the scheduler, then destroy what is still suspended on it.
+	scheduler.close();
+	scheduler.destroy_roots();
+	if (!supervised && !failure)
+		failure = std::make_exception_ptr(std::runtime_error("managed delivery stopped before it drained"));
 	worker.join();
 	coordinator.reset();
 	driver.reset();
@@ -199,5 +223,14 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 		std::rethrow_exception(failure);
 	L_NOTICE("detent-agent: managed delivery drained");
 	return 0;
+}
+int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
+				detent::local::StoreOpenMode mode, bool system, const detent_cli::Ready &ready) {
+	// The io_context may hold a cancelled deadline's handler until it is destroyed, so the check
+	// follows the owned run (T13).
+	[[maybe_unused]] const auto frames = task::detail::live_frames();
+	const int result = run_managed_owned(configuration, directory, mode, system, ready);
+	assert(task::detail::live_frames() == frames && "a task frame outlived the managed host (T13)");
+	return result;
 }
 } // namespace detent_agent

@@ -1,0 +1,7 @@
+row                   old   new  new/old      range    A/A  n  verdict
+http_requests_per_s  27.3  28.4    1.034  0.82-1.09  1.010  5    noise
+
+runs: old 5, new 5, A/A 5; a ratio above 1 means new is faster
+geomean 1.034 over 1 rows (min 1.034 http_requests_per_s; max 1.034 http_requests_per_s)
+per-run geomean: min 0.821, median 1.034, max 1.089 over 5 runs
+A/A geomean 1.010

@@ -1,9 +1,9 @@
 #pragma once
 
-// Section 4: name validation. `^[A-Za-z0-9._/-]+:[A-Za-z0-9._/-]+$`, exactly
+// Name validation. `^[A-Za-z0-9._/-]+:[A-Za-z0-9._/-]+$`, exactly
 // one colon, 1-200 UTF-8 bytes. Group keys are opaque, case-sensitive UTF-8
 // strings, 1-128 bytes (validated only for byte-length here; no charset
-// restriction is specified for group keys in the spec).
+// restriction applies to group keys).
 
 #include <chars.hh>
 

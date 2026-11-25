@@ -1,0 +1,20 @@
+#!/bin/sh
+# PROVIDE: detent_authority
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+. /etc/rc.subr
+name="detent_authority"
+rcvar="detent_authority_enable"
+load_rc_config "$name"
+: ${detent_authority_enable:="NO"}
+pidfile="/var/run/detent/detent-authority-supervisor.pid"
+start_precmd="detent_directories"
+detent_directories() {
+    install -d -o detent -g detent -m 0755 /var/run/detent
+    install -d -o detent -g detent -m 0700 /var/db/detent
+    install -d -o detent -g detent -m 0750 /var/log/detent
+}
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/detent-authority"
+command_args="-r -P ${pidfile} -u detent -o /var/log/detent/detent-authority.log ${procname} --system --config /usr/local/etc/detent/detent-authority.json"
+run_rc_command "$1"

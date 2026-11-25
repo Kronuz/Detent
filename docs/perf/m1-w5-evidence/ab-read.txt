@@ -1,0 +1,9 @@
+row    old    new  old/new      range    A/A  n  verdict
+t1   260.5  262.2    0.992  0.95-1.05  1.018  6    noise
+t4   360.5  392.9    0.913  0.89-1.03  1.016  6    noise
+t8   431.1  415.2    1.019  0.99-1.09  1.038  6    noise
+
+runs: old 6, new 6, A/A 6; a ratio above 1 means new is faster
+geomean 0.974 over 3 rows (min 0.913 t4; max 1.019 t8)
+per-run geomean: min 0.952, median 0.988, max 1.009 over 6 runs
+A/A geomean 1.024

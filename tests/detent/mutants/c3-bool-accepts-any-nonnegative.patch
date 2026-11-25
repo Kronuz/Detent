@@ -1,0 +1,13 @@
+diff --git a/include/detent/reader.hh b/include/detent/reader.hh
+index 49d5412e..ce6233a2 100644
+--- a/include/detent/reader.hh
++++ b/include/detent/reader.hh
+@@ -68,7 +68,7 @@ class Reader {
+ 	         std::optional<std::string_view> switch_value = {}) const noexcept {
+ 		const auto found = lookup(name, std::int64_t(fallback), hash, switch_value);
+ 		if constexpr (std::is_same_v<T, bool>)
+-			return found.value == 0 || found.value == 1 ? found.value == 1 : fallback;
++			return found.value >= 0 ? found.value != 0 : fallback;
+ 		else
+ 			return std::in_range<T>(found.value) ? T(found.value) : fallback;
+ 	}

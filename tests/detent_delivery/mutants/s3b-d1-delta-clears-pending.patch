@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 6433a42c..095be869 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -507,7 +507,7 @@ struct Coordinator::Impl {
+ 					repaired = paged_candidate->repair_in_place;
+ 					++diagnostic.repair.completed;
+ 				}
+-				if (paged_candidate->snapshot && diagnostic.repair.pending) {
++				if (diagnostic.repair.pending) {
+ 					diagnostic.repair.pending = false;
+ 					// A confirmed snapshot retires the generation that requested repair; a delta keeps its packs.
+ 					store->request_collection();

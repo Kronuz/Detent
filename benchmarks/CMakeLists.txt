@@ -3,12 +3,6 @@
 # a pass/fail SLO). See each .cc file's header comment for what it measures
 # and how to run it.
 
-add_executable(detent_read_bench detent_read_bench.cc)
-target_link_libraries(detent_read_bench PRIVATE detent::detent)
-
-add_executable(detent_model_lookup container-alternative/model_lookup.cc)
-target_link_libraries(detent_model_lookup PRIVATE detent::detent)
-
 add_executable(detent_model_footprint container-alternative/model_footprint.cc)
 target_link_libraries(detent_model_footprint PRIVATE detent::detent)
 
@@ -19,21 +13,8 @@ target_link_libraries(detent_model_lifecycle PRIVATE detent::detent)
 add_executable(detent_hash_bench detent_hash_bench.cc)
 target_link_libraries(detent_hash_bench PRIVATE detent::detent)
 
-add_executable(detent_update_bench detent_update_bench.cc)
-target_link_libraries(detent_update_bench PRIVATE detent::detent)
-
-add_executable(detent_agent_shm_bench detent_agent_shm_bench.cc)
-target_link_libraries(detent_agent_shm_bench PRIVATE detent_agent_lib detent::detent)
-
-if(DETENT_BUILD_DISTRIBUTOR)
-  add_executable(detentd_publication_bench container-alternative/publication_bench.cc)
-  target_link_libraries(detentd_publication_bench PRIVATE detentd_lib)
-  add_executable(detentd_fanout_bench detentd_fanout_bench.cc)
-  target_link_libraries(detentd_fanout_bench PRIVATE detentd_lib detent_http::detent_http)
-endif()
-
 add_executable(detent_scale_bench detent_scale_bench.cc)
-target_link_libraries(detent_scale_bench PRIVATE detent_agent_lib)
+target_link_libraries(detent_scale_bench PRIVATE detent::detent)
 
 add_executable(detent_authority_bench detent_authority_bench.cc)
 target_link_libraries(detent_authority_bench PRIVATE detent::authority)
@@ -41,7 +22,7 @@ target_link_libraries(detent_authority_bench PRIVATE detent::authority)
 add_executable(detent_command_work_bench command_work_bench.cc)
 target_link_libraries(detent_command_work_bench PRIVATE detent::authority)
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_durable_bench detent_authority_durable_bench.cc)
   target_link_libraries(detent_authority_durable_bench PRIVATE detent::authority_node)
 endif()
@@ -49,12 +30,12 @@ endif()
 add_executable(detent_credential_scan_bench credential_scan_bench.cc)
 target_link_libraries(detent_credential_scan_bench PRIVATE sha256)
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_read_response_bench read_response_bench.cc)
   target_link_libraries(detent_authority_read_response_bench PRIVATE detent_authority_service)
 endif()
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_terminal_retirement_bench terminal_retirement_bench.cc)
   target_link_libraries(detent_authority_terminal_retirement_bench PRIVATE detent::authority_node reactor::reactor)  # Asio
 endif()
@@ -74,26 +55,31 @@ else()
 endif()
 add_executable(detent_hash_allocation_bench hash_allocation_bench.cc)
 target_link_libraries(detent_hash_allocation_bench PRIVATE detent::detent)
-add_executable(detent_local_image_bench local_image_bench.cc)
-target_link_libraries(detent_local_image_bench PRIVATE detent::local_builder)
 add_executable(detent_paged_snapshot_bench paged_snapshot_bench.cc)
 target_include_directories(detent_paged_snapshot_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(detent_paged_snapshot_bench PRIVATE detent::local_builder)
 if(TARGET detent::local_publication)
   add_executable(detent_paged_recovery_bench paged_recovery_bench.cc)
-  target_include_directories(detent_paged_recovery_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_include_directories(detent_paged_recovery_bench PRIVATE
+    "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
   target_link_libraries(detent_paged_recovery_bench PRIVATE detent::local_publication)
+endif()
+if(TARGET detent::testing_store)
   add_executable(detent_paged_collection_bench paged_collection_bench.cc)
-  target_include_directories(detent_paged_collection_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
-  target_link_libraries(detent_paged_collection_bench PRIVATE detent::local_publication)
+  target_link_libraries(detent_paged_collection_bench PRIVATE detent::testing_store)
 endif()
 
-if(TARGET detent::delivery_config)
-  add_executable(detent_fleet_load detent_fleet_load.cc fleet_load.cc)
-  target_link_libraries(detent_fleet_load PRIVATE detent::delivery_config)
+if(APPLE AND TARGET detent::relay_mirror AND TARGET detent::authority)
+  # Dense distribution D7: the relay's builds, window and canonical copy at scale (docs/perf/relay-window.md);
+  # it reads memory through Mach and malloc zones.
+  add_executable(detent_relay_window_bench relay_window_bench.cc)
+  target_include_directories(detent_relay_window_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_authority")
+  target_link_libraries(detent_relay_window_bench PRIVATE detent::relay_mirror detent::authority)
 endif()
 
-add_executable(detent_resource_ownership_bench resource_ownership_bench.cc)
-target_link_libraries(detent_resource_ownership_bench PRIVATE detent::resources)
-add_executable(detent_resource_retirement_bench resource_retirement_bench.cc)
-target_link_libraries(detent_resource_retirement_bench PRIVATE detent::resources)
+# T1 and T4 (reader.md): warm lookups through libdetent_reader beside a pinned ReadView.
+if(TARGET detent::testing_store)
+  add_executable(reader_bench reader_bench.cc)
+  target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
+endif()

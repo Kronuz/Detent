@@ -1,23 +1,131 @@
 name: CI
 on:
   push:
-    branches: [main, 'track*/**', 'phase*/**', 'design/**']
-    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
+    branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
+    paths-ignore: ['docs/**', 'site/**', 'diagrams/**', '**/*.md', '.campaign/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      nightly: { type: boolean, default: false }
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   ci:
     uses: Kronuz/cpp-libraries/.github/workflows/cmake.yml@main
     with:
-      # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), and Clang ASan/UBSan with LeakSanitizer.
+      nightly: ${{ inputs.nightly || false }}
+      # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), Clang ASan/UBSan with LeakSanitizer, and Clang ThreadSanitizer.
       macos_llvm: true
       cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
       asan_cxx_flags: -O1
       asan_timeout_minutes: 120
       freebsd: false
-      tsan: false
+      tsan: true
+      tsan_timeout_minutes: 120
+      # Retained fixture directories of a failed run, uploaded by the shared workflow; generation and pack data stay out.
+      # A system test keeps its .scratch/stage6 run only when it fails: events.jsonl holds every member's output.
+      failure_artifacts: |
+        build/tests/**/.scratch/**/*.log
+        build/tests/**/.scratch/**/*.json
+        build/tests/**/.scratch/**/*.txt
+        !build/tests/**/.scratch/**/authority-data/**
+        !build/tests/**/.scratch/**/relay-generations/**
+        !build/tests/**/.scratch/**/*generation*/**
+        .scratch/stage6/*/*.jsonl
+        .scratch/stage6/*/*.json
+        .scratch/stage6/*/*/*.json
+  # Benchmarks default to ON but the matrix above turns them off; this job builds them (no run).
+  benchmarks:
+    name: linux-benchmarks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        env: { CC: clang, CXX: clang++ }
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON
+          -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4
+  # T6 of docs/design/client-local-source.md: the Python and Rust bindings over libdetent_reader, against real
+  # stores written by the shared test writer. Both options default OFF, so no other job builds them.
+  bindings:
+    name: bindings-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - name: Configure
+        # libc++ 19 keeps std::jthread behind -fexperimental-library (README, Homebrew formula).
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          ${{ runner.os == 'macOS' && '-DCMAKE_CXX_FLAGS=-fexperimental-library' || '' }}
+          -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON -DDETENT_BUILD_TESTS=ON
+          -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON
+          -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4 --target detent_python detent_rust detent_testing_shared test_reader_scenarios
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --repeat until-fail:3 -R 'test_reader_scenarios|test_reader_exports|test_reader_exports_unlisted|test_testing_exports|detent_python_test|detent_rust_test'
+  # T12 and T10 of docs/design/http-coroutines.md: one coroutine type, and nothing of the removed path.
+  source-checks:
+    name: source-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: One coroutine type (T12)
+        run: |
+          if git grep -nE 'asio::awaitable|use_awaitable|awaitable_operators|co_spawn|this_coro|experimental::channel' -- src include tests benchmarks; then
+            echo '::error::asio coroutine constructs remain; Detent coroutines are task::task'
+            exit 1
+          fi
+      - name: The removed worker path (T10)
+        run: |
+          if git grep -nE 'should_offload|DeferredReply|DeferredOptions|->defer\(|\.defer\(|user_data|BodyReader' -- src include tests benchmarks; then
+            echo '::error::the offload, deferred-reply or user_data path is back'
+            exit 1
+          fi
+          if git grep -nE -- '--workers|DETENT_AUTHORITY_WORKERS' -- src/detent_authority site docs/USAGE.md; then
+            echo '::error::the removed detent-authority worker option is documented or parsed again'
+            exit 1
+          fi
+  # M1: a shared dependency is pinned in the manifest as in each library it pins.
+  pin-check:
+    name: pin-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Manifest pins equal the libraries' own
+        run: python3 tools/check_pins.py
+      - name: Checker tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+  # The read counters compile out by default; this job builds them in and checks their values.
+  read-counters:
+    name: linux-read-counters
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        env: { CC: clang, CXX: clang++ }
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDETENT_READ_COUNTERS=ON
+          -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF
+          -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_reader
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|reader)$'

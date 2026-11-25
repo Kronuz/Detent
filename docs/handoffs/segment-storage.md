@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: bound segment indexing, publication and compaction work
 
 **Priority:** P1 · Rank 2 of 7 · Capacity-qualification blocker.

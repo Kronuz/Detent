@@ -1,0 +1,44 @@
+old 118 lines, new 101 lines, 35 differing
+--- old
++++ new
+@@ -13,0 +14 @@
++▏TIME detentd: committed snapshot version 1 in 10160 us
+@@ -31,0 +33 @@
++▏TIME detentd: committed snapshot version 2 in 40999 us
+@@ -40,0 +43 @@
++▏TIME detentd: committed snapshot version 3 in 20821 us
+@@ -76,0 +80,5 @@
++▏TIME  🌎  PUT /v1/snapshot HTTP/1.1
++▌TIME detentd: rejected publish (parse)
++▎TIME  💥  HTTP/1.1 400 Bad Request (25 bytes)
++▏TIME  🌎  GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HTTP/1.1
++▏TIME  🕸  HTTP/1.1 404 Not Found (10 bytes)
+@@ -81,26 +88,0 @@
+-▏TIME  🌎  GET /v1/health HTTP/1.1
+-▏TIME  💊  HTTP/1.1 200 OK (137 bytes)
+-▏TIME  🌎  GET /v1/health HTTP/1.1
+-▏TIME  💊  HTTP/1.1 200 OK (137 bytes)
+-▏TIME  🌎  PUT /v1/snapshot HTTP/1.1
+-▌TIME detentd: rejected publish (parse)
+-▎TIME  💥  HTTP/1.1 400 Bad Request (25 bytes)
+-▏TIME  🌎  PUT /v1/snapshot HTTP/1.1
+-▌TIME detentd: rejected publish (parse)
+-▎TIME  💥  HTTP/1.1 400 Bad Request (25 bytes)
+-▏TIME  🌎  PUT /v1/snapshot HTTP/1.1
+-▌TIME detentd: rejected publish (parse)
+-▎TIME  💥  HTTP/1.1 400 Bad Request (25 bytes)
+-▏TIME  🌎  PUT /v1/snapshot HTTP/1.1
+-▌TIME detentd: rejected publish (parse)
+-▎TIME  💥  HTTP/1.1 400 Bad Request (25 bytes)
+-▏TIME  🌎  GET /v1/health HTTP/1.2
+-▏TIME  💊  HTTP/1.2 200 OK (138 bytes)
+-▏TIME  🌎  GET /v1/health HTTP/0.9
+-▏TIME  💊  HTTP/0.9 200 OK (138 bytes)
+-▏TIME  🌎  GET /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HTTP/1.1
+-▏TIME  🕸  HTTP/1.1 404 Not Found (10 bytes)
+-▏TIME  🌎  GET /v1/health HTTP/1.1
+-▏TIME  💊  HTTP/1.1 200 OK (138 bytes)
+-▏TIME  🌎  GET /v1/health HTTP/1.1
+-▏TIME  💊  HTTP/1.1 200 OK (138 bytes)
+@@ -110,0 +93 @@
++▏TIME detentd: committed snapshot version 50 in 581030 us

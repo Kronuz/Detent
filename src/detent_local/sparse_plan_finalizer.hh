@@ -13,6 +13,9 @@ class SparsePlanFinalizer {
 						std::uint64_t = std::numeric_limits<std::uint64_t>::max(),
 						std::optional<paged::Digest> = {});
 	void start(TrieOverlay &&);
+	// A received delta transfer (dense distribution DD4): its image, built elsewhere, and the base
+	// pages per base segment it no longer reaches, which the validator's removal must equal.
+	void start(PagedImage &&, std::vector<SegmentReachability> removed);
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	bool discard(ValidationBudget &);
@@ -24,12 +27,13 @@ class SparsePlanFinalizer {
 	std::shared_ptr<const void> artifact_owner;
 	std::optional<TrieOverlay> overlay;
 	std::optional<OverlayAssembler> assembly;
+	std::optional<std::vector<SegmentReachability>> received_removed;
 	std::optional<WarmGraphValidator> validator;
 	std::vector<SegmentReachability, distribution::StorageAllocator<SegmentReachability>> old_live;
 	std::vector<SegmentInput, distribution::StorageAllocator<SegmentInput>> added;
 	paged::Limits limits;
 	std::uint64_t maximum_output_bytes, output_bytes = 0;
-	std::optional<paged::Digest> expected_logical;
+	std::optional<paged::Digest> expected_commitment;
 	std::size_t position = 0, charge = 0, sort_cursor = 0, retire_capacity_index = 0;
 	Phase phase = Phase::Reachability;
 	SegmentInput sort_value{};
