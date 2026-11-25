@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: ready for review (round 2 accepted at 8dcf5ed6; final reruns: native, A5)
+State: waiting on jobs 261125-042731-d4348b 261125-042733-e2c0a5 261125-042735-a72c72 261125-042737-e9162f 261125-042738-2a10f2 261125-042740-5b0baa 261125-042911-084970 261125-042912-8dac5b
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,7 +28,10 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Read the get row 261125-032006-cda6ba (after build 261125-031958-0624b3, OLD = main dead7cab)
+0. Native 261125-035857-8ad10f at Detent:98639023 failed test_relay_service:790 ("the layouts
+   reach only {'section', 'block'}"); ruling 28 attributes it. Read the A/B repeat jobs (State)
+   into ruling 28 and docs/perf/pin-wave.md, then queue `campaign verify pin-wave` at the head.
+1. (done) Read the get row 261125-032006-cda6ba (after build 261125-031958-0624b3, OLD = main dead7cab)
    into docs/perf/pin-wave.md and the Evidence table; slow-flush pair f3baf1 (must fail) and
    84f5ff (must pass); pins 261125-032009-b3f010 at Detent:9931c653; native reruns at the round end.
 
@@ -236,3 +239,19 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
    - R2-1: build 0624b3 and get row cda6ba no longer wait on the probes (the row waits on the build).
    - R2-3 (Detent:9931c653): the timed reads print code and body before their check. No test:
      a diagnostic line, not behavior.
+28. test_relay_service:790 at Detent:98639023 (native 261125-035857-8ad10f): pre-existing, not
+   the pins. The same assertion failed in 7 earlier jobs at commits without any pin-wave pin
+   (none has Detent:d2031ebc): 261121-215719-269505 (managed-failover-isolated-leader, b16a3ec9),
+   261123-175720-145715 (legacy-h native, 8d61d548), 261123-144458-6bbac6, -144504-9accef,
+   -181755-ccd2db, -181756-29fcce, -181757-95980a (system-failover-port-reuse -j8 shards). The
+   two relay-mirror-idle-wake jobs the lead named (ce2080, e72d93) failed other assertions (busy
+   nexts; relay a fetched after restart); their A1 reached all three kinds.
+   Mechanism: the layout's shape depends on write pacing, not the observation window. D136's
+   seal_after (1 s, service_runtime.cc:1647) seals whatever is unsealed 1 s after its first
+   change, so seal_transactions = 3 holds only when three writes land within 1 s; a base exists
+   only after a cut (history_layout.cc:258), which depends on those seals' sizes. Smoke at the
+   head (light): 24 of 25 three-write spans over 1 s, converged 12 s after the last write, base
+   present then and 3 s later. Probe (~/.scratch/detent/pin-wave-relay-service/probe.py) runs the
+   test's A1 unchanged and prints kinds at convergence and 3 s later, write latencies and spans.
+   Rates: 3x8 strict repeats each at main (d4348b, e2c0a5, a72c72) and the head (e9162f, 2a10f2,
+   5b0baa); one write per seal (PAUSE_EVERY=1.2) x3 at main 084970 and head 8dac5b.
