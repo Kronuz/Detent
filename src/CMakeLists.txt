@@ -1,17 +1,12 @@
 ########################################################################
-# detent: the core client library (zero networking dependencies)
+# detent: the model, the JSON schema and the rollout hash (zero networking dependencies)
 ########################################################################
 add_library(detent
   detent/cursor.cc
   detent/hashing.cc
+  detent/errors.cc
   detent/json_schema.cc
-  detent/json_patch.cc
-  detent/overrides.cc
-  detent/client.cc
-  detent/read_view.cc
-  detent/global.cc
-  detent/testing.cc
-  detent/test_hook.cc)
+  detent/json_patch.cc)
 
 target_include_directories(detent PUBLIC
   "${PROJECT_SOURCE_DIR}/include")
@@ -65,6 +60,7 @@ add_library(detent_local_transfer detent_local/paged_transfer.cc detent_local/pa
 target_include_directories(detent_local_transfer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detent_local")
 target_link_libraries(detent_local_transfer PUBLIC detent::local_builder)
 add_library(detent::local_transfer ALIAS detent_local_transfer)
+add_subdirectory(detent_reader)
 add_subdirectory(detent_testing)
 add_subdirectory(detent_relay)
 if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
@@ -122,7 +118,7 @@ add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
 target_link_libraries(detent-reader PRIVATE detent_cli)
-target_link_libraries(detent-reader PRIVATE detent::local_client)
+target_link_libraries(detent-reader PRIVATE detent::local_view detent::reader)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Authority application semantics remain independent of transport and consensus.

@@ -19,11 +19,9 @@ import argparse
 import json
 import os
 import queue
-import random
 import re
 import shutil
 import signal
-import socket
 import ssl
 import subprocess
 import sys
@@ -36,6 +34,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = HERE.parents[1]
+sys.path.insert(0, str(HERE.parent / "support"))
+from ports import lease_ports  # noqa: E402
+
 DEFAULT_PORT = "8317"
 RUNNABLE = ("sh", "rest")
 BLOCK_TIMEOUT = 120.0
@@ -112,7 +113,7 @@ def sidebar_order(root: Path) -> list[str]:
     script = (
         "import {sidebar} from process.argv[1]; console.log(JSON.stringify(sidebar));"
     )
-    module = (root / "website" / "src" / "lib" / "sidebar.mjs").as_uri()
+    module = (root / "site" / "src" / "lib" / "sidebar.mjs").as_uri()
     out = subprocess.run(
         [
             "node",
@@ -151,7 +152,7 @@ def page_path(docs: Path, slug: str) -> Path | None:
 
 
 def extract(root: Path) -> list[Block]:
-    docs = root / "website" / "src" / "content" / "docs"
+    docs = root / "site" / "src" / "content" / "docs"
     blocks: list[Block] = []
     for slug in sidebar_order(root):
         path = page_path(docs, slug)
@@ -212,26 +213,6 @@ def validate(blocks: list[Block], exceptions: dict[str, str]) -> list[str]:
 
 
 # ------------------------------------------------------------------ run environment
-
-
-def pick_port(scratch: Path) -> tuple[int, Path]:
-    scratch.mkdir(parents=True, exist_ok=True)
-    for _ in range(200):
-        port = random.randint(20000, 60000)
-        lock = scratch / f"port-{port}.lock"
-        try:
-            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            continue
-        os.close(fd)
-        try:
-            with socket.socket() as s:
-                s.bind(("127.0.0.1", port))
-        except OSError:
-            lock.unlink()
-            continue
-        return port, lock
-    raise RuntimeError("no free port")
 
 
 def build(root: Path, build_dir: Path, deps_from: Path | None) -> None:
@@ -502,12 +483,7 @@ def main() -> int:
     for e in errors:
         print("ERROR", e)
     scratch = root / ".scratch" / "docs-e2e"
-    port_n, lock = (
-        pick_port(scratch)
-        if args.port is None
-        else (args.port, scratch / f"port-{args.port}.lock")
-    )
-    port = str(port_n)
+    port = str(lease_ports(1)[0] if args.port is None else args.port)
     sandbox = scratch / f"run-{port}"
     build_dir: Path | None = args.build_dir.resolve() if args.build_dir else None
     fresh = scratch / f"build-{port}"
@@ -542,7 +518,6 @@ def main() -> int:
         if not args.keep:
             shutil.rmtree(sandbox, ignore_errors=True)
             shutil.rmtree(fresh, ignore_errors=True)
-        lock.unlink(missing_ok=True)
 
 
 def execute(

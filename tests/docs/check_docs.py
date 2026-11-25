@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(os.environ.get("DETENT_DOCS_ROOT") or Path(__file__).resolve().parents[2])
-DOCS = ROOT / "website" / "src" / "content" / "docs"
+DOCS = ROOT / "site" / "src" / "content" / "docs"
 SRC = ROOT / "src"
 DAEMON = SRC / "detent_authority" / "main.cc"
 INCLUDE = ROOT / "include"
@@ -154,25 +154,14 @@ def endpoints() -> tuple[set[str], set[str]]:
 # ---------------------------------------------------------------------------- errors and statuses
 
 
-def enum_members(text: str, name: str) -> set[str]:
-    match = re.search(rf"enum class {name}\s*\{{(.*?)\}}", text, re.DOTALL)
-    assert match, name
-    return set(
-        re.findall(
-            r"^\s*([A-Z]\w*)", re.sub(r"//[^\n]*", "", match.group(1)), re.MULTILINE
-        )
-    )
-
-
 def errors() -> tuple[set[str], set[str]]:
     sources = all_source()
-    errs = (INCLUDE / "detent" / "errors.hh").read_text()
-    source = enum_members(errs, "ErrorCategory") | enum_members(
-        errs, "UpdateRejectReason"
-    )
+    # The reader core's statuses, which every lookup and `detent get` report.
+    reader = (INCLUDE / "detent" / "reader.h").read_text()
+    source = set(re.findall(r"\bDETENT_([A-Z_]+) = \d+", reader))
     for text in sources.values():
         source.update(re.findall(r'\\"error\\":\\"(\w+)\\"', text))
-    service = (SRC / "detent_authority" / "service.cc").read_text()
+    service = (SRC / "detent_authority" / "service_runtime.cc").read_text()
     names = re.search(
         r"constexpr const char \*names\[\] = \{(.*?)\};", service, re.DOTALL
     )

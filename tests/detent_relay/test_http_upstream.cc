@@ -63,7 +63,7 @@ void prepare(const std::filesystem::path &root) {
 	check(::chmod(root.c_str(), 0700) == 0);
 }
 std::shared_ptr<kronuz::io::completion::PosixIO> io_at(const std::filesystem::path &root) {
-	return std::make_shared<kronuz::io::completion::PosixIO>(root, 0644);
+	return std::make_shared<kronuz::io::completion::PosixIO>(root, kronuz::io::completion::PosixIOOptions{kronuz::io::completion::FlushMode::full}, 0644);
 }
 d::Identity identity(char fill) {
 	d::Identity value;
@@ -483,7 +483,8 @@ class RelayA {
 								{(f.certificates / "one.pem").string(), (f.certificates / "one.key").string(),
 								 (f.certificates / "ca.pem").string()},
 								reactor::tls::Role::Server);
-		listener_ = std::make_unique<http::HttpAsioService>(*facade_, 1, 64, http::tls_connection_factory(tls), 64);
+		listener_ = std::make_unique<http::HttpAsioService>(
+			*facade_, 1, http::Limits{.max_clients = 64, .max_in_flight = 64, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms}, http::Tls{tls});
 		http::AsioBindOptions bind;
 		bind.address = "127.0.0.1";
 		listener_->set_bind_options(bind);

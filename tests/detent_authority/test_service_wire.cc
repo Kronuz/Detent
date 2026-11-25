@@ -183,8 +183,7 @@ std::string read_replies(asio::ip::tcp::socket &socket, std::size_t responses) {
 void keep_alive_on_the_wire() {
 	const auto dir = directory("authority-wire-socket-");
 	Service app(options(dir, 1024));
-	http::HttpAsioService service(app, 1, 64);
-	service.set_max_body(1 << 20);
+	http::HttpAsioService service(app, 1, http::Limits{.max_clients = 0, .max_in_flight = 64, .idle_timeout = 0ms, .header_timeout = 0ms, .inactivity_timeout = 0ms, .max_body = 1 << 20});
 	service.start(0);
 	open_and_put(app);
 	asio::io_context io;

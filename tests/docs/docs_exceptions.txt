@@ -25,17 +25,13 @@ source-only error source_behind -- HTTP error name returned by the authority; th
 source-only error source_not_leader -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
 source-only error unauthorized -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
 source-only error unknown_endpoint -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
-source-only flag --publisher-user -- agent/daemon flag not on the CLI pages; the reference area quest documents it
 source-only flag --quiet -- agent/daemon flag not on the CLI pages; the reference area quest documents it
 source-only flag --reader-heap-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-image-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
-source-only flag --reader-mapping-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-namespaces -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-overrides -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-owners -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-pages -- reader capacity flags are undocumented; the configuration area quest adds them
-source-only flag --reader-records -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-segments -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --reader-string-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
-source-only flag --reader-validation -- reader capacity flags are undocumented; the configuration area quest adds them
 source-only flag --workers -- agent/daemon flag not on the CLI pages; the reference area quest documents it

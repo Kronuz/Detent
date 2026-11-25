@@ -20,7 +20,6 @@ from logging_compare import check_interference
 
 ARMS: dict[str, Path] = {}
 LIFECYCLE = [[], ["--random"], ["--long"], ["--long", "--random"]]
-LOOKUP = [[], ["--hot"], ["--long"], ["--long", "--hot"]]
 
 
 def ancestors() -> set[str]:
@@ -72,7 +71,6 @@ def main() -> None:
     samples: list[dict[str, Any]] = []
     for bench, configs in (
         ("detent_model_lifecycle", LIFECYCLE),
-        ("detent_model_lookup", LOOKUP),
     ):
         for config in configs:
             for pair in range(5):
@@ -111,7 +109,7 @@ def main() -> None:
     binaries = {
         arm: {
             b: hashlib.sha256((d / b).read_bytes()).hexdigest()
-            for b in ("detent_model_lifecycle", "detent_model_lookup")
+            for b in ("detent_model_lifecycle",)
         }
         for arm, d in ARMS.items()
     }

@@ -22,11 +22,6 @@ class Workload:
 
 def workloads() -> list[Workload]:
     cases: list[Workload] = []
-    for program in ("detent_read_bench",):
-        for threads in (1, 4, 8):
-            cases.append(
-                Workload(f"{program}-{threads}", program, (str(threads), "2000000"))
-            )
     cases.append(Workload("hash", "detent_hash_bench", ("5000000",)))
     for count in (1000, 100000, 500000):
         for codec in ("json", "messagepack"):

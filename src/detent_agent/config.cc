@@ -48,7 +48,6 @@ Config load_config(const std::vector<std::string>& args) {
 											{"log_level", {"--log-level", String}},
 											{"verbosity", {"--verbosity", NonnegativeInt}},
 											{"color", {"--color", String}},
-											{"defaults_path", {"--defaults", Path}},
 											{"runtime_dir", {"--runtime-dir", Path}},
 											{"managed_path", {"--managed", Path}},
 											{"shutdown_timeout_ms", {"--shutdown-timeout-ms", PositiveInt}},
@@ -64,20 +63,6 @@ Config load_config(const std::vector<std::string>& args) {
 	}
 	auto file = detent_cli::load_config(args, "detent-agent.json", schema);
 	auto& settings = file.values;
-	if (!settings.contains("--defaults")) {
-		auto directories = file.path.empty()
-			? (std::find(args.begin(), args.end(), "--system") != args.end()
-				? std::vector<std::filesystem::path>{detent_cli::system_config_dir()}
-				: std::vector<std::filesystem::path>{user_config_dir(), detent_cli::system_config_dir()})
-			: std::vector<std::filesystem::path>{file.path.parent_path()};
-		for (const auto& dir : directories) {
-			auto defaults = dir / "defaults.json";
-			if (std::filesystem::exists(defaults)) {
-				settings.emplace("--defaults", defaults.string());
-				break;
-			}
-		}
-	}
 	return std::move(settings);
 }
 

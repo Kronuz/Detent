@@ -8,8 +8,8 @@
 #include <variant>
 
 namespace detent::local {
-// The evaluator over a borrowed definition, in detent::detail::evaluate's order and with its
-// percentage rule (detail::ramp). `ns` and `key` name the knob (at most 198 and 198 bytes, 200
+// The evaluator over a borrowed definition: a group override, then the knob's rollout, with the
+// one percentage rule (detail::ramp). `ns` and `key` name the knob (at most 198 and 198 bytes, 200
 // with the colon) for the bucket.
 inline std::int64_t evaluate(const detail::BorrowedDefinition &definition, std::string_view ns, std::string_view key,
 							 std::optional<std::string_view> hash, std::optional<std::string_view> switch_value) {

@@ -19,24 +19,25 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-DOCS = Path("website/src/content/docs")
+DOCS = Path("site/src/content/docs")
 
 
 def mutant_tree(name: str, copy_source: bool) -> Path:
-    """A root with the real tests and sidebar, a private copy of the pages, and optionally of src."""
+    """A root with the real tests, sidebar and source, a private copy of the pages, and optionally of src."""
     tree = ROOT / ".scratch" / "mutants" / name
     shutil.rmtree(tree, ignore_errors=True)
-    (tree / "website" / "src").mkdir(parents=True)
+    (tree / "site" / "src").mkdir(parents=True)
     (tree / "tests").symlink_to(ROOT / "tests")
-    (tree / "website" / "src" / "lib").symlink_to(ROOT / "website" / "src" / "lib")
+    (tree / "site" / "src" / "lib").symlink_to(ROOT / "site" / "src" / "lib")
     shutil.copytree(ROOT / DOCS, tree / DOCS)
-    if copy_source:
-        for entry in ("src", "include", "cmake", "CMakeLists.txt"):
-            source = ROOT / entry
-            if source.is_dir():
-                shutil.copytree(source, tree / entry)
-            else:
-                shutil.copy2(source, tree / entry)
+    for entry in ("src", "include", "cmake", "CMakeLists.txt"):
+        source = ROOT / entry
+        if not copy_source:
+            (tree / entry).symlink_to(source)
+        elif source.is_dir():
+            shutil.copytree(source, tree / entry)
+        else:
+            shutil.copy2(source, tree / entry)
     return tree
 
 
@@ -87,13 +88,13 @@ def main() -> int:
     tree = mutant_tree("m3", copy_source=False)
     edit(
         tree / DOCS / "reference" / "configuration.md",
-        "defaults_path",
-        "defaults_pathx",
+        "generation_dir",
+        "generation_dirx",
     )
     env = {**os.environ, "DETENT_DOCS_ROOT": str(tree)}
     rc = run([sys.executable, "-I", str(HERE / "check_docs.py")], env)
     print(
-        f"M3 config key defaults_path renamed on a page: {'killed' if rc == 1 else 'SURVIVED'} (exit {rc})"
+        f"M3 config key generation_dir renamed on a page: {'killed' if rc == 1 else 'SURVIVED'} (exit {rc})"
     )
     if rc != 1:
         survived.append("M3")

@@ -10,13 +10,13 @@
 #include <cassert>
 #include <deque>
 #include <iostream>
-#include <journal/memory_io.h>
+#include <faultlab/faultfs.h>
 #include <map>
 #include <set>
 
 using namespace detent::authority;
 namespace h = detent::authority::history;
-namespace mem = kronuz::journal::testing;
+namespace fl = kronuz::faultlab;
 namespace {
 Context context() {
 	Context c;
@@ -26,15 +26,33 @@ Context context() {
 	return c;
 }
 using Files = std::map<std::string, std::string>;
-constexpr std::string_view prefix = "history/";
-Files files(const mem::Disk &disk) {
+constexpr std::string_view directory = "history";
+// A cut ends a run at the first storage primitive the power refuses.
+struct PowerLoss {};
+// Power loss keeps any sector-boundary prefix of an unsynced write, as a device may.
+const fl::crash_policy sector_cut{.size = fl::size_pick::sector};
+Files files(const fl::filesystem &disk) {
 	Files out;
-	for (const auto &[name, id] : disk.names)
-		if (name.starts_with(prefix))
-			out[name.substr(prefix.size())] = disk.content(disk.inodes.at(id));
+	if (disk.list().empty())
+		return out;
+	for (const auto &name : disk.list(directory))
+		out[name] = std::string(disk.view(std::string(directory) + "/" + name));
 	return out;
 }
-std::shared_ptr<mem::MemoryIO> io(mem::Disk &disk) { return std::make_shared<mem::MemoryIO>(disk, std::string(prefix)); }
+std::shared_ptr<fl::io> io(fl::filesystem &disk) {
+	if (disk.list().empty())
+		disk.make_directory(directory);
+	return std::make_shared<fl::io>(disk, std::string(directory));
+}
+// Flips one durable byte of history file `name` at `at`, as rot on the medium does.
+void rot(fl::filesystem &disk, const std::string &name, std::size_t at) {
+	auto file = fl::io(disk, std::string(directory)).open_existing(name);
+	char byte = 0;
+	file->read_at(at, {&byte, 1});
+	byte ^= 1;
+	file->write_at(at, {&byte, 1});
+	file->sync();
+}
 // Peers asked in order, as `PeerHistory` asks them: the first bytes that pass the check win.
 h::Fetch peers(std::vector<const Files *> sources) {
 	return [sources](const std::string &name, h::Check good, h::Fetched done) {
@@ -46,16 +64,16 @@ h::Fetch peers(std::vector<const Files *> sources) {
 }
 h::Fetch peer(const Files &source) { return peers({&source}); }
 // Drives one queued write; a cut ends the run at the primitive it falls on.
-bool drive(h::History &history, const mem::Disk &disk) {
+bool drive(h::History &history, const fl::filesystem &disk) {
 	auto operation = history.take_io_operation();
 	if (operation)
 		kronuz::journal::drive_synchronously(*operation);
 	history.settle();
-	if (disk.dead())
-		throw mem::PowerLoss{};
+	if (disk.powered_off())
+		throw PowerLoss{};
 	return bool(operation);
 }
-void drain(h::History &history, const mem::Disk &disk) {
+void drain(h::History &history, const fl::filesystem &disk) {
 	while (drive(history, disk)) {
 	}
 }
@@ -234,7 +252,7 @@ struct Sprawl : Seals {
 // persist: every `every` seals, once its history is durable.
 struct Run {
 	const Seals &log;
-	mem::Disk &disk;
+	fl::filesystem &disk;
 	h::Fetch fetch;
 	std::optional<std::size_t> checkpoint, installed;
 	unsigned every = 1;
@@ -264,7 +282,7 @@ struct Run {
 };
 // The uninterrupted run of one log, and the directory after every seal (a peer at that seal).
 struct Reference {
-	mem::Disk disk;
+	fl::filesystem disk;
 	std::vector<Files> at;
 	Files expected;
 	std::uint64_t operations = 0;
@@ -287,7 +305,7 @@ Reference reference_of(const Seals &log) {
 	for (const auto &[_, cuts] : history.layout().cuts())
 		out.count_cuts += cuts[static_cast<unsigned>(h::Cut::Count)];
 	out.expected = files(out.disk);
-	out.operations = out.disk.operations;
+	out.operations = out.disk.mutations();
 	assert(out.expected.contains("layout"));
 	return out;
 }
@@ -295,20 +313,21 @@ Reference reference_of(const Seals &log) {
 void cut_every(const Seals &log, const Reference &base, unsigned every, std::size_t lag, unsigned &cuts,
 			   unsigned &below_table) {
 	for (std::uint64_t cut = 1; cut <= base.operations; ++cut) {
-		mem::Disk disk;
-		disk.cut = cut;
-		disk.random.seed(cut * every + lag);
+		fl::filesystem disk;
+		disk.power_off_after(cut - 1);
 		Run run{log, disk, {}, {}, {}, every, lag};
 		try {
 			h::History history(io(disk), {});
 			run.recover(history);
 			run.seal_from(history, 0);
-		} catch (const mem::PowerLoss &) {
+		} catch (...) {
+			if (!disk.powered_off())
+				throw;
 		}
-		if (!disk.dead())
+		if (!disk.powered_off())
 			continue;
 		++cuts;
-		disk.power_loss();
+		disk.crash(cut * every + lag, sector_cut);
 		h::History history(io(disk), {}); // No peer: what the node persisted suffices.
 		run.recover(history);
 		if (run.checkpoint && history.durable_table().index > log.seals[*run.checkpoint].applied_index())
@@ -320,7 +339,7 @@ void cut_every(const Seals &log, const Reference &base, unsigned every, std::siz
 // A restart without a cut: from the last seal, and from the start through every seal again.
 void restarted(const Seals &log, const Reference &base) {
 	for (const bool replay : {false, true}) {
-		mem::Disk disk = base.disk;
+		fl::filesystem disk = base.disk.snapshot();
 		h::History history(io(disk), {});
 		history.recover(replay ? log.start : log.seals.back());
 		drain(history, disk);
@@ -332,7 +351,7 @@ void restarted(const Seals &log, const Reference &base) {
 // The first seal of `log` that `limits` refuses: nothing it queues is written, history stalls, and the
 // refusal names `what` (any file when empty).
 void refused_seal(const Seals &log, const Limits &limits, std::string_view what) {
-	mem::Disk disk;
+	fl::filesystem disk;
 	h::History history(io(disk), limits);
 	history.recover(log.start);
 	drain(history, disk);
@@ -433,9 +452,8 @@ int main(int argc, char **argv) {
 		for (std::size_t ahead : {std::size_t(0), std::size_t(3)}) {
 			const auto &source = at[std::min(s + ahead, at.size() - 1)];
 			for (std::uint64_t cut = 1;; ++cut) {
-				mem::Disk disk;
-				disk.cut = cut;
-				disk.random.seed(cut);
+				fl::filesystem disk;
+				disk.power_off_after(cut - 1);
 				Run run{log, disk, peer(source)};
 				try {
 					h::History history(io(disk), {}, peer(source));
@@ -445,14 +463,16 @@ int main(int argc, char **argv) {
 					assert(history.durable_through(log.seals[s].applied_index()));
 					run.checkpoint = run.installed = s; // Acknowledged: the checkpoint is the snapshot.
 					run.seal_from(history, s + 1);
-				} catch (const mem::PowerLoss &) {
+				} catch (...) {
+					if (!disk.powered_off())
+						throw;
 				}
-				if (!disk.dead()) {
+				if (!disk.powered_off()) {
 					assert(files(disk) == expected);
 					break;
 				}
 				++installs;
-				disk.power_loss();
+				disk.crash(cut, sector_cut);
 				h::History history(io(disk), {}, peer(source));
 				run.recover(history);
 				if (!run.installed) {
@@ -479,9 +499,8 @@ int main(int argc, char **argv) {
 		rotten.at("layout")[rotten.at("layout").size() / 2] ^= 1;
 		for (unsigned peered = 0; peered != 3; ++peered) {
 			const bool with_peer = peered;
-			mem::Disk disk = reference;
-			auto inode = disk.names.at(std::string(prefix) + name);
-			disk.inodes.at(inode).durable[20] ^= 1;
+			fl::filesystem disk = reference.snapshot();
+			rot(disk, name, 20);
 			h::History history(io(disk), {},
 							   peered == 2 ? peers({&rotten, &expected}) : with_peer ? peer(expected) : h::Fetch{});
 			bool failed = false;
@@ -499,9 +518,8 @@ int main(int argc, char **argv) {
 		// no peer, recovery stops instead of serving other bytes.
 		for (unsigned peered = 0; peered != 3; ++peered) {
 			const bool with_peer = peered;
-			mem::Disk disk = reference;
-			auto &table = disk.inodes.at(disk.names.at(std::string(prefix) + "layout")).durable;
-			table[table.size() / 2] ^= 1;
+			fl::filesystem disk = reference.snapshot();
+			rot(disk, "layout", expected.at("layout").size() / 2);
 			h::History history(io(disk), {},
 							   peered == 2 ? peers({&rotten, &expected}) : with_peer ? peer(expected) : h::Fetch{});
 			bool failed = false;

@@ -247,22 +247,23 @@ int run(const std::vector<std::string>& input_args) {
 			const char* authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
 			const bool lone_quorum = !authority_options.peers || authority_options.peers->addresses.empty();
 			const bool publisher_https = authority_options.publisher_tls.has_value();
-			http::HttpAsioService::ConnectionFactory connection;
+			http::Tls tls;
 			if (publisher_https) {
-				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-				reactor::tls::configure(*context, *authority_options.publisher_tls, reactor::tls::Role::Server);
-				connection = http::tls_connection_factory(std::move(context));
+				tls.context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+				reactor::tls::configure(*tls.context, *authority_options.publisher_tls, reactor::tls::Role::Server);
 			}
 			const std::size_t body_cap = authority_options.node.application.request_bytes;
 			detent::authority::Service authority(std::move(authority_options));
 			// max_in_flight and max_clients default to Detent's own admission limit (1024), so http's
-			// gate never refuses a request before Detent's admission does (D4).
-			http::HttpAsioService service(authority, reactors, max_in_flight, std::move(connection), max_clients);
-			service.set_request_timeout(authority_network_timeout);
-			service.set_idle_timeout(idle_timeout);
-			service.set_shutdown_grace(std::min(kShutdownGrace, shutdown_timeout));
+			// gate never refuses a request before Detent's admission does (D4). The request and idle
+			// timeouts are the connection bounds; header and inactivity are off.
+			constexpr std::chrono::milliseconds off{0};
+			const http::Limits limits{.max_clients = max_clients, .max_in_flight = max_in_flight,
+				.idle_timeout = idle_timeout, .header_timeout = off, .inactivity_timeout = off,
+				.request_timeout = authority_network_timeout,
+				.shutdown_grace = std::min(kShutdownGrace, shutdown_timeout), .max_body = body_cap};
+			http::HttpAsioService service(authority, reactors, limits, std::move(tls));
 			authority.observe_connections(service.connection_observer());
-			service.set_max_body(body_cap);
 			service.enable_conditional();
 
 			http::AsioBindOptions bind;

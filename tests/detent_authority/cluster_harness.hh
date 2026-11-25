@@ -2,7 +2,7 @@
 // An in-process group of three voters with partitions, restarts and snapshot installs.
 #include "node.hh"
 #include <completion/posix.h>
-#include <journal/memory_io.h>
+#include <faultlab/faultfs.h>
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -28,12 +28,12 @@ inline std::optional<LayoutPolicy> history_policy;
 inline std::function<std::shared_ptr<AppliedChangeRecorder>(unsigned)> ring;
 // Adjusts voter i's options before it launches.
 inline std::function<void(unsigned, NodeOptions &)> configure;
-// Journals and history directories live in memory (journal's MemoryIO, kept across
+// Journals and history directories live in memory (faultlab's faultfs, kept across
 // restarts), so a run waits on no device or filesystem; power cuts are the crash model's.
 inline bool memory_storage = false;
 struct Cluster {
 	std::filesystem::path root;
-	std::array<kronuz::journal::testing::Disk, 3> disks, history_disks;
+	std::array<kronuz::faultlab::filesystem, 3> disks, history_disks;
 	std::array<std::unique_ptr<Node>, 3> nodes;
 	std::array<std::deque<Receive>, 3> messages;
 	std::array<std::vector<Completion>, 3> completed;
@@ -87,9 +87,9 @@ struct Cluster {
 		std::filesystem::create_directories(directory);
 		chmod(directory.c_str(), 0700);
 		if (memory_storage)
-			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::testing::MemoryIO>(disks[i]), options(i));
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::faultlab::io>(disks[i]), options(i));
 		else
-			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options(i));
 		if (history_policy) {
 			nodes[i]->attach_history(history_io(i),
 									 [this, i](const std::string &name, history::Check, history::Fetched done) {
@@ -123,11 +123,11 @@ struct Cluster {
 	std::filesystem::path history_directory(unsigned i) const { return root / (std::to_string(i) + ".history"); }
 	std::shared_ptr<kronuz::journal::IO> history_io(unsigned i) {
 		if (memory_storage)
-			return std::make_shared<kronuz::journal::testing::MemoryIO>(history_disks[i]);
+			return std::make_shared<kronuz::faultlab::io>(history_disks[i]);
 		auto files = history_directory(i);
 		std::filesystem::create_directories(files);
 		chmod(files.c_str(), 0700);
-		return std::make_shared<kronuz::journal::PosixIO>(files);
+		return std::make_shared<kronuz::journal::PosixIO>(files, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 	}
 	// Peer fetches answer at once, or wait in `fetches` while `deferred` until answered.
 	bool deferred = false;

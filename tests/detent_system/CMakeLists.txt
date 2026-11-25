@@ -13,12 +13,27 @@ if(Python3_FOUND)
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} TIMEOUT 30)
 endif()
 
+if(Python3_FOUND)
+  add_test(NAME test_support_ports
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/support/test_ports.py)
+  set_tests_properties(test_support_ports PROPERTIES TIMEOUT 30)
+endif()
+
 if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
   add_test(NAME test_system_localhost_dial
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_localhost_dial.py
       ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture)
   set_tests_properties(test_system_localhost_dial PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 60 SKIP_RETURN_CODE 77)
+endif()
+
+if(Python3_FOUND AND DETENT_BUILD_AUTHORITY)
+  add_test(NAME test_system_restart_rebind
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_restart_rebind.py
+      ${PROJECT_BINARY_DIR}/tests/detent_authority/tls-fixture
+      ${PROJECT_BINARY_DIR}/tests/detent_system/restart-rebind)
+  set_tests_properties(test_system_restart_rebind PROPERTIES
+    FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
 
 if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)
@@ -39,14 +54,14 @@ if(Python3_FOUND AND TARGET detent-authority AND DETENT_BUILD_AUTHORITY)
     FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
 
-if(Python3_FOUND AND TARGET detent::local_client)
+if(Python3_FOUND AND TARGET detent::local_view)
   add_executable(detent_system_local_oracle local_oracle.cc)
-  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_client detent::distribution)
+  target_link_libraries(detent_system_local_oracle PRIVATE detent::local_view detent::distribution)
   add_executable(detent_system_mixed_oracle mixed_oracle.cc)
-  target_link_libraries(detent_system_mixed_oracle PRIVATE detent::local_client)
+  target_link_libraries(detent_system_mixed_oracle PRIVATE detent::reader detent::local_view)
   add_executable(detent_system_prepared_client_probe prepared_client_probe.cc)
   target_include_directories(detent_system_prepared_client_probe PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
-  target_link_libraries(detent_system_prepared_client_probe PRIVATE detent::local_client)
+  target_link_libraries(detent_system_prepared_client_probe PRIVATE detent::reader detent::local_view)
 endif()
 if(Python3_FOUND AND TARGET detent-authority AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   add_test(NAME test_system_managed_authority_failover

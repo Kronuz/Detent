@@ -13,14 +13,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <journal/memory_io.h>
+#include <faultlab/faultfs.h>
 #include <limits>
 #include <sys/stat.h>
 #include <unistd.h>
 
 using namespace detent::authority;
 namespace h = detent::authority::history;
-namespace mem = kronuz::journal::testing;
+namespace fl = kronuz::faultlab;
 
 namespace {
 // A three-voter configuration for node 1 with the default limits.
@@ -176,8 +176,8 @@ int main() {
 
 	// The source voter writes the base at seal 0, then a seal of about seal_bytes of rewrites,
 	// whose level-0 passes L, so the namespace rolls up into a block.
-	mem::Disk source_disk;
-	auto source = std::make_shared<mem::MemoryIO>(source_disk, "history/");
+	fl::filesystem source_disk;
+	auto source = std::make_shared<fl::io>(source_disk);
 	h::History writer(source, limits);
 	writer.recover(start);
 	drain(writer);
@@ -219,8 +219,8 @@ int main() {
 	assert(largest == 73260051 && seal_file > 8000000 && block > 8000000);
 
 	// A voter with an empty history directory installs it through the configured lane.
-	mem::Disk disk;
-	auto target = std::make_shared<mem::MemoryIO>(disk, "history/");
+	fl::filesystem disk;
+	auto target = std::make_shared<fl::io>(disk);
 	std::size_t served = 0;
 	{
 		h::History history(target, limits, lane(source, fetch_bytes, served));
@@ -247,9 +247,9 @@ int main() {
 	// Through consensus's default 64 MiB lane the base cannot be fetched: the install ends,
 	// naming the file and the voter's answer.
 	{
-		mem::Disk short_disk;
+		fl::filesystem short_disk;
 		std::size_t unused = 0;
-		h::History history(std::make_shared<mem::MemoryIO>(short_disk, "history/"), limits,
+		h::History history(std::make_shared<fl::io>(short_disk), limits,
 						   lane(source, std::size_t{64} * 1024 * 1024, unused));
 		std::string why;
 		try {

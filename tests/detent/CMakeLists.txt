@@ -1,20 +1,14 @@
 set(DETENT_TESTS
   test_model_and_schema
   test_hash_golden
-  test_eval_semantics
-  test_overrides
-  test_file_source
-  test_testing_guard
-  test_concurrency_stress
   test_json_patch
   test_json_strings
   test_flat_map
   test_duplicate_precedence
   test_one_knob_differential)
 
-list(APPEND DETENT_TESTS test_read_view)
 if(NOT DETENT_TSAN)
-  list(APPEND DETENT_TESTS test_model_alloc_failure test_client_publication_failure)
+  list(APPEND DETENT_TESTS test_model_alloc_failure)
 endif()
 
 foreach(test_name ${DETENT_TESTS})
@@ -22,6 +16,8 @@ foreach(test_name ${DETENT_TESTS})
   target_link_libraries(${test_name} PRIVATE detent::detent)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+target_include_directories(test_one_knob_differential PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_one_knob_differential PRIVATE detent::local_view)
 target_compile_definitions(test_one_knob_differential PRIVATE
   DETENT_ONE_KNOB_MAIN="${CMAKE_CURRENT_SOURCE_DIR}/one_knob_main.hex")
 

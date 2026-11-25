@@ -9,6 +9,9 @@ build=.scratch/revert-ready-build
 # BASE predates the rename, so its daemon main lives at src/detentd/main.cc.
 git show "$base:src/detentd/main.cc" >src/detent_authority/main.cc || exit 125
 git checkout "$base" -- src/detent_authority/service.cc src/detent_authority/service.hh || exit 125
+# BASE keeps the service in one file: drop the split pieces and their build lines.
+rm -f src/detent_authority/service_options.cc src/detent_authority/service_runtime.cc src/detent_authority/service_internal.hh
+sed -i.orig 's/ service_options.cc service_runtime.cc//' src/detent_authority/CMakeLists.txt && rm -f src/detent_authority/CMakeLists.txt.orig || exit 125
 git diff --stat -- src/detent_authority
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
     -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON \

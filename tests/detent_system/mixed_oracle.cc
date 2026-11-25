@@ -1,9 +1,9 @@
 #include "oracle_capacity.hh"
 #include "reader_benchmark.hh"
-#include "detent/client.hh"
 #include "detent/identity.hh"
 #include "detent/validation.hh"
-#include "detent_local/client_source.hh"
+#include "detent_local/reader.hh"
+#include <unistd.h>
 #include <bit>
 #include <fstream>
 #include <iostream>
@@ -34,6 +34,19 @@ template <class T>
 void equal(const detent::Result<T, detent::KnobError> &result, T expected, std::string_view key) {
 	check(result && result.value() == expected, key);
 }
+// The qualified-name face the corpus checks use over a pinned generation.
+struct Qualified {
+	const detent::local::ReadView &view;
+	static std::pair<std::string_view, std::string_view> split(std::string_view key) {
+		const auto colon = key.find(':');
+		return {key.substr(0, colon), key.substr(colon + 1)};
+	}
+	detent::Result<std::int64_t, detent::KnobError> get(std::string_view key, std::optional<std::string_view> hash = {},
+														 std::optional<std::string_view> switch_value = {}) const {
+		const auto [name_space, name] = split(key);
+		return view.get(name_space, name, hash, switch_value);
+	}
+};
 std::uint64_t bucket(std::string_view key, std::string_view cohort) {
 	class SHA256 hash;
 	hash.add(key.data(), key.size());
@@ -75,29 +88,16 @@ int main(int argc, char **argv) {
 		configured.group = detent::distribution::parse_identity_hex<16>(argv[4]);
 		configured.restore_epoch = detent::distribution::parse_identity_hex<16>(argv[5]);
 		configured.scope = detent::distribution::parse_identity_hex<32>(argv[6]);
-		detent::local::ClientSourceOptions local;
-		local.directory = argv[1];
 		const auto identity = detent::distribution::namespace_cursor(configured);
-		local.identity = identity;
-		local.auto_refresh = false;
-		local.limits = capacity.limits;
-		detent::InitOptions options;
-		std::shared_ptr<detent::local::LocalReadSource> source;
-		options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
-								  std::shared_ptr<const detent::OverrideTable> overrides) {
-			source = std::make_shared<detent::local::LocalReadSource>(local, std::move(defaults),
-																	  std::move(overrides));
-			return source;
-		};
 		const auto open_usage = ReaderBenchmark::usage();
 		const auto open_begin = std::chrono::steady_clock::now();
-		detent::Client client(std::move(options));
-		source->refresh();
+		detent::local::GenerationReader generations(argv[1], capacity.limits, identity);
+		generations.refresh();
 		const auto ready = std::chrono::steady_clock::now();
 		const auto ready_usage = ReaderBenchmark::usage();
-		const auto view = client.read_view();
-		const auto cursor = view.cursor();
-		if (!cursor || !cursor->same_identity(identity) || cursor->position < revision)
+		const auto pinned = generations.read_view();
+		const Qualified view{pinned};
+		if (!pinned || !pinned.cursor().same_identity(identity) || pinned.cursor().position < revision)
 			throw std::runtime_error("mixed SDK oracle generation has not converged");
 		std::uint64_t booleans = 0, integers = 0, deleted = 0;
 		for (std::uint64_t ordinal = 0; ordinal != records; ++ordinal) {
@@ -145,13 +145,16 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		if (source->status().knobs != booleans + integers)
+		if (pinned.size() != booleans + integers)
 			throw std::runtime_error("mixed SDK oracle corpus cardinality mismatch");
 		const auto verified = std::chrono::steady_clock::now();
-		benchmark.run(client, view);
+		if (benchmark.enabled()) {
+			const detent::Reader reader(argv[1], ::getuid());
+			benchmark.run(reader, pinned);
+		}
 		std::cout << "{\"records\":" << records << ",\"bool_knobs\":" << booleans
 				  << ",\"int_knobs\":" << integers << ",\"deleted\":" << deleted
-				  << ",\"revision\":" << cursor->position
+				  << ",\"revision\":" << pinned.cursor().position
                   << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
                   << ",\"open_cpu_seconds\":" << ReaderBenchmark::cpu(ready_usage) - ReaderBenchmark::cpu(open_usage)
                   << ",\"open_minor_faults\":" << ready_usage.ru_minflt - open_usage.ru_minflt

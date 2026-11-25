@@ -3,12 +3,6 @@
 # a pass/fail SLO). See each .cc file's header comment for what it measures
 # and how to run it.
 
-add_executable(detent_read_bench detent_read_bench.cc)
-target_link_libraries(detent_read_bench PRIVATE detent::detent)
-
-add_executable(detent_model_lookup container-alternative/model_lookup.cc)
-target_link_libraries(detent_model_lookup PRIVATE detent::detent)
-
 add_executable(detent_model_footprint container-alternative/model_footprint.cc)
 target_link_libraries(detent_model_footprint PRIVATE detent::detent)
 
@@ -18,9 +12,6 @@ target_link_libraries(detent_model_lifecycle PRIVATE detent::detent)
 
 add_executable(detent_hash_bench detent_hash_bench.cc)
 target_link_libraries(detent_hash_bench PRIVATE detent::detent)
-
-add_executable(detent_update_bench detent_update_bench.cc)
-target_link_libraries(detent_update_bench PRIVATE detent::detent)
 
 add_executable(detent_scale_bench detent_scale_bench.cc)
 target_link_libraries(detent_scale_bench PRIVATE detent::detent)
@@ -84,4 +75,11 @@ if(APPLE AND TARGET detent::relay_mirror AND TARGET detent::authority)
   add_executable(detent_relay_window_bench relay_window_bench.cc)
   target_include_directories(detent_relay_window_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_authority")
   target_link_libraries(detent_relay_window_bench PRIVATE detent::relay_mirror detent::authority)
+endif()
+
+# T1 and T4 (reader.md): warm lookups through libdetent_reader beside a pinned ReadView.
+if(TARGET detent::testing_store)
+  add_executable(reader_bench reader_bench.cc)
+  target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
 endif()

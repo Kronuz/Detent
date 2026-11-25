@@ -1,5 +1,3 @@
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
 #include "detent_local/reader.hh"
 #include "generation_file_access.hh"
 #include "lazy_page_access.hh"
@@ -60,16 +58,6 @@ int main() {
 	}
 	auto fixture = std::make_shared<Fixture>();
 	{
-		l::ClientSourceOptions source;
-		source.directory = fixture->path;
-		source.prepared_publisher = ::getuid();
-		source.auto_refresh = false;
-		detent::InitOptions options;
-		options.read_source = l::make_local_read_source(source);
-		detent::Client client(options);
-		check(client.get("a:k").value() == 42);
-	}
-	{
 		l::GenerationReader reader(fixture->path, {}, {}, ::getuid());
 		check(reader.refresh());
 		check(reader.read_view().get("a", "k").value() == 42);
@@ -126,7 +114,7 @@ int main() {
 	limits.bytes = 8 * p::segment_bytes;
 	auto mappings = std::make_shared<d::StorageLedger>(8 * p::segment_bytes);
 	auto access = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->root, limits,
-	                                             domain.factory(), fixture->heap, mappings);
+	                                             fixture->heap, mappings);
 	auto leaf_reader = [&](std::string_view prefix, std::uint64_t ordinal) {
 		std::array<char, 8> watermark{};
 		l::write_integer(watermark, 0, 9, 8);
@@ -175,7 +163,7 @@ int main() {
 		root.pages = root.segments = root.namespaces = 1;
 		root.records = 0;
 		auto reader = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), root, limits,
-		                                             domain.factory(), fixture->heap, mappings);
+		                                             fixture->heap, mappings);
 		using Owner = d::RetirementHandle<x::LazyPageAccess>;
 		auto owner = std::make_shared<Owner>(std::move(reader));
 		return x::PagedReadState{
@@ -201,7 +189,7 @@ int main() {
 	check(access->mapped_segments() == 1);
 	{
 		auto alternate = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->root, limits,
-		                                                domain.factory(), fixture->heap, mappings);
+		                                                fixture->heap, mappings);
 		alternate->resolve(fixture->definitions[0]);
 		auto forged = fixture->definitions[0];
 		forged.digest[0] ^= 1;

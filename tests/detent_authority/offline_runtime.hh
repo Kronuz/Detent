@@ -8,7 +8,7 @@
 class OfflineRuntime {
   public:
 	explicit OfflineRuntime(const detent::authority::ServiceOptions &options)
-		: node(std::make_unique<kronuz::journal::PosixIO>(options.directory), options.node),
+		: node(std::make_unique<kronuz::journal::PosixIO>(options.directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options.node),
 		  election_delay_(options.node.timing.election_min) {}
 
 	void recover_committed() {

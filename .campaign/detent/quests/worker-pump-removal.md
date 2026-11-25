@@ -13,6 +13,8 @@ consensus's old pump API leaves its public surface: `run_one`, `take_io_operatio
 - A3 `Peers` and its fetch lane DTFT0001 are deleted, with fetch-alongside-consensus already on the lane (D106), and Detent's `peer_history.cc` fetches over the lane: a grep job and the suites
 - A2 Detent's pin moves to the removal commit and its native suite passes: a Detent native job at the new pin
 
+- A4 Detent's voter config pins keys, not certificates: once `Peers` is gone, voters authenticate through `NodePins`, so `certificate_sha256` in `src/detent_authority/service.cc` becomes the SubjectPublicKeyInfo SHA-256 that `consensus::transport::key_pin` computes (xapiand:consensus-join-v2, review F11), with its docs and tests; greenfield, no old field kept: the native suite
+
 ## Contracts
 
 Removes the Worker pump and Peers.

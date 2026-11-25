@@ -179,14 +179,19 @@ static int run_host_owned(const HostSettings &settings, const detent_cli::Ready 
 	if (settings.max_clients)
 		options.connections = *settings.max_clients;
 	auto facade = std::make_unique<Service>(runtime);
-	http::HttpAsioService listener(*facade, settings.reactors, settings.max_in_flight.value_or(options.connections),
-								   http::tls_connection_factory(options.tls_context), options.connections);
+	// The request timeout and idle timeout are the connection bounds; header and inactivity are off.
+	constexpr std::chrono::milliseconds off{0};
+	const http::Limits limits{.max_clients = options.connections,
+							  .max_in_flight = settings.max_in_flight.value_or(options.connections),
+							  .idle_timeout = settings.idle_timeout, .header_timeout = off, .inactivity_timeout = off,
+							  .request_timeout = std::chrono::seconds(65),
+							  .shutdown_grace = std::min(kShutdownGrace, settings.shutdown_timeout)};
+	if (!options.tls_context)
+		throw std::invalid_argument("relay listener requires a TLS context");
+	http::HttpAsioService listener(*facade, settings.reactors, limits, http::Tls{options.tls_context});
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
 	listener.set_bind_options(bind);
-	listener.set_request_timeout(std::chrono::seconds(65));
-	listener.set_idle_timeout(settings.idle_timeout);
-	listener.set_shutdown_grace(std::min(kShutdownGrace, settings.shutdown_timeout));
 	task::event owner_drained, mirror_ready;
 	std::atomic<bool> owner_finished{false};
 	bool stop_requested = false, listener_stopped = false, announced = false;

@@ -158,7 +158,7 @@ void attach(c::PosixIO &io) noexcept {
 }
 #elif defined(__linux__)
 int skip_writeback(int) { return 0; }
-void attach(c::PosixIO &io) noexcept { io.replace_sync_calls(g ? &record_fsync : &skip_fsync, &skip_writeback); }
+void attach(c::PosixIO &io) noexcept { io.replace_sync_calls(g ? &record_fsync : &skip_fsync, nullptr, &skip_writeback); }
 #else
 void attach(c::PosixIO &io) noexcept { io.replace_sync_calls(g ? &record_fsync : &skip_fsync); }
 #endif

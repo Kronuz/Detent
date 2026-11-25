@@ -1,0 +1,14 @@
+diff --git a/bindings/python/detent_python.cc b/bindings/python/detent_python.cc
+index b9bb488b..e6b57276 100644
+--- a/bindings/python/detent_python.cc
++++ b/bindings/python/detent_python.cc
+@@ -262,7 +262,8 @@ bool parse_call(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, Call
+     if (!text_arg(values[0], "name", false, &out->name))
+         return false;
+     out->fallback = values[1];
+-    if (values[2] && !text_arg(values[2], "hash", true, &out->hash))
++    detent_str dropped;
++    if (values[2] && !text_arg(values[2], "hash", true, &dropped))
+         return false;
+     if (values[3] && !text_arg(values[3], "switch_value", true, &out->switch_value))
+         return false;

@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 		auto path = directory / names[i];
 		std::filesystem::create_directory(path);
 		assert(::chmod(path.c_str(), 0700) == 0);
-		auto node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(path), options);
+		auto node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options);
 		Identity identity{};
 		identity[0] = static_cast<char>(i + 1);
 		node->create(identity);

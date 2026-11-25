@@ -64,20 +64,7 @@ void test_source_parse_and_merge() {
 	assert(s.value().version == 42);
 	assert(s.value().published_at == "2026-09-29T15:00:00Z");
 
-	auto merged = merge_over_defaults(d.value(), s.value());
-	assert(merged.version == 42);
-	// Source omits "search:max_results" -> baked default retained verbatim.
-	assert(merged.knobs.size() == 2);
-	assert(merged.knobs.find("search:max_results")->second.default_value == 25);
-
-	// Source overrode "checkout:...": the WHOLE definition replaced, not
-	// merged field-by-field.
-	const auto& killswitch = merged.knobs.find("checkout:killswitch_new_path")->second;
-	assert(killswitch.rollout_pct.has_value() && *killswitch.rollout_pct == 10);
-	assert(killswitch.rollout_value == std::optional<std::int64_t>(1));
-	assert(std::get<std::int64_t>(killswitch.overrides.find("employees")->second) == 1);
-
-	std::puts("source parse + merge OK");
+	std::puts("source parse OK");
 }
 
 void test_schema_violations_reject_whole_input() {
@@ -134,7 +121,7 @@ void test_schema_violations_reject_whole_input() {
 	}
 	// Byte-size cap enforced by parse_source_snapshot itself, not only by
 	// a server's ingest sink -- an arbitrary
-	// InitOptions::source_poll implementation would otherwise have no cap.
+	// caller would otherwise have no cap.
 	{
 		std::string oversized = R"({"schema_version":1,"version":1,"knobs":{})";
 		oversized.append(std::string(64, ' ')); // pad past a tiny max_bytes

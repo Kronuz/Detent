@@ -5,13 +5,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import socket
 import struct
 import time
 from collections.abc import Callable
 from pathlib import Path
 
-from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN, Authority
+from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN, Authority, lease_ports
 from capacity import CapacityProfile
 from runtime import Actor, Actors
 from writers import Writers
@@ -183,11 +182,7 @@ class ManagedCohort:
             for index in range(self.relay_count):
                 directory = self.directory / f"relay-{index}"
                 directory.mkdir(mode=0o700)
-                with socket.socket(
-                    socket.AF_INET6 if ":" in self.authority.address else socket.AF_INET
-                ) as reservation:
-                    reservation.bind((self.authority.address, 0))
-                    port = reservation.getsockname()[1]
+                (port,) = lease_ports(1, self.authority.address)
                 relay_ports.append(port)
                 config = directory / "detent-relay.json"
                 relay_files(

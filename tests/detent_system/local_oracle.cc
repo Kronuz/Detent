@@ -1,8 +1,7 @@
 #include "oracle_capacity.hh"
-#include "detent/client.hh"
 #include "detent/identity.hh"
 #include "detent_distribution/frame_input.hh"
-#include "detent_local/client_source.hh"
+#include "detent_local/reader.hh"
 #include <bit>
 #include <fstream>
 #include <iostream>
@@ -41,36 +40,22 @@ int main(int argc, char **argv) {
 		std::uint64_t revision = 0;
 		for (std::uint64_t producer = 0; producer != producers; ++producer) {
 			const auto name = "load" + std::to_string(producer);
-			detent::local::ClientSourceOptions local;
-			local.directory = argv[1];
-			local.name_space = name;
-			local.auto_refresh = false;
-			local.limits = capacity.limits;
-			detent::InitOptions options;
-			std::shared_ptr<detent::local::LocalReadSource> source;
-			options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
-									  std::shared_ptr<const detent::OverrideTable> overrides) {
-				source = std::make_shared<detent::local::LocalReadSource>(local, std::move(defaults),
-																		  std::move(overrides));
-				return source;
-			};
 			const auto open_begin = std::chrono::steady_clock::now();
-			detent::Client client(std::move(options));
-			source->refresh();
+			detent::local::GenerationReader reader(argv[1], capacity.limits, std::nullopt, std::nullopt, name);
+			reader.refresh();
 			const auto ready = std::chrono::steady_clock::now();
-			auto view = client.read_view();
-			const auto cursor = view.cursor();
+			const auto view = reader.read_view();
 			const auto count = (records - producer + producers - 1) / producers;
-			if (!cursor || cursor->cluster != cluster || cursor->position < minimum[producer] ||
-				source->status().knobs != count)
+			if (!view || view.cursor().cluster != cluster || view.cursor().position < minimum[producer] ||
+			    view.size() != count)
 				throw std::runtime_error("local oracle namespace has not converged: " + name);
 			for (auto ordinal = producer; ordinal < records; ordinal += producers) {
-				const auto key = name + ":key" + std::to_string(ordinal);
-				const auto value = view.get(key);
+				const auto key = "key" + std::to_string(ordinal);
+				const auto value = view.get(name, key);
 				if (!value || value.value() != values[ordinal])
-					throw std::runtime_error("local oracle mismatch: " + key);
+					throw std::runtime_error("local oracle mismatch: " + name + ":" + key);
 			}
-			revision = std::max(revision, cursor->position);
+			revision = std::max(revision, view.cursor().position);
 			open += ready - open_begin;
 			verify += std::chrono::steady_clock::now() - ready;
 		}
