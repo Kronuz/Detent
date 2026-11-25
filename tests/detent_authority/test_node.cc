@@ -122,7 +122,7 @@ void retained_funding(const std::filesystem::path &directory) {
 	// The boundary: the pool that funds the image, the envelope's suffix and 4096 bytes starts, one byte less does not.
 	profile.storage.replacement_pool.logical_bytes = required;
 	assert(refusal(profile).empty());
-	{ Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile); }
+	{ Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile); }
 	profile.storage.replacement_pool.logical_bytes = required - 1;
 	assert(refusal(profile) ==
 		   "authority runtime cannot fund configured limits: the replacement pool holds 72690163 bytes but "
@@ -133,7 +133,7 @@ void retained_funding(const std::filesystem::path &directory) {
 	std::filesystem::create_directories(directory);
 	assert(::chmod(directory.c_str(), 0700) == 0);
 	bool refused = false;
-	try { Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile); }
+	try { Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile); }
 	catch (const std::invalid_argument &) { refused = true; }
 	assert(refused && std::filesystem::is_empty(directory));
 	// A larger envelope raises the requirement by its extra suffix bytes and entries.
@@ -201,7 +201,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	}
 	const std::uint64_t through = invalid_middle ? 5 : (grouped ? 3 : 32);
 	{
-		kronuz::journal::PosixIO io(directory);
+		kronuz::journal::PosixIO io(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 		kronuz::journal::Journal journal(io, 4 * 1024 * 1024);
 		kronuz::journal::Identity identity{};
 		identity[0] = 'r';
@@ -261,14 +261,14 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		const auto before = sizes();
 		bool refused = false;
 		{
-			Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
+			Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 			try { node.recover(); }
 			catch (const std::exception &error) { refused = true; std::cerr << "recover: " << error.what() << "\n"; }
 		}
 		assert(refused && sizes() == before);
 		return;
 	}
-	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 	node.recover();
 	while (!node.worker().ready()) {
 		node.service({0, Timing{}.election_min});
@@ -341,7 +341,7 @@ void restart_raise(const std::filesystem::path &directory) {
 		return command;
 	};
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), old);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), old);
 		Identity id{};
 		id[0] = 'k';
 		node.create(id);
@@ -363,7 +363,7 @@ void restart_raise(const std::filesystem::path &directory) {
 		assert(full.size() == 1 && full[0].results[0].status == Status::Capacity && node.state().size() == 2);
 	}
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), raised);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), raised);
 		node.recover();
 		pump(node);
 		node.start();
@@ -389,7 +389,7 @@ void restart_raise(const std::filesystem::path &directory) {
 	// A2: a voter restarted below the recorded limits refuses to start and names the field.
 	auto lowered = raised;
 	lowered.application.keys = 3;
-	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), lowered);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), lowered);
 	std::string reason;
 	try {
 		node.recover();
@@ -427,7 +427,7 @@ void restart_raise_layout(const std::filesystem::path &directory) {
 	const AdministrativeCommand layout{context(), AdministrativeKind::SetLayout, {}, {}, {}, next};
 	LayoutPolicy enabled;
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), old);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), old);
 		Identity id{};
 		id[0] = 'l';
 		node.create(id);
@@ -448,7 +448,7 @@ void restart_raise_layout(const std::filesystem::path &directory) {
 			   !node.state().pending_policy());
 	}
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(directory), raised);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), raised);
 		node.recover();
 		pump(node);
 		node.start();
@@ -467,7 +467,7 @@ void restart_raise_layout(const std::filesystem::path &directory) {
 	auto beyond = raised;
 	beyond.application.state_bytes = 24 * 1024 * 1024;
 	beyond.application.layout = {};
-	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), beyond);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), beyond);
 	std::string reason;
 	try {
 		node.recover();
@@ -485,7 +485,7 @@ void terminal_state_retirement(const std::filesystem::path &path) {
 	} cleanup{path};
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
-	Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 	Identity id{};
 	id[0] = 'T';
 	node.create(id);
@@ -536,7 +536,7 @@ void rejected_read_kind(const std::filesystem::path &path) {
 	chmod(path.c_str(), 0700);
 	auto profile = options();
 	profile.configuration.voters = {1, 2, 3};
-	Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 	Identity id{};
 	id[0] = 'R';
 	node.create(id);
@@ -644,7 +644,7 @@ int main(int argc, char **argv) {
 	{
 		auto profile = options();
 		profile.waiters = 1;
-		Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 		Identity id{};
 		id[0] = 's';
 		node.create(id);
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
 		assert(tail.size() == 1 && node.state().revision() == revision + 1);
 	}
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+		Node node(std::make_unique<kronuz::journal::PosixIO>(path, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 		node.recover();
 		pump(node);
 		node.start();
@@ -708,7 +708,7 @@ int main(int argc, char **argv) {
 	std::filesystem::create_directories(plain);
 	chmod(plain.c_str(), 0700);
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), options());
+		Node node(std::make_unique<kronuz::journal::PosixIO>(plain, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options());
 		Identity id{};
 		id[0] = 'p';
 		node.create(id);
@@ -730,7 +730,7 @@ int main(int argc, char **argv) {
 			profile.application.keys = 1;
 		else
 			profile.application.results = 1;
-		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), profile);
+		Node node(std::make_unique<kronuz::journal::PosixIO>(plain, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), profile);
 		node.recover();
 		std::uint64_t node_clock = 0;
 		std::string reason;

@@ -63,7 +63,7 @@ void prepare(const std::filesystem::path &root) {
 	check(::chmod(root.c_str(), 0700) == 0);
 }
 std::shared_ptr<kronuz::io::completion::PosixIO> io_at(const std::filesystem::path &root) {
-	return std::make_shared<kronuz::io::completion::PosixIO>(root, 0644);
+	return std::make_shared<kronuz::io::completion::PosixIO>(root, kronuz::io::completion::PosixIOOptions{kronuz::io::completion::FlushMode::full}, 0644);
 }
 d::Identity identity(char fill) {
 	d::Identity value;

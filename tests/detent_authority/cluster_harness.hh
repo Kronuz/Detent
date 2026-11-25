@@ -89,7 +89,7 @@ struct Cluster {
 		if (memory_storage)
 			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::testing::MemoryIO>(disks[i]), options(i));
 		else
-			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory), options(i));
+			nodes[i] = std::make_unique<Node>(std::make_unique<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full}), options(i));
 		if (history_policy) {
 			nodes[i]->attach_history(history_io(i),
 									 [this, i](const std::string &name, history::Check, history::Fetched done) {
@@ -127,7 +127,7 @@ struct Cluster {
 		auto files = history_directory(i);
 		std::filesystem::create_directories(files);
 		chmod(files.c_str(), 0700);
-		return std::make_shared<kronuz::journal::PosixIO>(files);
+		return std::make_shared<kronuz::journal::PosixIO>(files, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 	}
 	// Peer fetches answer at once, or wait in `fetches` while `deferred` until answered.
 	bool deferred = false;

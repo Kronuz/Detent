@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
-	auto io = std::make_shared<kronuz::journal::PosixIO>(directory);
+	auto io = std::make_shared<kronuz::journal::PosixIO>(directory, kronuz::journal::PosixIOOptions{kronuz::journal::FlushMode::full});
 	h::Directory files(io, {});
 	// A namespace's files name it by token, so `/` and 199 bytes are a plain file name.
 	for (const auto &space : spaces) {
