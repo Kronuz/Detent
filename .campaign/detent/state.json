@@ -5500,6 +5500,21 @@
         "todo": "3968a62b"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-inline-sync-loop (nothing moved it for 86 min: ready for review (fix round 1; jobs queued: 261125-022317-c35d52 261125-022319-78e2a5 261125-022321-d39023 261125-022322-8743dc 261125-022324-925f03 261125-022326-2ffaad 261125-022327-3106af 261125-022329-f14798 261125-022338-e1ff83 261125-022340-33344a; CI 45594592100); to land: criteria without evidence at 9f1419472e00: A1-A2, A4-A6 (`campaign status consensus-inline-sync-loop` lists them); new): `campaign status consensus-inline-sync-loop`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T04:02:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T04:02:23",
+      "by": "campaign",
+      "closed": "pre-existing on main (CI 45542770252 at c724c58, verified); follow-up quest consensus-macos-x86-loop-kernel-wait; land after b2fa03b's jobs and CI, --no-ci only if macos-x86_64 alone is red with this signature",
+      "id": "msg-430",
+      "settles": {
+        "todo": "63b281c5"
+      },
+      "text": "to do, critical path first:\ntodo: answer consensus-inline-sync-loop (its journal waits on the lead: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275); it asks: Nothing. For the lead: - CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver` entry runs it after its three cases; `slow-sync` also runs alone. - bench/netlab's node fails at startup on macOS at main and at the head (\"node pins: the local certificate is not th\u2026; new): `campaign status consensus-inline-sync-loop`, answer it (`campaign message consensus-inline-sync-loop TEXT`), or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
