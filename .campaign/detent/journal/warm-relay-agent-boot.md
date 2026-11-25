@@ -1,6 +1,6 @@
 # warm-relay-agent-boot: journal
 
-State: waiting on jobs 261124-084513-df11ea (harness probe at merged head 794fe37f; suite 261124-084506-9cfdb6 passed)
+State: ready for review (doc and rows at abae2b31; e5fdf9ca reruns queued as landing evidence, ids in Evidence)
 Quest: .campaign/detent/quests/warm-relay-agent-boot.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Main merged at abae2b31 (274 files; src/detent_agent, reader, local changed). A1 rows rerun there
-(exclusive, one mode per job, as before): 261124-141813-b9846a, -141813-5de11a, -141814-202283,
--141815-2ac21a, -141815-19936e, -141816-b1f146, -141816-f2247f, -141817-af06a9, -141818-3ca37e,
--141818-0904a8, -141819-f892ee, -141820-725a5e, -141820-694a39, -141821-5f0af0 (reruns of
-261123-165617-0de0e5 .. -165703-83f18d, in that order). Merge-verify suite 261124-084506-9cfdb6 and
-probe 261124-084513-df11ea passed at 794fe37f (before this merge).
-When they end: table.py to rows-abae2b31.jsonl, rewrite docs/perf/warm-relay-agent-boot.md (per
-size agent cold bootstrap median/spread, bytes, relay and agent CPU, vs earlier numbers; state the
-5M row plainly), set State, update Evidence.
+Rows at abae2b31 (14 exclusive jobs, all passed, no "ran beside", no time overlap) tabulated into
+docs/measurements/warm-relay-agent-boot/rows-abae2b31.jsonl (job field and relay RSS before/peak
+derived from each run's marks.json trace: before = last relay sample at t <= 0.1 s, peak = max;
+the same derivation reproduces rows-3f0a5b59's values). docs/perf/warm-relay-agent-boot.md
+rewritten on them. The lead requeued the 14 rows at e5fdf9ca as landing evidence (ids in
+Evidence); none had ended when the doc was written. When they end: table.py their ids; if a median
+leaves its abae2b31 range (100K warm 0.64-1.01 s, 1M warm 3.38-3.83 s, 1M cold total 5.75-6.22 s,
+100K cold total 1.74-2.21 s; 5M is one round, treat +-10% as the spread) say so in the doc.
+
+Doc's headline: warm agent 0.68 / 3.47 / 13.67 s (100K / 1M / 5M), cold relay+agent 1.93 / 6.17 /
+27.87 s, so the agent is 36% / 56% / 49%. Against the earlier mirror-relay run at 3f0a5b59 the warm
+agent is slower at 100K (+0.10 s) and 1M (+0.35 s), both outside the earlier range, faster at 5M
+(-1.76 s, one round each); cause unmeasured (main's agent, reader, local, testing changed between
+the heads). Against the bundle relay, cold totals -49% / -81% / -82%; warm agent 100K +0.15 s,
+1M inside the one before run's noise, 5M about -23% (one round).
+
+CI on the branch's last run failed on macos-x86_64 only and its log is gone; the push of e5fdf9ca
+runs it again (run id under Evidence).
 
 Rows at dc0315b5 (261122-211123-e68717 100K, -211123-7d24e2 1M, -211124-af8242 5M) timed out from a
 hang, not their size: main (30c2d65b) serves the relay from its namespace mirror only, so it logs
@@ -68,7 +77,7 @@ confirmation round: r2 and r3 (261120-042643-d21172, -042645-6308e2, -042648-8b7
 
 ## Next
 
-0. State: waiting on jobs 261124-141813-b9846a ... 261124-141821-5f0af0 (the 14 reruns).
+0. State: ready for review. The e5fdf9ca reruns (Evidence) are the landing evidence; compare them to the doc's ranges when they end.
 1. (done at 794fe37f) Suite 261124-084506-9cfdb6 and harness probe 261124-084513-df11ea at the merged head 794fe37f
    (light; the probe checks boot.py still runs with main's ManagedCohort changes, not a row). When
    both pass: set "ready for review", push (Kronuz token).
@@ -87,22 +96,24 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261123-165617-0de0e5, 261123-165620-51800c, 261123-165624-e3b117, 261123-165628-f15efc, 261123-165631-3bc1e4, 261123-165634-7ba37a, 261123-165638-b3fd52, 261123-165643-4f1b40, 261123-165646-b31273, 261123-165649-7c0f14, 261123-165653-3ebe6a, 261123-165656-0c6a5e, 261123-165700-7beee0, 261123-165703-83f18d (exclusive at 3f0a5b59, no "ran beside"); probe 261123-165613-3cde33, 261123-164928-adf267 |
-| A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-3f0a5b59.jsonl (before: rows-3a57661b.jsonl) |
+| A1 | Landing evidence, exclusive at e5fdf9ca (queued, one mode per job): 261124-202039-aa80ba, 261124-202039-9c9088, 261124-202042-42c0f3, 261124-202041-4379bb, 261124-202044-26b532, 261124-202043-4374a0, 261124-202040-e47e90, 261124-202041-d8961e, 261124-202043-39475a, 261124-202042-2dd756, 261124-202045-e28f51, 261124-202046-1fe8d9, 261124-202045-76410f, 261124-202046-64d8d4. Measured, all passed at abae2b31 (exclusive, no "ran beside", no overlap): 261124-141813-b9846a, 261124-141813-5de11a, 261124-141816-b1f146, 261124-141815-19936e, 261124-141818-3ca37e, 261124-141818-0904a8, 261124-141814-202283, 261124-141815-2ac21a, 261124-141817-af06a9, 261124-141816-f2247f, 261124-141819-f892ee, 261124-141820-725a5e, 261124-141820-694a39, 261124-141821-5f0af0; earlier at 3f0a5b59: 261123-165617-0de0e5 .. 261123-165703-83f18d |
+| A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-abae2b31.jsonl (earlier: rows-3f0a5b59.jsonl; before: rows-3a57661b.jsonl); the e5fdf9ca reruns above confirm or correct it |
 | Suite | 261124-084506-9cfdb6 (exit 0 at the merged head 794fe37f) |
 
 ## Result
 
-docs/perf/warm-relay-agent-boot.md (mirror relay at 3f0a5b59; before = bundle relay at 3a57661b).
-Warm agent medians 0.58 s (100K, 3 rounds), 3.12 s (1M, 3), 15.43 s (5M, 1 per D85); relay-plus-
-agent cold totals 1.93 / 5.30 / 30.46 s, so the agent is 30% / 59% / 51% of it (14% / 12% / 11% on
-the bundle relay). Against the before: cold total -49% / -84% / -81% (ranges disjoint at 100K, far
-apart at 1M and 5M); warm agent +9% at 100K (inside the noise, the before had a 0.83 s run), -16%
-at 1M, -13% at 5M (one round each, about 15%, not precise). Agent CPU halves (0.16 / 1.29 / 6.69 s)
-because it no longer builds. The cost moved to the relay: CPU during the warm agent 0.39 / 3.26 /
-16.11 s (was 0.01 / 0.07 / 0.40), peak RSS 46 / 315 / 1,067 MiB (was 26 / 181 / 878); at 5M the
-agent waits 9.5 s after its first publication for the relay's serial page builds (read from logs,
-not profiled). Open: second-agent cost on one relay (unmeasured).
+docs/perf/warm-relay-agent-boot.md (mirror relay at abae2b31; earlier run 3f0a5b59; before = bundle
+relay at 3a57661b). Warm agent medians 0.68 s (100K, 3 rounds, range 0.64-1.01), 3.47 s (1M, 3,
+3.38-3.83), 13.67 s (5M, 1 per D85); relay-plus-agent cold totals 1.93 / 6.17 / 27.87 s, so the agent
+is 36% / 56% / 49% of it (14% / 12% / 11% on the bundle relay). Against the bundle relay: cold total
+-49% / -81% / -82% (disjoint ranges at 100K, far apart at 1M and 5M); warm agent +0.15 s at 100K,
+unseparated at 1M (3.72 s is inside the new range), about -23% at 5M (one round each, known to about
+10%). Against the earlier run at 3f0a5b59 the warm agent is +17% at 100K and +11% at 1M (disjoint
+ranges) and -11% at 5M; cause unmeasured. Agent CPU 0.21 / 1.45 / 6.22 s (about half the bundle-relay
+agent); the cost moved to the relay: CPU during the warm agent 0.51 / 3.47 / 13.99 s (was 0.01 / 0.07 /
+0.40), peak RSS 48 / 295 / 1,112 MiB (was 27 / 181 / 878); at 5M the agent waits 8.6 s after its first
+publication for the relay's serial page builds (logs, not a profile). Open: second-agent cost on one
+relay (unmeasured); the e5fdf9ca reruns.
 
 ## Rulings I made
 
