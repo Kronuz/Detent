@@ -92,3 +92,66 @@ Scripts under `.scratch/detent/review-consensus-inline-sync-loop-correctness/` i
 - CI's other platforms at 7a9ae86 were still running when I wrote this; only linux-tsan (failed)
   and linux-asan-ubsan (passed) had finished.
 - No probe of FETCH_ALONGSIDE_SLOW_SYNC or the slow-read knob.
+
+## Round 2
+
+Commit: consensus:9f14194
+Verdict: APPROVE
+Date: 2026-11-25
+
+### Evidence I relied on
+
+- CI 45594592100 at 9f14194: linux-tsan, linux-asan-ubsan, freebsd, macos-arm64, linux gcc/clang
+  and arm64 green. macos-x86_64 failed in `consensus_transport_connection` (connection_test.cc:988,
+  `coarse_writer`): a file and a library this branch does not touch (`git diff 217481b 9f14194 --
+  include/ test/transport/connection_test.cc` is empty), and the same assertion is in job
+  261118-221115-3049dd, a week before this quest. A4 needs that job rerun, not a fix (R2-N1).
+- 261125-022338-e1ff83 (TSan, CI's flags, at 9f14194): driver, joiner, relayout,
+  fetch-alongside-consensus, install, slow-sync: 0 reports each. Its fails-without
+  261125-022340-33344a at 7a9ae86: fetch-alongside and driver each abort on the store.h:288
+  `StoreReclaim::complete` race. F1 is closed with a fails-without.
+- 261125-022317-c35d52 (A1 at 9f14194): held 6,000 ms, loops turned within 1 ms, 0 peers lost.
+  Fails-without 261125-022319-78e2a5 (consensus:6680278 = 9f14194 plus only the mutant, checked):
+  InlineCompletion on the loop, loops held 6,059 ms, 2 peers lost, assert at groups_test.cc:2665.
+- 261125-022321-d39023 (A2): 45 of 45. 261125-022329-f14798 (A6): 103 ms of 1,002 allowed.
+- A5 at 9f14194: 261125-022322-8743dc, -022324-925f03, -022326-2ffaad, -022327-3106af: 0 of 100.
+
+### What I checked myself
+
+- The whole mechanism: `TimedNative` (groups_test.cc:1076-1112) is `AsioCompletionDriver` over a
+  `SlowQueue` that holds a reaped completion `delay` ms. The queue is touched only from its
+  owner loop (the driver polls it in `drive()`); completion reaches the operation on the owner
+  (asio_completion.h:288-293), so F1's off-loop `complete` is gone. A delay of 0 releases at
+  once. Shutdown: each Driver and turn driver ends before its `PerLoop`, which is destroyed after
+  the loops join and before their `io_context`. The mutant is main's shape (inline on the loop).
+  DRIVER.md now lists only native and InlineCompletion (F3 closed). It is the shape of my
+  round-1 probe 261125-015153-819352.
+- F2, ruled under V5. The 2 s quiet-commit miss was never reproduced, and TSan at 7a9ae86 showed
+  its first race after the quiet phase, so the race-to-miss path is inferred, not observed. A run
+  can still settle it. I added 8 strict shards of 25 at 9f14194 (review-r2 jobs
+  261125-024338-2c7f43, -024340-597df1, -024342-624cab, -024345-f99ee8, -024348-74cced,
+  -024351-3baa63, -024353-d3d818, -024356-2d9a14; script `repro.sh`, a copy of the contributor's):
+  0 of 200. With the contributor's 100 that makes 0 of 300 at the fix, against 1 of 50 at 7a9ae86.
+  If the old rate had held (1 in 50), 0 of 300 has probability 0.98^300 = 0.2%. So the miss
+  belonged to 7a9ae86's SyncThread, whose one proven defect (F1) is fixed with a fails-without.
+  A recurrence now prints each node's state, loop turns and journal times (groups_test.cc:2768-2799)
+  instead of a bare assert. F2 is closed.
+- F5: netlab is on the native completion (`completion` is declared after `scheduler`, and is
+  released on the loop before it stops). netlab is not in CI and I did not build or run it;
+  the contributor's report of a pre-existing node-pins failure on macOS is unverified (R2-N2).
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| F1 | no | defect | Closed: syncs complete on the owner loop; TSan clean on all six cases, the race reproduced at 7a9ae86. | 261125-022338-e1ff83, 261125-022340-33344a, CI linux-tsan at 9f14194. | Done. |
+| F2 | no | gap | Closed: 0 of 300 strict runs at 9f14194 against 1 of 50 at 7a9ae86 (0.2% if unchanged); a miss is now self-diagnosing. The exact path from race to miss was not observed. | The 4 contributor and 8 review shards above. | Done; a recurrence's printed state reopens it. |
+| F3 | no | defect | Closed: SyncThread deleted; one off-loop completion, the native one. | groups_test.cc:1076-1112; DRIVER.md:355-367. | Done. |
+| F4 | no | gap | Unchanged: refusing the pairing needs a seam change outside this quest; owner's call (round 1's options). | seam.h:49-70. | Owner's call. |
+| R2-N1 | no | gap | macos-x86_64 CI failed in connection_test's `coarse_writer`, untouched by this branch and seen before (261118-221115-3049dd). A4 is not green until that job reruns green. | CI 45594592100, job 139137463833. | Rerun the job; the flake is its own quest if it repeats. |
+| R2-N2 | no | gap | netlab's native-completion change is neither built nor run by any job, Linux (its target) included. | bench/netlab/node.cc:174-176, 306. | A follow-up quest with netlab's node-pins startup failure. |
+
+### Not run
+
+- netlab, on any platform. Local TSan beyond the contributor's macOS job (CI's linux-tsan stands
+  for Linux). FETCH_ALONGSIDE_SLOW_SYNC on the native completion.
