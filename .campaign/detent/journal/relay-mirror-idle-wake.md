@@ -65,7 +65,7 @@ Queued once at 13707337 (jobs.txt in .scratch/relay-mirror-idle-wake):
 - test_relay_hung 261124-233901-c578fd, fails-without 261124-233905-9e80bf; test_relay_cut-off
   261124-233910-6acdab, fails-without 261124-233914-0d0617 (relay-f1-9337).
 - A1 261124-233918-fc8eca, A2 261124-233923-494ac5 (250 ms) and 261124-233927-d29ae2 (10 ms),
-  all exclusive against main a0d804bd. Suite: `campaign verify --for A5` (held until this state).
+  all exclusive against main a0d804bd. Suite 261124-234020-0cb2a9 (at 5bde2b99, same code).
   CI on the pushed branch.
 
 ### CI round (run 45542785995 at 6f58aa77, code 75021884)
@@ -207,7 +207,7 @@ jobs no journal names), and answer each message by its id (msg-N).
 | A2 | 261124-233923-494ac5 (250 ms), 261124-233927-d29ae2 (10 ms), queued; 14371c and 702b6d failed on the probe (fixed) |
 | A3 | test_http_upstream 62aab8 (fw f5e430, 7bae55, c02fa6, a95aa5, b457de); test_relay_seal_stamp 86bdee (fw 924fd7, de8d7a, 694f7a, fab66e, d2e0b5, 589a92, 6aa80b, d50bfc, 2443ee, aa3d6e, 8e3455, e40242); test_client_reset 9a08ad (fw de1dba); test_relay_idle d27d26 (fw 8c0429, 4d800e); test_relay_hung c578fd (fw 9e80bf); test_relay_cut-off 6acdab (fw 0d0617); queued; first fails-without 261124-033951-a94472 and 261124-191402-bcf6ff |
 | A4 | [artifact] docs/mechanisms/relay-mirror-wait.md (voter-state table, the seal stamp table) |
-| A5 | `campaign verify --for A5` at 13707337; CI on the pushed branch; at 75021884 5f884c passed |
+| A5 | suite 261124-234020-0cb2a9, queued; CI on the pushed branch; at 75021884 5f884c passed |
 
 Jobs examined: 261124-033656-d26b03 (smoke), 261124-033951-a94472 (fails-without, older test,
 exit 8 as required), 261124-034543-d72b56 (probe, cancelled), 261124-034500-c0335d (A/A, superseded
