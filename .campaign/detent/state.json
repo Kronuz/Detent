@@ -9107,6 +9107,20 @@
       "lenses": [
         "correctness"
       ],
+      "messages": [
+        {
+          "announced": {
+            "at": "2026-11-25T04:34:33",
+            "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+            "why": ""
+          },
+          "at": "2026-11-25T04:34:33",
+          "by": "lead",
+          "closed": "the lead's own answer; acted on at landing",
+          "id": "msg-1",
+          "text": "Lead: the macos-x86_64 stall is pre-existing (verified on main, CI 45542770252 at c724c58) and goes to follow-up quest consensus-macos-x86-loop-kernel-wait. This quest lands after b2fa03b's jobs pass; with --no-ci only if macos-x86_64 alone is red with this signature in CI 45609770275. slow-sync running inside the driver ctest entry is fine. netlab's startup failure on macOS is pre-existing, and the lead tracks it."
+        }
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -9115,7 +9129,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus: a journal sync on InlineCompletion never stalls its loop's links",
-      "updated": "2026-11-25T03:16:39",
+      "updated": "2026-11-25T05:03:23",
       "worktree": "../consensus-wt/detent/consensus-inline-sync-loop"
     },
     "consensus-install-test-faultfs": {
