@@ -29922,12 +29922,11 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "test_relay_chain links faultlab after journal removed memory_io.h; tools/w5 (A5's differ) no longer builds on main (detent_local/builder.hh is gone) and must for A5",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T23:43:31",
+      "updated": "2026-11-24T23:50:25",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
