@@ -32722,7 +32722,9 @@
       "consumes": [],
       "files": [
         "test/**",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "include/journal/**",
+        "docs/dev/splits.md"
       ],
       "history": [
         {
@@ -32758,12 +32760,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "xapiand:journal-sync-mode landed (journal:fc5c59b)",
+      "reason": "A1's record is docs/dev/splits.md; turn_log.h (1,196 lines) and host.h (1,068) have detail namespaces that move out cleanly; no other campaign has an active journal quest",
       "repo": "../journal",
       "risk": "low",
       "status": "active",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T15:45:05",
+      "updated": "2026-11-24T16:05:40",
       "worktree": "../journal-wt/detent/split-journal"
     },
     "stage-0-architecture": {
