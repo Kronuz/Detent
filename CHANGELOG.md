@@ -48,11 +48,65 @@
   which the tests pass as `nullptr`), journal (`journal/memory_io.h` is gone since journal:9f5e846:
   the authority's in-memory and power-cut tests run on faultlab's faultfs, and nine test targets
   link `faultlab::faultlab`), http (every service is built from one `http::Limits`).
-- Results that changed: on macOS, `FlushMode::full` issues `F_FULLFSYNC` at every ordering point
-  where the old default issued `F_BARRIERFSYNC`, plus one `fsync` before the `Sync` primitive's
-  `F_FULLFSYNC` (72 calls in the traced open-and-sync scenario, 66 at the old pin; causes
-  completion:5942250 and completion:d5c6fd4); Linux makes the same calls in both modes. The syscall
-  trace, the input-class diffs and the hot-path A/B are in [docs/perf/pin-wave.md](docs/perf/pin-wave.md).
+- Results that changed, as an operator sees them, each with its library commit:
+  - Syncs on macOS (completion:5942250, completion:d5c6fd4): every durable sync Detent makes
+    stays `F_FULLFSYNC`; the executor's `Sync` primitive issues one `fsync` before it. Full mode
+    also turns the `F_BARRIERFSYNC` of `order_files_and_directory` and the `OrderFiles` primitive
+    into `F_FULLFSYNC`, but no Detent path issues either (only journal's `Host` and `TurnLog` do,
+    which Detent does not use), and the agent store's and the mirror's `sync_files` and
+    `sync_files_and_directory` make the calls the old pin made. Linux makes the same calls in both
+    modes. The trace (72 calls against 66 in the open-and-sync scenario), the input-class diffs and
+    the hot-path A/B are in [docs/perf/pin-wave.md](docs/perf/pin-wave.md).
+  - An authority reopened with its store above its control headroom (a limit lowered between
+    runs, Control appends that drained the pool before a crash, or a crash's staged or superseded
+    files) now reclaims before Start (consensus:d03a71b): when the reclaim frees enough, it starts
+    and becomes ready; before, its first turn was refused with Pressure forever and it never
+    started. When one full reclaim pass frees too little, it still never starts: Detent drives the
+    Worker itself, so no Driver fences it with `over_headroom` and no `fenced` error is reported.
+  - An authority reopened at its storage limit after its Control appends drained part of the
+    control pool can checkpoint again (journal:e57078d, journal:46a7a31): the ledger rebuilt from
+    the census gives replacement a claim on control, where before every checkpoint above the
+    shortfall was refused. While that checkpoint runs, control is short by what it took, so a
+    Control permit can get Pressure instead, the install's cutover among them.
+  - A checkpoint whose peak (bundle bound plus application cap) exceeds the replacement pool fails
+    at once with `checkpoint_exceeds_pool`, instead of waiting forever with the calls behind it
+    (consensus 2026-11-19).
+  - Leaders pace each follower's appends (consensus 2026-11-20, docs/mechanisms/append-pacing.md):
+    a frame starts at 64 KiB, doubles on a fast answer up to `rpc_bytes`, shrinks to what is
+    answered within half the shorter of `rpc_timeout` and `election_min`, and drops to 64 KiB on a
+    timed-out flight. Before, every append could be up to `rpc_bytes`, and on a slow path one
+    could hold the connection past the election timeout, depose the leader and stall commits.
+  - A leader installs a snapshot only after a follower refuses an append at or below its base
+    (consensus 2026-11-19): after a heal or the leader's own checkpoint, a follower that holds the
+    entries catches up within `rpc_timeout` instead of waiting out `snapshot_timeout` (60 s).
+  - A leader counts a follower's late append success (consensus 2026-11-15): on a loaded loop
+    whose round trips outlast `rpc_timeout`, it no longer re-sends forever without committing.
+  - A single-voter authority campaigns at Start (consensus 2026-11-16), so its first proposal
+    after create or recover waits for no election timeout; a leader with no peers arms no heartbeat.
+  - Exit waits for running peer DNS lookups (consensus 2026-11-19): a stuck `getaddrinfo` delays
+    the authority's exit by up to the system resolver's timeout.
+  - http (the authority's and the relay's listeners): a client that sends its request and then
+    half-closes is answered, where EOF used to cancel the request in flight; a reset or a failed
+    reply write still cancels it (http 2026-11-18). A request holds a `max_in_flight` slot from its
+    first byte, not from headers-complete, so a client still sending headers counts against the
+    cap; over the cap it is still answered `503` at headers-complete (http 2026-11-19). An idle TLS
+    connection holds 40,054 B instead of 96,608 (http 2026-11-16; small TLS replies' CPU inside the
+    A/A band since http 2026-11-17).
+  - reactor: timers on the listeners' loops (request timeouts, the accept retry pause) are wheel
+    entries that end 1 to about 2 ms after they are due (reactor 2026-11-12, task:12c0443); loop
+    threads are named `reactor-<index>` (reactor 2026-11-16); `stop()` closes the listeners before
+    it cancels requests (reactor 2026-11-19); `reactor::tls::configure` refuses a certificate, key
+    or authority file over 16 MiB (reactor 2026-11-19).
+  - logger: at exit the LOG thread's drain is waited for while it writes, up to 5 s, and the
+    number of lines left unwritten goes to stderr (logger:cfcec69, logger:70e3c36); before, it
+    gave up after 200 ms and dropped the rest silently. A line logged after the logger's teardown
+    goes to stderr as its text (logger:db35b6c).
+  - strict-stox: on macOS a decimal followed by other text (`1.5abc`) no longer reaches `strtod`,
+    which aborted the process on some inputs; values are unchanged (strict-stox 2026-11-16).
+  - No change an operator sees from the other moves: follower reads stay off (Detent's `Start`
+    carries no nonce), quiescence, `PeerOptions::wake` and the Driver are not used, and the
+    remaining libraries moved only layout, tests, documentation or speed (sha256's AVX2 kernel,
+    radix-router's memoized catch-alls, wheel's bitmap walk).
 - The relay's TLS connection cap: http's TLS factory had its own cap of 1024 connections, which no
   `http::Limits` field carries; services now cap TLS connections at `max_clients` alone. A relay
   configured with `connections` above 1024 now admits that many TLS connections, as configured;
