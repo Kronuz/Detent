@@ -32760,12 +32760,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "A1's record is docs/dev/splits.md; turn_log.h (1,196 lines) and host.h (1,068) have detail namespaces that move out cleanly; no other campaign has an active journal quest",
+      "reason": "ready at journal:a1d039a",
       "repo": "../journal",
       "risk": "low",
-      "status": "active",
+      "status": "review",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T16:05:40",
+      "updated": "2026-11-24T16:20:20",
       "worktree": "../journal-wt/detent/split-journal"
     },
     "stage-0-architecture": {
