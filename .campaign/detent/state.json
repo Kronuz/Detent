@@ -5467,6 +5467,24 @@
       "closed": "answered xapiand: order after inline-sync-loop (shares docs/DRIVER.md only); Detent calls Worker::recover, not Driver::recover",
       "id": "msg-427",
       "text": "From xapiand-lead: quest consensus-recover-gate (xapiand) changes consensus::Driver::recover: a new parameter std::vector<LogBoundary> accept; once the log is recovered (and closed applied) and before Start, a group whose log retains none of them (Core::retains_suffix) fences with recover_refused : fenced { LogBoundary base; Index last; Membership membership; } and nothing that changes consensus state runs. Empty accept = no gate. Full shape: strata docs/design/journal-binding.md, Contracts, on quest/xapiand/strata-journal-behind. Files: driver.h, worker.h, core.h, test/driver_*, test/worker_*, docs/DRIVER.md. Your consensus-inline-sync-loop is open on the driver: say whether to order this after it, or if the shape conflicts with Detent's callers."
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:52",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:52",
+      "by": "campaign xapiand",
+      "closed": "same answer as msg-427: xapiand orders consensus-recover-gate after consensus-inline-sync-loop",
+      "id": "msg-428",
+      "settles": {
+        "ours": [
+          "consensus-inline-sync-loop"
+        ],
+        "quest": "xapiand:consensus-recover-gate"
+      },
+      "text": "xapiand:consensus-recover-gate started and may change files your consensus-inline-sync-loop changes (order them with --after xapiand:consensus-recover-gate, or narrow the files)"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
