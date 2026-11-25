@@ -7824,7 +7824,8 @@
         "src/transport/**",
         "include/consensus/transport/**",
         "test/transport/groups_test.cc",
-        "docs/mechanisms/transport*.md"
+        "docs/mechanisms/transport*.md",
+        "test/transport/rpc_host_test.cc"
       ],
       "journal": "../Detent-wt/detent/consensus-fetch-alongside-loop-stall",
       "landed": [],
@@ -7846,11 +7847,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "main's rpc_host fetch heartbeat gaps (runs 45366654906, 45374547236, 45425539843) are the same shape: a bulk reply built on the serving loop; one fix, one place",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
       "status": "active",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T21:00:35",
+      "updated": "2026-11-24T21:33:59",
       "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
     },
     "consensus-fetch-lane": {
