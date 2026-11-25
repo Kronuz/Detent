@@ -71,6 +71,8 @@ Nothing.
 | A3 | [artifact] docs/mechanisms/deadlines.md, "A recovered store over its control headroom" |
 | A4 | suite 261124-201351-4ac6e5; CI on the push |
 
+Cancelled: `campaign verify` suite 261124-201423-0b9b78 (30 min), the same command as 261124-201351-4ac6e5 at the 45 minutes the lead asked for; the gate's check suite may need `campaign verify` to adopt the 45-minute one.
+
 ## Result
 
 Before Start, `Worker::run_one` turns a Pressure turn into a reclaim step (`IOPending` async,
