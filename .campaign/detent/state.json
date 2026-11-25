@@ -29668,6 +29668,38 @@
       "title": "Dense pages: every walker passes the page's nodes end; the Limits decoders go",
       "updated": "2026-11-20T06:56:03"
     },
+    "paged-find-absent-cost": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/store_table.cc",
+        "src/detent_local/paged_table*",
+        "include/detent_local/paged_table*",
+        "benchmarks/table_find*",
+        "docs/perf/first-read-1ms.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [
+        "first-read-1ms"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "The paged table's absent find matches main's on names without a shared prefix",
+      "updated": "2026-11-25T05:53:57"
+    },
     "paged-first-touch-one-shape": {
       "accepted": {},
       "after": [
