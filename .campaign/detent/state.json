@@ -5425,6 +5425,21 @@
         "todo": "1d77eafd"
       },
       "text": "to do, critical path first:\ntodo: finish first-read-1ms (nothing moved it for 5 h: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code); to land: criteria without evidence at 0c2d13c419e8: A1-A3 (`campaign status first-read-1ms` lists them); new): `campaign status first-read-1ms`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:15:13",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:15:12",
+      "by": "campaign",
+      "closed": "stale: the journal's ready-for-review predates D163; the wire seal stamp round is in progress and its contributor sets ready for review when done",
+      "id": "msg-425",
+      "settles": {
+        "todo": "71ffaa4a"
+      },
+      "text": "to do, critical path first:\ntodo: review relay-mirror-idle-wake (its journal says ready for review; then launch its correctness review; new): `campaign set relay-mirror-idle-wake status=review`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
