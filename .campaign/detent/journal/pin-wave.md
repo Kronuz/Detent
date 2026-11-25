@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: waiting on jobs 261124-212116-6ccb33 261124-212116-9e90c2 261124-212150-61e8ff 261124-212152-a42d7d 261124-212154-1bc905 261124-212156-8c8c7c 261124-212158-4ce02b 261124-212200-05c6c6 261124-212201-b6e738 261124-212204-29d0cd; library CI http 45550470867, faultlab 45552204645
+State: waiting on jobs 261124-212452-faeaad 261124-212452-ddf80d 261124-212501-23b03e 261124-212504-2b8b12 261124-212506-a77bb6 261124-212544-a4d5e6 261124-212546-b3fa7f 261124-212548-350859 261124-212550-ef5234 261124-212552-6091d8; library CI http 45550470867, faultlab 45552204645, consensus 45553333430
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,38 +28,36 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Jobs at Detent:d2031ebc (pushed for CI): native 261124-212116-6ccb33 (A4), pins
-   261124-212116-9e90c2 (A1: expected red on consensus's five declares and faultlab's two until
-   they re-pin, rulings 13-14); A5 w5 261124-212150-61e8ff, A5 syscalls 261124-212152-a42d7d; A6
-   build 261124-212154-1bc905, rows durable 261124-212156-8c8c7c (5 rounds), update
-   261124-212158-4ce02b, get 261124-212200-05c6c6, reader 261124-212201-b6e738, first-read
-   261124-212204-29d0cd (8 rounds each, strict, 10 min). Read each into docs/perf/pin-wave.md
-   (A5 w5 and A6 sections) and the Evidence table. A 124 row: rerun with fewer rounds.
+1. Jobs at Detent:d63517c0 (the d2031ebc ones are superseded): native 261124-212452-faeaad, pins 261124-212452-ddf80d, w5 261124-212501-23b03e, syscalls 261124-212504-2b8b12, A6 build 261124-212506-a77bb6, rows durable 261124-212544-a4d5e6, update 261124-212546-b3fa7f, get 261124-212548-350859, reader 261124-212550-ef5234, first-read 261124-212552-6091d8. Pins is expected red on
+   faultlab's two declares only (Blocked on 1). Read A5 and A6 into docs/perf/pin-wave.md and the
+   Evidence table; a 124 row reruns with fewer rounds.
 2. Library CI: `sh .scratch/pin-wave/bin/wait_ci.sh http=24d24168aa110bf8dcc6167e1f2e0afc3c5fc277
-   faultlab=535f606e5f0779fafa990ab030c44b14985d9a48`; green: fast-forward both mains. Then
-   `sh .scratch/pin-wave/bin/repin.sh $PWD/.scratch/pin-wave/cascade/journal` (faultlab -> 535f606),
-   its CI, fast-forward. Detent already pins http 24d2416 (on http's quest branch until then).
-3. When the lead says consensus-recovered-over-limit-start landed: repin consensus (task,
-   completion, journal, reactor, faultlab to heads), its CI, fast-forward; Detent pins consensus,
-   journal and faultlab at those heads (CHANGELOG rows for faultlab, journal, consensus); rerun
-   `campaign verify pin-wave` (A1, A4); push.
+   faultlab=535f606e5f0779fafa990ab030c44b14985d9a48 consensus=ff87da4b4777339c8e69d7611a12a602c859b64a`;
+   green: fast-forward each main (Detent already pins http 24d2416 and consensus ff87da4). Red:
+   root-cause as for reactor (ruling 11) and re-pin Detent.
+3. Blocked on 1's path, once ruled.
 
 ## Blocked on
 
-1. consensus repin (L5): its pins live in its CMakeLists.txt, held by
-   consensus-recovered-over-limit-start (in review). Lead ruling: consensus goes last, after that
-   quest lands; the lead says when.
+1. faultlab's declares (ruling 13): pins stays red on faultlab:83fbde7's completion d8b538c and
+   journal a412175 declares. faultlab:535f606 (CI 45552204645) fixes faultlab's side, but then
+   journal (declares faultlab 83fbde7) and consensus (faultlab 83fbde7, journal 72bbc89) must
+   re-pin once more. Options: (a) chain faultlab:535f606 -> journal J2 -> consensus C2 -> Detent,
+   one more pin commit in journal and in consensus, three serial CI rounds; (b) check_pins.py (outside
+   the set) skips a manifest library's declare guarded by `if(NOT TARGET ...)` or an OFF option;
+   (c) land the wave with pins red on faultlab only, and a follow-up runs (a). Recommend (a): no tool
+   rule, every pin a head; consensus ff87da4 was cut now to not hold the queue.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pins 261124-212116-9e90c2 at Detent:d2031ebc (consensus and faultlab declares remain, rulings 13-14) |
+| A1 | pins 261124-212452-ddf80d at Detent:d63517c0 (faultlab's two declares remain, Blocked on 1) |
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
-| A4 | native 261124-212116-6ccb33 at Detent:d2031ebc; asan, tsan: CI at d2031ebc |
-| A5 | jobs 261124-212150-61e8ff (w5), 261124-212152-a42d7d (syscalls) at Detent:d2031ebc. Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | build 261124-212154-1bc905; rows 261124-212156-8c8c7c, 261124-212158-4ce02b, 261124-212200-05c6c6, 261124-212201-b6e738, 261124-212204-29d0cd |
+| A4 | native 261124-212452-faeaad at Detent:d63517c0; asan, tsan: CI at d63517c0 |
+| A5 | jobs 261124-212501-23b03e (w5), 261124-212504-2b8b12 (syscalls) at Detent:d63517c0. Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
+| A6 | build 261124-212506-a77bb6; rows 261124-212544-a4d5e6, 261124-212546-b3fa7f, 261124-212548-350859, 261124-212550-ef5234, 261124-212552-6091d8 |
 | A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
 | A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
@@ -89,6 +87,7 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L4 | journal | task 95798a0 -> 477a7d3, completion b4600a8 -> 3061516, allocators -> ae775ab, crc32c 0d5460d -> 52889db | journal:72bbc89 | 45546842361 success | fast-forwarded |
 | L4 | http-parser | enum-reflection a7202ad -> c9a3f04 | http-parser:38950a0 | 45546809878 success | fast-forwarded |
 | L5 | http | radix-router e67543d -> 67454c7, http-parser -> 38950a0, compressors 5566260 -> 54dd2f0, task 18eb516 -> 477a7d3, reactor 6fdd45f -> d28e5e0; stale reactor comment | http:24d2416 | 45550470867 pending | not moved |
+| L5 | consensus | task 95798a0 -> 477a7d3, completion d8b538c -> 3061516, journal 9e11713 -> 72bbc89, reactor ab69cf2 -> d28e5e0, faultlab 5d4df9b -> 83fbde7 (on be18ad9) | consensus:ff87da4 | 45553333430 pending | not moved |
 | L4' | faultlab | completion d8b538c -> 3061516; fixture generator's journal fetch to test/fixtures/memory_io_gen.cmake (ruling 13) | faultlab:535f606 | 45552204645 pending | not moved |
 
 ## Result
