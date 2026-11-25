@@ -15139,15 +15139,15 @@
       ],
       "milestone": "",
       "needs": [
-        "consensus-driver-pipelined-sim"
+        "pin-wave"
       ],
       "provides": [],
-      "reason": "shares driver files with consensus-driver-pipelined-sim and consensus-follower-read; starts after the sim lands",
+      "reason": "pin-wave's consensus pins live in consensus CMakeLists.txt, which driver-pipeline would hold; not on the RC path",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
       "status": "planned",
       "title": "Consensus: driver groups pipeline proposals",
-      "updated": "2026-11-24T01:34:50"
+      "updated": "2026-11-24T22:36:15"
     },
     "driver-witness-removal-sink": {
       "accepted": {
