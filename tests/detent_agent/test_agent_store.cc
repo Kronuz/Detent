@@ -9,6 +9,10 @@
 #include <cstdio>
 #include <cstring>
 #include <dlfcn.h>
+#ifdef __APPLE__
+#include <spawn.h>
+#include <sys/wait.h>
+#endif
 #include <fcntl.h>
 #include <system_error>
 #include <sys/file.h>
@@ -497,6 +501,64 @@ void failed_sync() {
 	store->publish({}, one(a));
 	check(inode(pack) != failed.second && slurp(pack) == a.prepared.segments[0].pack && table_verifies(root, store->table()));
 }
+#ifdef __APPLE__
+} // namespace
+extern "C" char **environ;
+namespace {
+// Grants `everyone allow write` on `path` through its ACL, or removes every ACL entry (chmod +a, -N).
+void grant(const std::filesystem::path &path, bool on) {
+	std::string a = "chmod", b = on ? "+a" : "-N", c = "everyone allow write", d = path.string();
+	std::vector<char *> argv{a.data(), b.data()};
+	if (on)
+		argv.push_back(c.data());
+	argv.push_back(d.data());
+	argv.push_back(nullptr);
+	pid_t child = 0;
+	check(::posix_spawn(&child, "/bin/chmod", nullptr, nullptr, argv.data(), environ) == 0);
+	int status = 0;
+	while (::waitpid(child, &status, 0) < 0)
+		check(errno == EINTR);
+	check(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+}
+// Every file the agent reads back passes the store files' one check, its ACL included: a granted
+// `.image`, `.read` or `.live` fails its namespace at startup, a granted `selected` refuses the open,
+// and a granted reached name refuses its reuse.
+void acl_grants() {
+	const auto root = fresh("acl");
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 2, 'a');
+	open(root)->publish({}, one(a));
+	check(open(root)->failed().empty());
+	std::string accepted;
+	for (const auto suffix : {".image", ".read", ".live"}) {
+		const auto file = root / generation_file(a.id, suffix);
+		grant(file, true);
+		if (const auto reopened = open(root); !(reopened->failed().size() == 1 && reopened->failed()[0] == "alpha"))
+			accepted += std::string(" ") + suffix;
+		grant(file, false);
+		check(open(root)->failed().empty());
+	}
+	grant(root / "selected", true);
+	try {
+		open(root);
+		accepted += " selected";
+	} catch (const l::StoreRefused &) {
+	}
+	grant(root / "selected", false);
+	auto store = open(root);
+	const auto image = root / generation_file(a.id, ".image");
+	grant(image, true);
+	try {
+		store->publish({}, one(a));
+		accepted += " reused";
+	} catch (const l::ReachedNameMismatch &mismatch) {
+		check(mismatch.name == generation_file(a.id, ".image"));
+	}
+	grant(image, false);
+	store->publish({}, one(a));
+	if (!accepted.empty())
+		throw std::runtime_error("ACL grants accepted:" + accepted);
+}
+#endif
 } // namespace
 
 int main(int argc, char **argv) {
@@ -514,6 +576,9 @@ int main(int argc, char **argv) {
 		collection();
 		held_lease();
 		lease_open_failure();
+#ifdef __APPLE__
+		acl_grants();
+#endif
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_agent_store: %s\n", error.what());
 		return 1;

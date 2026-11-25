@@ -1,5 +1,6 @@
 #include "detent_local/agent_store.hh"
 #include "change_file.hh"
+#include "generation_file_access.hh"
 #include "detent_local/layout.hh"
 #include "live_record.hh"
 #include "names.hh"
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <map>
 #include <optional>
 #include <random>
@@ -122,24 +124,23 @@ struct AgentStore::Impl {
 		usage.bytes = usage.bytes - change_size + now;
 		change_size = now;
 	}
-	// The whole file, or nothing when it is absent or not a singly linked file of ours.
+	// The whole file, or nothing when it is absent, over `limit`, or refused by the store files' one check
+	// (owner, link, mode and ACL, generation_file_refusal) on the descriptor it reads.
 	std::optional<std::string> slurp(std::string_view name, std::uint64_t limit) {
-		std::unique_ptr<c::File> file;
-		try {
-			file = io->open_existing_read_only(name);
-		} catch (const std::exception &) {
+		const std::string terminated(name);
+		detail::RecoveryFile file(::openat(directory(), terminated.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
+		struct stat info{};
+		if (file.fd < 0 || ::fstat(file.fd, &info) != 0 || info.st_size < 0 || std::uint64_t(info.st_size) > limit ||
+		    detail::generation_file_refusal(file.fd, info, ::geteuid(), std::uint64_t(info.st_size)))
 			return std::nullopt;
-		}
-		const auto size = file->size();
-		if (size > limit)
-			return std::nullopt;
-		std::string bytes(size, '\0');
-		std::size_t done = 0;
-		while (done < bytes.size()) {
-			const auto got = file->read_at(done, std::span<char>(bytes).subspan(done));
-			if (!got)
+		std::string bytes(std::size_t(info.st_size), '\0');
+		for (std::size_t done = 0; done < bytes.size();) {
+			const auto got = ::pread(file.fd, bytes.data() + done, bytes.size() - done, off_t(done));
+			if (got < 0 && errno == EINTR)
+				continue;
+			if (got <= 0)
 				return std::nullopt;
-			done += got;
+			done += std::size_t(got);
 		}
 		return bytes;
 	}
