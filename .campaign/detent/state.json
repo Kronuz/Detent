@@ -9492,6 +9492,33 @@
       "updated": "2026-11-24T12:44:09",
       "worktree": ""
     },
+    "consensus-macos-x86-loop-kernel-wait": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:ci",
+          "level": "light",
+          "minutes": 30,
+          "name": "ci"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "test/transport/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "normal",
+      "status": "planned",
+      "title": "groups fetch-alongside: a loop stuck in a kernel wait for 1.5 s on macOS x86 CI",
+      "updated": "2026-11-25T04:02:37"
+    },
     "consensus-mutants-per-test": {
       "accepted": {},
       "after": [
