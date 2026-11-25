@@ -1,6 +1,7 @@
 // `selected` in pages: a read verifies only the pages it reaches (docs/perf/first-read-1ms.md, "Design:
 // table pages"); one test per lifecycle row, and the bound that keeps every entry inside one page.
 #include "detent_distribution/storage.hh"
+#include "detent_local/disk_store.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/store_table.hh"
 #include <algorithm>
@@ -133,8 +134,48 @@ void older_layouts() {
 		layout = true;
 	} catch (const std::exception &) {
 	}
-	std::filesystem::remove_all(store);
 	check(layout, "the store's read refuses an empty layout-2 table as a layout");
+	// A managed store over it opens, refuses the layout once and removes the table (D43).
+	auto baseline = std::make_shared<d::StorageLedger>(std::size_t(1) << 20);
+	auto account = std::make_shared<d::StorageLedger>(std::size_t(256) << 20);
+	d::RetirementRuntime runtime(baseline, 2);
+	const auto opened = [&](l::StoreOpenMode mode, auto &&body) {
+		auto domain = runtime.domain(account, 64);
+		l::DiskStoreOptions options;
+		options.mode = mode;
+		options.limits = {16 << 20, 100, 10};
+		auto disk = l::make_disk_store(domain, store, std::make_shared<int>(1), options);
+		body(*disk);
+		disk->close();
+		for (unsigned turns = 0;; ++turns) {
+			check(turns < 100000, "the store closes");
+			disk->advance();
+			auto work = disk->work();
+			if (!work)
+				break;
+			work->run();
+		}
+		disk.reset();
+		domain.close().wait();
+	};
+	std::filesystem::remove_all(store);
+	std::filesystem::create_directories(store);
+	std::filesystem::permissions(store, std::filesystem::perms::owner_all);
+	opened(l::StoreOpenMode::FreshEmpty, [](l::DiskStore &) {});
+	{
+		const auto empty = older_table(2, 0);
+		std::ofstream out(store / "selected", std::ios::binary);
+		out.write(empty.data(), std::streamsize(empty.size()));
+	}
+	std::filesystem::permissions(store / "selected", std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+	opened(l::StoreOpenMode::ExistingManaged, [](l::DiskStore &disk) {
+		check(disk.status() == l::StoreStatus::Ready && disk.refusal() &&
+		          disk.selection().knowledge == l::SelectionKnowledge::Absent,
+		      "a managed store over an empty layout-2 table opens empty, the layout refused");
+	});
+	check(!std::filesystem::exists(store / "selected"), "the refused table is removed");
+	runtime.shutdown();
+	std::filesystem::remove_all(store);
 }
 
 // Attach: the header, index and table digest are checked; no page is hashed.

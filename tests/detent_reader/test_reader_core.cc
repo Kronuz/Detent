@@ -818,6 +818,34 @@ void acl_grants(const std::filesystem::path &root) {
 			return false;
 		}
 	};
+	CHECK(reads() && recovers());
+	// Each kind of file each path reads: `selected`, `.image`, `.lease` and packs by both; `change` and
+	// `.read` by the reader; `.owner` by the recovery; the directory by both (the walk and the open).
+	const struct {
+		std::string_view kind;
+		bool reader, recovery;
+	} kinds[] = {{"selected", true, true}, {".image", true, true}, {".lease", true, true}, {".pack", true, true},
+	             {"change", true, false},  {".read", true, false}, {".owner", false, true}, {"", true, true}};
+	std::string accepted;
+	for (const auto &kind : kinds) {
+		std::vector<std::filesystem::path> granted;
+		for (const auto &[path, used] : {std::pair{store, kind.reader}, std::pair{whole, kind.recovery}})
+			if (used)
+				for (auto &file : files_of(path, kind.kind))
+					granted.push_back(std::move(file));
+		for (const auto &file : granted)
+			grant(file, true);
+		const auto kind_name = kind.kind.empty() ? std::string("the directory") : std::string(kind.kind);
+		if (kind.reader && reads())
+			accepted += " reader:" + kind_name;
+		if (kind.recovery && recovers())
+			accepted += " recovery:" + kind_name;
+		for (const auto &file : granted)
+			grant(file, false);
+		CHECK(reads() && recovers());
+	}
+	if (!accepted.empty())
+		throw std::runtime_error("ACL grants accepted by" + accepted);
 	// The one helper every store file's check goes through.
 	{
 		const auto record = files_of(store, ".read").front();
@@ -829,30 +857,6 @@ void acl_grants(const std::filesystem::path &root) {
 		const auto refused = x::generation_file_refusal(fd.fd, info, ::getuid(), std::uint64_t(info.st_size));
 		CHECK(refused && std::string_view(refused) == "ACL");
 		grant(record, false);
-	}
-	CHECK(reads() && recovers());
-	// Each kind of file each path reads: `selected`, `.image`, `.lease` and packs by both; `change` and
-	// `.read` by the reader; `.owner` by the recovery; the directory by both (the walk and the open).
-	const struct {
-		std::string_view kind;
-		bool reader, recovery;
-	} kinds[] = {{"selected", true, true}, {".image", true, true}, {".lease", true, true}, {".pack", true, true},
-	             {"change", true, false},  {".read", true, false}, {".owner", false, true}, {"", true, true}};
-	for (const auto &kind : kinds) {
-		std::vector<std::filesystem::path> granted;
-		for (const auto &[path, used] : {std::pair{store, kind.reader}, std::pair{whole, kind.recovery}})
-			if (used)
-				for (auto &file : files_of(path, kind.kind))
-					granted.push_back(std::move(file));
-		for (const auto &file : granted)
-			grant(file, true);
-		if (kind.reader && reads())
-			throw std::runtime_error("the reader accepted an ACL grant on " + std::string(kind.kind));
-		if (kind.recovery && recovers())
-			throw std::runtime_error("the recovery accepted an ACL grant on " + std::string(kind.kind));
-		for (const auto &file : granted)
-			grant(file, false);
-		CHECK(reads() && recovers());
 	}
 }
 #endif
