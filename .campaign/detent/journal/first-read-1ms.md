@@ -1,6 +1,6 @@
 # first-read-1ms: journal
 
-State: ready for review (fix round 3; code `Detent:d12f2887`; jobs queued there, see Evidence)
+State: ready for review (closing round, D166; code `Detent:d9ddc78f`; jobs 261125-055929-011192, -055908-8414ff, -055912-873598, -055916-695193, -055920-b8463c queued; pushed)
 Quest: .campaign/detent/quests/first-read-1ms.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,23 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Closing round (review round 4, CHANGES at `Detent:d12f2887`; R4-1 ruled by D166: absent names
+within 1.2x main's warm `find`, present names within main; no further optimization here).
+- Merge of main (pin-wave) `Detent:80f3cf09`, no rebase. Auto-merged disk_store.cc keeps both:
+  R3-5 (no profile passed; the agent takes the verified table's, lines 491-494) and pin-wave's
+  `PosixIOOptions{FlushMode::full}`. test_agent_store keeps pin-wave's `open()`/`fail_syncs` and
+  this quest's `table_profile`, whose `PosixIO(root, 0644)` (gone in the pinned completion) now
+  passes `PosixIOOptions{FlushMode::full}`.
+- R4-1 / D166: `table_find_bench` has seven shapes: `prefix-16/40/255` (the old names) and
+  `random-4/8/16/40` ([a-z0-9], absent names of the same shape inside pages).
+  `reader_bench_ab.sh find` prints each case's ratio to main and A4's verdict (present: paired
+  difference within the floor; absent: ratio at most 1.2), exits 1 on a miss. Design doc:
+  docs/perf/first-read-1ms.md "Verified page index": C2's target per D166 and a Measure
+  paragraph naming every shape with its ratio (jobs 4505c8, 988a22, b0e901 at `Detent:d12f2887`).
+- The merge changes the reader's code (sha256 and completion pins, disk_store's flush mode), so
+  the four A2 cells at `Detent:d12f2887` are superseded: cancelled, requeued at the final head
+  against main `Detent:859e9d13`.
 
 Fix round 3 (review Round 3, CHANGES at `Detent:28a8d276`), under V5: table first, class sweep.
 
@@ -160,11 +177,13 @@ entries, a damaged and a truncated one); the eight tests rerun locally (Evidence
 
 ## Next
 
-1. Review of fix round 3 at `Detent:d12f2887`. When 261125-031218-4505c8 ends, fill the V5 table's
-   after column (`table_find` lines) and the four `A16 cell` lines into first-read-gate.md Results.
-
-Lead: pin-wave also changes src/detent_local/disk_store.cc and tests/detent_agent/test_agent_store.cc
-(`campaign status` warning); this round touches both (R3-5).
+1. Review of the closing round at `Detent:d9ddc78f`. When 261125-055929-011192 ends, write its
+   `table_find` ratios into docs/perf/first-read-1ms.md's Measure table (now from `Detent:d12f2887`
+   jobs) and the A4 row; the four A2 cells' `cell` lines into first-read-gate.md Results.
+2. Lead's call: `campaign status` also lists A1's profile (261125-031306-9e9536), the warm A/B
+   (-031221-f08ca9) and A3's targeted tests (-031135-fda3dd, -031236-1267a1) as run at
+   `Detent:d12f2887`; not requeued here (the assignment's set: A4 A/B, A2 cells, suite). CI
+   macos-arm64 at `Detent:d9ddc78f` is the suite.
 
 ## Messages
 
@@ -223,6 +242,20 @@ Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a deci
 checked what), name every job you examined, failures included (`campaign brief` lists failed
 jobs no journal names), and answer each message by its id (msg-N).
 
+Closing round, at `Detent:d9ddc78f` (main `Detent:859e9d13` merged):
+- A4 [decision] D166: find A/B, strict, main decoded vs head paged + head A/A, 7 shapes, 10
+  rounds, verdict line "A4 within" (exit 0) or "A4 NOT within" (exit 1): 261125-055929-011192
+  (queued; tagged A2, since a [decision] takes no job tag). Shapes and ratios so far:
+  docs/perf/first-read-1ms.md "Verified page index", Measure.
+- A2 cells (exclusive, vs main `Detent:859e9d13`): stopped:1 261125-055908-8414ff, stopped:1000
+  -055912-873598, running:1 -055916-695193, running:1000 -055920-b8463c (queued).
+- A3 / A1 suite: CI at `Detent:d9ddc78f` (pushed).
+- Cancelled, superseded by the merge (reader code changed): 261125-031224-b0beee (was running),
+  -031228-873097, -031230-95829a, -031233-4a1cfb.
+- Examined: review r4 jobs 261125-033041-988a22 and -034050-b0e901 (failed: "C2 NOT within main",
+  the old target; under D166 every absent ratio is 0.77-1.16, within 1.2x); -032716-ed2883,
+  -032719-63a675 (passed). R4-1's fix is D166 plus the bench shapes; its evidence is 011192.
+
 Round 3, at `Detent:d12f2887` (done: fda3dd, 1267a1 pass; P1, P2 fail at "each key answers as the
 decoded table's find"; L1, L2 fail selftest at their cases; the rest queued, pushed `Detent:cb51340f`):
 - A2: R3-1 find A/B 261125-031218-4505c8 (strict); warm 261125-031221-f08ca9 (strict); A2 cells
@@ -239,7 +272,8 @@ decoded table's find"; L1, L2 fail selftest at their cases; the rest queued, pus
 | Criterion | Evidence |
 |---|---|
 | A1 | 261124-221056-6a4db0 (strict profile, four cells, at `Detent:28a8d276`); before-profile 261124-144100-b5ba51 (replaces 134303-81190d, main's reader code): see "Profile (A1)". Suite: CI macos-arm64 at the pushed head |
-| A2 | Round 2, at `Detent:28a8d276` (gate fails on either rule): exclusive cells 261124-221058-b76dd6 stopped:1, -221101-ac8c51 stopped:1000, -221103-8b1704 running:1, -221106-893160 running:1000. C2 strict pair vs main `Detent:34fe15ad`: -221108-47be0b (find, 10 pairs), -221111-38e2a3 (warm, 6 pairs x 1 and 8 threads). Round 1 (superseded): 261124-193929-8a61ac stopped:1, -193933-aafc88 stopped:1000, -193936-891b76 running:1, -193939-7e39f4 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-193942-688ac7 (table_find_bench, 10 pairs), 261124-193945-948831 (reader_bench warm, 6 pairs x 1 and 8 threads) |
+| A2 | Closing round: see above. Round 2, at `Detent:28a8d276` (gate fails on either rule): exclusive cells 261124-221058-b76dd6 stopped:1, -221101-ac8c51 stopped:1000, -221103-8b1704 running:1, -221106-893160 running:1000. C2 strict pair vs main `Detent:34fe15ad`: -221108-47be0b (find, 10 pairs), -221111-38e2a3 (warm, 6 pairs x 1 and 8 threads). Round 1 (superseded): 261124-193929-8a61ac stopped:1, -193933-aafc88 stopped:1000, -193936-891b76 running:1, -193939-7e39f4 running:1000 (exclusive, fixed gate: a cell fails at a pooled p99 of 1 ms or more; vs main `Detent:34fe15ad`, main's code). C2 pair (strict, interleaved vs main): 261124-221108-47be0b replaces 261124-193942-688ac7 (table_find_bench, 10 pairs), 261124-193945-948831 (reader_bench warm, 6 pairs x 1 and 8 threads) |
+| A4 | D166; 261125-055929-011192 (queued) |
 | A3 | Round 2, at `Detent:28a8d276`: test_local_table_pages and test_reader_core 261124-221148-a692ec; gate selftest -221113-4eee87, fails without: G1 -221128-cf14d1, G2 -221131-053a2a (`.scratch/mutants-r2.txt`); test_agent_store `acl_grants` -221122-a481db, fails without: A1acl -221125-540805. Round 1: 261124-193948-acb3a6 (test_local_table_pages, test_reader_core at the head). Fails-without at mutants of the head (`.scratch/mutants-final.txt`): S1 261124-194035-e14cfa, S2 -194041-ed977a, page digest -194044-f809e0, C3 M1 -193951-bcf9aa, M3 -193954-0ee7cd, M4 -193958-5b5a56, M5 -194001-fa68c0, M6 -194004-921017, M7 -194008-5f78a9, M8 -194013-93c0b9, M12 -194017-63c5aa, C2a -194022-3f543c, C2b -194026-24bc4a, C4 M9 -194031-002ccd. Suite: CI macos-arm64 at the pushed head |
 
 Cancelled at older heads (superseded): 261124-193933-aafc88, -193936-891b76, -193939-7e39f4 (A2 cells at `Detent:47216200`, gate changed); 261124-221147-3bf027 (duplicate of a692ec). Failed (R2-1, the tool's bug): 261124-193942-688ac7, -193945-948831. Examined: review r2 jobs 261124-195252-850b11, -195256-361bfa (failed, the security reviewer's first attempt; its rerun -195512-09902d and -195515-e40ef1 passed), -195304-d1e38c, -214801-af7619.
@@ -304,6 +338,13 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- R15 (closing round): the A/B and A2 base is main `Detent:859e9d13`, the main merged: the head
+  carries pin-wave's pins, so the old base `Detent:34fe15ad` would mix the pin change into the
+  difference. Main's later commits change only campaign state.
+- R16: A4's verdict rule lives in `reader_bench_ab.sh find` (present: paired difference within the
+  D140 floor; absent: ratio of medians at most 1.2), over paged cases only; cold has no main
+  counterpart. One table a random shape (seeded by width); review r4 measured three more seeds.
 
 - R12 (R3-1): the fix is the comparison length, measured (profile, two one-hypothesis experiments);
   the target stays main's warm `find` at every width. The cold row has no main counterpart: main
