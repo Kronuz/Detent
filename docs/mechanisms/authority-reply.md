@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-03) how an authority command, read or result reaches the runtime and how its reply leaves, read from `src/detent_authority/service.cc` at the head of `phase/w2-s2`.
+> Status: CURRENT (2026-11-03) how an authority command, read or result reaches the runtime and how its reply leaves, read from `src/detent_authority/service.cc` and `service_runtime.cc` at the head of `phase/w2-s2`.
 
 # Authority request path
 

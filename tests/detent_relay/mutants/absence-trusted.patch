@@ -1,6 +1,6 @@
-diff --git a/src/detent_authority/service.cc b/src/detent_authority/service.cc
---- a/src/detent_authority/service.cc
-+++ b/src/detent_authority/service.cc
+diff --git a/src/detent_authority/service_runtime.cc b/src/detent_authority/service_runtime.cc
+--- a/src/detent_authority/service_runtime.cc
++++ b/src/detent_authority/service_runtime.cc
 @@ -1740,7 +1740,7 @@
  		// election_max after its return.
  		auto returned = Clock::time_point{};

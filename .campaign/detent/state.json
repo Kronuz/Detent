@@ -4770,6 +4770,222 @@
         "todo": "5e267d70"
       },
       "text": "to do, critical path first:\ntodo: resume observability-core (nothing moved it for 3 h: design ready for re-review; new): `campaign status observability-core`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:45:47",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:45:46",
+      "by": "campaign",
+      "closed": "answered msg-376 by message: option a via the trie's first-touch verification; three files widened",
+      "id": "msg-382",
+      "settles": {
+        "todo": "d70f26f0"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: msg-376 (Blocked on 1-3); waiting on jobs 261124-144100-b5ba51, 261124-144143-080cef, 261124-144154-201723 and CI; it asks: 1. The lead: the 1,000-namespace cells cannot reach 1 ms on this host while every first read hashes the whole `selected` table with SHA-256 (141 KB for 1,000 entries; 1,154 us on this i9-9980HK, which has no SHA-NI, so the sha256 library runs its portable kernel; 83% of a table decode by `sample`).\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:01:59",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:01:58",
+      "by": "campaign",
+      "closed": "answered: design checked sound with three conditions (one mark mechanism, entry-fits-page bound, a value test per row); five files widened; contributor resumed",
+      "id": "msg-383",
+      "settles": {
+        "todo": "748c7f4f"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 16 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:37:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:37:09",
+      "by": "campaign",
+      "closed": "next-deadline: probes moved to main (this commit), review accepted, CI rerun of the macOS fetch flake running; first-read-1ms: answered as msg-3, contributor building",
+      "id": "msg-384",
+      "settles": {
+        "todo": "a98c0a19"
+      },
+      "text": "to do, critical path first:\ntodo: finish consensus-next-deadline-removal (nothing moved it for 76 min: ready for review; to land: quest/detent/consensus-next-deadline-removal in the home changes more than its journals: .campaign/detent/probes/consensus-next-deadline-removal/a1.sh, .campaign/detent/probes/consensus-next-deadline-removal/held.sh, .campaign/detent/probes/consensus-next-deadline-removal/r5.sh, .campaign/detent/probes/consensus-next-deadline-removal/r5_pressure.cc, .campaign/detent/probes/consensus-next-deadline-removal/variant.py; new): `campaign status consensus-next-deadline-removal`\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 51 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T13:22:10",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T13:22:07",
+      "by": "campaign",
+      "closed": "handled: 372 split-journal started; 376 answered as msg-1..3; 385 noted, pin-wave starts after split-detent lands",
+      "id": "msg-372",
+      "items": {
+        "journal-open-single-read": "frees include/journal/host.h, include/journal/turn_log.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-open-single-read",
+        "split-journal": "frees test/** for split-journal",
+        "voter-read-freshness": "voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+      },
+      "settles": {
+        "start": [
+          "journal-open-single-read",
+          "split-journal",
+          "voter-read-freshness"
+        ]
+      },
+      "text": "journal-bound-first-open landed: unlocks frees include/journal/host.h, include/journal/turn_log.h, test/lost_bound_test.cc, docs/mechanisms/lost-bound.md for journal-open-single-read; frees test/** for split-journal; voter-read-freshness (until consensus-follower-read met: `campaign set voter-read-freshness status=active`)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T14:13:21",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T14:13:20",
+      "by": "first-read-1ms",
+      "closed": "handled: 372 split-journal started; 376 answered as msg-1..3; 385 noted, pin-wave starts after split-detent lands",
+      "id": "msg-376",
+      "text": "first-read-1ms needs three lead rulings (journal Blocked on 1-3, Detent:2b237fd5): (1) the 1,000-namespace cells cannot reach 1 ms on this host while each first read SHA-256s the whole 141 KB selected table (1,154 us, portable kernel, no SHA-NI; 83% of the decode): options chunked table digest (format, recommended), an x86 non-SHA-NI kernel in sha256 (~1.9x, not enough alone), or accept; (2) widen the file set by tests/detent_local/test_trusted_paths.cc and tests/detent_local/test_read_counters.cc for two measured changes (trust-walk pre-fstatat, one image read per attach), each a one-line test update; (3) src/detent_testing/generation_writer.cc limits a store to 1,000 generations, so the gate's running 1,000-namespace cell cannot run on main (publisher refused: local disk admission pressure); raising it is one line."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:44:20",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:44:20",
+      "by": "xapiand-lead",
+      "closed": "handled: 372 split-journal started; 376 answered as msg-1..3; 385 noted, pin-wave starts after split-detent lands",
+      "id": "msg-385",
+      "text": "journal-sync-mode landed: journal:fc5c59b (pins completion:b4600a8). The mode lives in completion's PosixIOOptions, required, no default, no process-global switch: `PosixIO io(path, {FlushMode::full});`. A journal Host follows its IO; host.h is unchanged (msg-325's premise was off: Detent builds PosixIOs at src/detent_authority/service.cc:1835-1851, src/detent_local/disk_store.cc:467, src/detent_relay/mirror_service.cc:364, its benchmarks and consensus bench/netlab/node.cc:211; each passes FlushMode::full). full_flush_ordering is gone, no alias. Durability review APPROVE: .campaign/xapiand/reviews/journal-sync-mode-durability.md in Xapiand (full: 784 fsync each followed by F_FULLFSYNC, refusals fail with ENOTSUP, no loss in 5,600 crash points). Its D4 (recovery can return a group behind acked records when a segment file vanishes, pre-existing, full mode only by real damage) is an owner decision pending; your review of journal recovery is wanted there. Your pin-wave can go."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:47:53",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:47:53",
+      "by": "campaign",
+      "closed": "answered as msg-3; contributor told to clear its stale State line",
+      "id": "msg-386",
+      "settles": {
+        "todo": "347dd543"
+      },
+      "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (docs/perf/first-read-1ms.md, \"Design: table pages\") and widening for src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc; it asks: 1. The lead: design check of \"Design: table pages\" in docs/perf/first-read-1ms.md (lifecycle rows), and widening for the files it names: src/detent_reader/core.cc, docs/LOCAL_IMAGE_FORMAT.md, tests/detent_local/CMakeLists.txt, tests/detent_reader/test_reader_core.cc. Earlier items 1-3 were answered\u2026; listed 62 min): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T15:53:42",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T15:53:41",
+      "by": "campaign",
+      "closed": "review waits for the test fix and the requeue at the new head (in progress), so the reviewers see final code",
+      "id": "msg-387",
+      "settles": {
+        "todo": "e70d24f9"
+      },
+      "text": "to do, critical path first:\ntodo: review first-read-1ms (its journal says ready for review; waiting on jobs 261124-155135-e8bc6d, 261124-155138-5da24c, 261124-155140-00faf4, 261124-155142-9a0f4d (A2), 261124-155155-541c14 (A1), 261124-155200-b45b23 (reader_bench), 261124-155204-3e4aa2 (mutant) and CI; the suite needs Blocked on 1; then launch its security and correctness review; new): `campaign set first-read-1ms status=review`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T16:58:45",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T16:58:35",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-388",
+      "items": {
+        "consensus-driver-pressure-rearm": "frees CMakeLists.txt, docs/mechanisms/deadlines.md for consensus-driver-pressure-rearm"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-pressure-rearm"
+        ]
+      },
+      "text": "consensus-next-deadline-removal landed: unlocks frees CMakeLists.txt, docs/mechanisms/deadlines.md for consensus-driver-pressure-rearm"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T16:59:23",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T16:59:23",
+      "by": "campaign",
+      "closed": "started; contributor launched",
+      "id": "msg-388",
+      "settles": {
+        "todo": "d40f8561"
+      },
+      "text": "to do, critical path first:\ntodo: start consensus-driver-pressure-rearm (launchable; new): `campaign start consensus-driver-pressure-rearm`, or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:45:15",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:45:12",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-389",
+      "items": {
+        "relay-mirror-idle-wake": "relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
+      },
+      "settles": {
+        "start": [
+          "relay-mirror-idle-wake"
+        ]
+      },
+      "text": "split-detent landed: unlocks relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:49:59",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: steady-tests and wait fixes installed (agent-campaign:823373b); nothing for Detent to act on",
+      "id": "msg-390",
+      "notice": "skill landed 823373be53343c6291bff552aabc822f8156461c",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, installed here: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:50:09",
+      "by": "kronuz",
+      "closed": "noted",
+      "id": "msg-391",
+      "text": "campaign skill: agent-campaign:823373b installed (steady-tests).\n1. Every git call the tool makes takes no optional locks (GIT_OPTIONAL_LOCKS=0), so campaign status or wait running git status in a contributor's worktree can no longer make the contributor's own commit fail with index.lock.\n2. campaign wait registers its watch before it looks: an event in between no longer waits a whole tick (up to 5 s).\n3. Two runners breaking a dead slot lock at once no longer crash one of them (NotADirectoryError).\n4. Six timing tests in agent-campaign's suite wait on events, not wall time; local shards pass under load (A1: 17 tests x10 beside a spin loop per CPU)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:50:16",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted (duplicate of msg-390)",
+      "id": "msg-392",
+      "notice": "skill installed 823373be53343c6291bff552aabc822f8156461c",
+      "text": "campaign skill: agent-campaign:823373b installed here, 6 commits: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -6921,6 +7137,8 @@
       "after": [
         "consensus-next-deadline-removal"
       ],
+      "base": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+      "branch": "quest/detent/consensus-driver-pressure-rearm",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -6936,16 +7154,19 @@
         "CMakeLists.txt",
         "docs/mechanisms/deadlines.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-driver-pressure-rearm",
       "landed": [],
       "lenses": [],
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "ready at consensus:e61ac8f",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "review",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T14:20:39"
+      "updated": "2026-11-24T17:31:27",
+      "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
     },
     "consensus-drop-memory-io-include": {
       "accepted": {},
@@ -8604,7 +8825,60 @@
       "worktree": ""
     },
     "consensus-next-deadline-removal": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T15:35:24",
+          "base": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "blobs": {
+            "CMakeLists.txt": "100644:43319ee0f73cd6e05cef16b2fcb4060a928b2d91",
+            "docs/mechanisms/deadlines.md": "100644:1f7da0431f2981d145b9bc225cba9866a2a98de1",
+            "docs/mechanisms/liveness.md": "100644:aa55f49e3072085a6401fdabc297206616c76f16",
+            "include/consensus/core.h": "100644:4427c4c6bb0185e12eb495c125fe82a4b3435c08",
+            "test/core_deadline_test.cc": "100644:24e6af68a9d0c7a168840306b0a593f10e67a9ba",
+            "test/liveness_test.cc": "100644:7e0ae78d36a6118c80f54ff3920bc1bac86fc4d4"
+          },
+          "by": "review",
+          "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "criteria": "26e690b734b3ecba",
+          "diffs": {
+            "CMakeLists.txt": "52c39492ddb313aa",
+            "docs/mechanisms/deadlines.md": "f4fb0ace4634147d",
+            "docs/mechanisms/liveness.md": "815db8a49594f979",
+            "include/consensus/core.h": "a5c5d3679b57b4f0",
+            "test/core_deadline_test.cc": "de2a534c8b472b4c",
+            "test/liveness_test.cc": "14a6eeba506d10b2"
+          },
+          "findings": {
+            "R1": {
+              "jobs": [
+                {
+                  "cmd": "bash /Users/kronuz/code/Kronuz/Detent-wt/detent/consensus-next-deadline-removal/.campaign/detent/probes/consensus-next-deadline-removal/a1.sh",
+                  "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "inputs": [
+                    "include/consensus/**",
+                    "test/core_deadline_test.cc",
+                    "test/liveness_test.cc",
+                    "CMakeLists.txt"
+                  ],
+                  "job": "261124-141928-74e621",
+                  "level": "light",
+                  "seconds": 31.7,
+                  "state": "done",
+                  "what": "A1/A2 core_deadline_test ASan at fcf7f66 (plan-vs-Tick included)"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "52842067aa21206aadd3ddc4cb1c68ea8e12182d",
+          "reviewed": "d9c774713f908e016affaf731784a04b2d940ccf",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "consensus-liveness-asan-timeout",
         "consensus-follower-read"
@@ -8629,21 +8903,56 @@
         "test/liveness_test.cc",
         "docs/mechanisms/liveness.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-next-deadline-removal",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T16:58:26",
+          "ci": {
+            "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+            "runs": [
+              45499830987
+            ]
+          },
+          "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "criteria": {
+            "A1": "261124-141928-74e621; fails without: 261124-132225-bcb45d, 261124-141933-6502f0",
+            "A2": "261124-141928-74e621; fails without: 261124-132225-bcb45d, 261124-141933-6502f0",
+            "A3": "261124-141938-899225; fails without: 261124-132235-b8ca66",
+            "A4": "261124-141955-da2268"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261124-141955-da2268",
+              "level": "light",
+              "seconds": 1529.2,
+              "state": "done",
+              "what": "consensus-next-deadline-removal check suite at fcf7f66ef064"
+            }
+          ],
+          "final": true,
+          "from": "e0fd3838ed792697d857a57a9fb91a39da736e9e",
+          "reason": "",
+          "tested": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "ready at consensus:d9c7747",
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Core::next_deadline() omits a due D3 removal, so a driver that sleeps to it delays the removal",
-      "updated": "2026-11-24T13:32:32",
-      "worktree": "../consensus-wt/detent/consensus-next-deadline-removal"
+      "updated": "2026-11-24T16:58:34",
+      "worktree": ""
     },
     "consensus-peers-attempts-bound": {
       "accepted": {},
@@ -9218,6 +9527,40 @@
       "title": "Consensus quiescence: idle groups cost no CPU, reopen without election (D97 Q4)",
       "updated": "2026-11-21T08:22:39",
       "worktree": ""
+    },
+    "consensus-recovered-over-limit-start": {
+      "accepted": {},
+      "after": [
+        "consensus-driver-pressure-rearm"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/worker.h",
+        "include/consensus/driver.h",
+        "test/recovered_over_limit_test.cc",
+        "docs/mechanisms/deadlines.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
+      "updated": "2026-11-24T17:31:31"
     },
     "consensus-replica-delete": {
       "accepted": {},
@@ -15049,7 +15392,16 @@
         "src/detent_local/**",
         "include/detent_local/**",
         "benchmarks/**",
-        "docs/perf/first-read*"
+        "docs/perf/first-read*",
+        "tests/detent_local/test_trusted_paths.cc",
+        "tests/detent_local/test_read_counters.cc",
+        "src/detent_testing/generation_writer.cc",
+        "src/detent_reader/core.cc",
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "tests/detent_local/CMakeLists.txt",
+        "tests/detent_reader/test_reader_core.cc",
+        "tests/detent_local/test_table_pages.cc",
+        "tests/detent_agent/test_agent_store.cc"
       ],
       "history": [
         {
@@ -15077,19 +15429,39 @@
           "weakened": [
             "gate check suite changed"
           ]
+        },
+        {
+          "at": "2026-11-24T14:46:59",
+          "lenses": [
+            [],
+            [
+              "security",
+              "correctness"
+            ]
+          ],
+          "reason": "",
+          "risk": [
+            "normal",
+            "high"
+          ],
+          "voided": [],
+          "weakened": []
         }
       ],
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "its need on observability-core was a file overlap only; observability-core is parked for the owner and narrowed to its doc and model",
+      "reason": "ready at Detent:e52669a7",
       "repo": ".",
-      "risk": "normal",
-      "status": "active",
+      "risk": "high",
+      "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T13:03:14",
+      "updated": "2026-11-24T15:55:47",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
@@ -27127,12 +27499,15 @@
         "legacy-h"
       ],
       "provides": [],
-      "reason": "owner D161: ever_read exact per generation, no fold; design revision (doc and model only), then the design review; code waits for first-read-1ms, which holds the hot path",
+      "reason": "design round 4 CHANGES (W1-W4, Detent:4744a668): W2 shows D161's premise false (a union of per-generation reports is a lower bound, not exact); fourth round in one mechanism goes to the owner (V5); not on the RC-1..5 path",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "title": "knob observability OB1-OB3 in the reader core",
-      "updated": "2026-11-24T14:22:24",
+      "until": [
+        "owner"
+      ],
+      "updated": "2026-11-24T15:22:33",
       "worktree": "../Detent-wt/detent/observability-core"
     },
     "observability-design": {
@@ -28718,6 +29093,8 @@
     "pin-wave": {
       "accepted": {},
       "after": [],
+      "base": "18c5bd23ff2435c523c23142e0e76ac9dac809df",
+      "branch": "quest/detent/pin-wave",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -28754,7 +29131,10 @@
         "docs/perf/**",
         "site/src/content/docs/architecture/dependencies.md",
         "site/src/content/docs/installation.md",
-        "site/src/content/docs/roadmap.md"
+        "site/src/content/docs/roadmap.md",
+        "src/detent_local/disk_store.cc",
+        "src/detent_relay/mirror_service.cc",
+        "src/detent_authority/service_runtime.cc"
       ],
       "history": [
         {
@@ -28874,12 +29254,13 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "site-core moved website/ to site/ (Detent:b5399ea6 pure rename, Detent:07deafa7)",
+      "reason": "started by force: pin-wave is waited on by 9 quests; its overlaps are one-token or append-only: FlushMode::full at disk_store.cc:467 (first-read-1ms), mirror_service.cc:364 and service_runtime.cc:586 (relay-mirror-idle-wake), a CHANGELOG line and docs/perf rows it adds beside voter-read-freshness and warm-relay-agent-boot; each later merge resolves in a line",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T12:39:46"
+      "updated": "2026-11-24T17:46:15",
+      "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
       "accepted": {},
@@ -30849,7 +31230,9 @@
         "bench/idle-wakeups/**",
         "docs/mechanisms/relay-mirror*.md",
         "CHANGELOG.md",
-        "src/detent_authority/service.cc"
+        "src/detent_authority/service.cc",
+        "src/detent_authority/service_runtime.cc",
+        "src/detent_authority/service_internal.hh"
       ],
       "landed": [],
       "lenses": [
@@ -30858,15 +31241,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "waits for split-detent to land, then moves the authority edit to the split file and queues evidence",
+      "reason": "ready at Detent:9337f6c9",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "until": [
-        "split-detent"
-      ],
-      "updated": "2026-11-24T11:54:10",
+      "updated": "2026-11-24T17:54:37",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
@@ -32481,8 +32861,38 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-24T17:44:44",
+          "ci": {
+            "commit": "0534e8d9fe2fc6affe0e8e9ec2bf3d013804c32d",
+            "runs": [
+              45519316796
+            ]
+          },
+          "commit": "e66a29b3406ebc625a9be4c3a873b37cfc6908a8",
+          "criteria": {
+            "A1": "docs/dev/splits.md",
+            "A2": "261124-173248-cabb3e, 261124-173247-9bd565, 261124-173248-f43e9d",
+            "A3": "Lead read the split (2026-11-24): service.cc -> options parsing, Runtime, internal header; state.cc -> codec, application, administrative, image, internal header; moves only (76 non-move lines: CMake lists, includes, inline on helpers lifted from anonymous namespaces into the internal headers). service_runtime.cc stays 2,364 lines: Runtime::run is one ~2,050-line function, a restructure, not a move (follow-up).",
+            "A4": "261124-163504-d828ec, 261124-163509-8a377b"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "0534e8d9fe2fc6affe0e8e9ec2bf3d013804c32d",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "73ba1f2ac2bb3e2089c85830ac5c7554c1534cc0",
+          "reason": "",
+          "tested": "a341e8f140092d6f74d9407c548fe2c1cfa13f68"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [
         "legacy-h"
@@ -32491,16 +32901,18 @@
       "reason": "the split moves code that check_docs, mutant patches and scripts and four CURRENT mechanism docs cite by file; parked msgpack/persistent-map/voter-read/relay-mirror globs cover some of them but their branches edit none (checked); dated design records and docs-site-audit stay for the docs wave",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Every source file in Detent is under 1,000 lines, split by moves only",
-      "updated": "2026-11-24T12:59:24",
-      "worktree": "../Detent-wt/detent/split-detent"
+      "updated": "2026-11-24T17:45:11",
+      "worktree": ""
     },
     "split-journal": {
       "accepted": {},
       "after": [
         "xapiand:journal-sync-mode"
       ],
+      "base": "fc5c59b492ff8275ab8be4aa9599c6ca2ae97859",
+      "branch": "quest/detent/split-journal",
       "checks": [
         {
           "cmd": "ci:macos-arm64",
@@ -32512,7 +32924,9 @@
       "consumes": [],
       "files": [
         "test/**",
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "include/journal/**",
+        "docs/dev/splits.md"
       ],
       "history": [
         {
@@ -32542,20 +32956,49 @@
           ]
         }
       ],
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-24T17:17:54",
+          "ci": {
+            "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+            "runs": [
+              45516181830
+            ]
+          },
+          "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+          "criteria": {
+            "A1": "`docs/dev/splits.md` (journal:a1d039a): split table (4 files), kept-whole table (turn_seal_test.cc)",
+            "A2": "261124-161154-977be8",
+            "A3": "[manual] for the lead: `git diff --color-moved=zebra fc5c59b..HEAD -- test` and the verdict table above",
+            "A4": "`ci:ci` (run 45516181830 at a1d039a, green on every job)"
+          },
+          "evidence": [
+            {
+              "check": "suite",
+              "ci": "ci:macos-arm64",
+              "commit": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "fc5c59b492ff8275ab8be4aa9599c6ca2ae97859",
+          "reason": "",
+          "tested": "a1d039a5fefe2c8a631a0a392ba0af6eae59d8fc"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "moves test/**, which xapiand's journal-sync-mode is editing; moving code under an open edit makes both merges conflict, so it starts after that lands",
+      "reason": "ready at journal:a1d039a",
       "repo": "../journal",
       "risk": "low",
-      "status": "blocked",
+      "status": "landed",
       "title": "Every source file in journal is under 1,000 lines, split by moves only",
-      "until": [
-        "xapiand:journal-sync-mode"
-      ],
-      "updated": "2026-11-24T13:25:21"
+      "updated": "2026-11-24T17:17:58",
+      "worktree": ""
     },
     "stage-0-architecture": {
       "accepted": {},
