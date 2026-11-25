@@ -9,11 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Nothing: round 1 is code-complete at journal:a6fff53 (pushed); its jobs are queued.
+Nothing: fix round 1 (review correctness CHANGES at a6fff53) is code-complete at journal:46a7a31
+(pushed); its jobs are queued.
 
 ## Next
 
-1. Read jobs 261124-204657-f2e321, 261124-204700-cfc2f7, 261124-204704-cc5d9e, 261124-204721-cbd3e6 and CI at a6fff53; a correctness review of the claim.
+1. Read fix-round jobs (Evidence, fix round 1) and CI at 46a7a31; the lead re-reviews F1/F3.
 
 ## Blocked on
 
@@ -64,6 +65,10 @@ Rules weighed:
 | A1 | this table and the rule above |
 | A2 | job 261124-204657-f2e321 (`journal_admission_test`, recovery + claim, at a6fff53); fails-without 261124-204700-cfc2f7 (`recovery` at 10cd1e1: the test over main's admission.h, Replacement(R) refused in both cases) |
 | A3 | journal `docs/mechanisms/admission.md` (Recovery: the rule and its event table), at a6fff53 |
+| A2, fix round 1 | at journal:46a7a31: 261124-213010-aaea95 (whole admission_test); 261124-213014-836945 (`short_schedules`, F1); 261124-213017-d8c48c (`claim`, F3); fails-without 261124-204700-cfc2f7 (unchanged, test commit 10cd1e1) |
+| F1 mutants (fails-without, `test/admission_mutants.py NAME` at 46a7a31) | cap-ignores-held 261124-213022-4bd2fc; take-ignores-control 261124-213026-23aa96; grow-unrecorded 261124-213029-039f92; lacking-ignores-held 261124-213033-a6b133 |
+| F3 mutant (fails-without) | claim-is-deficit 261124-213037-283680 |
+| A4, fix round 1 | suite 261124-213046-c80acd (`campaign verify --for A4` at 46a7a31); integration 261124-213048-5a3b35 (consensus main be18ad9 driver_pressure, recovered_over_limit, core_deadline, worker; journal pinned at 46a7a31); CI on the pushed branch |
 | A4 | suite 261124-204704-cc5d9e (`campaign verify --for A4`); integration 261124-204721-cbd3e6 (consensus:d03a71b driver_pressure, recovered_over_limit, core_deadline and worker, journal pinned at a6fff53 via `--ref JOURNAL`); CI on the pushed branch |
 
 Probe read: 261124-202348-6f464f (review F2, both cases reproduce at consensus:d03a71b, journal:9e11713).
@@ -87,9 +92,36 @@ grown-store shape (replacement short with no crash) is unchanged, as the contrac
 
 Not a session of its own: this ran as a subagent, not `detent · contributor journal-recovery-refill`.
 
+## Fix round 1 (review correctness, CHANGES at a6fff53)
+
+- F1 (blocking): class = the claim's transitions whose limits `schedules()` never reached (refill
+  cap, take bound, growth record, cancel's lacking). `short_schedules` in `test/admission_test.cc`:
+  3000 seeds x 200 steps over random limits and censuses from whole to empty pools (1 in 8 over
+  the limit); steps reserve each class, grow, settle, cancel, reclaim, close + new census. After
+  every step: outstanding/tickets match the live permits, `ca + Σ control peaks <= C`,
+  `ra + Σ replacement peaks <= R`, the hard limit, no taint, the census's control share is
+  `min(C, T)`, and reserve/grow/cancel episodes round-trip stats. Public observables only (no
+  test accessor; the contract keeps the API). Local run under `quiet light` with the reviewer's
+  `run.sh mutants`: all ten mutants killed by admission_test; the four F1 ones each by
+  `short_schedules` (cap-ignores-held: replacement pool bound; take-ignores-control: subtraction
+  underflow; grow-unrecorded: round trip; lacking-ignores-held: control pool bound).
+- F3: `claim` adds census (950, 95), so T = (50, 5) < C, a reclaim of (100, 10), then
+  Replacement(150, 15) refused and Replacement(100, 10) admitted taking exactly (50, 5). Kills
+  claim-is-deficit.
+- F2 (lead ruling, keep the trade): `docs/mechanisms/admission.md` Recovery states it, naming
+  consensus `request_install`'s Control cutover permit (worker.h) that can return Pressure where
+  the snapshot's Replacement used to be refused; no store loses an operation it has today.
+- F4: outside the file set; the lead adds the ARCHITECTURE.md link.
+- Commits: journal:114cd67 (tests, mutant script), journal:46a7a31 (doc).
+
 ## Rulings I made
 
 - Rule 4 (recovery claim), from A1. It keeps every store's open; rules 1 and 3 were not taken
   because 1 narrows what opens and 3 changes live admission.
+- Mutant fails-withouts use an in-tree `test/admission_mutants.py` (exits with the plain
+  test's status; 126 when the mutant does not build), not `test/mutants.py`, which is outside the
+  file set and exits 0 on a kill. The job slot's `checkout --force` resets the mutated header.
+- Integration moved from consensus:d03a71b to consensus main be18ad9 (the over-limit quest
+  landed; d03a71b is its ancestor).
 - `admission_test` "pressure refuses ... unfunded replacement work" (T=50 < R) changes: after
   recovery a Replacement may now spend the claim (control's bytes), as rule 4 intends.
