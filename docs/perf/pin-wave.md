@@ -36,7 +36,7 @@ weaken every `File::sync` to `fsync`, so no mode reproduces the old default exac
 superset, durable on any drive. A follow-up may move the refetchable stores (the agent's disk store,
 the relay's mirror) to `plain` if the write-path cost below calls for it.
 
-Linux is not traced (no Linux host here; the interposer is macOS-only). By completion's table,
+Linux not traced: no Linux host here, the interposer is macOS-only, and CI's Linux jobs run only the suite, which no probe can join without editing the workflow or a test CMake file. By completion's table,
 Linux makes the same calls in both modes (`sync_call`: `fsync`, `fdatasync` for `sync_data`), so the
 mode changes nothing there; the `Sync` primitive's route through `sync_files` (`d5c6fd4`) applies on
 Linux too, where `sync_files` starts writeback before its `fsync`.
