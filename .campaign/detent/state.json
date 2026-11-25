@@ -4948,6 +4948,44 @@
         ]
       },
       "text": "split-detent landed: unlocks relay-mirror-idle-wake (until split-detent met: `campaign set relay-mirror-idle-wake status=active`)"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:00",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:49:59",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted: steady-tests and wait fixes installed (agent-campaign:823373b); nothing for Detent to act on",
+      "id": "msg-390",
+      "notice": "skill landed 823373be53343c6291bff552aabc822f8156461c",
+      "text": "campaign skill: 6 commits landed on agent-campaign's main, installed here: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:09",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:50:09",
+      "by": "kronuz",
+      "closed": "noted",
+      "id": "msg-391",
+      "text": "campaign skill: agent-campaign:823373b installed (steady-tests).\n1. Every git call the tool makes takes no optional locks (GIT_OPTIONAL_LOCKS=0), so campaign status or wait running git status in a contributor's worktree can no longer make the contributor's own commit fail with index.lock.\n2. campaign wait registers its watch before it looks: an event in between no longer waits a whole tick (up to 5 s).\n3. Two runners breaking a dead slot lock at once no longer crash one of them (NotADirectoryError).\n4. Six timing tests in agent-campaign's suite wait on events, not wall time; local shards pass under load (A1: 17 tests x10 beside a spin loop per CPU)."
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T17:50:16",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T17:50:16",
+      "by": "campaign campaign-v3, xapiand",
+      "closed": "noted (duplicate of msg-390)",
+      "id": "msg-392",
+      "notice": "skill installed 823373be53343c6291bff552aabc822f8156461c",
+      "text": "campaign skill: agent-campaign:823373b installed here, 6 commits: agent-campaign:90938d8 steady-tests: timing tests wait on events, not wall time; agent-campaign:dc79189 steady-tests: the journal-commit wait test wakes on the move alone; agent-campaign:2365afc wait: watch the directories before looking, not after; agent-campaign:edc4902 core: git calls take no optional locks; agent-campaign:6d1d7a6 test_quiet: holds end on events, bounds end hangs only; agent-campaign:823373b runner: a lock directory swapped for the lock file is read as the file"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -15363,7 +15401,11 @@
         "tests/detent_local/CMakeLists.txt",
         "tests/detent_reader/test_reader_core.cc",
         "tests/detent_local/test_table_pages.cc",
-        "tests/detent_agent/test_agent_store.cc"
+        "tests/detent_agent/test_agent_store.cc",
+        "tests/detent_delivery/verify_local_format.py",
+        "tests/detent_system/managed.py",
+        "tests/detent_system/test_restart_capacity.py",
+        "docs/HOW_IT_WORKS.md"
       ],
       "history": [
         {
@@ -15418,12 +15460,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "ready at Detent:e52669a7",
+      "reason": "three Python test tools parse selected and must read layout 3; HOW_IT_WORKS describes the table; no active quest holds them",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Fresh resident first reads reach p99 below 1 ms on macOS",
-      "updated": "2026-11-24T15:55:47",
+      "updated": "2026-11-24T18:21:38",
       "worktree": "../Detent-wt/detent/first-read-1ms"
     },
     "fixture-500k": {
@@ -29096,7 +29138,27 @@
         "site/src/content/docs/roadmap.md",
         "src/detent_local/disk_store.cc",
         "src/detent_relay/mirror_service.cc",
-        "src/detent_authority/service_runtime.cc"
+        "src/detent_authority/service_runtime.cc",
+        "CMakeLists.txt",
+        "benchmarks/detent_authority_durable_bench.cc",
+        "benchmarks/relay_window_bench.cc",
+        "tests/detent_agent/agent_store_sole_writer.sh",
+        "tests/detent_agent/test_agent_store_crash.cc",
+        "tests/detent_agent/test_agent_store.cc",
+        "tests/detent_authority/cluster_harness.hh",
+        "tests/detent_authority/offline_runtime.hh",
+        "tests/detent_authority/test_distribution_ownership.cc",
+        "tests/detent_authority/test_history_names.cc",
+        "tests/detent_authority/test_node.cc",
+        "tests/detent_authority/test_process.cc",
+        "tests/detent_authority/test_transport_peers.cc",
+        "tests/detent_relay/mirror_fixture.hh",
+        "tests/detent_relay/mutants/build-on-mirror-thread.patch",
+        "tests/detent_relay/test_http_upstream.cc",
+        "tests/detent_relay/test_relay_chain.cc",
+        "tests/detent_relay/test_relay_pages.cc",
+        "tests/detent_relay/test_relay_mirror_crash.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc"
       ],
       "history": [
         {
@@ -29216,12 +29278,12 @@
       "provides": [
         "dependency-manifest"
       ],
-      "reason": "started by force: pin-wave is waited on by 9 quests; its overlaps are one-token or append-only: FlushMode::full at disk_store.cc:467 (first-read-1ms), mirror_service.cc:364 and service_runtime.cc:586 (relay-mirror-idle-wake), a CHANGELOG line and docs/perf rows it adds beside voter-read-freshness and warm-relay-agent-boot; each later merge resolves in a line",
+      "reason": "completion:b4600a8 adds an fdatasync argument to Linux replace_sync_calls; each file needs one nullptr (overlaps relay-mirror-idle-wake's tests/detent_relay/** with that one token, under --force)",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Kronuz pins to their heads after the handoff branches",
-      "updated": "2026-11-24T17:46:15",
+      "updated": "2026-11-24T18:33:55",
       "worktree": "../Detent-wt/detent/pin-wave"
     },
     "post-w2": {
@@ -31203,12 +31265,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "split-detent landed (Detent:a341e8f1): the authority's owner loop moved to service_runtime.cc",
+      "reason": "ready at Detent:9337f6c9",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-24T17:45:59",
+      "updated": "2026-11-24T17:54:37",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
