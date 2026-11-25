@@ -5126,6 +5126,21 @@
         ]
       },
       "text": "consensus-fetch-oversize-abort landed: unlocks consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met: `campaign set consensus-driver-pipelined-sim status=active`); frees include/consensus/transport/**, docs/mechanisms/transport*.md for consensus-fetch-alongside-loop-stall"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T21:00:03",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T21:00:03",
+      "by": "campaign",
+      "closed": "pipelined-sim unparked and merged; loop-stall started",
+      "id": "msg-404",
+      "settles": {
+        "todo": "21130dab"
+      },
+      "text": "to do, critical path first:\ntodo: unpark consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met; new): `campaign set consensus-driver-pipelined-sim status=active`, or park it again with a reason\ntodo: start consensus-fetch-alongside-loop-stall (launchable; new): `campaign start consensus-fetch-alongside-loop-stall`, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
