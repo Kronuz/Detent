@@ -1,6 +1,6 @@
 # consensus-inline-sync-loop: journal
 
-State: blocked on lead: macos-x86_64 fetch-alongside stall is pre-existing on main (CI 45542770252); land with --no-ci for it or take a follow-up quest (jobs queued: 261125-040032-200807 261125-040054-7adede 261125-040033-a424ac 261125-040037-53106b 261125-040041-0df196 261125-040042-1d0650 261125-040043-03d5e0; CI 45609770275)
+State: ready for review (round 3, R3-F1; jobs queued: 261125-051305-f2273d 261125-051306-10a35a 261125-051308-8a339c 261125-051310-b290d2 261125-051312-fd91ad 261125-051313-0412f3 261125-051315-1359b6 261125-051316-363c84 261125-051318-738a52; CI 45621393108)
 Quest: .campaign/detent/quests/consensus-inline-sync-loop.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -50,6 +50,33 @@ assert (the 2 s bound unchanged, D152). Not shown: the miss itself reproduced at
 diagnosis (1 in 25; a rerun of 7a9ae86 would carry no print). If A5 misses at the head, the
 print names the cause and F2 reopens.
 
+## Round 3: R3-F1, the leader's term (review Round 3, CHANGES at b2fa03b)
+
+Cause: CI 45609770275 macos-x86_64: node 3 (leader) waited 6,055 ms on its own turn's sync and
+lost term 1; loops turned within 148 ms, 0 peers gone. A Core whose persistence is out does
+not drive: `handle(Tick)` drives only `if (started_ && !busy())` and `drive()` returns when
+`busy()` (core.h:718-720, 1460-1461). So a leader sends no heartbeat or append until its own
+sync completes; its followers' election timers run out. Reproduced locally:
+`fetch-alongside-leader-sync` (the leader's next sync held 6 s): node 1's operation 6,021 ms,
+"node 1 no longer leads term 1 at 6215 ms", loops within 1 ms, 0 peers gone, 16/16 exact.
+A follower's slow sync keeps the term (slow-sync: 6,036 ms, term kept).
+
+Ruling: designed, not a defect. ARCHITECTURE.md:9 ("While storage is pending, time continues to
+advance. A matching completion immediately releases its dependent effects and drives leader
+replication"), :59 (one persistence action retained) and deadlines.md:114 ("a busy Core refuses
+or holds"). It holds on every completion, native included; DRIVER.md "Where syncs run" now says
+so. `leads` (groups_test.cc) allows the term when the leader's own longest journal operation is
+>= 1,000 ms; a follower's slow sync and loop stalls still must keep it. Overlapping the leader's
+own write with replication (Raft thesis 10.2.1) is a protocol change: the owner's call (R3-N2),
+not taken here.
+
+Test: `fetch-alongside-leader-sync` 261125-051305-f2273d; fails without: 261125-051306-10a35a
+(mutant `leads-ignores-leader-sync`, consensus:b8420d8 on 624bebe: round 2's rule). Class: the
+term allowances in groups_test's Driver cases. slow-sync asserts kept strictly (its slow node
+is a follower, so it stays right); fetch-alongside's is the only other. TimedNative's delay now
+holds only a turn's SyncData completion, so a knob always slows a sync, never a reclaim (the
+leader case needs the persist slowed to be deterministic).
+
 ## CI macos-x86_64 at 9f14194 (round 2, lead's message)
 
 CI 45594592100's macos-x86_64 rerun aborted fetch-alongside: node 3 loop 3 (its link to node 2)
@@ -79,17 +106,20 @@ within 2 ms.
 
 ## Next
 
-1. Lead: decide the pre-existing macos-x86_64 stall (land --no-ci for it, or a follow-up quest to root-cause it from the spindump); read the jobs at b2fa03b and CI 45609770275.
+1. Read round 3's jobs and CI 45621393108; fold in the next review.
 
 ## Blocked on
 
 Nothing. For the lead:
-- CMakeLists.txt is outside the set, so slow-sync has no ctest entry of its own: the `driver`
-  entry runs it after its three cases; `slow-sync` also runs alone.
-- bench/netlab's node fails at startup on macOS at main and at the head ("node pins: the local
-  certificate is not the local node's key"); netlab's own runs are in Linux guests, which I did
-  not run. docs/perf/netlab-consensus.md (outside the set) holds numbers taken with
-  InlineCompletion; they predate the native completion there.
+- `fetch-alongside-leader-sync` and `slow-sync` have no ctest entries of their own
+  (CMakeLists.txt is outside the set): `driver` runs slow-sync; the leader case runs only in its
+  job. One line each in CMakeLists.txt's groups foreach would put them in the suite.
+- The macos-x86_64 link-loop stall (state U) at main, CI 45542770252, is pre-existing (round 2
+  above); LoopLags now spindumps it.
+- R3-N2 (owner): should a leader keep replicating while its own sync is out? Today it does not
+  (designed); a follow-up quest if wanted.
+- bench/netlab's node fails at startup on macOS at main and at the head (node pins); not run in
+  a Linux guest. docs/perf/netlab-consensus.md predates the native completion there.
 
 ## The choice (round 0, by measurement; superseded by F1/F3: the native completion)
 
@@ -121,20 +151,16 @@ Idle: the parked sync thread used 0 us of CPU in 5 s (blocked on a condvar; one 
 
 ## Evidence
 
-At consensus:b2fa03b (round 2: diagnostics only since 9f14194). Round 1's jobs at 9f14194 all
-passed: A1 261125-022317-c35d52 (fails without 261125-022319-78e2a5), A2 261125-022321-d39023,
-TSan 261125-022338-e1ff83 (fails without 261125-022340-33344a), A5 261125-022322-8743dc,
-261125-022324-925f03, 261125-022326-2ffaad, 261125-022327-3106af (0 of 100 failed), A6
-261125-022329-f14798.
+At consensus:624bebe (round 3). Earlier rounds' jobs: see the round sections and git history.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261125-040032-200807 (slow-sync on the native completion); fails without: 261125-040054-7adede (mutant `sync-on-loop`, consensus:31f7801 on b2fa03b: InlineCompletion on the loop, main's shape) |
-| A2 | 261125-040033-a424ac (ctest groups_test, driver*, blocking_entry, completion_asio); 261125-040043-03d5e0 (TSan: driver, joiner, relayout, fetch-alongside, install, slow-sync); fails without: 261125-022340-33344a (TSan at 7a9ae86, SyncThread) |
-| A3 | [artifact] docs/DRIVER.md "Where syncs run" (consensus:9f14194): native and InlineCompletion, where a sync runs and whether the loop turns; a Driver on a link loop syncs off the loop on the native completion (detentd, groups_test, bench/netlab); what an inline sync there costs. docs/mechanisms/host-transport.md Placement points to it |
-| A5 | 261125-040037-53106b, 261125-040041-0df196 (strict, 25 runs each beside 4 burners) |
-| A6 | 261125-040042-1d0650 (reader) |
-| A4 | `ci:ci` (CI run 45609770275 at b2fa03b; macos-x86_64 may hit the pre-existing stall above) |
+| A1 | 261125-051308-8a339c (slow-sync on the native completion); fails without: 261125-051310-b290d2 (mutant `sync-on-loop`, consensus:5507e45 on 624bebe: InlineCompletion on the loop, main's shape) |
+| A2 | 261125-051315-1359b6 (ctest groups_test, driver*, blocking_entry, completion_asio); 261125-051318-738a52 (TSan: driver, joiner, relayout, fetch-alongside, install, slow-sync); fails without: 261125-022340-33344a (TSan at 7a9ae86, SyncThread) |
+| A3 | [artifact] docs/DRIVER.md "Where syncs run" (consensus:624bebe): native and InlineCompletion, where a sync runs and whether the loop turns; a busy Core does not drive, so a leader's own slow sync costs its term on any completion, a follower's holds only it; a Driver on a link loop syncs off the loop on the native completion; what an inline sync there costs. docs/mechanisms/host-transport.md Placement points to it |
+| A5 | 261125-051312-fd91ad, 261125-051313-0412f3 (strict, 25 runs each beside 4 burners); R3-F1: 261125-051305-f2273d; fails without: 261125-051306-10a35a |
+| A6 | 261125-051316-363c84 (reader) |
+| A4 | `ci:ci` (CI run 45621393108 at 624bebe) |
 
 ## Result
 
@@ -159,6 +185,6 @@ it equals the log end the node stopped at; on the native completion, 2 == 2 for 
 - F1/F2's TSan jobs carry `--for A2` (job criteria take A ids only); they are F1's test.
 - F2: the quiet commits' 2 s bound stays (D152); a miss prints its diagnosis first.
 - The transport does not refuse the pairing: it cannot see a Driver's completion (F4, ruled).
-- fetch-alongside: the term allowance is a process stall past 1,000 ms only (`stalled`).
+- fetch-alongside: the term allows a process stall or the leader's own journal operation past 1,000 ms (designed: a busy Core does not drive); a follower's slow sync must keep it (R3-F1).
 - Reused groups_test's LoopLags and Stalls (no new probe); Lag (lag.h) in slow-sync and reader.
 - Session: a subagent of the lead, not a session of my own, so no `claude -n` title.
