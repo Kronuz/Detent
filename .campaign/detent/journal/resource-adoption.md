@@ -1,6 +1,6 @@
 # resource-adoption: journal
 
-State: blocked on lead: tests/detent_reader/CMakeLists.txt outside the file set; pin cascade ruling; waiting on job 261125-051931-4c08af
+State: waiting on jobs 261125-051931-4c08af
 Quest: .campaign/detent/quests/resource-adoption.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -32,36 +32,38 @@ quest branch is pushed; its CI run 45622927366 was still queued at 05:55.
 
 ## Next
 
-1. Decision 3 from the A/B; then the allocators head is final: CI green, push allocators main.
-2. Pin cascade (see Blocked on): completion, journal, faultlab and consensus declare allocators or
-   completion; A2 needs them at the new heads.
-3. Jobs at the final head: native, pins, asan, tsan (verify); A1 grep; A5/A12 light; A7/A13/A14
-   exclusive; A6 mutant and retirement tests.
+1. When 261125-051931-4c08af ends: Decision 3. Taken: cherry-pick allocators:1567b18 onto the
+   allocators quest branch; otherwise the head stays allocators:73baa46. Rerun allocators CI
+   (run 45622927366: all green but macos-arm64, cancelled after 33 min with no runner), push main.
+2. Pin cascade once, at that head (lead ruling 2): completion (allocators) -> faultlab (completion)
+   -> journal (completion, allocators, faultlab) -> consensus (completion, journal, faultlab), one
+   commit each in `~/code/Kronuz/<lib>-wt/detent/resource-adoption` (branches made at origin/main);
+   push the quest branches together, each main once its CI is green; Detent pins all five.
+3. At the final Detent head: `campaign verify` (native, pins, asan, tsan); A1 grep; A5 and A12
+   (`benchmarks/resource_qualification.sh bytes|targets`, light); A7 `first-read` and A13/A14
+   `costs` (exclusive); A6 mutant (Detent:3ed99815 rebuilt on the final head) and retirement tests;
+   A9 fails-without: allocators' `test/retirement.cc` at the old two-load step (local run: close
+   and rollback at `worker_admitted` lose the wakeup, 2 of 4). Push Detent; ready for review.
 
 ## Blocked on
 
-1. File outside the set: `tests/detent_reader/CMakeLists.txt`. `test_reader_switch` includes
-   `src/detent_local/lazy_page_access.hh`, which now reaches `<allocators/storage.h>`, but links only
-   `detent_reader_hooked` (local_view private) and `detent::testing_store`. Fix: add
-   `detent::resources` to its `target_link_libraries` (one line). Recommendation: add the file to the
-   set; the alternative, making `detent_reader_hooked` link `detent::local_view` PUBLIC
-   (`src/detent_reader/CMakeLists.txt`), is also outside the set and widens a test-only target.
-2. Pin cascade (A2): `completion` and `journal` declare allocators ae775ab; `journal`, `faultlab` and
-   `consensus` declare completion; `consensus` declares journal. Pinning a new allocators needs
-   bump commits on completion, journal, faultlab and consensus mains, and consensus main
-   (217481b) is 10 commits past Detent's pin (72cc58d) with other quests' work. Options: (a) I push the
-   four bumps (owner's cpp-library push authority) and Detent pins all five heads, taking consensus
-   head with it; (b) the lead folds it into a pin wave. Recommendation: (a) for completion, journal and
-   faultlab, whose heads equal Detent's pins; the lead rules on consensus.
+Nothing: the lead widened the set to `tests/detent_reader/CMakeLists.txt` (Detent:cc061930) and
+ruled the cascade (msg from the lead, 2026-11-25: once, after the A/B; consensus main is right).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
+| A5 (dry run, not evidence) | local `resource_qualification.sh bytes`: 7 wire captures, both stores (9 and 6,003 files) and 8 authority byte counts identical to main and repeatable on main |
+| A12 (dry run, not evidence) | local `targets`: default and all-components configures fetch the same set as main; tracked memory off; only allocators' `retirement.cc` compiles; no legacy library |
 
 ## Result
 
 ## Rulings I made
+
+0. Worktree: added by hand at `../Detent-wt/detent/resource-adoption` because state.json had no
+   branch and `campaign start` refuses an active quest; the lead accepted it and reports the tool
+   gap. A job submitted without `--commit` ran at the home's main (261125-051912-c12324, cancelled).
 
 1. Merge strategy: main's code wins every conflict; the 2026-11-02 adoption is redone on main's
    code, not replayed (D162 "restart from current main").
