@@ -1,6 +1,6 @@
 # consensus-fetch-oversize-abort: journal
 
-State: ready for review (waiting on jobs 261124-151248-f49548..261124-151310-7f0e32 and CI 45507969326; 261124-151246-f0ad2c passed)
+State: ready for review (waiting on jobs 261124-165220-e84fc9, 261124-165224-4e171d and CI 45521429248)
 Quest: .campaign/detent/quests/consensus-fetch-oversize-abort.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,15 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Round 2 review at 87cb821 (CHANGES, R2-F1; F1-F4 closed): nothing tested fail() ending a
+second ask that waits for its connection connection_aborted. Fixed test-only in
+consensus:ce981be: fetch-removed adds fetch_waiting (the reviewer's probes2 shape: the child
+host SIGSTOPs in its reader, the link ends dead, the redial's handshake waits; then
+remove_node(2) or drain()), asserting connection_aborted within 500 ms. Local 3/3: both 0 ms.
+Jobs: 261124-165220-e84fc9 (fetch-removed x10 at ce981be); fails without:
+261124-165224-4e171d (mutant/fetch-no-again-map, consensus:6190d84). CI 45521429248. No code
+change, so A2 and the suite are not rerun (lead's ruling).
 
 Correctness review at ea48bc8 (CHANGES; .campaign/detent/reviews/consensus-fetch-oversize-abort-correctness.md):
 - F1 (blocking, fixed in consensus:87cb821; table first in consensus:afec3fe): lead's ruling, the
@@ -167,7 +176,7 @@ A fetch whose connection ends under it is asked once more on the next connection
 Doing; docs/mechanisms/rpc-lane.md. Open: the macOS kernel's 5 s uninterruptible sendto itself
 (groups-upload-loop-stall's class); capping TLS records below 16 KB is an unmeasured option.
 Cleanup after landing: the probe branch probe/detent/fetch-stall and its worktree
-~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the worktree mutant-wt beside it and the local branches mutant/fetch-any-connection, mutant/fetch-no-clear, mutant/fetch-oversize-aborts and
+~/.scratch/detent/consensus-fetch-oversize-abort/probe-wt, the worktree mutant-wt beside it and the local branches mutant/fetch-any-connection, mutant/fetch-no-clear, mutant/fetch-oversize-aborts, mutant/fetch-no-again-map and
 mutant/fetch-not-asked-again.
 
 ## Rulings I made
