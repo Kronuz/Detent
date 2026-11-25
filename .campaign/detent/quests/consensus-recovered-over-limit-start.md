@@ -15,7 +15,7 @@ sees, never a silent stall.
 
 ## Acceptance criteria
 
-- A1 First a table: every way recovery can leave a group's store above its control headroom, and
+- A1 [manual] First a table: every way recovery can leave a group's store above its control headroom, and
   what frees space (compaction, retirement, a snapshot) and whether it needs a started group: in the journal
 - A2 A deterministic test recovers a group whose store is above `hard - control_pool`: at the fix it
   starts (or the open fails with the named status), by value; at main it never starts within the

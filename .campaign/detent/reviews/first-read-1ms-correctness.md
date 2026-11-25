@@ -98,3 +98,82 @@ No test was loosened:
   so they likely do not close C3.
 - This review ran as a subagent, not a session titled `detent · reviewer first-read-1ms
   correctness`.
+
+## Round 2
+
+Commit: Detent:9cc06bc9 (code at Detent:47216200; 9cc06bc9 adds only the journal)
+Verdict: CHANGES
+Date: 2026-11-24
+
+I re-reviewed the whole table-read mechanism, not only the fix diff: the `PagedTable` constructor, `check`,
+`find` and `decode`; `TableEntryView`; the verified page index; and the reader core's `listed`, refresh loop
+and attach.
+
+### Evidence I relied on
+
+- The new tests at the head (job 193948-acb3a6) pass.
+- Each mutant fails the suite (the quest's `--fails-without` jobs at the head):
+  - In test_local_table_pages: M1, M3, M4, M5, M6, M7, M12, C2a, C2b, S1 and page-digest
+    (bcf9aa, 0ee7cd, 5b5a56, fa68c0, 921017, 5f78a9, 63c5aa, 3f543c, 24bc4a, e14cfa, f809e0).
+  - M8 (93c0b9) kills by an uncaught `invalid verified page start`, which aborts the test, not by
+    a refusal check.
+  - In test_reader_core: M9 (002ccd) and S2 (ed977a).
+- A2 stopped:1 (job 193929-8a61ac, exclusive, at Detent:47216200): the branch's pooled p99 is
+  654 us against main's 824 us. Run medians are 443-477 us against 537-620 us, the paired difference
+  is -122 us (floor 51), and all 200 of 200 reads come in below 1 ms on both sides. The cell passes,
+  and it is within main.
+- A1 profile 193926-75ef7a.
+
+### What I checked myself
+
+- `run_r2.sh` (job 261124-195304-d1e38c, light, Debug, counters on) passes.
+  - `probe_table_oracle_r2.cc` runs the random-table oracle against `TableEntryView`: each
+    entry's name, slot, generation, cursor and `entry()` are checked at first touch, then again
+    on marked pages from the kept offsets, and on an unaccounted table. Absent names match
+    `StoreTable::find`. The re-signed cross-page cases and 8-thread first touch also pass.
+  - The run also covers test_local_table_pages (20,900 mutations), test_reader_core,
+    test_agent_store and test_local_read_counters.
+- `find_cost_r2.sh` (job 261124-214801-af7619, light, Release, a screen) shows C2 is fixed. At
+  16-byte names, paged `find` is 242 and 251 ns against main's `StoreTable::find` at 273 and 271
+  (0.9x). At 40-byte names it is 259 and 287 against 222 and 225 (1.3x). Before the fix it was
+  4.8-12.5 us.
+- Memory ordering (store_table.cc `check`, `find`; verified_pages.hh) is correct:
+  - The offsets are stored relaxed, before `VerifiedPages::set`'s release CAS.
+  - `find` reads the mark with acquire (`test`), then the count and offsets relaxed.
+  - Other pages' `set` calls on the same word are read-modify-writes, so they continue the
+    release sequence.
+  - Two first touches together store identical values into the same atomics, so a reader never
+    sees a torn or mixed index.
+  - A reach that sees the mark clear walks into its own local array and does not write the
+    shared index when `check` finds the page already marked.
+- Views do not outlive their table (core.cc, generation.cc):
+  - Every `TableEntryView` is local to one call. `listed()` runs under the lookup's `Pin` of
+    the view that owns the table.
+  - In `refresh_locked`, the views come from `table`, which is either the installed view's
+    table (current, so not retired) or `new_table`. They die before `delete new_table`, and
+    `attach` copies `entry()` before it builds a `Generation`.
+  - `read_selected` copies `entry()` while `read` is alive.
+  - No view is stored in a `View`, an `Entry` or a `Generation`, so none can cross a publish.
+- C1: the gate diff fails any cell whose pooled branch p99 is 1 ms or more, the refused cell
+  included. The comparison with main is the second line (8a61ac prints both).
+- C3, C4: test_table_pages `cross_page` re-signs each case. test_reader_core `damaged_attached`
+  is the round-1 probe's scenario.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R2-1 | yes | defect | `reader_bench_ab.sh build` copies `table_find_bench` into `$out/$code/` before it creates that directory, then the next lines `rm -rf` it and recreate it. On a fresh OUT the copy fails, so `build` fails, and both strict C2 jobs failed in their build step. If OUT already existed, `find` would run a binary that was just deleted. The warm A/B tool (`run`) is unusable too, because it shares `build`. C2's claim has no strict measurement. | jobs 261124-193942-688ac7 and -193945-948831: `cp: directory .../c2-find/base does not exist`; benchmarks/reader_bench_ab.sh `build()` | Copy `table_find_bench` after `mkdir -p "$out/$code"`. Rerun 688ac7 and 948831; their success is the test. Target: main's warm `find` (my light screen: 0.9x and 1.3x). |
+| R2-2 | no | nit | The design still says "A marked page skips only its hash; its entries are still bounded and checked on every reach". "Verified page index" says the bound, order, slot, last-name and padding checks run once, at the first touch, and a marked page answers in place, unchecked. The second statement is the code. | docs/perf/first-read-1ms.md "Design: table pages", the marks paragraph | Change the marks paragraph to match. |
+| R2-3 | no | gap | `measure` no longer fails on D140: a branch slower than main but below 1 ms exits 0. `docs/perf/first-read-gate.md` still says "The gate is D140" and that 1 ms is "reported, not gated". This is the owner's call. Option a: fail on either rule (A2's bound or D140), which keeps the regression gate for later reader quests. Option b: keep the bound alone and update the doc. | gate diff; first-read-gate.md line 68 | Option a, or option b with the doc changed. |
+| R2-4 | no | gap | CI at 9cc06bc9 failed: `ci / macos-x86_64`'s Test step did not finish (58 min, no log). warm-relay-agent-boot's macos-x86_64 failed the same way at about the same time, and relay-mirror-idle-wake's passed. The failure is not attributed to this quest, and A3's `met` reads macos-arm64. | CI run 45541685998 | The lead reruns the job; landing needs it green regardless. |
+| R2-5 | no | gap | A2 has 3 of 4 cells pending (aafc88, 891b76, 7e39f4 queued behind about 14 exclusive jobs). A2 stands only once all four pass. | campaign job list | Read the three `A16 cell` lines when they end. |
+| R2-6 | no | nit | A lookup on a marked page reads the entry in place with no bounds check. That is sound only while the mapped `selected` never changes, which the design states (an in-place write or truncation is outside the model; security N1). | store_table.cc `find`; `TableEntryView` accessors | None; recorded. |
+
+### Not run
+
+- No strict C2 numbers (R2-1). A2's three pending cells (R2-5).
+- No local TSan or ASan. CI's linux-tsan and linux-asan-ubsan passed at 9cc06bc9, including the
+  concurrent first-touch tests.
+- S2's ACL checks across store files and the Python tools' shared reader: the security reviewer's.
+  I only read that the reader parses layout 3.
