@@ -5104,6 +5104,28 @@
         "todo": "0d18bc86"
       },
       "text": "to do, critical path first:\ntodo: answer pin-wave (its journal waits on the lead: blocked on lead: reactor L3 CI red (reactor_lag on every job, run 45541868647); tests/detent_authority/CMakeLists.txt; consensus CMakeLists.txt hold; it asks: 0. reactor (L3): its repin moves only task 18eb516 -> 477a7d3, and CI run 45541868647 fails reactor_lag on every job (macOS arm64/x86_64, Linux gcc/clang/arm64, ASan/UBSan, TSan, FreeBSD) with the same five checks, all in the manual-clock sections ([F] on task::inline_scheduler and the busy manual\u2026; new): `campaign status pin-wave`, answer it (`campaign message pin-wave TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T20:59:31",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T20:59:31",
+      "by": "campaign",
+      "closed": "its quests started",
+      "id": "msg-403",
+      "items": {
+        "consensus-driver-pipelined-sim": "consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met: `campaign set consensus-driver-pipelined-sim status=active`)",
+        "consensus-fetch-alongside-loop-stall": "frees include/consensus/transport/**, docs/mechanisms/transport*.md for consensus-fetch-alongside-loop-stall"
+      },
+      "settles": {
+        "start": [
+          "consensus-driver-pipelined-sim",
+          "consensus-fetch-alongside-loop-stall"
+        ]
+      },
+      "text": "consensus-fetch-oversize-abort landed: unlocks consensus-driver-pipelined-sim (until consensus-fetch-oversize-abort met: `campaign set consensus-driver-pipelined-sim status=active`); frees include/consensus/transport/**, docs/mechanisms/transport*.md for consensus-fetch-alongside-loop-stall"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -7757,6 +7779,8 @@
       "after": [
         "xapiand:consensus-join-v2"
       ],
+      "base": "a3ccfe230a2b94d22af44fc7540fed3e8875d77d",
+      "branch": "quest/detent/consensus-fetch-alongside-loop-stall",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -7772,6 +7796,7 @@
         "test/transport/groups_test.cc",
         "docs/mechanisms/transport*.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-fetch-alongside-loop-stall",
       "landed": [],
       "lenses": [],
       "messages": [
@@ -7793,9 +7818,10 @@
       "provides": [],
       "repo": "/Users/kronuz/code/Kronuz/consensus",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "groups fetch-alongside: two of a node's loops stall 7 s with no journal I/O, after the placement fix",
-      "updated": "2026-11-24T08:13:27"
+      "updated": "2026-11-24T21:00:35",
+      "worktree": "../consensus-wt/detent/consensus-fetch-alongside-loop-stall"
     },
     "consensus-fetch-lane": {
       "accepted": {
