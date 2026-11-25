@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: ready for review; waiting on jobs 261125-004218-16986b 261125-004223-19cd2c 261125-004230-dc7d45 (native reruns at the round end)
+State: waiting on jobs 261125-020859-ce01c0 261125-020901-a34941 261125-020910-b9cc5d 261125-020947-6f5337 261125-020916-544c42 261125-020917-d1fa6d
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,8 +28,9 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Read the get row (261125-004223-19cd2c, after build 261125-004218-16986b, OLD = main) into
-   docs/perf/pin-wave.md and the Evidence table; native at the round end for A4.
+1. Read the get row 261125-020947-6f5337 (after build 261125-020910-b9cc5d, OLD = main dead7cab)
+   into docs/perf/pin-wave.md and the Evidence table; slow-flush pair ce01c0 (must fail) and
+   a34941 (must pass); native 261125-020916-544c42 and pins 261125-020917-d1fa6d at Detent:68398f85.
 
 ## Blocked on
 
@@ -45,7 +46,7 @@ None. F2's bench was widened and fixed (Detent:02159828): keys pad 38 bytes (def
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
 | A4 | native 261124-234933-d07efb at Detent:0b8a0df9 passed 220/220, asan and tsan green in CI 45571227792 (review); pins 261125-004230-dc7d45 at Detent:02159828 queued, native at the round end (261125-003938-bb7451 cancelled, superseded); asan, tsan: CI at the pushed head (run id below in State once listed). Earlier red (native 261124-212452-faeaad, CI 45553576282) was test_relay_chain's missing faultlab link, fixed at Detent:7553872a |
 | A5 | w5 261124-234929-bde848 at Detent:0b8a0df9, OLD = main bc86991a (code = quest base 18c5bd23): snapshot JSON, wire frames and paged images identical, every class 0 different (docs/perf/pin-wave.md "Input classes"); http replay skipped in both arms (no classic profile); syscalls 261124-234152-ea3a2e at Detent:75bb4ac1 (2b8b12 at d63517c0 done). Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get 261125-004223-19cd2c at Detent:02159828 queued (261124-234154-693af5 failed in both arms: F2), reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
+| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get 261125-020947-6f5337 at Detent:68398f85 queued after build 261125-020910-b9cc5d (261125-004223-19cd2c failed the A/A arm's round 4: ruling 25; 261124-234154-693af5 failed in both arms: F2); slow-flush fails-without 261125-020859-ce01c0 at Detent:6a0bdd97, fixed 261125-020901-a34941 at Detent:68398f85, reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
 | A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc; operator-visible results per library commit, Detent:a45ad238): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
 | A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
@@ -207,3 +208,21 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 18. A/B script (Detent:eb2ce062): first_read_phases linked detent::local_client, removed with
    detent::Client (Detent:1c878402) before both arms, so A6's build never generated; it links
    detent::local_view and detent::testing_store now (both targets build locally at the new pins).
+25. Get row 261125-004223-19cd2c died in the A/A (old) arm's round 4, 1 s after start (state dir
+   created 00:51:55, journal 112 bytes: only the raft init record, no open committed; no stderr
+   transaction line). Cause: the bench's setup budgets, not state or paths. The state dir is per
+   pid and fresh (its .history and format stamp new); rounds share nothing. The first /v2/open is
+   rejected NotLeader at once until election completes, and the bench gave it 100 tries 10 ms
+   apart (~1 s); every later command had a 10 s service timeout. Beside 8 light holds, flushes
+   (F_FULLFSYNC) slow election past 1 s; the old arm is the more exposed (no lone-voter campaign
+   at Start). Class: setup waits sized for a fast disk: the open budget and the per-command
+   timeout. Deterministic run: tools/w5/slow_flush_get.sh delays every fsync and F_FULLFSYNC
+   400 ms (DYLD_INSERT_LIBRARIES); locally the 02159828 bench exits 134 under it (a transaction
+   503 outcome_unknown, 280 s), and passes at 0 ms (74 s, loaded) and 200 ms (old 247 s, new 371 s).
+   Fix (Detent:68398f85, the check unchanged): open retries until a 60 s deadline and prints its
+   last reply; service timeout 60 s; neither is timed. Also removes the `<dir>.history` it leaked
+   every run (40 left by the review's 40-run job). Jobs: ce01c0 at Detent:6a0bdd97 (probe on the
+   unfixed bench, --fails-without), a34941 at Detent:68398f85.
+26. The get row runs 4 rounds, not 8: the failed row took ~110 s a round in strict beside light
+   holds (runs 22-55 s), so 8 rounds (~15 min) exceed the 10-minute strict cap and `--long`
+   proves no criterion; 4 rounds (~7.5 min) fit. A rerun at 8 needs a quieter host or a split.
