@@ -5410,6 +5410,21 @@
         "todo": "1bfce092"
       },
       "text": "to do, critical path first:\ntodo: finish pin-wave (nothing moved it for 63 min: ready for review; waiting on jobs 261125-004218-16986b 261125-004223-19cd2c 261125-004230-dc7d45 (native reruns at the round end); to land: criteria without evidence at 50b925131d0b: A1, A4-A6 (`campaign status pin-wave` lists them); new): `campaign status pin-wave`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T02:49:05",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T02:49:05",
+      "by": "campaign",
+      "closed": "all evidence jobs at 28a8d276 are done exit 0 (C2 strict find/warm, A2 cells); security R3 approved; correctness round 3 at max is still running and decides the landing",
+      "id": "msg-424",
+      "settles": {
+        "todo": "1d77eafd"
+      },
+      "text": "to do, critical path first:\ntodo: finish first-read-1ms (nothing moved it for 5 h: ready for review (fix round 2; jobs queued at `Detent:28a8d276`, the final code); to land: criteria without evidence at 0c2d13c419e8: A1-A3 (`campaign status first-read-1ms` lists them); new): `campaign status first-read-1ms`"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
