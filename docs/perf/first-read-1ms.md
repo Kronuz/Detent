@@ -37,9 +37,9 @@ Each was screened with the gate's `measure` against main (strict beside light ho
 | The trust walk opens directories for search on macOS (`Detent:5d879068`) | -243 us (71) | -214 us (121) |
 | With duplicate slots found by sorting (`Detent:e7dc35d6`) and one image read per attach (held) | -317 us (96) | -527 us (162) |
 
-Held for test updates outside this quest's files: the trust walk opens each component before
-any `fstatat` (screened -333 and -348 us with the first change), and attach takes the image bytes
-the selection read.
+The trust walk opens each component before any `fstatat` (screened -333 and -348 us with the
+first change, `Detent:dee58172`), and attach takes the image bytes the selection read
+(`Detent:9c8a44ee`).
 
 ## Warm lookups
 
@@ -128,6 +128,38 @@ owner or root able to write the mapped inode. An in-place write or truncation by
 model: on macOS a private mapping kept the bytes first mapped, and on Linux a truncation raises
 SIGBUS in the reader (security review N1).
 
+### Verified page index (correctness review C2; proposed, awaiting the design check)
+
+A lookup on a marked page decodes every entry of the page today (a `TableEntry` and a name copy each)
+and scans its padding: 4.8-12.5 us against main's 0.3-0.5 us `StoreTable::find` (job
+261124-160446-6df9d3), paid by every lookup of an unlisted namespace (`View::listed`) and once per
+attached namespace on each refresh. The fix keeps what the first touch verified with its mark.
+
+Structure. The marks' state gains one array, allocated with the marks at the table read and
+accounted to the same ledger: per page, its entry count and each entry's offset in the page, as
+`std::atomic<std::uint16_t>` (at most 29 entries a page: `table_page_bytes / table_entry_bytes(1)`),
+60 bytes a page, 2.1 KB for 1,000 namespaces. There is no second cache: the offsets live and die with
+the marks.
+
+| Event | Hashes | Offsets | Mark | A lookup answers |
+|---|---|---|---|---|
+| Attach (table read) | header, index | allocated zeroed, with the marks | all clear | after `find` |
+| First touch of a page | the page | written (relaxed) after every check of the page passes | set (release) after the offsets | from the offsets just written |
+| Lookup on a marked page | nothing | read after the mark (acquire) | unchanged | binary search of the offsets comparing names in place; only the match is decoded |
+| A corrupt page | the page, on each reach | not written | stays clear | `TableRefused` |
+| Two first touches together | both | both write the same values | the first CAS sets it | each from its own walk |
+| Without an account (no marks) | the page, on each reach | a local array per reach | none | from the local array |
+| Publish | the new table's header and index | a new array | all clear | through the new table |
+| Close | nothing | freed with the marks, returned to the ledger | freed | none |
+
+What a marked page no longer re-checks. Today a marked page re-runs the entry bounds, order, slot,
+last-name and padding checks on every reach. With the index those run once, at the first touch, like
+the hash: the marks already rely on the mapped table never changing (above). `decode()` keeps
+walking every page with every check.
+
+Measure. `reader_bench` warm lookups and a verified-page `find` micro against main's
+`StoreTable::find`, both stated; target within 2x of main.
+
 In the reader core, a lookup's first attach that fails, on a damaged page as for any other reason,
 is remembered for the store word (D4): namespaces already attached keep answering, and a new one
 reports that failure until the word moves. The table's bytes, its
@@ -168,6 +200,6 @@ grant is gone.
 
 ## What is left
 
-The 1,000-namespace cells hash the whole `selected` table on every first read: 60% of the cell on
-this host, more than 1 ms by itself. The table's format fixes that digest, so the remedy is a
-format or library decision (quest journal, Blocked on).
+The A2 gate fails a cell whose pooled branch p99 is 1 ms or more, and reports the comparison with
+main on a second line. The running 1,000-namespace cell reports the branch alone: main's test
+writer cannot publish that store.
