@@ -7201,7 +7201,32 @@
       "worktree": "../consensus-wt/detent/consensus-driver-pipelined-sim"
     },
     "consensus-driver-pressure-rearm": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T19:30:20",
+          "base": "fcf7f66ef0643d139a1655adf3b3db7cebf0eae8",
+          "blobs": {
+            "CMakeLists.txt": "100644:3288088588c1f7b80be34f62f9bfb9885b17f087",
+            "docs/mechanisms/deadlines.md": "100644:13b2fbd744ae5731bc2e56236d77ed5af903961f",
+            "include/consensus/driver.h": "100644:0736cb7f17ef5cfda71b10cc155fc80cdba3d71e",
+            "test/driver_pressure_test.cc": "100644:eb8e2aa024168203baec0a52c6a17db1cd42183e"
+          },
+          "by": "review",
+          "commit": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "criteria": "efd88d9e85ab0c2b",
+          "diffs": {
+            "CMakeLists.txt": "1cf2ad44d9e1f7d2",
+            "docs/mechanisms/deadlines.md": "fb1f8572a9be42e1",
+            "include/consensus/driver.h": "77fcbe3e6ff729e9",
+            "test/driver_pressure_test.cc": "cebbd9ff7176231b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "cb49c7f686bc57ef65f664a8133a186bcbe02d15",
+          "reviewed": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-next-deadline-removal"
       ],
@@ -7224,7 +7249,9 @@
       ],
       "journal": "../Detent-wt/detent/consensus-driver-pressure-rearm",
       "landed": [],
-      "lenses": [],
+      "lenses": [
+        "correctness"
+      ],
       "milestone": "",
       "needs": [],
       "provides": [],
@@ -7233,7 +7260,7 @@
       "risk": "normal",
       "status": "review",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T17:31:27",
+      "updated": "2026-11-24T19:30:20",
       "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
     },
     "consensus-drop-memory-io-include": {
