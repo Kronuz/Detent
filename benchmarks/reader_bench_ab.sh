@@ -30,10 +30,10 @@ build() {
 			cp "$out/base-CMakeLists.txt" "$src/benchmarks/CMakeLists.txt"
 			rm "$src/benchmarks/table_find_bench.cc"
 		fi
-		cp "$src/.scratch/reader-bench-build/benchmarks/table_find_bench" "$out/$code/"
 		rm -rf "${out:?}/$code"
 		mkdir -p "$out/$code"
-		cp "$src/.scratch/reader-bench-build/benchmarks/reader_bench" "$out/$code/"
+		cp "$src/.scratch/reader-bench-build/benchmarks/reader_bench" \
+			"$src/.scratch/reader-bench-build/benchmarks/table_find_bench" "$out/$code/"
 		git -C "$src" rev-parse HEAD > "$out/$code/commit.txt"
 		"$out/$code/reader_bench" --store "$out/$code/store" --generate 50000
 	done
