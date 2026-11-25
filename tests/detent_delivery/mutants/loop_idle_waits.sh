@@ -53,16 +53,16 @@ absence-merged)
 		'(void)late; return next - std::max(pass, std::min(planned, next));'
 	target=test_owner_absence ;;
 start-stop-sleep)
-	mutate src/detent_authority/service.cc 'auto in_flight = [&] { return active || history_active || peers; };' \
+	mutate src/detent_authority/service_runtime.cc 'auto in_flight = [&] { return active || history_active || peers; };' \
 		'auto in_flight = [&] { return true; };'
-	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' 'if (true)'
+	mutate src/detent_authority/service_runtime.cc 'if (active || history_active || (peers && !retiring))' 'if (true)'
 	target=test_authority_restart_wake ;;
 stop-sleep)
-	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' \
+	mutate src/detent_authority/service_runtime.cc 'if (active || history_active || (peers && !retiring))' \
 		'if (!retiring || active || history_active)'
 	target=test_authority_restart_wake ;;
 stop-peers-sleep)
-	mutate src/detent_authority/service.cc 'if (active || history_active || (peers && !retiring))' \
+	mutate src/detent_authority/service_runtime.cc 'if (active || history_active || (peers && !retiring))' \
 		'if (active || history_active || peers)'
 	bench/idle-wakeups/compare.sh build "${JOB_REF_MAIN:?the baseline checkout}" || exit 126
 	exec bench/idle-wakeups/compare.sh stop "$JOB_REF_MAIN" ;;

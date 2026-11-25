@@ -161,7 +161,7 @@ def errors() -> tuple[set[str], set[str]]:
     source = set(re.findall(r"\bDETENT_([A-Z_]+) = \d+", reader))
     for text in sources.values():
         source.update(re.findall(r'\\"error\\":\\"(\w+)\\"', text))
-    service = (SRC / "detent_authority" / "service.cc").read_text()
+    service = (SRC / "detent_authority" / "service_runtime.cc").read_text()
     names = re.search(
         r"constexpr const char \*names\[\] = \{(.*?)\};", service, re.DOTALL
     )
