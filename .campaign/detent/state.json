@@ -36556,18 +36556,52 @@
         "docs/perf/warm-relay-agent-boot.md",
         "docs/measurements/warm-relay-agent-boot/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-25T06:18:21",
+          "ci": {
+            "commit": "f5cbde96c71550ed41266e6fd49cacbdcea4a455",
+            "runs": [
+              45629015045,
+              45629015880
+            ]
+          },
+          "commit": "59e6a9b100b47582d5adfc37dde83d076c6253ef",
+          "criteria": {
+            "A1": "manual (who: the lead, 2026-11-25; checked: the 14 jobs ...202039-aa80ba, ...202039-9c9088, ...202042-42c0f3, ...202041-4379bb, ...202044-26b532, ...202043-4374a0, ...202040-e47e90, ...202041-d8961e, ...202043-39475a, ...202042-2dd756, ...202045-e28f51, ...202046-1fe8d9, ...202045-76410f, ...202046-64d8d4 each done, exit 0, exclusive, at e5fdf9ca, 0 \"ran beside\")",
+            "A2": "docs/perf/warm-relay-agent-boot.md"
+          },
+          "evidence": [
+            {
+              "cmd": "true",
+              "commit": "6054308393e1971448f01d5ba8c6d0924da4ad09",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261125-055754-1ed9d8",
+              "level": "light",
+              "seconds": 0.5,
+              "state": "done",
+              "what": "warm-relay-agent-boot check suite at 6054308393e1"
+            }
+          ],
+          "final": true,
+          "from": "b4f2274593b0448c9b9a3577dcc047950465410a",
+          "reason": "",
+          "tested": "ca8e6a64989de88bd5c8adf3dd49acf41abbf3e2"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "reason": "drain-yields installed (agent-campaign:5ab2eef): its exclusive A1 rerun is cheap enough now",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "agent cold bootstrap against a warm relay at 100K, 1M and 5M",
-      "updated": "2026-11-24T14:17:05",
-      "worktree": "../Detent-wt/detent/warm-relay-agent-boot"
+      "updated": "2026-11-25T06:20:39",
+      "worktree": ""
     },
     "wheel-evidence": {
       "accepted": {},
