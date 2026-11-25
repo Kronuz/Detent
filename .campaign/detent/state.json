@@ -32193,7 +32193,22 @@
         "include/detent_delivery/client.hh",
         "tests/detent_delivery/test_client*.cc",
         "src/detent_authority/namespace_sessions.hh",
-        "src/detent_authority/namespace_sessions.cc"
+        "src/detent_authority/namespace_sessions.cc",
+        "include/detent_distribution_http/session_request.hh",
+        "src/detent_distribution_http/session_request.cc",
+        "include/detent_delivery/namespace_session.hh",
+        "src/detent_delivery/namespace_session.cc",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_authority/service.hh",
+        "src/detent_relay/service.cc",
+        "tests/detent_delivery/test_namespace_session.cc",
+        "tests/detent_delivery/test_session_request.cc",
+        "tests/detent_delivery/namespace_server_fixture.hh",
+        "tests/detent_authority/test_frames_service.cc",
+        "tests/detent_authority/test_distribution_ownership.cc",
+        "tests/detent_system/run_trust_negatives.py",
+        "docs/status/namespace-s6.md",
+        "docs/SUBSCRIPTIONS_ARCHITECTURE.md"
       ],
       "landed": [],
       "lenses": [
@@ -32202,12 +32217,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
-      "reason": "D163: the owner chose the wire seal stamp",
+      "reason": "D163: the seal field on next reaches every file that parses, builds, copies or writes a next body, and the W5 spec",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "detent-relay's mirror waits for upstream change instead of polling",
-      "updated": "2026-11-25T03:11:50",
+      "updated": "2026-11-25T03:17:10",
       "worktree": "../Detent-wt/detent/relay-mirror-idle-wake"
     },
     "relay-service-refused-sync-flake": {
