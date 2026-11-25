@@ -9795,7 +9795,34 @@
       "worktree": ""
     },
     "consensus-recovered-over-limit-start": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-24T21:20:38",
+          "base": "c724c589b6cdf2a931dd3e512c6acb612ce20cae",
+          "blobs": {
+            "CMakeLists.txt": "100644:3298f2c721a0cf97beb127f64a20898ef474fafb",
+            "docs/mechanisms/deadlines.md": "100644:ee282ff1b1dcc43686af5cc077cb1d506119a421",
+            "include/consensus/driver.h": "100644:7cea55f7ea6e9f21a04e15bb797b0d934d9af708",
+            "include/consensus/worker.h": "100644:2c9b438e02260158138e6398bde0e6c9e0a2e0c7",
+            "test/recovered_over_limit_test.cc": "100644:6af9542fa7b9ee554a3747103fd510a2d1e4bda7"
+          },
+          "by": "review",
+          "commit": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+          "criteria": "4cdc7cf529161c03",
+          "diffs": {
+            "CMakeLists.txt": "94e258c48aabf540",
+            "docs/mechanisms/deadlines.md": "64c7cb60d24939d7",
+            "include/consensus/driver.h": "5f390a18c663d987",
+            "include/consensus/worker.h": "ab4a8ee33fc26b3b",
+            "test/recovered_over_limit_test.cc": "c48629814c5bc81b"
+          },
+          "findings": {},
+          "note": "",
+          "review": "fb99d7a4e8c926b816aa2cd7a4c38c7c6f9c6262",
+          "reviewed": "53c8146d3b48a442ed45dedaa2e73757e9a2823e",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "consensus-driver-pressure-rearm"
       ],
@@ -9829,7 +9856,7 @@
       "risk": "high",
       "status": "review",
       "title": "A group recovered with its store above hard minus the control pool starts, or fails loudly, instead of polling forever",
-      "updated": "2026-11-24T20:15:23",
+      "updated": "2026-11-24T21:20:38",
       "worktree": "../consensus-wt/detent/consensus-recovered-over-limit-start"
     },
     "consensus-replica-delete": {
