@@ -7102,11 +7102,12 @@
       "milestone": "",
       "needs": [],
       "provides": [],
+      "reason": "ready at consensus:e61ac8f",
       "repo": "../consensus",
       "risk": "normal",
-      "status": "active",
+      "status": "review",
       "title": "consensus Driver: a Tick refused with Pressure re-arms with a back-off, not at Core's past clock",
-      "updated": "2026-11-24T16:59:15",
+      "updated": "2026-11-24T17:31:27",
       "worktree": "../consensus-wt/detent/consensus-driver-pressure-rearm"
     },
     "consensus-drop-memory-io-include": {
