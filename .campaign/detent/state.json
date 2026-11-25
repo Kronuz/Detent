@@ -5054,6 +5054,21 @@
         "todo": "64ce45e4"
       },
       "text": "to do, critical path first:\ntodo: answer first-read-1ms (its journal waits on the lead: blocked on lead: design check of the lifecycle table (C2, docs/perf/first-read-1ms.md \"Verified page index\") and widening run_relay_pages.py, dense_reader_measure.py (msg-398); C1, C3, C4 committed at `Detent:08cca469`; waiting on jobs 261124-182421-35bcef 261124-182431-301852 261124-182433-9d39d1 261124-182435-760c57; it asks: 1. Lead: design check of the C2 lifecycle table (docs/perf/first-read-1ms.md \"Verified page index\"). Recommendation: accept; the offsets are written before the release mark and read after its acquire. 2. Lead (msg-398): widen tests/detent_system/run_relay_pages.py and dense_reader_measure.py (patch\u2026; new): `campaign status first-read-1ms`, answer it (`campaign message first-read-1ms TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T19:40:35",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T19:40:35",
+      "by": "campaign",
+      "closed": "probe failed on http's Limits API change; set widened; fresh contributor migrating and continuing the cascade (level 2 green)",
+      "id": "msg-400",
+      "settles": {
+        "todo": "8c751db1"
+      },
+      "text": "to do, critical path first:\ntodo: resume pin-wave (its journal waits on jobs 261124-182953-399223, which ended (failed) 14 min ago; new): `campaign status pin-wave`, read them, or park it with a reason"
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
