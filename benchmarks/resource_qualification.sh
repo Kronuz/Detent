@@ -51,7 +51,7 @@ PY
 		cat > "$out/$code/targets.cmake" <<EOF
 add_executable(first_read_phases "$branch/tests/detent_system/first_read_phases.cc")
 target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(first_read_phases PRIVATE detent::local_client detent::testing_store)
+target_link_libraries(first_read_phases PRIVATE detent::local_view detent::testing_store)
 add_executable(first_read_core "$branch/tests/detent_system/first_read_phases.cc")
 target_compile_definitions(first_read_core PRIVATE FIRST_READ_CORE=1)
 target_link_libraries(first_read_core PRIVATE detent::reader)
