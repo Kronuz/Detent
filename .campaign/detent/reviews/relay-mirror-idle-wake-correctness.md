@@ -226,3 +226,176 @@ by construction:
   - Measurements: A1 2bfd93; A2 14371c and 702b6d.
   - Suite: 5f884c.
 - No agent end-to-end run at a cut-off follower. The mapping and rotation are read from the code.
+
+## Round 4
+
+Commit: Detent:13707337 (Detent:b76ae636 plus a main merge; the branch head Detent:f1ec872d adds only the journal)
+Verdict: CHANGES
+Date: 2026-11-25
+
+I reviewed the whole relay-mirror wait mechanism again from a fresh read of 13707337, not from the
+diff. That covers:
+- the parked next and its half-timeout bound;
+- how the relay reads each answer (`HttpUpstream::next` and `wait`);
+- pacing, the idle re-wait and the deadline sync (`MirrorService::run` and `watch_loop`);
+- a voter's 503 `not_ready` and the agent client's mapping of it;
+- the seal stamp at the authority (`service_runtime.cc`, `namespace_sessions.cc`) and at a relay
+  (`mirror_service.cc`).
+
+I ran as a subagent of the lead, not as a session titled `detent · reviewer relay-mirror-idle-wake
+correctness`.
+
+### Evidence I relied on
+
+- 261124-233712-62aab8: test_http_upstream at 13707337 passed. It covers:
+  - the three hook steps: a seal before B's watch session opened (66 ms), while B's next was
+    parked (218 ms), and between B's sync and its next (99 ms);
+  - 0 syncs in 1.5 s at rest, and the deadline sync at 4132 ms;
+  - `failed wait`: 1 skip, 2 syncs;
+  - `paced`: 3 waits and 0 syncs in 3 s.
+- CI 45569989196 (Docs) passed at Detent:410fb793, which adds only the journal to 13707337. CI
+  45569989739 was still in progress.
+
+### What I checked myself
+
+Scripts and logs are in `.scratch/detent/review-relay-mirror-idle-wake-correctness/r4/`. The queue
+held 60 jobs behind an exclusive measurement, so I ran the probes under `quiet light` on the
+worktree's builds. `ninja -n` reported both current at f1ec872d: Release in `.scratch/build`, and
+TSan in `.scratch/build-tsan` with CI's flags. The same probes are queued as jobs for the record.
+
+1. **The stamp table.** Every row holds at both upstreams, apart from one doc nit (R4-3).
+   - An open stamps the record it creates (service_runtime.cc:1586, mirror_service.cc:193).
+   - Every next that reaches an answer passes `restamp` first: service_runtime.cc:1617, before the
+     export and before the 204 at :1635; mirror_service.cc:217 and :337.
+   - Every `restamp` that returns true ends in an answer in the same visit: a 200 export, a 204, or
+     an error that the relay takes as a failure and syncs on.
+   - The answers that skip `restamp` are all errors: 503 `not_ready`, `source_behind`, 409, 410
+     and `outcome_unknown`. Each one makes the relay sync.
+   - The stamp is a field of the session record, so it can neither outlive the record nor exist
+     before it.
+2. **The reader's open costs one sync, with no loop.**
+   - The open reports a change in three cases: at start, after a 410 (http_upstream.cc:269-270,
+     :286), and when the watch moves to the reading source (`wait`, :404-407). The sync follows,
+     and the next wait parks on the open's stamp.
+   - Only a refusal moves the reading source (`refuse`, :93-100): a failed exchange, `rotate` or
+     `skip`. The watch therefore moves once per refusal.
+   - Pacing (mirror_service.cc:393) and `next_sync` hold both waits and syncs to one per interval
+     in every case.
+   - 62aab8 shows this: `failed wait` makes 2 syncs, and the relay makes 0 syncs at rest.
+3. **The hunt.** It found one miss, R4-1, which I made deterministic and also reproduced with real
+   processes. The other races hold:
+   - A seal applied in the owner turn before or after a next's first visit is answered in that
+     turn or the next (`seal_at` at :1557; the applied-index rescan at :2099-2102).
+   - Two relays hold separate sessions and stamps. two_relays_races.py: 0 of 15 rounds missed 3 s.
+   - A seal between a relay's sync and its next, CI's case: seal_race.py, 0 of 60 trials missed
+     4 s.
+   - A watch session cannot expire while watched, because every next uses it. A 410 reopens it
+     (item 2).
+   - On leader loss, 503 `not_ready` makes the relay skip and sync. hung_follower.py: 1.20 s
+     against a 10 s limit.
+4. **The 13 stamp mutants.** Each is a one-line replacement, and the code says each fails its own
+   step:
+   - The `open`, `older`, `answered`, `parked` and `ended` steps fail on the timing or the status
+     they check.
+   - `busy` gets [204, 204] instead of [204, 409].
+   - `looked` starts at UINT64_MAX (service.hh:141), so stamp-older-a and stamp-parked-a separate
+     new nexts from parked ones as their names say.
+   - stamp-open-u fails the hook step "before B's watch session opened".
+
+   None of these jobs had run, so the step where each one fails is still to read (R4-2).
+5. **TSan.** No report in either run:
+   - seal_late_park, 2 rounds (r4/logs/seal_late_park-tsan-local.log);
+   - test_http_upstream, 3 of 3 passed (r4/logs/test_http_upstream-tsan-local.log).
+
+### R4-1: a seal's late 204 is read as idle
+
+`HttpUpstream::next` starts its clock before it connects. It reads a 204 that comes back within the
+park as a change (http_upstream.cc:276-278). The upstream starts the same park later:
+- the authority at HTTP receipt (service.cc:571), after the connect, TLS and the request;
+- a relay when its mirror thread takes the next (mirror_service.cc:226), after any sync ahead of
+  it.
+
+When a seal applies, the upstream restamps the session and answers 204 at once
+(service_runtime.cc:1617 and :1635; mirror_service.cc:337 and :351). If that 204 reaches the relay
+after the park, counted from its send, the relay reads it as idle and waits again at the same heads
+(mirror_service.cc:457). The stamp is already current, so the next wait parks too. The relay serves
+the seal only at `maximum_wait_ms` after its last good sync (:485, 30 s by default), or at the next
+change of a name it mirrors.
+
+The window is the connect, TLS and request time, plus the upstream's queue, plus the way back. It
+recurs every park, and in a chain of relays every hop has its own.
+
+relay-mirror-wait.md:62-64 says that the two 204s "cannot be confused". That holds in one
+direction only: a deadline's 204 is never early, but a seal's 204 can be late.
+
+The timing test arrived at Detent:29c32169. Main polls, so the defect is the quest's. The suite's
+seal steps cannot catch it: each of their seals follows a write by `seal_after`, so it lands during
+the relay's sync or while its next is in flight, never late in a park.
+
+Evidence:
+- **Deterministic** (r4/seal_late_park.cc). B waits on relay A with a 1 s park, and B's hook holds
+  A's mirror thread for 800 ms inside a sync.
+  - A adopted the seal at +1.36 to +1.52 s, after B's park and before A's deadline of +1.80 s.
+  - B read A's 204 at +1.39 to +1.54 s as idle, and served the seal at its own 10 s deadline:
+    8.33 s and 8.41 s after the seal in Release, 8.37 s and 8.40 s in TSan.
+  - The control (the same seal with A not held) took 95 and 244 ms in Release, 223 and 331 ms in
+    TSan.
+- **Real processes** (r4/seal_window.py, mode `other`): an authority and a relay. The relay mirrors
+  "a" and each trial writes "b", so seals land at any phase of the relay's parks.
+  - Loopback, `timeout_ms` 200: 2 of 40 seals missed 1.5 s. The first was served 28.8 s after the
+    seal.
+  - With 600 ms of connection setup through a proxy, `timeout_ms` 2000: 10 of 16 missed 3.3 s. The
+    first was served 30.2 s after the seal.
+  - Writing "a" instead: 0 of 32 and 0 of 16 missed. The seal follows the write by `seal_after`
+    (the same phase lock), so it stays out of the window.
+- **At the defaults** (5 s parks), estimated from the measured window rather than run: loopback's
+  window of about 5 ms makes about 0.1% of seals late, and a 100 ms round trip about 6%. Each is up
+  to 30 s late.
+
+Fix options (the protocol choice is the lead's):
+1. Recommended: put the seal on the wire. Every next answer and the open carry the session's stamp
+   in a header, and the relay syncs when that stamp is newer than the seal its last sync read.
+   This removes the timing test and the open's early return, and agents can ignore seals.
+   Greenfield, so no compatibility cost.
+2. No wire change: restamp only on answers given when a next arrives. A seal that answers a parked
+   next then leaves the stamp older, and the following next answers 204 at once, from its arrival.
+   This costs one more sync per seal per relay and one more request per seal per agent session. It
+   still misses once setup plus queue reaches the park.
+3. Keep the behavior and document a seal delay of up to `maximum_wait_ms`. This is the owner's
+   call.
+
+Test: seal_late_park's late case, as a hook step in test_http_upstream, must reach B within 1.5 s.
+It fails without the fix at 13707337 (8.3 to 8.4 s). I will rerun seal_window.py `other` at
+600 ms on the fix.
+
+### Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| R4-1 | yes | defect | A seal's 204 that reaches the relay later than its park, counted from the send, is read as idle. The upstream has already spent the stamp on it, so the relay serves that seal only at `maximum_wait_ms` (30 s) or at the next change. Details above. | seal_late_park (Release 8.33/8.41 s, TSan 8.37/8.40 s, control under 0.35 s); seal_window `other` (2/40 on loopback, 10/16 at 600 ms setup); http_upstream.cc:276-278, service.cc:571, mirror_service.cc:226 and :457 | Option 1 above (recommended) or 2, or keep it (the owner's call); plus a test step that fails without the fix |
+| R4-2 | no | gap | None of the 13 stamp fails-without jobs or the contributor's other round-3 jobs had run. The step where each fails is still to read. | The queue at review time | Read each log for the step named in item 4 |
+| R4-3 | no | nit | The stamp table's row "a next parked", column "Close or expiry", is not true of a relay: it erases the record at close (mirror_service.cc:200), and its parked next answers 410 on that turn (:333-335). Only the authority keeps the record until the next ends. | Code | Say so in the row |
+
+Notes (non-blocking):
+- An agent's parked next answers once per seal, and the agent asks again at once (coordinator.cc:1057-1067). Under steady writes to any name, an idle agent makes one request per seal, where main made one per wait. The doc states this; option 1 could confine seal answers to watch sessions.
+- A watch that moves to another source leaves its old session there until idle expiry (60 s at a relay), one per move.
+- A watch refused at its open (403, `admission_full`) moves the reading source once per interval. That is polling's rate, not a loop.
+
+### Not run
+
+- None of the contributor's jobs had run. Queued:
+  - test_relay_seal_stamp 86bdee and its 12 fails-without;
+  - test_http_upstream's 5 fails-without: f5e430, 7bae55, c02fa6, a95aa5 and b457de;
+  - test_client_reset 9a08ad and de1dba;
+  - test_relay_idle d27d26, 8c0429 and 4d800e;
+  - test_relay_hung c578fd and 9e80bf;
+  - test_relay_cut-off 6acdab and 0d0617;
+  - A2 494ac5 and d29ae2;
+  - suite 0cb2a9.
+
+  A1 fc8eca was running, and CI 45569989739 was in progress.
+- My jobs were queued too: 261125-000324-c1acff, 261125-000329-ded940, 261125-000334-fb7bf1 and
+  261125-002106-d9444f. Their probes ran locally, as above.
+- I built no TSan servers, so the process-level probes ran on Release only.
+- I have no deterministic case at an authority upstream. Its window comes from connection setup,
+  which the proxy run measures without a hook.
