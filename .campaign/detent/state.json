@@ -5455,6 +5455,18 @@
         "todo": "c3e58f6f"
       },
       "text": "to do, critical path first:\ntodo: answer relay-mirror-idle-wake (its journal waits on the lead: blocked on lead: D163's file set (the next request's field lives outside it) and the agents' stamp; it asks: Lead: D163 puts a field on the next request; everything that parses, builds, copies or hand-writes that body is outside the set. Needed: - include/detent_distribution_http/session_request.hh, src/detent_distribution_http/session_request.cc (parse the required `seal` on next). - include/detent_deliv\u2026; new): `campaign status relay-mirror-idle-wake`, answer it (`campaign message relay-mirror-idle-wake TEXT`), or park it with a reason"
+    },
+    {
+      "announced": {
+        "at": "2026-11-25T03:31:46",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-25T03:31:46",
+      "by": "xapiand-lead",
+      "closed": "answered xapiand: order after inline-sync-loop (shares docs/DRIVER.md only); Detent calls Worker::recover, not Driver::recover",
+      "id": "msg-427",
+      "text": "From xapiand-lead: quest consensus-recover-gate (xapiand) changes consensus::Driver::recover: a new parameter std::vector<LogBoundary> accept; once the log is recovered (and closed applied) and before Start, a group whose log retains none of them (Core::retains_suffix) fences with recover_refused : fenced { LogBoundary base; Index last; Membership membership; } and nothing that changes consensus state runs. Empty accept = no gate. Full shape: strata docs/design/journal-binding.md, Contracts, on quest/xapiand/strata-journal-behind. Files: driver.h, worker.h, core.h, test/driver_*, test/worker_*, docs/DRIVER.md. Your consensus-inline-sync-loop is open on the driver: say whether to order this after it, or if the shape conflicts with Detent's callers."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
