@@ -9,33 +9,77 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1 table written (below); implementing the rule in worker.h / driver.h.
 
 ## Next
 
-1. <step>
+1. Worker: a turn refused with Pressure before Start reclaims instead, until a whole pass ran.
+2. Driver: a Pressure turn before Start after that fences the group (`over_headroom`), failing the open.
+3. test/recovered_over_limit_test.cc (cases `reclaims`, `refuses`), CMake, deadlines.md.
+
+## Table (A1): how recovery leaves a store above its control headroom
+
+Journal Admission (journal:9e11713 admission.h) refills the control pool first, then the replacement
+pool, from `free = hard - used - outstanding - pools`. A recovered store's census sets `used`; with
+`used > hard - control_pool`, control gets `hard - used` (short of the pool) and replacement gets
+nothing. The Driver's pre-Start Tick reserves the campaign pack (3 Control appends) and is refused
+when the short pool cannot fund it. Before Start the Driver admits nothing, so `foreground_` stays
+0, maintenance (reclaim) never falls due, and the pool never changes: a refusal is permanent.
+`used` counts the group's files: the owned store's whole directory; a shared (Host) group's
+artifacts only (its batches go to the turn log, reserved but never charged).
+
+| Way recovery lands above `hard - control_pool` | Mode | What frees it | Needs a started group? |
+|---|---|---|---|
+| Lowered `hard` or raised `control_pool` between runs (GroupOptions are per open) | both | only what reclaim finds; live data needs compaction | reclaim no; compaction yes, and it cannot be funded (below) |
+| Control appends drained the pool at the limit before the crash (a Control append settles its bytes into `used`; refill finds `free` 0) | owned only (shared appends charge nothing) | compaction: a checkpoint, then reclaim of the old generation | yes, and unfundable: a checkpoint needs a Replacement permit, and replacement refills only after a whole control pool |
+| Crash after a checkpoint's publication, before reclaim of the superseded generation and artifacts | both (shared: only with a lowered limit, since the publication's peak was funded under a whole control pool) | reclaim | no |
+| Kill or crash mid-checkpoint or mid-install: staged artifacts and pending manifests (funded by an outstanding Replacement permit, counted as `used` by the census) | both | reclaim (v2 artifact ownership header, written at create, is enough to match) | no |
+| Replay growth | both | n/a: replay only reads; the census runs after recovery; a torn tail's truncation only shrinks; the one write recovery queues is the bootstrap's initialization record, a Control append before Start (same rule) | n/a |
+
+| What frees space | Needs a started group? | Today, before Start |
+|---|---|---|
+| Reclaim (`Store::reclaim_step` / `begin_reclaim`): removes every file unreachable from the frontier's roots, credits `used`, refills | no: Store only | never runs (maintenance is due after `foreground_burst` admitted events; none before Start) |
+| Compaction (checkpoint publication, then reclaim) | yes (the Driver admits checkpoint calls once started) and a Replacement permit | unfundable while the control pool is short |
+| Snapshot install from a leader | yes, and a Replacement permit | the same |
+| Retirement (Core's `retire_log`) | frees Core's charged log, not storage | n/a |
+| Close / host retirement | frees nothing in place | n/a |
+
+Rule: recovery frees what it can, then fails loudly. Before Start, a Worker turn refused with Pressure
+runs a reclaim step instead, until one whole reclaim pass has completed (roots cannot change before
+Start, so any completed pass examined every file). A Pressure turn after that is final: the Driver
+fences the group with `over_headroom`, so the open fails with `fenced` naming it. A started group could
+not do better: with the control pool short, replacement is empty (no checkpoint, no install), Normal
+is refused (`normal_ready` needs whole pools), and Control appends only add.
+Every store that opens today still opens: one whose pre-Start turn is funded never reaches the rule.
+The ones it changes never started today (the open hung): rows 3-4 now start, rows 1-2 fail by name.
+At the Worker level nothing new refuses: a Worker host's pre-Start turn reclaims instead of Pressure.
+
+Adjacent, for the lead (journal's refill order, outside this file set): recovery refills control
+before replacement, so a store recovered with `hard - control_pool - replacement_pool < used <=
+hard - control_pool` starts with a whole control pool and a short replacement pool: it cannot fund
+a checkpoint until reclaim credits space, though before the crash its replacement pool was whole.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), name every job you examined, failures included (`campaign brief` lists failed
-jobs no journal names), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | this journal's table |
+| A2 | pending |
+| A3 | pending |
+| A4 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Recovery reclaims, then fails by name, rather than planning the pre-Start Tick as nothing: a group
+   started with a short pool cannot campaign, take commands, compact or install, so starting it
+   only moves the stall past the open.
+2. The fence decision is the Driver's (its open hung forever at main); the Worker only reclaims, so
+   no Worker host that starts a group today is refused.
