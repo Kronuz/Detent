@@ -1,10 +1,11 @@
 """Change-to-relay latency: from an authority publish to the relay answering it (relay-mirror-idle-wake A2).
 
 A single-voter authority and a relay mirroring it (pair.Pair, the relay at --interval-ms). Each
-sample parks a W5 next at the relay at namespace "a"'s head, waits a random 0 .. --spread-ms so the
-publish lands at any phase of the relay's own waits, writes one transaction, and times its
-acknowledgement to the parked next's answer. The heads come from the probe (relay_probe --heads),
-which runs outside the timed span. Prints one JSON line: p50, p90, p99 and max in ms.
+sample parks a W5 next at the relay at namespace "a"'s head (again after a 204, as a W5 reader
+does), waits a random 0 .. --spread-ms so the publish lands at any phase of the relay's own waits,
+writes one transaction, and times its acknowledgement to the next's 200. The heads come from the
+probe (relay_probe --heads), which runs outside the timed span. Prints one JSON line: p50, p90,
+p99 and max in ms.
 
     relay_latency.py --build BUILD --probe RELAY_PROBE --label NAME [--samples 40] [--interval-ms 250]
 """
@@ -62,18 +63,22 @@ def sample(pair: Pair, probe: Path, spread_ms: int) -> float:
     answered: list[tuple[int, float]] = []
 
     def park() -> None:
-        status, _ = pair.call(
-            pair.relay_port,
-            "/v2/distribution/session/next",
-            {
-                "version": 2,
-                "session": session,
-                "cluster": CONTEXT["cluster"],
-                "namespaces": names,
-                "wait_ms": 9000,
-            },
-            READER,
-        )
+        # A 204 (a seal, or the deadline) parks again at the same heads, as a W5 reader does.
+        for _ in range(8):
+            status, _ = pair.call(
+                pair.relay_port,
+                "/v2/distribution/session/next",
+                {
+                    "version": 2,
+                    "session": session,
+                    "cluster": CONTEXT["cluster"],
+                    "namespaces": names,
+                    "wait_ms": 9000,
+                },
+                READER,
+            )
+            if status != 204:
+                break
         answered.append((status, time.monotonic()))
 
     waiter = threading.Thread(target=park)

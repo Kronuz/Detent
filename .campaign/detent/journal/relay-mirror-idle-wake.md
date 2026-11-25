@@ -9,6 +9,38 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
+### CI round (run 45542785995 at 6f58aa77, code 75021884)
+
+1. test_http_upstream:761 (linux-tsan, linux-asan-ubsan): the seal is missed, not slow, and pacing
+   plays no part. Timeline (CI log): change reached B in 210 ms (tsan) and 57 ms (asan); the
+   deadline sync came after 4113/4108 ms; the seal reached B after 4115/4106 ms, which is B's next
+   4 s deadline, not a slowed early 204. The step reseals A right after B's deadline sync. B's next
+   reached A only after A (polling its fake voter every 10 ms) had adopted the seal. An upstream
+   answers early 204 only to nexts parked when it applies the seal, so B's next parked at unchanged
+   heads until the deadline. This is review R2-4 (accepted as a gap); a sanitizer's slower round
+   trip widens the window until the test always lands in it. Pacing: interval 10 ms, and the
+   previous ask was about 1 s earlier (one 1 s park), so the gate waits 0 ms. Scaling the bound
+   would hide a real miss, so it is not done. The fix (a per-session seal stamp) changes the wait
+   mechanism and needs src/detent_authority/namespace_sessions.{hh,cc}, which are outside the set:
+   see Blocked on. Lifecycle table: docs/mechanisms/relay-mirror-seal-stamp.md.
+2. test_authority_readiness_pressure (tsan): the timeout is `child.wait(timeout=5)` right after
+   `child.kill()` (test_multivoter.py:486-487). The process had been SIGKILLed, so no Detent code
+   ran during the 5 s; what took the time was the kernel tearing the process down (TSan's shadow
+   mappings, plus io_uring cancellation: the health shows io_native). main's TSan passed it in runs
+   45482941635, 45451330785 and 45352234452, and no other branch run since then (45553576282,
+   45533937366, 45513889725, 45470398185, 45462131792) failed it, so I can't show it as
+   pre-existing. It is a runner-side flake that this quest's diff cannot reach. test_multivoter.py
+   is outside the set; not fixed.
+3. A2 14371c and 702b6d failed at head-1: "the parked next answered 204, not the change". Since N2,
+   every seal answers parked nexts 204 (R2-5), and the probe treated a 204 as a failure. The probe
+   now parks again after a 204, as a W5 reader does (bench/idle-wakeups/relay_latency.py).
+A1 2bfd93 (75021884 vs a69f43a4, 3 x 20 s, exclusive): relay 0.076-0.077% of a core against main
+1.047-1.086%, 0 syncs/s against 3.85-3.9; authority 0.121-0.127% against 1.487-1.53%, 4.8 owner
+turns/s against 20.1-20.4. Net -2.39% of a core per relay and authority pair = 2,065 core-s a day
+(about 0.24 W at 10 W a core). Suite 5f884c passed at 75021884.
+
+### Round 2 notes (75021884)
+
 Round 2 review APPROVE at 29c32169 (reviews/relay-mirror-idle-wake-correctness.md, 26f645a5); its
 notes R2-1..R2-3 fixed at 75021884 (main 2c825a49 merged: campaign files only).
 - R2-1: the watcher asks no sooner than `interval` after its previous wait (mirror_service.cc
@@ -93,12 +125,25 @@ name gets no frame until created (frames_export.cc), so a cursor-less position w
 
 ## Next
 
-1. Read the 75021884 jobs: A1 2bfd93 and band 3908aa into net cores and watts (relay + authority),
-   A2 14371c and 702b6d, the A3 rows and fails-without, suite 5f884c, CI; fill Evidence and Result.
+1. On the lead's ruling: implement the seal stamp (doc's files and tests, fails-without at the
+   current code), merge main, then queue A1, A2 (fixed probe), A3's tests and the suite once at the
+   final head, push, and send it back to the correctness reviewer (the wait mechanism changed).
 
 ## Blocked on
 
-Nothing.
+Lead: design check of docs/mechanisms/relay-mirror-seal-stamp.md, and a ruling on the seal miss
+(CI item 1). Options:
+- (a) Fix it (recommended). Each frames session stamps the seal at its last answer, and a next on
+  a session whose stamp is older answers 204 at once. A wait that opens its session reports a
+  change. This replaces `seal_seen`/`was_parked` and the relay's `resealed` (one mechanism, not
+  two). Widen the set by src/detent_authority/namespace_sessions.hh and .cc (one field). It goes
+  back to the correctness reviewer.
+- (b) Keep R2-4 as accepted and make the step reseal only once B's next is parked at A, so it
+  tests what its comment claims. The relay then stays up to `maximum_wait_ms` (30 s) late for a
+  seal that lands in the window after each sync, where main took one interval. CI's sanitizers
+  hit that window every time.
+Recommendation: (a). The miss is a wake delayed from one interval to 30 s (N2's regression,
+narrowed but still there), and (b) loosens the check that found it.
 
 ## Evidence
 
