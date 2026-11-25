@@ -5001,6 +5001,18 @@
         "todo": "4cbf5f92"
       },
       "text": "to do, critical path first:\ntodo: finish consensus-fetch-oversize-abort (nothing moved it for 2 h: ready for review (waiting on jobs 261124-165220-e84fc9, 261124-165224-4e171d and CI 45521429248); to land: main changed 6 files since quest/detent/consensus-fetch-oversize-abort branched (e.g. CMakeLists.txt): merge main into it (`campaign land consensus-fetch-oversize-abort --merge-main`); new): `campaign land consensus-fetch-oversize-abort --merge-main`"
+    },
+    {
+      "announced": {
+        "at": "2026-11-24T18:55:08",
+        "surface": "DED691F6-3859-4CD7-B0C5-74934CC7488F",
+        "why": ""
+      },
+      "at": "2026-11-24T18:55:08",
+      "by": "kronuz",
+      "closed": "noted; split-detent has landed, so its service.cc hold is gone; pin-wave's widenings into held files were made before this install and are recorded",
+      "id": "msg-395",
+      "text": "campaign skill: agent-campaign:4155433 installed (file-holds).\n1. msg-93 fixed: a quest never holds files against a quest it needs (directly or through other quests' needs) or is parked until, so pin-wave's parked dependents no longer block it. start, status and set agree. pin-wave needs no --force now.\n2. msg-87 fixed: set ID files= on a quest that holds files refuses a widening into another holder's files, naming it and the shared globs; narrow the set or wait with needs=. There is no override flag.\n3. Note: after=split-detent only orders landings; it never separated the writers. relay-mirror-idle-wake and split-detent still both list service.cc: narrow one."
     }
   ],
   "pin_check": "/usr/local/bin/python3 -I tools/check_pins.py",
