@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Library side first (persistent-map branch `erase-range`, local clone ~/code/Kronuz/persistent-map):
+main's private tree grew `erase_range` (namespace drops) after persistent-map:938d65e, so the
+library takes it (split/join, stored comparator), with the A8 tests and the A9 bench
+(`bench/bench.cc`). Detent side: alias header, pin, CMake, `test_persistent_map_bytes.cc` (A5)
+and `test_persistent_map_cost.cc` (A6 harness, built by hand against the baseline's private header).
 
 ## Next
 
-1. <step>
+1. Push persistent-map `erase-range`, CI green, fast-forward its main; pin that commit here.
+2. Local light build of the consumer; A1/A5/A6/A9 jobs; verify A1; push.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 

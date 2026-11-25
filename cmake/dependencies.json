@@ -54,6 +54,12 @@
     "source_subdir": "."
   },
   {
+    "name": "persistent_map",
+    "repository": "https://github.com/Kronuz/persistent-map.git",
+    "revision": "4045cbb014bbd513b671472d4243f42bc80f4381",
+    "source_subdir": "."
+  },
+  {
     "name": "enum_reflection",
     "repository": "https://github.com/Kronuz/enum-reflection.git",
     "revision": "c9a3f04f20ea9fccea9b833cc3cbfd8ae393ce37",

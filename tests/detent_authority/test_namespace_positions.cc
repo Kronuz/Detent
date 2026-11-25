@@ -1,13 +1,9 @@
 // S5.1: per-namespace positions, incarnations, live sizes, the directory and
 // the enabling entry on one State (docs/status/namespace-s5.md).
 #include "namespace_oracle.hh"
-#include "persistent_map.hh"
 #include "state.hh"
 #include <cassert>
-#include <cmath>
 #include <iostream>
-#include <map>
-#include <random>
 #include <string>
 
 using namespace detent;
@@ -285,41 +281,11 @@ void incarnations_and_drop() {
 	assert(turns > 1 && retained > 0 && s.find("a.b:x") && s.find("a:x"));
 }
 
-// The range removal keeps the AVL invariants and matches an ordered map.
-void erase_range_matches_map() {
-	std::mt19937_64 random(7);
-	for (unsigned round = 0; round < 200; ++round) {
-		detail::PersistentMap<std::string, int> map;
-		std::map<std::string, int> oracle;
-		auto keys = 1 + random() % 300;
-		for (unsigned i = 0; i < keys; ++i) {
-			auto key = std::to_string(random() % 1000);
-			map = map.set(key, int(i));
-			oracle[key] = int(i);
-		}
-		auto lo = std::to_string(random() % 1000), hi = std::to_string(random() % 1000);
-		if (hi < lo)
-			std::swap(lo, hi);
-		auto held = map;
-		map = map.erase_range(lo, hi);
-		oracle.erase(oracle.lower_bound(lo), oracle.lower_bound(hi));
-		std::vector<std::pair<std::string, int>> rows;
-		map.for_each([&](const std::string &k, int v) { rows.emplace_back(k, v); });
-		assert((rows == std::vector<std::pair<std::string, int>>(oracle.begin(), oracle.end())));
-		assert(map.size() == oracle.size());
-		auto n = double(oracle.size() + 2);
-		assert(map.height() <= int(1.45 * std::log2(n)) + 1);
-		std::size_t before = 0;
-		held.for_each([&](const std::string &, int) { ++before; });
-		assert(before == held.size()); // The source root is untouched.
-	}
-}
 } // namespace
 int main() {
 	positions_start_at_stored_revision();
 	stepped_and_synchronous_agree();
 	directory_stream();
 	incarnations_and_drop();
-	erase_range_matches_map();
 	std::cout << "namespace positions, incarnations, sizes, directory and enabling entry passed\n";
 }

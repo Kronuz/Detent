@@ -1,7 +1,7 @@
 add_library(detent_authority state.cc state_codec.cc state_application.cc state_administrative.cc state_image.cc
   prepared.cc read_reply.cc export_scope.cc export_capture.cc history_format.cc history_layout.cc)
 target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(detent_authority PUBLIC detent::detent detent::resources)
+target_link_libraries(detent_authority PUBLIC detent::detent detent::resources persistent_map::persistent_map)
 add_library(detent::authority ALIAS detent_authority)
 add_library(detent_authority_export export_encoder.cc change_history.cc namespace_history.cc frames_export.cc namespace_sessions.cc delta_export.cc delivery_export.cc
   subscription.cc)
