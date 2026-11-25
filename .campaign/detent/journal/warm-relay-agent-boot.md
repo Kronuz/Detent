@@ -26,7 +26,7 @@ the heads). Against the bundle relay, cold totals -49% / -81% / -82%; warm agent
 1M inside the one before run's noise, 5M about -23% (one round).
 
 CI on the branch's last run failed on macos-x86_64 only and its log is gone; the push of e5fdf9ca
-runs it again (run id under Evidence).
+runs it again: CI run 45546081249 (Docs run 45546080560) at e5fdf9ca, queued when last seen. The doc commit b182ad11 was pushed after it; the journal commit that names these runs is not pushed (a push would cancel the CI run in progress).
 
 Rows at dc0315b5 (261122-211123-e68717 100K, -211123-7d24e2 1M, -211124-af8242 5M) timed out from a
 hang, not their size: main (30c2d65b) serves the relay from its namespace mirror only, so it logs
@@ -98,6 +98,7 @@ checked what), and answer each message by its id (msg-N).
 |---|---|
 | A1 | Landing evidence, exclusive at e5fdf9ca (queued, one mode per job): 261124-202039-aa80ba, 261124-202039-9c9088, 261124-202042-42c0f3, 261124-202041-4379bb, 261124-202044-26b532, 261124-202043-4374a0, 261124-202040-e47e90, 261124-202041-d8961e, 261124-202043-39475a, 261124-202042-2dd756, 261124-202045-e28f51, 261124-202046-1fe8d9, 261124-202045-76410f, 261124-202046-64d8d4. Measured, all passed at abae2b31 (exclusive, no "ran beside", no overlap): 261124-141813-b9846a, 261124-141813-5de11a, 261124-141816-b1f146, 261124-141815-19936e, 261124-141818-3ca37e, 261124-141818-0904a8, 261124-141814-202283, 261124-141815-2ac21a, 261124-141817-af06a9, 261124-141816-f2247f, 261124-141819-f892ee, 261124-141820-725a5e, 261124-141820-694a39, 261124-141821-5f0af0; earlier at 3f0a5b59: 261123-165617-0de0e5 .. 261123-165703-83f18d |
 | A2 | docs/perf/warm-relay-agent-boot.md; rows in docs/measurements/warm-relay-agent-boot/rows-abae2b31.jsonl (earlier: rows-3f0a5b59.jsonl; before: rows-3a57661b.jsonl); the e5fdf9ca reruns above confirm or correct it |
+| CI | run 45546081249 at e5fdf9ca (previous run 45499703124 at 781b186f failed on macos-x86_64 only, log gone) |
 | Suite | 261124-084506-9cfdb6 (exit 0 at the merged head 794fe37f) |
 
 ## Result
