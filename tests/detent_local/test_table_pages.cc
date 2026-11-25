@@ -373,7 +373,7 @@ void shared_prefixes() {
 	for (unsigned round = 0; round != 4; ++round) {
 		std::vector<std::string> names;
 		for (std::size_t i = 0; i < 600; ++i) {
-			auto name = stems[round == 0 ? (i < 60 ? 0 : 2) : next(std::size(stems))];
+			auto name = stems[round == 0 ? (i < 5 ? 0 : 2) : next(std::size(stems))]; // round 0: page 0 starts below the prefix
 			for (auto extra = 1 + next(round == 3 ? 15 : 6); extra && name.size() < 255; --extra)
 				name.push_back("ab\x01\x7f\x80\xff"[next(6)]);
 			names.push_back(name);
