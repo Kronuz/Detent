@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: blocked on lead: widen benchmarks/read_response_bench.cc for F2 (Blocked on 1); waiting on jobs 261125-003938-bb7451 261125-003938-7435c8
+State: ready for review; waiting on jobs 261125-004218-16986b 261125-004223-19cd2c 261125-004230-dc7d45 (native reruns at the round end)
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,25 +28,13 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 
 ## Next
 
-1. Once benchmarks/read_response_bench.cc is widened: apply the fix in Blocked on 1, then queue
-   `pin-wave-ab.sh build` and the get row with its A/A (--ref OLD=main) at that head, and
-   `campaign verify pin-wave`; push once.
-2. Read the get row into docs/perf/pin-wave.md and the Evidence table; set "ready for review".
+1. Read the get row (261125-004223-19cd2c, after build 261125-004218-16986b, OLD = main) into
+   docs/perf/pin-wave.md and the Evidence table; native at the round end for A4.
 
 ## Blocked on
 
-1. F2: benchmarks/read_response_bench.cc (outside the set). Root cause: its fixture writes 256
-   overrides of 52-54-byte group keys; since one-knob-type (Detent:711a114e) each override row is
-   key + 17 bytes (8-byte length, kind octet, 8-byte int64), where a bool override was 1-2, so the
-   definition encodes to 18,083 bytes, over the default `definition_bytes` 16,384
-   (state_internal.hh:163). It fails in both arms (local runs of the job's binaries: same 400).
-   Fix, keeping 256 overrides (the override cap) and the bound: pad the key with 38 bytes, not 46
-   (keys 44-46 bytes, definition 16,035 bytes); and `create_directories` for its scratch directory,
-   since it aborts where `.scratch` does not exist (the reviewer's old-arm probe). Proven out of
-   tree (.scratch/pin-wave/get-bench, quiet light): both arms of the unchanged bench exit 134;
-   the fixed copy exits 0 plain (reply 1,664,672 B) and --escaped (7,890,592 B). The A/B already
-   builds the bench from the head's source in both arms (Detent:dda447e3). Recommend: widen by that
-   one file.
+None. F2's bench was widened and fixed (Detent:02159828): keys pad 38 bytes (definition 16,035 of
+16,384), the bench creates its .scratch parent; the bound is unchanged. Root cause in ruling 23.
 
 ## Evidence
 
@@ -55,9 +43,9 @@ allocators, radix-router, compressors, crc32c, faultlab) declare no Detent-set p
 | A1 | pins 261124-234152-d6560c at Detent:75bb4ac1: 30 libraries, 41 shared declarations, 0 mismatches; rerun 261124-234933-f5eec6 at Detent:0b8a0df9 queued |
 | A2 | heads' CI listed in the cascade table below |
 | A3 | docs/SHARED_LIBRARY_DECISIONS.md "The November pin wave"; asked msg-358 |
-| A4 | native 261124-234933-d07efb at Detent:0b8a0df9 passed 220/220, asan and tsan green in CI 45571227792 (review); native 261125-003938-bb7451 and pins 261125-003938-7435c8 at Detent:dda447e3 queued; asan, tsan: CI at the pushed head (run id below in State once listed). Earlier red (native 261124-212452-faeaad, CI 45553576282) was test_relay_chain's missing faultlab link, fixed at Detent:7553872a |
+| A4 | native 261124-234933-d07efb at Detent:0b8a0df9 passed 220/220, asan and tsan green in CI 45571227792 (review); pins 261125-004230-dc7d45 at Detent:02159828 queued, native at the round end (261125-003938-bb7451 cancelled, superseded); asan, tsan: CI at the pushed head (run id below in State once listed). Earlier red (native 261124-212452-faeaad, CI 45553576282) was test_relay_chain's missing faultlab link, fixed at Detent:7553872a |
 | A5 | w5 261124-234929-bde848 at Detent:0b8a0df9, OLD = main bc86991a (code = quest base 18c5bd23): snapshot JSON, wire frames and paged images identical, every class 0 different (docs/perf/pin-wave.md "Input classes"); http replay skipped in both arms (no classic profile); syscalls 261124-234152-ea3a2e at Detent:75bb4ac1 (2b8b12 at d63517c0 done). Earlier trace: docs/perf/pin-wave-syscalls/run.sh (local run under quiet light; job at final head pending). New full: 72 calls over 31 steps (Xapiand's count). Against Detent's old pin 560c288 with default options, on the 28 steps both have (66 vs 68 calls): NOT identical. (a) 7 ordering barriers F_BARRIERFSYNC -> F_FULLFSYNC: completion:5942250 (full mode follows the full flush in every sync; old default had full_flush_ordering=false). (b) +1 fsync before F_FULLFSYNC in the executor's Sync primitive (drive_synchronously, native queue): completion:d5c6fd4 (Sync runs IO::sync_files). Old pin with full_flush_ordering vs new full differs only by (b). tools/w5 diff pending a building tree |
-| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get blocked (F2, Blocked on 1; 261124-234154-693af5 failed in both arms), reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
+| A6 | build 261124-234153-aeac1f; rows durable 261124-234153-bd757f, update 261124-234154-1a26bd, get 261125-004223-19cd2c at Detent:02159828 queued (261124-234154-693af5 failed in both arms: F2), reader 261124-234155-f7710c, first-read 261124-234155-00f17f (Detent:75bb4ac1) |
 | A7 | CHANGELOG.md "Pins: the November wave" (Detent:d2031ebc; operator-visible results per library commit, Detent:a45ad238): every library old -> new, pin commit and CI run, guide sections, changed results, TLS cap, owner decisions |
 | A8 | docs/DEPENDENCIES.md (35 entries, 30 Kronuz at 2026-11-24 heads), docs/DEPENDENCY_UPGRADES.md "The November pin wave" (Detent:d2031ebc) |
 
@@ -204,7 +192,12 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
      Detent, so not listed: the Driver, host transport, seeds, quiescence, turn log and Host;
      follower reads (Detent's Start carries no nonce); journal's flush-mode bullet (stated).
      No test: a CHANGELOG has none; the class is checked by that sweep.
-   - F2: root cause and the fix's evidence in Blocked on 1; the bench is outside the set. The A/B
+   - F2 (Detent:02159828, widened): one-knob-type made each override row key + 17 bytes, so the
+     fixture's 256 overrides of 52-54-byte keys encoded to 18,083 bytes, over the default 16,384
+     `definition_bytes`; keys now pad 38 bytes (16,035), plus create_directories for .scratch.
+     Out of tree, both arms' unchanged binaries exit 134 and the fixed copy exits 0 plain and
+     --escaped. Class: fixtures sized for the bool override; the other authority benches and tests
+     pass at 0b8a0df9 (native 220/220), so no other one overflows. The get row is the test. The A/B
      builds the get bench from the head in both arms (Detent:dda447e3), since main's copy fails too.
    - N1, N2, N5 (perf doc and manifest newline), N3 (ruling 20), N7 (perf doc input classes):
      Detent:a45ad238. N5's stale `set_max_body` (service.cc:247, docs/mechanisms/authority-reply.md:14)
