@@ -29981,7 +29981,10 @@
         "docs/EXTRACTION_CHECKLIST.md",
         "src/detent_authority/CMakeLists.txt",
         "src/detent_authority/persistent_map.hh",
-        "tests/detent_authority/**"
+        "src/detent_authority/state.hh",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_authority/test_persistent_map*.cc",
+        "tests/detent_authority/test_namespace_positions.cc"
       ],
       "history": [
         {
@@ -30095,12 +30098,12 @@
         "pin-wave"
       ],
       "provides": [],
-      "reason": "not an owner decision: it re-measures its gate against the libraries at their heads, so it runs after pin-wave; its branch holds no code, so it frees its files (cmake/dependencies.json) for pin-wave",
+      "reason": "narrowed tests/detent_authority/** to the map's own tests and its one consumer test, so it runs beside the authority quests; state.hh is the map's user",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "EX-4: the authority's ordered map from persistent-map",
-      "updated": "2026-11-24T14:21:45"
+      "updated": "2026-11-25T04:59:50"
     },
     "pin-wave": {
       "accepted": {
