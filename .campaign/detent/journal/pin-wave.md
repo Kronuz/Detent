@@ -1,6 +1,6 @@
 # pin-wave: journal
 
-State: blocked on lead: reactor L3 CI red (reactor_lag on every job, run 45541868647); tests/detent_authority/CMakeLists.txt; consensus CMakeLists.txt hold
+State: working: reactor_lag root cause (task:627aca3 inline post_call); L4 CI
 Quest: .campaign/detent/quests/pin-wave.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -109,6 +109,8 @@ and consensus fcf7f66 had runs in progress (they move in the cascade).
 | L3 | strings | char-classify -> ee25a41, split d48a28e -> 1fc9c33, static-string -> a99260d, repr d2eb895 -> 46fc92e, term-color 76a400b -> 898710b | strings:d93f2c0 | 45541886004 success | fast-forwarded |
 | L3 | enum-reflection | constexpr-phf -> 58653a7, hashes 03ab2d6 -> bae099b | enum-reflection:c9a3f04 | 45541892260 success | fast-forwarded |
 | L3 | logger | wheel -> 075a40a, workpool 640c66b -> bdf8932, term-color -> 898710b | logger:65994c9 | 45541900094 success | fast-forwarded |
+| L4 | journal | task 95798a0 -> 477a7d3, completion b4600a8 -> 3061516, allocators -> ae775ab, crc32c 0d5460d -> 52889db | journal:72bbc89 | pending | not moved |
+| L4 | http-parser | enum-reflection a7202ad -> c9a3f04 | http-parser:38950a0 | pending | not moved |
 
 ## Result
 
